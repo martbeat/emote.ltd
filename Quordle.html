@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FRY Family Quordle – Two Team</title>
+
+<style>
+:root{
+  --bg:#0b1020;
+  --text:#e8ecff;
+  --muted:#aab3d6;
+  --line:#263158;
+  --good:#2ea043;
+  --warn:#f0c36d;
+  --bad:#6b7280;
+  --accent:#7aa2ff;
+}
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:linear-gradient(180deg,var(--bg),#070a14);
+  color:var(--text);
+  font:15px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+  padding:12px;
+}
+
+h1{margin:0 0 10px;font-size:18px;font-weight:700}
+
+.wrap{max-width:1400px;margin:auto}
+
+.card{
+  background:#121a33;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:12px;
+}
+
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+button{
+  background:#1a2550;
+  border:1px solid #2f3d73;
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 12px;
+  font-weight:700;
+  cursor:pointer;
+}
+button:disabled{opacity:.5}
+
+input{
+  background:#0b1226;
+  border:1px solid #2a355f;
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  width:160px;
+}
+
+.pill{
+  padding:5px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#0f1730;
+  font-size:12px;
+}
+
+.boards{
+  display:grid;
+  gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+}
+
+.board{
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  background:#0f1730;
+}
+
+.board.solved .status{
+  background:#1f6f3d;
+  border-color:#2ea043;
+  color:#eafff1;
+}
+
+.hdr{
+  padding:8px 10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid var(--line);
+}
+
+.status{
+  font-size:11px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+}
+
+.grid{padding:10px;display:grid;gap:6px}
+
+.row5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+
+.letter{
+  width:34px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  border:1px solid #2a355f;
+  font-weight:900;
+  user-select:none;
+}
+
+.turnBanner{
+  margin-top:10px;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:#0f1730;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.turnBanner .label{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-weight:900;
+}
+.turnBanner .who{
+  font-size:22px;
+  font-weight:950;
+  color:var(--accent);
+}
+.score.active{
+  border-color: var(--accent);
+  box-shadow:0 0 0 2px rgba(122,162,255,.25) inset;
+}
+
+
+.nameInput{
+  width:160px;
+  text-transform:none;
+  letter-spacing:normal;
+  font-weight:800;
+}
+
+.hintBackdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:1000;
+}
+
+.hintModal{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#121a33;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px 18px;
+  z-index:1001;
+  max-width:320px;
+  width:90%;
+}
+
+.hintModal p{
+  font-size:14px;
+  color:var(--muted);
+  margin:10px 0 14px;
+}
+
+.hintBtns{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+
+.letter.used{
+  opacity:.35;
+  background:#0b1226;
+}
+
+.letter.unused{
+  background:#1a2550;
+}
+
+.celebrate-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:2000;
+}
+
+.celebrate-card{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#0f172a;
+  border:2px solid #38bdf8;
+  border-radius:16px;
+  padding:18px 22px;
+  z-index:2001;
+  text-align:center;
+  min-width:260px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+
+.celebrate-emoji{
+  font-size:40px;
+  margin-bottom:6px;
+  animation:bounce 0.9s ease infinite alternate;
+}
+
+@keyframes bounce{
+  from{ transform:translateY(0); }
+  to{ transform:translateY(-8px); }
+}
+
+#celebrateClose{
+  margin-top:14px;
+  padding:6px 14px;
+}
+
+#guessCard{
+  margin:14px 0;
+}
+
+
+.newgame-spotlight{
+  animation:pulse 1.2s ease-in-out infinite;
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  border-color:#4ade80;
+  color:#062e1b;
+  box-shadow:0 0 0 0 rgba(34,197,94,.6);
+}
+
+@keyframes pulse{
+  0%   { box-shadow:0 0 0 0 rgba(34,197,94,.7); }
+  70%  { box-shadow:0 0 0 14px rgba(34,197,94,0); }
+  100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
+}
+
+.guess-spotlight{
+  border-color:#38bdf8 !important;
+  box-shadow:0 0 0 3px rgba(56,189,248,.25);
+  animation:guessPulse 2.3s ease-in-out infinite;
+}
+
+@keyframes guessPulse{
+  0%   { box-shadow:0 0 0 3px rgba(56,189,248,.20); }
+  70%  { box-shadow:0 0 0 10px rgba(56,189,248,0); }
+  100% { box-shadow:0 0 0 3px rgba(56,189,248,0); }
+}
+
+.guessHint{
+  margin-top:10px;
+  font-weight:900;
+  color:var(--accent);
+}
+
+
+.tile{
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  border:1px solid #2a355f;
+  font-weight:900;
+}
+
+.tile.good{background:#1f6f3d;border-color:#2ea043}
+.tile.warn{background:#5a4a1f;border-color:#f0c36d}
+.tile.bad{background:#2a2f3a}
+
+.msg{margin-left:10px;font-size:13px}
+.ok{color:#bfffd0}
+.err{color:#ff8a8a}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<h1>FRY Family Quordle – Team v1.0</h1>
+
+<div class="card">
+  <div class="row">
+    <button id="newGame">New game</button>
+
+    <span class="pill">Guesses: <strong id="gc">0</strong>/15</span>
+    <span class="pill">Words: <strong id="wc">–</strong></span>
+
+    <span class="pill">
+      Team A:
+      <input id="nameA" class="nameInput" maxlength="18" placeholder="Team A">
+    </span>
+
+    <span class="pill">
+      Team B:
+      <input id="nameB" class="nameInput" maxlength="18" placeholder="Team B">
+    </span>
+  </div>
+
+<div class="turnBanner" id="turnBanner">
+  <div>
+    <div class="label">Whose turn</div>
+    <div class="who" id="turnName">Team A</div>
+  </div>
+
+  <div class="row" style="margin-left:auto">
+    <span class="pill score" id="scoreA"><span class="scoreLabel" id="scoreLabelA">Team A</span>: <strong id="sa">0</strong></span>
+    <span class="pill score" id="scoreB"><span class="scoreLabel" id="scoreLabelB">Team B</span>: <strong id="sb">0</strong></span>
+  </div>
+</div>
+
+
+
+<div class="card">
+  <div id="letters" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+
+  <div class="card" id="guessCard">
+    <input id="guess" maxlength="5" placeholder="GUESS">
+    <button id="submit">Submit</button>
+    <button id="hint">Hint</button>
+    <span id="msg" class="msg"></span>
+    <div class="guessHint" id="guessHint"></div>
+  </div>
+
+  <div class="card" id="answersCard" style="display:none">
+    <strong>Answers</strong>
+    <div id="answers" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:10px;"></div>
+  </div>
+</div>
+
+<div class="boards" id="boards"></div>
+
+
+<div id="hintConfirm" style="display:none">
+  <div class="hintBackdrop"></div>
+  <div class="hintModal">
+    <strong>Use a hint?</strong>
+    <p>
+      • Uses random unused letters<br>
+      • Scores 0 points<br>
+      • Counts as an attempt
+    </p>
+    <div class="hintBtns">
+      <button id="hintNo" class="danger">No</button>
+      <button id="hintYes">Yes</button>
+    </div>
+  </div>
+</div>
+
+<div id="celebrate" style="display:none">
+  <div class="celebrate-backdrop"></div>
+  <div class="celebrate-card">
+    <div class="celebrate-emoji">🎉</div>
+    <h2 id="celebrateTitle">Winner!</h2>
+    <p id="celebrateText"></p>
+    <button id="celebrateClose">Continue</button>
+  </div>
+</div>
+
+
+<script>
+/* ---------- WORD LIST (REMOTE + CACHE) ---------- */
+const REMOTE_URL =
+  "https://gist.githubusercontent.com/shmookey/b28e342e1b1756c4700f42f17102c2ff/raw/ed4c33a168027aa1e448c579c8383fe20a3a6225/WORDS";
+const CACHE_KEY = "quordle_common_words_v1";
+
+// Anti-bruteforce settings
+const INVALID_WINDOW_MS = 12000;   // "short time" window (12 seconds)
+const INVALID_FREE = 2;            // allowed invalid submits in the window
+const INVALID_PENALTY = 10;        // points deducted per extra invalid submit
+
+let invalidA = []; // { word, time }
+let invalidB = [];
+
+const SAVE_KEY = "family_quordle_game_v1";
+
+let WORDS = [];
+const FALLBACK = ["ABOUT","AFTER","HOUSE","WATER","LIGHT","PLANT","TRAIN","SMILE","GREEN","WORLD"];
+
+function cleanWords(txt){
+  const set = new Set();
+  const out = [];
+  const lines = txt.split(/\r?\n/);
+  for(const line of lines){
+    const w = (line || "").trim().toUpperCase();
+    if(!/^[A-Z]{5}$/.test(w)) continue;
+    if(set.has(w)) continue;
+    set.add(w);
+    out.push(w);
+  }
+  return out;
+}
+
+async function loadWords(){
+  const cached = localStorage.getItem(CACHE_KEY);
+  if(cached){
+    try{
+      const arr = JSON.parse(cached);
+      if(Array.isArray(arr) && arr.length > 100) WORDS = arr;
+    }catch(e){ /* ignore */ }
+  }
+
+  try{
+    const r = await fetch(REMOTE_URL, { cache:"no-store" });
+    if(!r.ok) throw new Error("fetch failed");
+    const txt = await r.text();
+    const list = cleanWords(txt);
+    if(list.length > 500){
+      WORDS = list;
+      localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+    }
+  }catch(e){
+    if(!WORDS.length) WORDS = FALLBACK;
+  }
+
+  const wc = document.getElementById("wc");
+  if(wc) wc.textContent = String(WORDS.length);
+}
+
+/* ---------- GAME LOGIC ---------- */
+let secrets = [];
+let guesses = [];
+let turn = "A";
+let limit = 15;
+
+let solved = [false,false,false,false];
+let scoreA = 0;
+let scoreB = 0;
+
+let teamA = localStorage.getItem("quordle_teamA") || "Team A";
+let teamB = localStorage.getItem("quordle_teamB") || "Team B";
+
+function getTurnName(){
+  return (turn === "A") ? teamA : teamB;
+}
+
+function applyTeamUI(){
+  const a = document.getElementById("nameA");
+  const b = document.getElementById("nameB");
+  if(a && a.value !== teamA) a.value = teamA;
+  if(b && b.value !== teamB) b.value = teamB;
+
+  const turnName = document.getElementById("turnName");
+  if(turnName) turnName.textContent = getTurnNameFor(turn);
+
+  const scoreAEl = document.getElementById("scoreA");
+  const scoreBEl = document.getElementById("scoreB");
+  if(scoreAEl) scoreAEl.classList.toggle("active", turn === "A");
+  if(scoreBEl) scoreBEl.classList.toggle("active", turn === "B");
+}
+
+function showAnswers(){
+  const card = document.getElementById("answersCard");
+  const box  = document.getElementById("answers");
+  if(!card || !box) return;
+
+  box.innerHTML = "";
+  for(let i=0;i<4;i++){
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.innerHTML = "Board " + (i+1) + ": <strong>" + (secrets[i] || "-----") + "</strong>";
+    box.appendChild(pill);
+  }
+  card.style.display = "block";
+}
+
+function updateGuessPrompt(){
+  const card = document.getElementById("guessCard");
+  const hint = document.getElementById("guessHint");
+  const inp  = document.getElementById("guess");
+
+  if(gameEnded){
+    if(card) card.classList.remove("guess-spotlight");
+    if(hint) hint.textContent = "";
+    return;
+  }
+
+  const who = (turn === "A") ? teamA : teamB;
+
+  if(card) card.classList.add("guess-spotlight");
+  if(hint) hint.textContent = who + ", it’s your turn. Type a 5-letter word and press Enter.";
+
+  if(inp && document.activeElement !== inp){
+    inp.focus();
+  }
+}
+
+
+function showCelebration(){
+  const box = document.getElementById("celebrate");
+  const title = document.getElementById("celebrateTitle");
+  const text = document.getElementById("celebrateText");
+
+  let winner = "It's a draw!";
+  if(scoreA > scoreB) winner = teamA + " wins!";
+  else if(scoreB > scoreA) winner = teamB + " wins!";
+
+  title.textContent = "🎉 Game Over 🎉";
+  text.textContent = winner + "  Final score: " + scoreA + " – " + scoreB;
+
+  box.style.display = "block";
+}
+
+function hideCelebration(){
+  const box = document.getElementById("celebrate");
+  box.style.display = "none";
+}
+
+
+function updateUI(){
+// Score labels (left text)
+  const la = document.getElementById("scoreLabelA");
+  const lb = document.getElementById("scoreLabelB");
+  if(la) la.textContent = teamA;
+  if(lb) lb.textContent = teamB;
+// Turn banner
+  const turnEl = document.getElementById("turnName");
+  if(turnEl){
+    turnEl.textContent = (turn === "A") ? teamA : teamB;
+  }
+// Score values
+  const sa = document.getElementById("sa");
+  const sb = document.getElementById("sb");
+  if(sa) sa.textContent = String(scoreA);
+  if(sb) sb.textContent = String(scoreB);
+
+  // Active highlight
+  const scoreAEl = document.getElementById("scoreA");
+  const scoreBEl = document.getElementById("scoreB");
+  if(scoreAEl) scoreAEl.classList.toggle("active", turn === "A");
+  if(scoreBEl) scoreBEl.classList.toggle("active", turn === "B");
+  updateGuessPrompt();
+}
+
+
+function getTurnNameFor(t){
+  return (t === "A") ? teamA : teamB;
+}
+
+function pick4(){
+  const p = WORDS.slice();
+  const out = [];
+  while(out.length < 4 && p.length){
+    out.push(p.splice((Math.random()*p.length)|0, 1)[0]);
+  }
+  return out;
+}
+
+function mark(guess, secret){
+  const g = guess.split("");
+  const s = secret.split("");
+  const m = Array(5).fill("bad");
+  const counts = {};
+  for(const ch of s) counts[ch] = (counts[ch]||0) + 1;
+
+  for(let i=0;i<5;i++){
+    if(g[i] === s[i]){
+      m[i] = "good";
+      counts[g[i]] -= 1;
+    }
+  }
+  for(let i=0;i<5;i++){
+    if(m[i] !== "bad") continue;
+    const ch = g[i];
+    if(counts[ch] > 0){
+      m[i] = "warn";
+      counts[ch] -= 1;
+    }
+  }
+  return m;
+}
+
+function pointsFromMarks(marks){
+  let pts = 0;
+  for(const x of marks){
+    if(x === "good") pts += 2;
+    else if(x === "warn") pts += 1;
+  }
+  return pts;
+}
+
+function pruneInvalid(arr, now){
+  while(arr.length && (now - arr[0].time) > INVALID_WINDOW_MS){
+    arr.shift();
+  }
+}
+
+
+function applyInvalidPenalty(word){
+  const now = Date.now();
+  const arr = (turn === "A") ? invalidA : invalidB;
+
+  // Remove old entries
+  pruneInvalid(arr, now);
+
+  // If this exact invalid word was already tried in the window, ignore
+  if(arr.some(e => e.word === word)){
+    msg("Not in word list.", "err");
+    return;
+  }
+
+  // Record this new distinct invalid guess
+  arr.push({ word, time: now });
+
+  const over = arr.length - INVALID_FREE;
+  if(over > 0){
+    const penalty = INVALID_PENALTY; // flat penalty per extra distinct word
+
+    if(turn === "A") scoreA = Math.max(0, scoreA - penalty);
+    else scoreB = Math.max(0, scoreB - penalty);
+
+    if(typeof updateUI === "function") updateUI();
+
+    msg(
+      "Not in word list. Too many different invalid guesses: -" + penalty,
+      "err"
+    );
+  }else{
+    msg("Not in word list.", "err");
+  }
+saveGame();
+}
+
+
+
+
+function getUnusedLetters(){
+  const used = new Set();
+  for(const g of guesses){
+    for(const ch of g.word){
+      if(ch >= "A" && ch <= "Z") used.add(ch);
+    }
+  }
+  const unused = [];
+  for(let i=0;i<26;i++){
+    const ch = String.fromCharCode(65+i);
+    if(!used.has(ch)) unused.push(ch);
+  }
+  return unused;
+}
+
+function randomHintGuess(){
+  const unused = getUnusedLetters();
+  const pool = unused.length ? unused.slice() : "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  // pick 5 letters, prefer no repeats if possible
+  const picked = [];
+  for(let i=0;i<5;i++){
+    if(pool.length){
+      const idx = (Math.random()*pool.length)|0;
+      picked.push(pool.splice(idx,1)[0]);
+    }else{
+      // if <5 unused letters remain, allow repeats from unused or A-Z
+      const base = unused.length ? unused : "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      picked.push(base[(Math.random()*base.length)|0]);
+    }
+  }
+  return picked.join("");
+}
+
+
+function recordAttempt(word, marksAll, opts){
+  guesses.push({
+    word,
+    marks: marksAll,
+    team: turn,
+    points: opts.points || 0,
+    hint: !!opts.hint
+  });
+
+  // flip turn
+  turn = (turn === "A") ? "B" : "A";
+
+  render();
+  if(typeof updateUI === "function") updateUI();
+
+  // end-game checks
+  if(typeof endGame === "function"){
+    if(solved.every(Boolean)) endGame("All boards solved.");
+    else if(guesses.length >= limit) endGame(limit + " attempts reached.");
+  }
+saveGame();
+}
+
+function saveGame(){
+  const data = {
+    secrets,
+    guesses,
+    solved,
+    scoreA,
+    scoreB,
+    turn,
+    gameEnded,
+    invalidA,
+    invalidB,
+    limit,
+    teamA,
+    teamB
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+
+function loadGame(){
+  const raw = localStorage.getItem(SAVE_KEY);
+  if(!raw) return false;
+
+  try{
+    const d = JSON.parse(raw);
+    secrets    = d.secrets || [];
+    guesses    = d.guesses || [];
+    solved     = d.solved || [false,false,false,false];
+    scoreA     = d.scoreA || 0;
+    scoreB     = d.scoreB || 0;
+    turn       = d.turn || "A";
+    gameEnded  = !!d.gameEnded;
+    invalidA   = d.invalidA || [];
+    invalidB   = d.invalidB || [];
+    limit      = d.limit || limit;
+    teamA      = d.teamA || teamA;
+    teamB      = d.teamB || teamB;
+    return true;
+  }catch(e){
+    console.warn("Saved game corrupted, starting fresh");
+    return false;
+  }
+}
+
+
+
+let gameEnded = false;
+
+function endGame(reason){
+  gameEnded = true;
+
+  // Stop further input
+  const submitBtn = document.getElementById("submit");
+  const guessInp = document.getElementById("guess");
+  if(submitBtn) submitBtn.disabled = true;
+  if(guessInp) guessInp.disabled = true;
+
+  let result = "";
+  if(scoreA > scoreB) result = teamA + " wins!";
+  else if(scoreB > scoreA) result = teamB + " wins!";
+  else result = "It’s a draw!";
+showAnswers();
+
+  msg(reason + " " + result + " (" + teamA + " " + scoreA + " – " + teamB + " " + scoreB + ")", "ok");
+
+saveGame();
+showCelebration();
+const ng = document.getElementById("newGame");
+if(ng) ng.classList.add("newgame-spotlight");
+updateGuessPrompt();
+}
+
+document.getElementById("celebrateClose").onclick = hideCelebration;
+
+
+
+function msg(t, cls){
+  const el = document.getElementById("msg");
+  if(!el) return;
+  el.textContent = t;
+  el.className = "msg " + (cls || "");
+}
+
+function render(){
+  const gc = document.getElementById("gc");
+  const turnEl = document.getElementById("turn");
+  const sa = document.getElementById("sa");
+  const sb = document.getElementById("sb");
+  if(gc) gc.textContent = String(guesses.length);
+  if(turnEl) turnEl.textContent = turn;
+  if(sa) sa.textContent = String(scoreA);
+  if(sb) sb.textContent = String(scoreB);
+
+  const b = document.getElementById("boards");
+  if(!b) return;
+  b.innerHTML = "";
+
+  for(let bi=0; bi<4; bi++){
+    const s = secrets[bi];
+    const isSolved = solved[bi];
+  // Skip solved boards entirely
+  if(solved[bi]) continue;
+    const d = document.createElement("div");
+    d.className = "board" + (isSolved ? " solved" : "");
+
+    const hdr = document.createElement("div");
+    hdr.className = "hdr";
+
+    const left = document.createElement("strong");
+    left.textContent = "Board " + (bi+1);
+
+    const st = document.createElement("span");
+    st.className = "status";
+    st.textContent = isSolved ? "SOLVED" : "IN PLAY";
+
+    hdr.appendChild(left);
+    hdr.appendChild(st);
+    d.appendChild(hdr);
+
+    const g = document.createElement("div");
+    g.className = "grid";
+
+const rowsToShow = Math.min(guesses.length + 1, limit);
+
+for(let r = 0; r < rowsToShow; r++){
+
+      const row = document.createElement("div");
+      row.className = "row5";
+
+      const ent = guesses[r];
+      for(let c=0; c<5; c++){
+        const t = document.createElement("div");
+        t.className = "tile";
+
+        if(ent){
+          t.textContent = ent.word[c] || "";
+          const cls = ent.marks[bi][c];
+          if(cls) t.classList.add(cls);
+        }else{
+          t.textContent = "";
+        }
+        row.appendChild(t);
+      }
+      g.appendChild(row);
+    }
+
+    d.appendChild(g);
+    b.appendChild(d);
+  }
+  renderLetters();
+updateUI();
+if(solved.every(Boolean)){
+  const done = document.createElement("div");
+  done.className = "card";
+  done.style.textAlign = "center";
+  done.innerHTML = "<strong>🎉 All boards solved!</strong>";
+  b.appendChild(done);
+}
+
+}
+
+
+function renderLetters(){
+  const box = document.getElementById("letters");
+  if(!box) return;
+
+  const used = new Set();
+  for(const g of guesses){
+    for(const ch of g.word){
+      if(ch >= "A" && ch <= "Z") used.add(ch);
+    }
+  }
+
+  box.innerHTML = "";
+  for(let i=0;i<26;i++){
+    const ch = String.fromCharCode(65+i);
+    const d = document.createElement("div");
+    d.className = "letter " + (used.has(ch) ? "used" : "unused");
+    d.textContent = ch;
+    box.appendChild(d);
+  }
+}
+
+function alreadyTried(word){
+  return guesses.some(g => g.word === word);
+}
+
+
+function nextTurn(t){
+  return (t === "A") ? "B" : "A";
+}
+
+function commitTurn(scoringTurn){
+  // flip from the turn that actually played
+  turn = nextTurn(scoringTurn);
+  updateUI();
+  saveGame();
+  updateGuessPrompt();
+}
+
+
+function startNewGame(){
+  guesses = [];
+  secrets = pick4();
+  turn = "A";
+  solved = [false,false,false,false];
+  scoreA = 0;
+  scoreB = 0;
+  const ng = document.getElementById("newGame");
+  if(ng) ng.classList.remove("newgame-spotlight");
+  render();
+  localStorage.removeItem(SAVE_KEY);
+  msg("Ready", "ok");
+const card = document.getElementById("answersCard");
+if(card) card.style.display = "none";
+
+gameEnded = false;
+
+const submitBtn = document.getElementById("submit");
+const guessInp = document.getElementById("guess");
+if(submitBtn) submitBtn.disabled = false;
+if(guessInp) guessInp.disabled = false;
+
+updateGuessPrompt();
+
+}
+
+function isValidGuess(w){
+  return /^[A-Z]{5}$/.test(w) && WORDS.includes(w);
+}
+
+/* ---------- EVENTS ---------- */
+document.getElementById("submit").onclick = () => {
+  if(gameEnded) return;
+
+  const inp = document.getElementById("guess");
+  const raw = inp.value || "";
+  const g = raw.toUpperCase().replace(/[^A-Z]/g,"").slice(0,5);
+
+  if(g.length !== 5){
+    msg("Enter 5 letters.", "err");
+    return;
+  }
+
+  if(alreadyTried(g)){
+    msg("Already tried: " + g, "err");
+    return;
+  }
+
+  const scoringTurn = turn;                 // lock who is playing NOW
+  const scoringName = getTurnNameFor(scoringTurn);
+
+  if(!isValidGuess(g)){
+    applyInvalidPenalty(g, scoringTurn);    // see section 4
+    return;
+  }
+
+  const marksAll = secrets.map(s => mark(g,s));
+
+  let gained = 0;
+  for(let i=0;i<4;i++){
+    if(solved[i]) continue;
+    if(g === secrets[i]){
+      gained += 50;
+      solved[i] = true;
+    }else{
+      gained += pointsFromMarks(marksAll[i]);
+    }
+  }
+
+  if(scoringTurn === "A") scoreA += gained;
+  else scoreB += gained;
+
+  guesses.push({ word:g, marks:marksAll, team:scoringTurn, points:gained });
+
+  inp.value = "";
+  inp.focus();
+
+  msg(scoringName + " scored +" + gained + " points", "ok");
+
+  render();
+
+  // end checks BEFORE committing next turn (optional, but avoids odd UX at end)
+  if(solved.every(Boolean)){ endGame("All boards solved."); saveGame(); return; }
+  if(guesses.length >= limit){ endGame(limit + " attempts reached."); saveGame(); return; }
+
+  commitTurn(scoringTurn);
+};
+
+
+const guessInput = document.getElementById("guess");
+
+if(guessInput){
+  guessInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      document.getElementById("submit").click();
+    }
+  });
+}
+
+
+
+
+const hintBtn = document.getElementById("hint");
+const hintBox = document.getElementById("hintConfirm");
+const hintYes = document.getElementById("hintYes");
+const hintNo  = document.getElementById("hintNo");
+
+function openHintConfirm(){
+  hintBox.style.display = "block";
+  hintNo.focus(); // default focus = NO
+}
+
+function closeHintConfirm(){
+  hintBox.style.display = "none";
+}
+
+hintBtn.onclick = () => {
+  if(gameEnded) return;
+  if(guesses.length >= limit) return;
+  openHintConfirm();
+};
+
+// Cancel paths (default)
+hintNo.onclick = closeHintConfirm;
+document.addEventListener("keydown", (e) => {
+  if(hintBox.style.display !== "block") return;
+  if(e.key === "Escape" || e.key === "Enter"){
+    e.preventDefault();
+    closeHintConfirm();
+  }
+});
+
+// Confirm path
+hintYes.onclick = () => {
+  closeHintConfirm();
+  if(gameEnded) return;
+  if(guesses.length >= limit) return;
+
+  const scoringTurn = turn;
+  const scoringName = getTurnNameFor(scoringTurn);
+
+  let g = "";
+  for(let tries=0; tries<30; tries++){
+    g = randomHintGuess();
+    if(!secrets.some((w,i)=>!solved[i] && w===g)) break;
+    if(alreadyTried(g)) continue;
+  }
+
+  const marksAll = secrets.map(s => mark(g,s));
+
+  guesses.push({ word: g, marks: marksAll, team: scoringTurn, points: 0, hint: true });
+
+  msg(scoringName + " used a hint (0 points): " + g, "ok");
+
+  render();
+
+  if(solved.every(Boolean)){ endGame("All boards solved."); saveGame(); return; }
+  if(guesses.length >= limit){ endGame(limit + " attempts reached."); saveGame(); return; }
+
+  // flip turn once, consistently
+  turn = (scoringTurn === "A") ? "B" : "A";
+  updateUI();
+  saveGame();
+};
+
+
+
+document.getElementById("newGame").onclick = () => {
+  startNewGame();
+};
+
+/* ---------- INIT ---------- */
+(async function init(){
+  await loadWords();
+
+  // Ensure score pills exist (in case you have not added them yet)
+  // If they do not exist, we silently proceed without displaying scores.
+  if(!document.getElementById("sa")){
+    const card = document.querySelector(".card.row");
+    if(card){
+      const a = document.createElement("span");
+      a.className = "pill";
+      a.innerHTML = 'Team A score: <strong id="sa">0</strong>';
+      const b = document.createElement("span");
+      b.className = "pill";
+      b.innerHTML = 'Team B score: <strong id="sb">0</strong>';
+      card.appendChild(a);
+      card.appendChild(b);
+    }
+  }
+
+const a = document.getElementById("nameA");
+const b = document.getElementById("nameB");
+
+if(a){
+  a.value = teamA;
+  a.addEventListener("input", () => {
+    teamA = a.value.trim() || "Team A";
+    localStorage.setItem("quordle_teamA", teamA);
+    applyTeamUI();
+    saveGame();
+  });
+}
+
+if(b){
+  b.value = teamB;
+  b.addEventListener("input", () => {
+    teamB = b.value.trim() || "Team B";
+    localStorage.setItem("quordle_teamB", teamB);
+    applyTeamUI();
+    saveGame();
+  });
+}
+
+if(loadGame()){
+  render();
+  updateUI();
+  msg("Game restored.", "ok");
+
+  // Disable input if game already ended
+  if(gameEnded){
+    const submitBtn = document.getElementById("submit");
+    const guessInp  = document.getElementById("guess");
+    if(submitBtn) submitBtn.disabled = true;
+    if(guessInp)  guessInp.disabled = true;
+  }
+}else{
+  startNewGame();
+}
+
+})();
+</script>
+
+</body>
+</html>
+

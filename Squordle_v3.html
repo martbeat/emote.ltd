@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FRY Family Squordle (ES) – Dos equipos</title>
+
+<style>
+:root{
+  --bg:#0b1020;
+  --text:#e8ecff;
+  --muted:#aab3d6;
+  --line:#263158;
+  --good:#2ea043;
+  --warn:#f0c36d;
+  --bad:#6b7280;
+  --accent:#7aa2ff;
+}
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:linear-gradient(180deg,var(--bg),#070a14);
+  color:var(--text);
+  font:15px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+  padding:12px;
+}
+
+h1{margin:0 0 10px;font-size:18px;font-weight:700}
+.wrap{max-width:1400px;margin:auto}
+
+.card{
+  background:#121a33;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:12px;
+}
+
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+button{
+  background:#1a2550;
+  border:1px solid #2f3d73;
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 12px;
+  font-weight:700;
+  cursor:pointer;
+}
+button:disabled{opacity:.5; cursor:not-allowed}
+
+input{
+  background:#0b1226;
+  border:1px solid #2a355f;
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  width:180px;
+}
+
+label{user-select:none}
+
+.pill{
+  padding:5px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#0f1730;
+  font-size:12px;
+}
+
+.boards{
+  display:grid;
+  gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+}
+
+.board{
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  background:#0f1730;
+}
+
+.board.solved .status{
+  background:#1f6f3d;
+  border-color:#2ea043;
+  color:#eafff1;
+}
+
+.hdr{
+  padding:8px 10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid var(--line);
+}
+
+.status{
+  font-size:11px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+}
+
+.grid{padding:10px;display:grid;gap:6px}
+.row5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+
+.letter{
+  width:34px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  border:1px solid #2a355f;
+  font-weight:900;
+  user-select:none;
+}
+
+.turnBanner{
+  margin-top:10px;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:#0f1730;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.turnBanner .label{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-weight:900;
+}
+.turnBanner .who{
+  font-size:22px;
+  font-weight:950;
+  color:var(--accent);
+}
+.score.active{
+  border-color: var(--accent);
+  box-shadow:0 0 0 2px rgba(122,162,255,.25) inset;
+}
+
+.nameInput{
+  width:160px;
+  text-transform:none;
+  letter-spacing:normal;
+  font-weight:800;
+}
+
+#guessCard{ margin:14px 0; }
+
+.newgame-spotlight{
+  animation:pulse 1.2s ease-in-out infinite;
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  border-color:#4ade80;
+  color:#062e1b;
+  box-shadow:0 0 0 0 rgba(34,197,94,.6);
+}
+@keyframes pulse{
+  0%   { box-shadow:0 0 0 0 rgba(34,197,94,.7); }
+  70%  { box-shadow:0 0 0 14px rgba(34,197,94,0); }
+  100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
+}
+
+.guess-spotlight{
+  border-color:#38bdf8 !important;
+  box-shadow:0 0 0 3px rgba(56,189,248,.25);
+  animation:guessPulse 2.3s ease-in-out infinite;
+}
+@keyframes guessPulse{
+  0%   { box-shadow:0 0 0 3px rgba(56,189,248,.20); }
+  70%  { box-shadow:0 0 0 10px rgba(56,189,248,0); }
+  100% { box-shadow:0 0 0 3px rgba(56,189,248,0); }
+}
+
+.guessHint{
+  margin-top:10px;
+  font-weight:900;
+  color:var(--accent);
+}
+
+.letter.used{opacity:.35;background:#0b1226}
+.letter.unused{background:#1a2550}
+
+.tile{
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  border:1px solid #2a355f;
+  font-weight:900;
+}
+.tile.good{background:#1f6f3d;border-color:#2ea043}
+.tile.warn{background:#5a4a1f;border-color:#f0c36d}
+.tile.bad{background:#2a2f3a}
+
+.msg{margin-left:10px;font-size:13px}
+.ok{color:#bfffd0}
+.err{color:#ff8a8a}
+
+.note{margin-top:8px;color:var(--muted);font-size:12px}
+
+.smallToggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.smallToggle input{width:auto}
+
+/* Hint confirm modal */
+.hintBackdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:1000;
+}
+.hintModal{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#121a33;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px 18px;
+  z-index:1001;
+  max-width:340px;
+  width:90%;
+}
+.hintModal p{
+  font-size:14px;
+  color:var(--muted);
+  margin:10px 0 14px;
+}
+.hintBtns{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+/* Celebration modal */
+.celebrate-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:2000;
+}
+.celebrate-card{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#0f172a;
+  border:2px solid #38bdf8;
+  border-radius:16px;
+  padding:18px 22px;
+  z-index:2001;
+  text-align:center;
+  min-width:260px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+.celebrate-emoji{
+  font-size:40px;
+  margin-bottom:6px;
+  animation:bounce 0.9s ease infinite alternate;
+}
+@keyframes bounce{
+  from{ transform:translateY(0); }
+  to{ transform:translateY(-8px); }
+}
+#celebrateClose{ margin-top:14px; padding:6px 14px; }
+
+/* On-screen keyboard */
+.kb{margin-top:10px;display:grid;gap:8px}
+.kbRow{display:flex;gap:8px;flex-wrap:wrap}
+.kbKey{
+  min-width:36px;
+  height:38px;
+  border-radius:10px;
+  border:1px solid #2f3d73;
+  background:#1a2550;
+  color:var(--text);
+  font-weight:900;
+  cursor:pointer;
+  padding:0 10px;
+}
+.kbKey.wide{min-width:72px}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<h1>FRY Family Squordle (ES) – Dos equipos</h1>
+
+<div class="card">
+  <div class="row">
+    <button id="newGame">Nuevo juego</button>
+
+    <span class="pill">Intentos: <strong id="gc">0</strong>/15</span>
+    <span class="pill">Palabras: <strong id="wc">Cargando…</strong></span>
+
+    <span class="pill">
+      Equipo A:
+      <input id="nameA" class="nameInput" maxlength="18" placeholder="Equipo A">
+    </span>
+
+    <span class="pill">
+      Equipo B:
+      <input id="nameB" class="nameInput" maxlength="18" placeholder="Equipo B">
+    </span>
+
+    <span class="pill smallToggle" title="Si está activado, cualquier combinación de 5 letras vale como intento">
+      <input type="checkbox" id="freeMode">
+      <label for="freeMode">Modo libre</label>
+    </span>
+  </div>
+
+  <div class="turnBanner" id="turnBanner">
+    <div>
+      <div class="label">Turno de</div>
+      <div class="who" id="turnName">Equipo A</div>
+    </div>
+
+    <div class="row" style="margin-left:auto">
+      <span class="pill score" id="scoreA"><span class="scoreLabel" id="scoreLabelA">Equipo A</span>: <strong id="sa">0</strong></span>
+      <span class="pill score" id="scoreB"><span class="scoreLabel" id="scoreLabelB">Equipo B</span>: <strong id="sb">0</strong></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="letters" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+
+    <div class="card" id="guessCard">
+      <input id="guess" maxlength="5" placeholder="PALABRA" disabled>
+      <button id="submit" disabled>Enviar</button>
+      <button id="hint" disabled>Pista</button>
+      <span id="msg" class="msg"></span>
+      <div class="guessHint" id="guessHint"></div>
+      <div class="note">Acentos opcionales. La Ñ cuenta como letra distinta.</div>
+      <div id="kb" class="kb" aria-label="Teclado en pantalla"></div>
+    </div>
+
+    <div class="card" id="answersCard" style="display:none">
+      <strong>Soluciones</strong>
+      <div id="answers" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:10px;"></div>
+    </div>
+  </div>
+
+  <div class="boards" id="boards"></div>
+
+  <!-- Hint confirm -->
+  <div id="hintConfirm" style="display:none">
+    <div class="hintBackdrop"></div>
+    <div class="hintModal" role="dialog" aria-modal="true">
+      <strong>¿Usar una pista?</strong>
+      <p>
+        • Usa letras aleatorias que no se han usado<br>
+        • Puntúa 0 puntos<br>
+        • Cuenta como intento
+      </p>
+      <div class="hintBtns">
+        <button id="hintNo">No</button>
+        <button id="hintYes">Sí</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Celebration -->
+  <div id="celebrate" style="display:none">
+    <div class="celebrate-backdrop"></div>
+    <div class="celebrate-card">
+      <div class="celebrate-emoji">🎉</div>
+      <h2 id="celebrateTitle">Fin del juego</h2>
+      <p id="celebrateText"></p>
+      <button id="celebrateClose">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  Squordle ES (two-team quordle-style).
+  This version pulls across key mechanics from your English game:
+  - Hint confirm modal + hint logic
+  - Celebration modal
+  - Anti-bruteforce penalty for invalid guesses
+  - Save/restore game state to localStorage
+  - "New game" spotlight and guess prompt spotlight
+*/
+
+/* ---------- WORD LIST (REMOTE + CACHE) ---------- */
+/* Spanish 5-letter list */
+const REMOTE_URL =
+  "https://raw.githubusercontent.com/bayu01/Wordle-ES/master/palabras_de_cinco_letras.txt";
+const CACHE_KEY = "squordle_es_5words_v3";
+const SAVE_KEY  = "family_squordle_es_game_v1";
+
+let WORDS = [];
+let WORDS_SET = new Set();
+
+// Minimal fallback, kept simple and common for Spanish Circle
+const FALLBACK = ["CASAS","PERRO","GATOS","NUEVO","VAMOS","MADRE","PADRE","LIBRO","FUEGO","NOCHE","DULCE","VERDE","CALOR","FRUTA","CANTO"];
+
+/* Accents optional, Ñ preserved */
+function normalizeSpanish(str){
+  if(!str) return "";
+  let s = String(str);
+
+  // preserve ñ as a distinct letter
+  s = s.replace(/ñ/g, "##ENYE##").replace(/Ñ/g, "##ENYE##");
+
+  // remove diacritics (áéíóúü etc)
+  s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // restore ñ
+  s = s.replace(/##ENYE##/g, "Ñ");
+
+  // uppercase and strip non letters (A-Z plus Ñ)
+  s = s.toUpperCase().replace(/[^A-ZÑ]/g, "");
+
+  return s;
+}
+
+function cleanWords(txt){
+  const set = new Set();
+  const out = [];
+  const lines = txt.split(/\r?\n/);
+  for(const line of lines){
+    const w = normalizeSpanish((line || "").trim());
+    if(!/^[A-ZÑ]{5}$/.test(w)) continue;
+    if(set.has(w)) continue;
+    set.add(w);
+    out.push(w);
+  }
+  return out;
+}
+
+async function loadWords(){
+  // cache
+  const cached = localStorage.getItem(CACHE_KEY);
+  if(cached){
+    try{
+      const arr = JSON.parse(cached);
+      if(Array.isArray(arr) && arr.length > 500){
+        WORDS = arr;
+      }
+    }catch(e){ /* ignore */ }
+  }
+
+  // remote refresh
+  try{
+    const r = await fetch(REMOTE_URL, { cache:"no-store" });
+    if(!r.ok) throw new Error("fetch failed");
+    const txt = await r.text();
+    const list = cleanWords(txt);
+    if(list.length > 1000){
+      WORDS = list;
+      localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+    }
+  }catch(e){
+    if(!WORDS.length) WORDS = FALLBACK.slice();
+  }
+
+  WORDS_SET = new Set(WORDS);
+  const wc = document.getElementById("wc");
+  if(wc) wc.textContent = String(WORDS.length);
+}
+
+/* ---------- ANTI-BRUTEFORCE (invalid guess penalty) ---------- */
+const INVALID_WINDOW_MS = 12000;
+const INVALID_FREE = 2;
+const INVALID_PENALTY = 10;
+
+let invalidA = []; // { word, time }
+let invalidB = [];
+
+function pruneInvalid(arr, now){
+  while(arr.length && (now - arr[0].time) > INVALID_WINDOW_MS){
+    arr.shift();
+  }
+}
+
+function applyInvalidPenalty(word, scoringTurn){
+  const now = Date.now();
+  const arr = (scoringTurn === "A") ? invalidA : invalidB;
+
+  pruneInvalid(arr, now);
+
+  // If this exact invalid word already tried in window, ignore penalty
+  if(arr.some(e => e.word === word)){
+    msg("No está en la lista.", "err");
+    return;
+  }
+
+  arr.push({ word, time: now });
+
+  const over = arr.length - INVALID_FREE;
+  if(over > 0){
+    const penalty = INVALID_PENALTY;
+
+    if(scoringTurn === "A") scoreA = Math.max(0, scoreA - penalty);
+    else scoreB = Math.max(0, scoreB - penalty);
+
+    updateUI();
+
+    msg("No está en la lista. Demasiados intentos inválidos: -" + penalty, "err");
+  }else{
+    msg("No está en la lista.", "err");
+  }
+
+  saveGame();
+}
+
+/* ---------- GAME STATE ---------- */
+let secrets = [];
+let guesses = [];
+let turn = "A";
+const limit = 15;
+
+let solved = [false,false,false,false];
+let scoreA = 0;
+let scoreB = 0;
+
+let teamA = localStorage.getItem("squordle_teamA") || "Equipo A";
+let teamB = localStorage.getItem("squordle_teamB") || "Equipo B";
+
+let gameEnded = false;
+
+function saveGame(){
+  const data = {
+    secrets,
+    guesses,
+    solved,
+    scoreA,
+    scoreB,
+    turn,
+    gameEnded,
+    invalidA,
+    invalidB,
+    teamA,
+    teamB
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+
+function loadGame(){
+  const raw = localStorage.getItem(SAVE_KEY);
+  if(!raw) return false;
+
+  try{
+    const d = JSON.parse(raw);
+    secrets   = d.secrets || [];
+    guesses   = d.guesses || [];
+    solved    = d.solved || [false,false,false,false];
+    scoreA    = d.scoreA || 0;
+    scoreB    = d.scoreB || 0;
+    turn      = d.turn || "A";
+    gameEnded = !!d.gameEnded;
+    invalidA  = d.invalidA || [];
+    invalidB  = d.invalidB || [];
+    teamA     = d.teamA || teamA;
+    teamB     = d.teamB || teamB;
+    return secrets.length === 4;
+  }catch(e){
+    console.warn("Saved game corrupted, starting fresh");
+    return false;
+  }
+}
+
+/* ---------- HELPERS ---------- */
+const ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
+
+function getTurnNameFor(t){
+  return (t === "A") ? teamA : teamB;
+}
+
+function msg(t, cls){
+  const el = document.getElementById("msg");
+  if(!el) return;
+  el.textContent = t;
+  el.className = "msg " + (cls || "");
+}
+
+function alreadyTried(word){
+  return guesses.some(g => g.word === word);
+}
+
+function pick4(){
+  const p = WORDS.slice();
+  const out = [];
+  while(out.length < 4 && p.length){
+    out.push(p.splice((Math.random()*p.length)|0, 1)[0]);
+  }
+  return out;
+}
+
+function mark(guess, secret){
+  const g = guess.split("");
+  const s = secret.split("");
+  const m = Array(5).fill("bad");
+  const counts = {};
+  for(const ch of s) counts[ch] = (counts[ch]||0) + 1;
+
+  for(let i=0;i<5;i++){
+    if(g[i] === s[i]){
+      m[i] = "good";
+      counts[g[i]] -= 1;
+    }
+  }
+  for(let i=0;i<5;i++){
+    if(m[i] !== "bad") continue;
+    const ch = g[i];
+    if(counts[ch] > 0){
+      m[i] = "warn";
+      counts[ch] -= 1;
+    }
+  }
+  return m;
+}
+
+function pointsFromMarks(marks){
+  let pts = 0;
+  for(const x of marks){
+    if(x === "good") pts += 2;
+    else if(x === "warn") pts += 1;
+  }
+  return pts;
+}
+
+function isValidGuess(w){
+  const free = document.getElementById("freeMode")?.checked;
+
+  if(!/^[A-ZÑ]{5}$/.test(w)) return false;
+  if(alreadyTried(w)) return false;
+
+  if(free) return true;
+  return WORDS_SET.has(w);
+}
+
+/* ---------- HINT LOGIC ---------- */
+function getUnusedLetters(){
+  const used = new Set();
+  for(const g of guesses){
+    for(const ch of g.word){
+      if((ch >= "A" && ch <= "Z") || ch === "Ñ") used.add(ch);
+    }
+  }
+  const unused = [];
+  for(const ch of ALPHABET){
+    if(!used.has(ch)) unused.push(ch);
+  }
+  return unused;
+}
+
+function randomHintGuess(){
+  const unused = getUnusedLetters();
+  const pool = unused.length ? unused.slice() : ALPHABET.slice();
+
+  const picked = [];
+  for(let i=0;i<5;i++){
+    if(pool.length){
+      const idx = (Math.random()*pool.length)|0;
+      picked.push(pool.splice(idx,1)[0]);
+    }else{
+      const base = unused.length ? unused : ALPHABET;
+      picked.push(base[(Math.random()*base.length)|0]);
+    }
+  }
+  return picked.join("");
+}
+
+/* ---------- UI PROMPTING ---------- */
+function updateGuessPrompt(){
+  const card = document.getElementById("guessCard");
+  const hint = document.getElementById("guessHint");
+  const inp  = document.getElementById("guess");
+  const submitBtn = document.getElementById("submit");
+  const hintBtn = document.getElementById("hint");
+
+  if(gameEnded){
+    if(card) card.classList.remove("guess-spotlight");
+    if(hint) hint.textContent = "";
+    if(submitBtn) submitBtn.disabled = true;
+    if(hintBtn) hintBtn.disabled = true;
+    return;
+  }
+
+  const who = (turn === "A") ? teamA : teamB;
+
+  if(card) card.classList.add("guess-spotlight");
+  if(hint) hint.textContent = who + ", es tu turno. Escribe una palabra de 5 letras y pulsa Enter.";
+
+  // Do not steal focus while the user is typing in the team-name fields or any input,
+// or while a modal is open.
+  const ae = document.activeElement;
+  const aeId = ae && ae.id ? ae.id : "";
+  const hintOpen = (document.getElementById("hintConfirm")?.style.display === "block");
+  const celebrateOpen = (document.getElementById("celebrate")?.style.display === "block");
+
+  const typingInName = (aeId === "nameA" || aeId === "nameB");
+  const typingInAnyInput = (ae && ae.tagName === "INPUT");
+
+  if(inp && !inp.disabled && !hintOpen && !celebrateOpen && !typingInName && !typingInAnyInput && document.activeElement !== inp){
+    inp.focus();
+  }
+}
+
+function updateUI(){
+  const turnEl = document.getElementById("turnName");
+  if(turnEl) turnEl.textContent = getTurnNameFor(turn);
+
+  const la = document.getElementById("scoreLabelA");
+  const lb = document.getElementById("scoreLabelB");
+  if(la) la.textContent = teamA;
+  if(lb) lb.textContent = teamB;
+
+  const sa = document.getElementById("sa");
+  const sb = document.getElementById("sb");
+  if(sa) sa.textContent = String(scoreA);
+  if(sb) sb.textContent = String(scoreB);
+
+  const scoreAEl = document.getElementById("scoreA");
+  const scoreBEl = document.getElementById("scoreB");
+  if(scoreAEl) scoreAEl.classList.toggle("active", turn === "A");
+  if(scoreBEl) scoreBEl.classList.toggle("active", turn === "B");
+
+  updateGuessPrompt();
+}
+
+function showAnswers(){
+  const card = document.getElementById("answersCard");
+  const box  = document.getElementById("answers");
+  if(!card || !box) return;
+
+  box.innerHTML = "";
+  for(let i=0;i<4;i++){
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.innerHTML = "Tablero " + (i+1) + ": <strong>" + (secrets[i] || "-----") + "</strong>";
+    box.appendChild(pill);
+  }
+  card.style.display = "block";
+}
+
+function showCelebration(){
+  const box = document.getElementById("celebrate");
+  const title = document.getElementById("celebrateTitle");
+  const text = document.getElementById("celebrateText");
+
+  let winner = "Empate.";
+  if(scoreA > scoreB) winner = teamA + " gana.";
+  else if(scoreB > scoreA) winner = teamB + " gana.";
+
+  title.textContent = "🎉 Fin del juego 🎉";
+  text.textContent = winner + "  Puntuación final: " + scoreA + " – " + scoreB;
+
+  box.style.display = "block";
+}
+
+function hideCelebration(){
+  const box = document.getElementById("celebrate");
+  if(box) box.style.display = "none";
+}
+
+/* ---------- RENDERING ---------- */
+function renderLetters(){
+  const box = document.getElementById("letters");
+  if(!box) return;
+
+  const used = new Set();
+  for(const g of guesses){
+    for(const ch of g.word){
+      if((ch >= "A" && ch <= "Z") || ch === "Ñ") used.add(ch);
+    }
+  }
+
+  box.innerHTML = "";
+  for(const ch of ALPHABET){
+    const d = document.createElement("div");
+    d.className = "letter " + (used.has(ch) ? "used" : "unused");
+    d.textContent = ch;
+    box.appendChild(d);
+  }
+}
+
+function render(){
+  const gc = document.getElementById("gc");
+  if(gc) gc.textContent = String(guesses.length);
+
+  const b = document.getElementById("boards");
+  if(!b) return;
+  b.innerHTML = "";
+
+  // Show only unsolved boards (as in your English version)
+  for(let bi=0; bi<4; bi++){
+    const isSolved = solved[bi];
+    if(isSolved) continue;
+
+    const d = document.createElement("div");
+    d.className = "board" + (isSolved ? " solved" : "");
+
+    const hdr = document.createElement("div");
+    hdr.className = "hdr";
+
+    const left = document.createElement("strong");
+    left.textContent = "Tablero " + (bi+1);
+
+    const st = document.createElement("span");
+    st.className = "status";
+    st.textContent = isSolved ? "RESUELTO" : "EN JUEGO";
+
+    hdr.appendChild(left);
+    hdr.appendChild(st);
+    d.appendChild(hdr);
+
+    const g = document.createElement("div");
+    g.className = "grid";
+
+    const rowsToShow = Math.min(guesses.length + 1, limit);
+    for(let r=0; r<rowsToShow; r++){
+      const row = document.createElement("div");
+      row.className = "row5";
+
+      const ent = guesses[r];
+      for(let c=0; c<5; c++){
+        const t = document.createElement("div");
+        t.className = "tile";
+
+        if(ent){
+          t.textContent = ent.word[c] || "";
+          const cls = ent.marks[bi][c];
+          if(cls) t.classList.add(cls);
+        }else{
+          t.textContent = "";
+        }
+        row.appendChild(t);
+      }
+      g.appendChild(row);
+    }
+
+    d.appendChild(g);
+    b.appendChild(d);
+  }
+
+  renderLetters();
+  updateUI();
+
+  if(solved.every(Boolean)){
+    const done = document.createElement("div");
+    done.className = "card";
+    done.style.textAlign = "center";
+    done.innerHTML = "<strong>🎉 ¡Todos los tableros resueltos!</strong>";
+    b.appendChild(done);
+  }
+}
+
+/* ---------- GAME FLOW ---------- */
+function endGame(reason){
+  gameEnded = true;
+
+  const submitBtn = document.getElementById("submit");
+  const guessInp = document.getElementById("guess");
+  const hintBtn = document.getElementById("hint");
+  if(submitBtn) submitBtn.disabled = true;
+  if(guessInp) guessInp.disabled = true;
+  if(hintBtn) hintBtn.disabled = true;
+
+  showAnswers();
+  msg(reason, "ok");
+
+  saveGame();
+  showCelebration();
+
+  const ng = document.getElementById("newGame");
+  if(ng) ng.classList.add("newgame-spotlight");
+
+  updateGuessPrompt();
+}
+
+function startNewGame(){
+  guesses = [];
+  secrets = pick4();
+  turn = "A";
+  solved = [false,false,false,false];
+  scoreA = 0;
+  scoreB = 0;
+  invalidA = [];
+  invalidB = [];
+  gameEnded = false;
+
+  const ng = document.getElementById("newGame");
+  if(ng) ng.classList.remove("newgame-spotlight");
+
+  const card = document.getElementById("answersCard");
+  if(card) card.style.display = "none";
+
+  const submitBtn = document.getElementById("submit");
+  const guessInp = document.getElementById("guess");
+  const hintBtn  = document.getElementById("hint");
+  if(submitBtn) submitBtn.disabled = false;
+  if(guessInp) guessInp.disabled = false;
+  if(hintBtn) hintBtn.disabled = false;
+
+  msg("Listo.", "ok");
+  render();
+  localStorage.removeItem(SAVE_KEY);
+  updateGuessPrompt();
+}
+
+/* ---------- ON-SCREEN KEYBOARD ---------- */
+function buildKeyboard(){
+  const kb = document.getElementById("kb");
+  if(!kb) return;
+
+  kb.innerHTML = "";
+
+  // Spanish keyboard rows with Ñ
+  const rows = [
+    ["Q","W","E","R","T","Y","U","I","O","P"],
+    ["A","S","D","F","G","H","J","K","L","Ñ"],
+    ["Z","X","C","V","B","N","M"]
+  ];
+
+  function makeRow(keys){
+    const row = document.createElement("div");
+    row.className = "kbRow";
+    for(const k of keys){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "kbKey";
+      btn.textContent = k;
+      btn.onclick = () => insertKey(k);
+      row.appendChild(btn);
+    }
+    return row;
+  }
+
+  kb.appendChild(makeRow(rows[0]));
+  kb.appendChild(makeRow(rows[1]));
+
+  const r3 = document.createElement("div");
+  r3.className = "kbRow";
+
+  const enter = document.createElement("button");
+  enter.type = "button";
+  enter.className = "kbKey wide";
+  enter.textContent = "ENVIAR";
+  enter.onclick = () => document.getElementById("submit").click();
+  r3.appendChild(enter);
+
+  for(const k of rows[2]){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "kbKey";
+    btn.textContent = k;
+    btn.onclick = () => insertKey(k);
+    r3.appendChild(btn);
+  }
+
+  const bk = document.createElement("button");
+  bk.type = "button";
+  bk.className = "kbKey wide";
+  bk.textContent = "BORRAR";
+  bk.onclick = backspaceKey;
+  r3.appendChild(bk);
+
+  kb.appendChild(r3);
+}
+
+function insertKey(k){
+  const inp = document.getElementById("guess");
+  if(!inp || inp.disabled) return;
+  const current = inp.value || "";
+  if(current.length >= 5) return;
+  inp.value = (current + k);
+  inp.focus();
+}
+
+function backspaceKey(){
+  const inp = document.getElementById("guess");
+  if(!inp || inp.disabled) return;
+  inp.value = (inp.value || "").slice(0, -1);
+  inp.focus();
+}
+
+/* ---------- EVENTS ---------- */
+document.getElementById("submit").onclick = () => {
+  if(gameEnded) return;
+
+  const inp = document.getElementById("guess");
+  const raw = inp.value || "";
+  const g = normalizeSpanish(raw).slice(0,5);
+
+  if(g.length !== 5){
+    msg("Escribe 5 letras.", "err");
+    return;
+  }
+
+  if(alreadyTried(g)){
+    msg("Ya probada: " + g, "err");
+    return;
+  }
+
+  const scoringTurn = turn;
+  const scoringName = getTurnNameFor(scoringTurn);
+
+  if(!isValidGuess(g)){
+    applyInvalidPenalty(g, scoringTurn);
+    return;
+  }
+
+  const marksAll = secrets.map(s => mark(g, s));
+
+  let gained = 0;
+  for(let i=0;i<4;i++){
+    if(solved[i]) continue;
+    if(g === secrets[i]){
+      gained += 50;
+      solved[i] = true;
+    }else{
+      gained += pointsFromMarks(marksAll[i]);
+    }
+  }
+
+  if(scoringTurn === "A") scoreA += gained;
+  else scoreB += gained;
+
+  guesses.push({ word: g, marks: marksAll, team: scoringTurn, points: gained });
+
+  inp.value = "";
+  inp.focus();
+
+  msg(scoringName + " suma +" + gained + " puntos.", "ok");
+
+  // flip turn
+  turn = (scoringTurn === "A") ? "B" : "A";
+
+  render();
+  saveGame();
+
+  if(solved.every(Boolean)){ endGame("Todos los tableros resueltos."); return; }
+  if(guesses.length >= limit){ endGame("Se alcanzaron " + limit + " intentos."); return; }
+};
+
+const guessInput = document.getElementById("guess");
+if(guessInput){
+  guessInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      document.getElementById("submit").click();
+    }
+  });
+}
+
+/* Hint confirm wiring */
+const hintBtn = document.getElementById("hint");
+const hintBox = document.getElementById("hintConfirm");
+const hintYes = document.getElementById("hintYes");
+const hintNo  = document.getElementById("hintNo");
+
+function openHintConfirm(){
+  hintBox.style.display = "block";
+  hintNo.focus();
+}
+function closeHintConfirm(){
+  hintBox.style.display = "none";
+}
+
+hintBtn.onclick = () => {
+  if(gameEnded) return;
+  if(guesses.length >= limit) return;
+  openHintConfirm();
+};
+
+hintNo.onclick = closeHintConfirm;
+document.addEventListener("keydown", (e) => {
+  if(hintBox.style.display !== "block") return;
+  if(e.key === "Escape" || e.key === "Enter"){
+    e.preventDefault();
+    closeHintConfirm();
+  }
+});
+
+hintYes.onclick = () => {
+  closeHintConfirm();
+  if(gameEnded) return;
+  if(guesses.length >= limit) return;
+
+  const scoringTurn = turn;
+  const scoringName = getTurnNameFor(scoringTurn);
+
+  let g = "";
+  for(let tries=0; tries<30; tries++){
+    g = randomHintGuess();
+    // avoid accidentally generating a secret word for an unsolved board
+    if(!secrets.some((w,i)=>!solved[i] && w === g) && !alreadyTried(g)) break;
+  }
+
+  const marksAll = secrets.map(s => mark(g, s));
+  guesses.push({ word: g, marks: marksAll, team: scoringTurn, points: 0, hint: true });
+
+  msg(scoringName + " usa una pista (0 puntos): " + g, "ok");
+
+  // flip turn
+  turn = (scoringTurn === "A") ? "B" : "A";
+
+  render();
+  saveGame();
+
+  if(solved.every(Boolean)){ endGame("Todos los tableros resueltos."); return; }
+  if(guesses.length >= limit){ endGame("Se alcanzaron " + limit + " intentos."); return; }
+};
+
+document.getElementById("newGame").onclick = () => startNewGame();
+document.getElementById("celebrateClose").onclick = hideCelebration;
+
+/* ---------- INIT ---------- */
+(async function init(){
+  msg("Cargando lista…", "ok");
+  await loadWords();
+
+  const a = document.getElementById("nameA");
+  const b = document.getElementById("nameB");
+
+  if(a){
+    a.value = teamA;
+    a.addEventListener("input", () => {
+      teamA = a.value.trim() || "Equipo A";
+      localStorage.setItem("squordle_teamA", teamA);
+      updateUI();
+      saveGame();
+    });
+  }
+
+  if(b){
+    b.value = teamB;
+    b.addEventListener("input", () => {
+      teamB = b.value.trim() || "Equipo B";
+      localStorage.setItem("squordle_teamB", teamB);
+      updateUI();
+      saveGame();
+    });
+  }
+
+  buildKeyboard();
+
+  // enable inputs now that list has loaded (or fallback is set)
+  document.getElementById("guess").disabled = false;
+  document.getElementById("submit").disabled = false;
+  document.getElementById("hint").disabled = false;
+
+  if(loadGame()){
+    render();
+    updateUI();
+    msg("Partida recuperada.", "ok");
+
+    if(gameEnded){
+      document.getElementById("submit").disabled = true;
+      document.getElementById("guess").disabled = true;
+      document.getElementById("hint").disabled = true;
+      const ng = document.getElementById("newGame");
+      if(ng) ng.classList.add("newgame-spotlight");
+    }
+  }else{
+    startNewGame();
+  }
+})();
+</script>
+
+</body>
+</html>

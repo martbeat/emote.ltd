@@ -1,1 +1,1204 @@
-<h1>Welcome to emote.ltd hosted on my Pi!!</h1>
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="eMote (Making Change Effortless). Change management for projects using AI, academic thinking, MBA research and leadership skills." />
+  <title>eMote | Making Change Effortless</title>
+
+  <style>
+    :root{
+      --bg: #0b1020;
+      --panel: rgba(255,255,255,0.06);
+      --panel2: rgba(255,255,255,0.09);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --muted2: rgba(255,255,255,0.55);
+      --line: rgba(255,255,255,0.14);
+      --shadow: 0 18px 50px rgba(0,0,0,0.40);
+      --accent: #7df9ff;
+      --accent2:#b6ff7d;
+      --warn:#ffdb7d;
+      --danger:#ff7d7d;
+      --radius: 18px;
+      --radius2: 26px;
+      --focus: 0 0 0 3px rgba(125,249,255,0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    [data-theme="light"]{
+      --bg: #f7f8fb;
+      --panel: rgba(0,0,0,0.05);
+      --panel2: rgba(0,0,0,0.07);
+      --text: rgba(0,0,0,0.88);
+      --muted: rgba(0,0,0,0.64);
+      --muted2: rgba(0,0,0,0.50);
+      --line: rgba(0,0,0,0.14);
+      --shadow: 0 16px 42px rgba(0,0,0,0.12);
+      --accent: #0aa6b4;
+      --accent2:#2f8f2f;
+      --warn:#a06d00;
+      --danger:#b21e1e;
+      --focus: 0 0 0 3px rgba(10,166,180,0.28);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--bg);
+      overflow-x:hidden;
+    }
+
+    a{ color:inherit; text-decoration:none; }
+    a:hover{ text-decoration:underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+    /* Background canvas */
+    #bg{
+      position: fixed;
+      inset: 0;
+      z-index:-1;
+    }
+
+    .wrap{
+      width:min(1120px, 92vw);
+      margin: 0 auto;
+      padding: 18px 0 70px;
+    }
+
+    /* Top bar */
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in oklab, var(--bg) 70%, transparent);
+    }
+
+    .topbar-inner{
+      width:min(1120px, 92vw);
+      margin:0 auto;
+      padding: 12px 0;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      min-width: 240px;
+    }
+
+    .logo{
+      width:40px;
+      height:40px;
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 30% 30%, var(--accent), transparent 55%),
+        radial-gradient(circle at 70% 70%, var(--accent2), transparent 60%),
+        color-mix(in oklab, var(--panel2) 65%, transparent);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .brand h1{
+      margin:0;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+      line-height: 1.2;
+    }
+    .brand .tag{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    nav{
+      display:flex;
+      align-items:center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .navlink{
+      font-size: 13px;
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 12px;
+    }
+    .navlink:hover{
+      background: var(--panel);
+      color: var(--text);
+      text-decoration:none;
+    }
+
+    .btn{
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-size: 13px;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      box-shadow: 0 0 0 rgba(0,0,0,0);
+      transition: transform 0.08s ease, box-shadow 0.18s ease;
+      user-select:none;
+    }
+    .btn:hover{ background: var(--panel2); text-decoration:none; }
+    .btn:active{ transform: translateY(1px); }
+    .btn:focus{ outline: none; box-shadow: var(--focus); }
+
+    .btn-primary{
+      background: linear-gradient(135deg,
+        color-mix(in oklab, var(--accent) 55%, transparent),
+        color-mix(in oklab, var(--accent2) 45%, transparent)
+      );
+      border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+    }
+
+    /* Hero */
+    .hero{
+      padding: 46px 0 20px;
+      display:grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    @media (max-width: 920px){
+      .hero{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      border: 1px solid var(--line);
+      background: color-mix(in oklab, var(--panel) 80%, transparent);
+      border-radius: var(--radius2);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main{
+      padding: 26px 24px;
+      position: relative;
+      overflow:hidden;
+    }
+    .hero-main::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      background:
+        radial-gradient(900px 400px at 10% 10%, color-mix(in oklab, var(--accent) 25%, transparent), transparent 60%),
+        radial-gradient(700px 340px at 80% 30%, color-mix(in oklab, var(--accent2) 20%, transparent), transparent 62%),
+        radial-gradient(680px 320px at 60% 100%, color-mix(in oklab, var(--warn) 16%, transparent), transparent 58%);
+      opacity: 0.95;
+      pointer-events:none;
+    }
+    .hero-main > *{ position: relative; }
+
+    .kicker{
+      display:inline-flex;
+      gap: 8px;
+      align-items:center;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 10px;
+      background: color-mix(in oklab, var(--panel2) 75%, transparent);
+    }
+    .kdot{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+    }
+
+    .hero-title{
+      margin: 14px 0 10px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -0.6px;
+    }
+    .hero-sub{
+      margin: 0 0 18px;
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--muted);
+      max-width: 70ch;
+    }
+
+    .hero-actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-top: 16px;
+    }
+
+    .mini{
+      font-size: 12px;
+      color: var(--muted2);
+      margin-top: 12px;
+      line-height: 1.45;
+    }
+
+    .hero-side{
+      padding: 18px;
+      display:flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .side-block{
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: color-mix(in oklab, var(--panel2) 80%, transparent);
+    }
+
+    .side-block h3{
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+    }
+
+    .metric{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pill{
+      border:1px solid var(--line);
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: color-mix(in oklab, var(--panel) 80%, transparent);
+    }
+    .pill .label{ font-size: 11px; color: var(--muted2); }
+    .pill .value{ margin-top: 2px; font-size: 13px; font-family: var(--mono); }
+
+    /* Sections */
+    section{ margin-top: 18px; }
+    .section-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 12px;
+      margin: 26px 0 10px;
+    }
+    .section-head h2{
+      margin:0;
+      font-size: 18px;
+      letter-spacing: 0.1px;
+    }
+    .section-head p{
+      margin:0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+
+    .col-8{ grid-column: span 8; }
+    .col-4{ grid-column: span 4; }
+    .col-6{ grid-column: span 6; }
+    .col-12{ grid-column: span 12; }
+
+    @media (max-width: 920px){
+      .col-8,.col-4,.col-6{ grid-column: span 12; }
+    }
+
+    .pad{ padding: 18px; }
+    .muted{ color: var(--muted); }
+    .small{ font-size: 13px; line-height: 1.5; }
+    .mono{ font-family: var(--mono); }
+
+    .list{
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .item{
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 12px;
+      background: color-mix(in oklab, var(--panel) 82%, transparent);
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+    .item strong{
+      display:block;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+    .item .desc{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 72ch;
+    }
+
+    .chip{
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in oklab, var(--panel2) 80%, transparent);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* Interactive: Change Effort dial */
+    .dial{
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: color-mix(in oklab, var(--panel2) 75%, transparent);
+    }
+    .dial-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap:wrap;
+    }
+    input[type="range"]{
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .dial-meter{
+      margin-top: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: color-mix(in oklab, var(--panel) 75%, transparent);
+      border: 1px solid var(--line);
+      overflow:hidden;
+    }
+    .dial-fill{
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    .dial-text{
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Quiz */
+    .quiz{
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .q{
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: color-mix(in oklab, var(--panel) 82%, transparent);
+    }
+    .q label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .q select{
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: color-mix(in oklab, var(--panel2) 80%, transparent);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .q select:focus{ outline:none; box-shadow: var(--focus); }
+
+    .result{
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: color-mix(in oklab, var(--panel2) 80%, transparent);
+    }
+    .result .title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap:wrap;
+      margin-bottom: 8px;
+    }
+    .badge{
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in oklab, var(--panel) 80%, transparent);
+      color: var(--muted);
+    }
+    .result p{
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Footer */
+    footer{
+      margin-top: 28px;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      background: color-mix(in oklab, var(--bg) 75%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 13px;
+      opacity: 0;
+      pointer-events:none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      max-width: 92vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      *{ scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" role="banner">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>eMote</h1>
+          <div class="tag">Making Change Effortless</div>
+        </div>
+      </div>
+
+      <nav aria-label="Primary">
+        <a class="navlink" href="#how">How I help</a>
+        <a class="navlink" href="#hub">Hub</a>
+        <a class="navlink" href="#articles">Articles</a>
+        <a class="navlink" href="#contact">Contact</a>
+        <button class="btn" id="themeBtn" type="button" aria-label="Toggle theme">Theme</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div class="card hero-main">
+        <div class="kicker">
+          <span class="kdot" aria-hidden="true"></span>
+          Change management for projects, made practical with AI
+        </div>
+
+        <h2 class="hero-title">Make change land cleanly, without the theatre</h2>
+
+        <p class="hero-sub">
+          eMote is my hub for change management in project delivery. I combine AI-assisted delivery, academic thinking,
+          MBA research and leadership skills so projects move from plan to adoption with less friction, less noise and better outcomes.
+        </p>
+
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">
+            Read articles
+          </a>
+          <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">
+            LinkedIn
+          </a>
+          <button class="btn" id="copyEmailBtn" type="button">Copy email</button>
+          <a class="btn" href="#hub">Explore the hub</a>
+        </div>
+
+        <div class="mini">
+          Focus areas: adoption, stakeholder alignment, proportionate governance and measurable outcomes.
+        </div>
+      </div>
+
+      <aside class="card hero-side" aria-label="At a glance">
+        <div class="side-block">
+          <h3>What you get</h3>
+          <div class="metric">
+            <div class="pill">
+              <div class="label">Delivery style</div>
+              <div class="value">Pragmatic</div>
+            </div>
+            <div class="pill">
+              <div class="label">AI role</div>
+              <div class="value">Co-pilot</div>
+            </div>
+            <div class="pill">
+              <div class="label">Method</div>
+              <div class="value">Evidence-led</div>
+            </div>
+            <div class="pill">
+              <div class="label">Output</div>
+              <div class="value">Adoption</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="side-block">
+          <h3>Quick links</h3>
+          <div class="list" style="margin-top:0">
+            <div class="item">
+              <div>
+                <strong>Articles</strong>
+                <div class="desc">Long-form writing on AI, change, leadership and delivery.</div>
+              </div>
+              <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open</a>
+            </div>
+            <div class="item">
+              <div>
+                <strong>Email</strong>
+                <div class="desc mono">martin@emote.ltd</div>
+              </div>
+              <button class="chip btn" style="padding:6px 10px" id="copyEmailBtn2" type="button">Copy</button>
+            </div>
+            <div class="item">
+              <div>
+                <strong>LinkedIn</strong>
+                <div class="desc">Connect for collaboration, delivery and ideas.</div>
+              </div>
+              <a class="chip" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">Open</a>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <section id="how">
+      <div class="section-head">
+        <h2>How I make change effortless</h2>
+        <p>Practical delivery, not paperwork.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card pad col-8">
+          <div class="list" style="margin-top:0">
+            <div class="item">
+              <div>
+                <strong>Start with the real risk: non-adoption</strong>
+                <div class="desc">We treat adoption as an outcome, not a hope. Change activity is targeted at the few things that actually block uptake.</div>
+              </div>
+              <span class="chip">Outcome-led</span>
+            </div>
+            <div class="item">
+              <div>
+                <strong>Right-size the change work</strong>
+                <div class="desc">Light, medium, heavy approaches. Enough structure to be safe, lean enough to move fast.</div>
+              </div>
+              <span class="chip">Proportionate</span>
+            </div>
+            <div class="item">
+              <div>
+                <strong>Use AI to remove the grind</strong>
+                <div class="desc">Drafting, analysis and consistency checks done quickly so humans can focus on decisions, relationships and leadership.</div>
+              </div>
+              <span class="chip">AI-enabled</span>
+            </div>
+            <div class="item">
+              <div>
+                <strong>Make governance useful</strong>
+                <div class="desc">Evidence, risks and actions that a board can actually use, without theatre or overload.</div>
+              </div>
+              <span class="chip">Board-ready</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pad col-4">
+          <h3 style="margin:0 0 6px; font-size:14px;">Change effort dial</h3>
+          <div class="small muted">
+            Move the slider. The page will show what “effortless” looks like at different levels.
+          </div>
+
+          <div class="dial" role="group" aria-label="Change effort dial">
+            <div class="dial-row">
+              <div class="chip">More manual</div>
+              <div class="chip">More automated</div>
+            </div>
+
+            <div style="margin-top:10px">
+              <input id="effort" type="range" min="0" max="100" value="55" />
+              <div class="dial-meter" aria-hidden="true"><div class="dial-fill" id="effortFill"></div></div>
+              <div class="dial-text" id="effortText"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="hub">
+      <div class="section-head">
+        <h2>Hub</h2>
+        <p>Interactive tools you can use immediately.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card pad col-6">
+          <h3 style="margin:0 0 6px; font-size:14px;">Change sizing mini-check</h3>
+          <div class="small muted">
+            This is not a formal assessment. It is a fast way to decide what level of change activity is worth doing.
+          </div>
+
+          <div class="quiz" aria-label="Change sizing mini-check">
+            <div class="q">
+              <label for="qPeople">How many people will feel the change?</label>
+              <select id="qPeople">
+                <option value="0">A small team</option>
+                <option value="1">Multiple teams</option>
+                <option value="2">A whole service or the public</option>
+              </select>
+            </div>
+
+            <div class="q">
+              <label for="qRisk">What is the risk if adoption is slow?</label>
+              <select id="qRisk">
+                <option value="0">Low: inconvenience and rework</option>
+                <option value="1">Medium: performance or financial impact</option>
+                <option value="2">High: statutory, safety or reputational impact</option>
+              </select>
+            </div>
+
+            <div class="q">
+              <label for="qNovelty">How new is the process or technology?</label>
+              <select id="qNovelty">
+                <option value="0">Minor change to what people already do</option>
+                <option value="1">Noticeable shift in roles or process</option>
+                <option value="2">New ways of working</option>
+              </select>
+            </div>
+
+            <div class="result" id="quizResult" aria-live="polite"></div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;">
+              <button class="btn btn-primary" id="emailSizingBtn" type="button">Email me this result</button>
+              <button class="btn" id="copySizingBtn" type="button">Copy summary</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pad col-6">
+          <h3 style="margin:0 0 6px; font-size:14px;">AI prompt starter for project change</h3>
+          <div class="small muted">
+            Paste this into your AI tool to quickly get a useful change view. Edit the brackets.
+          </div>
+
+          <div class="dial" style="margin-top:10px">
+            <pre id="promptBox" class="mono" style="margin:0; white-space:pre-wrap; font-size:12px; line-height:1.5;">You are my change management co-pilot for a project.
+
+Context:
+- Organisation: [local authority / company]
+- Project: [name]
+- What is changing: [system, process, policy]
+- Who is affected: [roles, teams, external users]
+- Go-live date: [date]
+- Constraints: [time, budget, governance]
+
+Tasks:
+1) Produce a short Change Impact summary (people, process, technology, ways of working)
+2) Identify the top 8 adoption risks and write mitigation actions that fit normal project artefacts (RAID, comms, training, service readiness)
+3) Suggest a proportionate change approach (light, medium or heavy) and explain why
+4) Draft a board-ready update in plain language with decisions needed and next actions
+
+Style:
+- Use headings, bullet points and avoid fluff.</pre>
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <button class="btn btn-primary" id="copyPromptBtn" type="button">Copy prompt</button>
+            <button class="btn" id="randomisePromptBtn" type="button">Insert examples</button>
+          </div>
+
+          <div class="mini">
+            If you want, I can tailor this to your PMO templates, governance rhythm and reporting style.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="articles">
+      <div class="section-head">
+        <h2>Articles</h2>
+        <p>Writing on change, AI and leadership.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card pad col-8">
+          <div class="item" style="align-items:center;">
+            <div>
+              <strong>Open the full article library</strong>
+              <div class="desc">Hosted on Blogger: essays, models, prompts and reflections.</div>
+            </div>
+            <a class="btn btn-primary" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Go to articles</a>
+          </div>
+
+          <div class="dial" style="margin-top:12px;">
+            <div class="dial-row">
+              <div class="chip">Spotlight</div>
+              <div class="chip" id="spotlightMeta">Click for another</div>
+            </div>
+            <div id="spotlight" style="margin-top:10px; font-size:14px; line-height:1.55;"></div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+              <button class="btn" id="nextSpotlightBtn" type="button">New spotlight</button>
+              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Read more</a>
+            </div>
+
+            <div class="mini">
+              Optional upgrade: if you want, I can wire this page to your Blogger feed. Some browsers block cross-site fetching, so it can need a tiny server-side proxy.
+            </div>
+          </div>
+        </div>
+
+        <div class="card pad col-4">
+          <h3 style="margin:0 0 6px; font-size:14px;">What I write about</h3>
+          <div class="list" style="margin-top:10px;">
+            <div class="item">
+              <div>
+                <strong>Making AI useful</strong>
+                <div class="desc">Prompts, patterns and practical guardrails.</div>
+              </div>
+              <span class="chip">Practice</span>
+            </div>
+            <div class="item">
+              <div>
+                <strong>Change that sticks</strong>
+                <div class="desc">Adoption, reinforcement and outcomes.</div>
+              </div>
+              <span class="chip">Delivery</span>
+            </div>
+            <div class="item">
+              <div>
+                <strong>Academic thinking</strong>
+                <div class="desc">Theory used as a tool, not a shrine.</div>
+              </div>
+              <span class="chip">Evidence</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <div class="section-head">
+        <h2>Contact</h2>
+        <p>For collaboration, speaking, delivery support.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card pad col-12">
+          <div class="item" style="align-items:center;">
+            <div>
+              <strong>Email</strong>
+              <div class="desc mono">martin@emote.ltd</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <a class="btn btn-primary" href="mailto:martin@emote.ltd?subject=eMote%20-%20Change%20support&body=Hi%20Martin%2C%0A%0AI%27d%20like%20to%20talk%20about%20project%20change%20management.%20Context%3A%20%5Bbrief%5D%0A%0AThanks%2C%0A%5Bname%5D">Email me</a>
+              <button class="btn" id="copyEmailBtn3" type="button">Copy</button>
+              <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Articles</a>
+            </div>
+          </div>
+
+          <div class="mini">
+            If you are exploring a specific project, include: what is changing, who is affected, your go-live date and the one thing you are most worried about.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>© <span id="year"></span> eMote. Making Change Effortless.</div>
+      <div class="muted">Built as a single-file starter page (HTML, CSS and JavaScript).</div>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ---------- Helpers ----------
+    const $ = (sel) => document.querySelector(sel);
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+    function toast(msg){
+      const el = $("#toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+
+    async function copyText(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        toast("Copied to clipboard");
+        return true;
+      }catch(e){
+        // Fallback
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        toast(ok ? "Copied to clipboard" : "Copy failed");
+        return ok;
+      }
+    }
+
+    // ---------- Theme ----------
+    const THEME_KEY = "emote_theme";
+    function applyTheme(theme){
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem(THEME_KEY, theme);
+      toast(theme === "light" ? "Light theme" : "Dark theme");
+    }
+    function initTheme(){
+      const saved = localStorage.getItem(THEME_KEY);
+      if(saved){
+        document.documentElement.setAttribute("data-theme", saved);
+      }else{
+        const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+        document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
+      }
+    }
+
+    // ---------- Background animation (soft particles) ----------
+    function initBackground(){
+      const c = $("#bg");
+      const ctx = c.getContext("2d", { alpha: true });
+
+      const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const state = {
+        w: 0, h: 0, dpr: Math.min(window.devicePixelRatio || 1, 2),
+        dots: [],
+        t: 0
+      };
+
+      function resize(){
+        state.w = Math.floor(window.innerWidth);
+        state.h = Math.floor(window.innerHeight);
+        c.width = Math.floor(state.w * state.dpr);
+        c.height = Math.floor(state.h * state.dpr);
+        c.style.width = state.w + "px";
+        c.style.height = state.h + "px";
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      }
+
+      function makeDots(){
+        const count = clamp(Math.floor((state.w * state.h) / 45000), 18, 52);
+        state.dots = Array.from({length: count}, () => ({
+          x: Math.random() * state.w,
+          y: Math.random() * state.h,
+          r: 1.2 + Math.random() * 2.2,
+          vx: (-0.25 + Math.random() * 0.5) * (prefersReduced ? 0 : 1),
+          vy: (-0.25 + Math.random() * 0.5) * (prefersReduced ? 0 : 1),
+          a: 0.18 + Math.random() * 0.25
+        }));
+      }
+
+      function draw(){
+        ctx.clearRect(0, 0, state.w, state.h);
+
+        // A subtle vignette for depth
+        const g = ctx.createRadialGradient(state.w * 0.35, state.h * 0.25, 0, state.w * 0.45, state.h * 0.4, Math.max(state.w, state.h));
+        g.addColorStop(0, "rgba(125,249,255,0.10)");
+        g.addColorStop(0.35, "rgba(182,255,125,0.06)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, state.w, state.h);
+
+        // Dots
+        for(const d of state.dots){
+          d.x += d.vx;
+          d.y += d.vy;
+
+          if(d.x < -20) d.x = state.w + 20;
+          if(d.x > state.w + 20) d.x = -20;
+          if(d.y < -20) d.y = state.h + 20;
+          if(d.y > state.h + 20) d.y = -20;
+
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${d.a})`;
+          ctx.fill();
+        }
+
+        // Lines between nearby dots
+        for(let i=0; i<state.dots.length; i++){
+          for(let j=i+1; j<state.dots.length; j++){
+            const a = state.dots[i];
+            const b = state.dots[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const dist = Math.hypot(dx, dy);
+            if(dist < 140){
+              const alpha = (1 - dist / 140) * 0.10;
+              ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function loop(){
+        draw();
+        if(!prefersReduced) requestAnimationFrame(loop);
+      }
+
+      resize();
+      makeDots();
+      window.addEventListener("resize", () => { resize(); makeDots(); }, { passive: true });
+      loop();
+    }
+
+    // ---------- Effort dial ----------
+    const effortCopy = [
+      {
+        max: 20,
+        fill: 18,
+        text: "Mostly manual: good people doing good work, but time gets eaten by drafting, formatting and chasing updates. AI can remove admin friction fast."
+      },
+      {
+        max: 45,
+        fill: 40,
+        text: "Balanced: AI helps with first drafts and consistency checks, humans lead the room and make decisions. A solid default for many projects."
+      },
+      {
+        max: 70,
+        fill: 63,
+        text: "AI-enabled delivery: rapid synthesis of feedback, scenario analysis and board updates. More time for stakeholder work and leadership moves."
+      },
+      {
+        max: 100,
+        fill: 85,
+        text: "High leverage: repeatable prompts and templates, fast iteration, strong governance narrative. Effort moves from documents to outcomes."
+      }
+    ];
+
+    function updateEffort(){
+      const v = Number($("#effort").value);
+      const band = effortCopy.find(b => v <= b.max) || effortCopy[effortCopy.length - 1];
+      $("#effortFill").style.width = v + "%";
+      $("#effortText").textContent = band.text;
+    }
+
+    // ---------- Quiz ----------
+    function scoreToLevel(score){
+      if(score <= 1) return { level: "Light", badge: "Light change", colour: "var(--accent)" };
+      if(score <= 3) return { level: "Medium", badge: "Medium change", colour: "var(--warn)" };
+      return { level: "Heavy", badge: "Heavy change", colour: "var(--danger)" };
+    }
+
+    function buildRecommendation(level){
+      if(level === "Light"){
+        return "Keep it lean: clarify the change, name the adoption risks, align the sponsor and PM, do short comms and just-enough guidance for users.";
+      }
+      if(level === "Medium"){
+        return "Structured and proportionate: targeted stakeholder plan, role-based readiness, training and comms aligned to milestones, adoption risks tracked in RAID.";
+      }
+      return "Treat adoption as a programme within the project: formal governance narrative, benefits and outcome measures, deep stakeholder engagement, service readiness and reinforcement after go-live.";
+    }
+
+    function updateQuiz(){
+      const people = Number($("#qPeople").value);
+      const risk = Number($("#qRisk").value);
+      const novelty = Number($("#qNovelty").value);
+      const score = people + risk + novelty;
+
+      const { level, badge } = scoreToLevel(score);
+      const rec = buildRecommendation(level);
+
+      const summary = [
+        `Sizing: ${level}`,
+        `Signals: people=${people}, risk=${risk}, novelty=${novelty}`,
+        `Recommendation: ${rec}`
+      ].join("\n");
+
+      $("#quizResult").innerHTML = `
+        <div class="title">
+          <strong>Suggested approach: ${level}</strong>
+          <span class="badge">${badge}</span>
+        </div>
+        <p>${rec}</p>
+        <p style="margin-top:8px;" class="mono">${summary.replaceAll("\n"," | ")}</p>
+      `;
+
+      updateQuiz._summary = summary;
+      updateQuiz._level = level;
+    }
+
+    // ---------- Spotlight ----------
+    const spotlights = [
+      { text: "Effortless change is not easy change. It is change where effort is spent where it matters, not where it looks impressive.", meta: "Delivery mindset" },
+      { text: "Governance should answer three questions: what is changing, what could stop adoption and what decisions do leaders need to make this week.", meta: "Board-ready" },
+      { text: "AI is most useful when it removes the grind: drafting, rewording, synthesis and consistency checks, so humans can lead people through change.", meta: "AI as co-pilot" },
+      { text: "Theory is a tool. Use it to sharpen your diagnosis, not to create paperwork that no one reads.", meta: "Academic thinking" },
+      { text: "If you cannot describe the change in plain language, you cannot manage it.", meta: "Clarity" }
+    ];
+
+    function nextSpotlight(){
+      const idx = (nextSpotlight._idx == null) ? Math.floor(Math.random() * spotlights.length) : (nextSpotlight._idx + 1) % spotlights.length;
+      nextSpotlight._idx = idx;
+      $("#spotlight").textContent = spotlights[idx].text;
+      $("#spotlightMeta").textContent = spotlights[idx].meta;
+    }
+
+    // ---------- Prompt examples ----------
+    function insertExamples(){
+      const examples = [
+        {
+          org: "Local authority",
+          proj: "Case management upgrade",
+          change: "New workflow screens, revised approval steps, new reporting pack",
+          who: "Social workers, team managers, finance approvers, reporting analysts",
+          date: "Q2 go-live"
+        },
+        {
+          org: "Public service organisation",
+          proj: "Permit scheme implementation",
+          change: "New charging model, new processes, new digital service front door",
+          who: "Operational teams, legal, finance, contractors and the public",
+          date: "1 October go-live"
+        }
+      ];
+      const pick = examples[Math.floor(Math.random() * examples.length)];
+      const base = `You are my change management co-pilot for a project.
+
+Context:
+- Organisation: ${pick.org}
+- Project: ${pick.proj}
+- What is changing: ${pick.change}
+- Who is affected: ${pick.who}
+- Go-live date: ${pick.date}
+- Constraints: time, governance, limited capacity
+
+Tasks:
+1) Produce a short Change Impact summary (people, process, technology, ways of working)
+2) Identify the top 8 adoption risks and write mitigation actions that fit normal project artefacts (RAID, comms, training, service readiness)
+3) Suggest a proportionate change approach (light, medium or heavy) and explain why
+4) Draft a board-ready update in plain language with decisions needed and next actions
+
+Style:
+- Use headings, bullet points and avoid fluff.`;
+      $("#promptBox").textContent = base;
+      toast("Examples inserted");
+    }
+
+    // ---------- Init ----------
+    initTheme();
+    initBackground();
+
+    $("#year").textContent = new Date().getFullYear();
+
+    // Theme toggle
+    $("#themeBtn").addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      applyTheme(current === "light" ? "dark" : "light");
+    });
+
+    // Copy email buttons
+    const email = "martin@emote.ltd";
+    ["#copyEmailBtn", "#copyEmailBtn2", "#copyEmailBtn3"].forEach(sel => {
+      const btn = $(sel);
+      if(btn) btn.addEventListener("click", () => copyText(email));
+    });
+
+    // Effort dial
+    $("#effort").addEventListener("input", updateEffort);
+    updateEffort();
+
+    // Quiz
+    ["#qPeople","#qRisk","#qNovelty"].forEach(sel => $(sel).addEventListener("change", updateQuiz));
+    updateQuiz();
+
+    $("#copySizingBtn").addEventListener("click", () => copyText(updateQuiz._summary || ""));
+    $("#emailSizingBtn").addEventListener("click", () => {
+      const body = encodeURIComponent((updateQuiz._summary || "") + "\n\nIf you want, tell me the project context and your go-live date.");
+      const subject = encodeURIComponent(`eMote sizing result: ${updateQuiz._level || "Change"}`);
+      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    });
+
+    // Prompt actions
+    $("#copyPromptBtn").addEventListener("click", () => copyText($("#promptBox").textContent));
+    $("#randomisePromptBtn").addEventListener("click", insertExamples);
+
+    // Spotlight
+    $("#nextSpotlightBtn").addEventListener("click", nextSpotlight);
+    nextSpotlight();
+
+    // Smooth scroll for nav links (with reduced motion respect)
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener("click", (e) => {
+        const id = a.getAttribute("href");
+        const target = document.querySelector(id);
+        if(!target) return;
+        e.preventDefault();
+        const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        target.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
+        history.replaceState(null, "", id);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -80,16 +80,6 @@
       padding: 18px 0 70px;
     }
 
-/* Watercolour textures */
-.hero-main::before{
-  background:
-    linear-gradient(180deg, rgba(11,16,32,0.55), rgba(11,16,32,0.70)),
-    url("/assets/images/hero-ink-watercolour.png");
-  background-size: cover;
-  background-position: center;
-  opacity: 1;
-}
-
 section{
   scroll-margin-top: 80px;
 }
@@ -223,48 +213,34 @@ section{
       box-shadow: var(--shadow);
     }
 
+/* HERO: one definition only */
 .hero-main{
   position: relative;
   overflow: hidden;
+  border-radius: var(--radius2);
+  padding: 22px;
 }
 
 .hero-main::before{
   content:"";
   position:absolute;
   inset:0;
-  background:
-    linear-gradient(180deg, rgba(11,16,32,0.55), rgba(11,16,32,0.75)),
-    url("/assets/images/hero-bridge-compass-watercolour.png");
-  background-size: cover;
-  background-position: center;
-  filter: saturate(1.05) contrast(1.02);
-  z-index: 0;
-}
+  border-radius: inherit;
 
-.hero-main{
-  position: relative;
-  overflow: hidden;
-  border-radius: 26px; /* if you already have rounding */
-}
-
-.hero-main::before{
-  content:"";
-  position:absolute;
-  inset:0;
+  /* scrim for legibility */
   background:
-    /* darken where the copy sits (left side) */
     linear-gradient(90deg,
-      rgba(6,10,26,0.82) 0%,
-      rgba(6,10,26,0.62) 38%,
-      rgba(6,10,26,0.30) 62%,
-      rgba(6,10,26,0.12) 100%
+      rgba(6,10,26,0.86) 0%,
+      rgba(6,10,26,0.62) 42%,
+      rgba(6,10,26,0.26) 72%,
+      rgba(6,10,26,0.08) 100%
     ),
-    /* mild top-to-bottom depth */
     linear-gradient(180deg,
-      rgba(6,10,26,0.45) 0%,
-      rgba(6,10,26,0.65) 100%
+      rgba(6,10,26,0.35) 0%,
+      rgba(6,10,26,0.70) 100%
     ),
-    url("/assets/images/hero-bridge-compass.png");
+    url("/assets/images/hero-bridge-compass.png"); /* set your hero filename here */
+
   background-size: cover;
   background-position: center;
   z-index: 0;
@@ -275,17 +251,73 @@ section{
   z-index: 1;
 }
 
-/* make hero text deliberately light */
-.hero-main h1,
-.hero-main p{
-  color: rgba(255,255,255,0.92);
+/* Hero typography */
+.kicker{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.78);
+  margin-bottom: 10px;
 }
-.hero-main h1{
-  text-shadow: 0 3px 18px rgba(0,0,0,0.55);
+
+.kdot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, var(--accent), var(--accent2));
+  box-shadow: 0 0 0 4px rgba(51,199,255,0.12);
 }
-.hero-main p{
-  text-shadow: 0 2px 10px rgba(0,0,0,0.45);
+
+.hero-title{
+  margin: 0 0 10px;
+  font-size: clamp(30px, 3.2vw, 46px);
+  line-height: 1.05;
+  letter-spacing: -0.2px;
+  color: rgba(255,255,255,0.94);
+  text-shadow: 0 4px 20px rgba(0,0,0,0.55);
 }
+
+.hero-sub{
+  margin: 0 0 14px;
+  max-width: 72ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.82);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.45);
+}
+
+.hero-actions{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.hero-main .btn{
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
+}
+
+.hero-main .btn:hover{
+  background: rgba(255,255,255,0.18);
+}
+
+.hero-main .btn-primary{
+  background: linear-gradient(135deg,
+    rgba(51,199,255,0.28),
+    rgba(124,255,178,0.22)
+  );
+  border-color: rgba(51,199,255,0.30);
+}
+
+.mini{
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.70);
+}
+
 
 .grid4{
   display:grid;
@@ -317,6 +349,50 @@ section{
   margin-bottom: 10px;
 }
 
+/* Right panel layout */
+.hero-side{
+  padding: 18px;
+  display:flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.side-block h3{
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+/* Metric pills: compact */
+.metric{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+
+.hero-side .pill{
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--panel) 82%, transparent);
+}
+
+.hero-side .pill .label{
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.hero-side .pill .value{
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Big image cards: only in the #approach grid */
+#approach .pill{
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.03);
+}
 
 
     /* Sections */

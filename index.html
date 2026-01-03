@@ -835,6 +835,8 @@ Style:
               <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Read more</a>
             </div>
 
+            <div class="list" id="latestPosts"></div>
+
             <div class="mini">
               Optional upgrade: if you want, I can wire this page to your Blogger feed. Some browsers block cross-site fetching, so it can need a tiny server-side proxy.
             </div>
@@ -939,6 +941,88 @@ Style:
         return ok;
       }
     }
+
+
+function stripHtml(html){
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html || "";
+  return (tmp.textContent || tmp.innerText || "").trim();
+}
+
+function formatDate(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", { year:"numeric", month:"short", day:"2-digit" });
+  }catch(e){
+    return "";
+  }
+}
+
+async function fetchLatestPosts(){
+  const target = document.querySelector("#latestPosts");
+  if(!target) return;
+
+  target.innerHTML = `
+    <div class="item">
+      <div>
+        <strong>Latest posts</strong>
+        <div class="desc">Loading…</div>
+      </div>
+      <span class="chip">Blogger</span>
+    </div>`;
+
+  try{
+    const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "no-store" });
+    if(!res.ok) throw new Error("Feed request failed: " + res.status);
+
+    const data = await res.json();
+    const entries = data?.feed?.entry || [];
+
+    if(!entries.length){
+      target.innerHTML = `
+        <div class="item">
+          <div>
+            <strong>No posts found</strong>
+            <div class="desc">Open the full library on Blogger.</div>
+          </div>
+          <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open</a>
+        </div>`;
+      return;
+    }
+
+    target.innerHTML = entries.map(e => {
+      const title = e?.title?.$t || "Untitled";
+      const href = (e?.link || []).find(l => l.rel === "alternate")?.href || "https://martymcfry.blogspot.com/";
+      const published = e?.published?.$t || "";
+      const html = e?.content?.$t || e?.summary?.$t || "";
+      const text = stripHtml(html);
+      const excerpt = text.slice(0, 170) + (text.length > 170 ? "…" : "");
+
+      return `
+        <div class="item">
+          <div>
+            <strong>${title}</strong>
+            <div class="desc">${excerpt}</div>
+            <div class="desc" style="margin-top:6px;">${formatDate(published)}</div>
+          </div>
+          <a class="chip" href="${href}" target="_blank" rel="noopener noreferrer">Read</a>
+        </div>`;
+    }).join("");
+
+  }catch(err){
+    target.innerHTML = `
+      <div class="item">
+        <div>
+          <strong>Latest posts unavailable</strong>
+          <div class="desc">The site can not reach the feed endpoint right now.</div>
+        </div>
+        <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open</a>
+      </div>`;
+  }
+}
+
+fetchLatestPosts();
+
 
     // ---------- Theme ----------
     const THEME_KEY = "emote_theme";

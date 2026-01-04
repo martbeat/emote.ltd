@@ -690,12 +690,29 @@
       tiles:["########","#P.....#","#..###.#","#..#K#.#","#..###.#","#..>...#","#.....E#","########"],
       cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
     },
-    { id:"L-28", name:"Alarm gate", hint:"Stepping on 🔔 speeds hazards. Sometimes it is unavoidable.",
-      w:8,h:8,timerSeconds:45,
-      tiles:["########","#P..#..#","#..N#..#","#..##K.#","#..#C..#","#......#","#.....E#","########"],
-      cameras:[{x:4,y:4,dir:"W",pattern:["W","N","E","S"]}],
-      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
-    },
+{
+  id:"L-28",
+  name:"Alarm gate",
+  hint:"Noise is optional. It is a shortcut, but it speeds hazards for 2 turns.",
+  w:8,h:8,timerSeconds:45,
+  tiles:[
+    "########",
+    "#P..#..#",
+    "#..N#..#",
+    "#..##.K#",
+    "#..#C#.#",
+    "#......#",
+    "#.....E#",
+    "########"
+  ],
+  cameras:[{x:4,y:4,dir:"W",pattern:["W","N","E","S"]}],
+  doors:[],
+  lasers:[],
+  switches:[],
+  links:[],
+  rules:{keysRequired:1}
+},
+
 
     // --- Late pack: tight and tense ---
     { id:"L-29", name:"Block and laser timing", hint:"Block placement changes your laser window.",

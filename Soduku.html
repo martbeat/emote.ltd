@@ -1,0 +1,1328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sudoku (Persistent + Online Puzzles + Download/Import)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --text:#e7eefc;
+      --muted:#a9b7d3;
+      --accent:#79a7ff;
+      --good:#45d483;
+      --warn:#ffcc66;
+      --bad:#ff5f6d;
+      --border:#2a3a63;
+      --shadow: 0 10px 25px rgba(0,0,0,.35);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 800px at 20% 10%, #172b57 0%, var(--bg) 55%) fixed;
+      color:var(--text);
+    }
+
+    /* Mobile-first: single column */
+    .wrap{
+      max-width: 980px;
+      margin: 12px auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 920px){
+      .wrap{
+        grid-template-columns: 1.15fr .85fr;
+      }
+      header.card{ grid-column: 1 / -1; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    header.card{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    @media (min-width: 520px){
+      header.card{
+        flex-direction:row;
+        align-items:center;
+        justify-content:space-between;
+      }
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 220px;
+    }
+    .title h1{
+      font-size: 18px;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .title .sub{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+
+    button, select, input[type="file"]{
+      font-family: var(--sans);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(15,27,51,.65);
+      color: var(--text);
+      padding: 10px 12px;
+      cursor:pointer;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      font-size: 14px;
+    }
+    button:hover, select:hover{
+      background: rgba(16,31,61,.85);
+      border-color: rgba(121,167,255,.45);
+    }
+    button:active{ transform: translateY(1px); }
+    button.primary{
+      background: rgba(121,167,255,.18);
+      border-color: rgba(121,167,255,.55);
+    }
+    button.danger{
+      background: rgba(255,95,109,.14);
+      border-color: rgba(255,95,109,.50);
+    }
+    button.good{
+      background: rgba(69,212,131,.14);
+      border-color: rgba(69,212,131,.50);
+    }
+    button:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .gridCard{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      align-items:center;
+      background: radial-gradient(900px 700px at 50% 0%, rgba(121,167,255,.16) 0%, rgba(15,27,51,.2) 60%);
+    }
+
+    .hud{
+      width:100%;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .hud .left, .hud .right{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    .pill{
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.10);
+      font-family: var(--mono);
+      color: var(--text);
+      font-size: 12px;
+    }
+    .pill small{
+      color: var(--muted);
+      font-family: var(--sans);
+      margin-right:6px;
+      font-size: 11px;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .toggle input{
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .board{
+      width: min(520px, 92vw);
+      aspect-ratio: 1 / 1;
+      display:grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows: repeat(9, 1fr);
+      border: 2px solid rgba(255,255,255,.18);
+      border-radius: 12px;
+      overflow:hidden;
+      background: rgba(12,23,48,.5);
+      touch-action: manipulation;
+    }
+
+    .cell{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(12,23,48,.55);
+      border: 1px solid rgba(255,255,255,.08);
+      user-select:none;
+      cursor:pointer;
+      font-family: var(--mono);
+      font-size: clamp(18px, 5vw, 28px);
+      color: var(--text);
+      outline:none;
+    }
+
+    .cell.bR{ border-right: 2px solid rgba(255,255,255,.18); }
+    .cell.bB{ border-bottom: 2px solid rgba(255,255,255,.18); }
+
+    .cell.given{
+      background: rgba(14,26,53,.65);
+      color: rgba(231,238,252,.92);
+      font-weight:700;
+      cursor:default;
+    }
+
+    .cell.selected{
+      background: rgba(121,167,255,.22);
+      border-color: rgba(121,167,255,.55);
+    }
+    .cell.related{ background: rgba(121,167,255,.12); }
+    .cell.sameVal{
+      background: rgba(121,167,255,.10);
+      outline: 1px solid rgba(121,167,255,.25);
+      outline-offset:-1px;
+    }
+    .cell.conflict{
+      background: rgba(255,95,109,.12);
+      border-color: rgba(255,95,109,.55);
+    }
+    .cell.wrong{ color: var(--bad); }
+
+    .notes{
+      position:absolute;
+      inset: 6px;
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 2px;
+      font-size: clamp(9px, 2.2vw, 12px);
+      color: rgba(231,238,252,.72);
+      font-family: var(--mono);
+      line-height:1;
+      pointer-events:none;
+    }
+    .notes span{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      opacity:.95;
+    }
+
+    .actions{
+      width:100%;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      justify-content:center;
+    }
+    .actions button{
+      flex: 1 1 120px;
+      max-width: 220px;
+      padding: 12px 12px;
+    }
+
+    .msg{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.16);
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 44px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .msg strong{ color: var(--text); }
+    .statusDot{
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 4px rgba(255,255,255,.06);
+      flex: 0 0 auto;
+    }
+    .statusDot.good{ background: var(--good); box-shadow: 0 0 0 4px rgba(69,212,131,.12); }
+    .statusDot.bad{ background: var(--bad); box-shadow: 0 0 0 4px rgba(255,95,109,.12); }
+    .statusDot.warn{ background: var(--warn); box-shadow: 0 0 0 4px rgba(255,204,102,.12); }
+
+    .side{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      background: radial-gradient(700px 700px at 40% 10%, rgba(255,255,255,.07) 0%, rgba(15,27,51,.18) 60%);
+    }
+    .section h2{
+      margin:0 0 8px 0;
+      font-size: 14px;
+      letter-spacing:.2px;
+    }
+    .muted{ color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .hr{ height:1px; background: rgba(255,255,255,.12); margin: 2px 0; }
+
+    .pad{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .pad button{
+      padding: 14px 10px;
+      font-family: var(--mono);
+      font-size: 16px;
+      background: rgba(15,27,51,.72);
+    }
+
+    .fileRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    input[type="file"]{ padding: 8px 10px; max-width: 100%; }
+
+    .kbd{
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.15);
+      color: var(--text);
+    }
+    .fine{ font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+
+    <header class="card">
+      <div class="title">
+        <h1>Sudoku</h1>
+        <div class="sub">
+          Persistent (one current game) via localStorage. Fetches fresh puzzles online.
+          Export/import your current game as JSON.
+        </div>
+      </div>
+      <div class="toolbar">
+        <select id="difficulty">
+          <option value="easy">Easy</option>
+          <option value="medium" selected>Medium</option>
+          <option value="hard">Hard</option>
+          <option value="random">Random</option>
+        </select>
+        <button class="primary" id="newGameBtn">New game (online)</button>
+        <button id="resumeBtn" title="Resume last saved game">Resume</button>
+        <button id="clearSaveBtn" class="danger" title="Delete saved game">Clear save</button>
+      </div>
+    </header>
+
+    <section class="card gridCard">
+      <div class="hud">
+        <div class="left">
+          <div class="pill"><small>ID</small><span id="gameId">-</span></div>
+          <div class="pill"><small>Diff</small><span id="gameDiff">-</span></div>
+          <div class="pill"><small>Time</small><span id="timer">00:00</span></div>
+        </div>
+        <div class="right">
+          <div class="toggle">
+            <input type="checkbox" id="autoCheck" checked />
+            <label for="autoCheck">Auto-check</label>
+          </div>
+          <div class="toggle">
+            <input type="checkbox" id="highlight" checked />
+            <label for="highlight">Highlight</label>
+          </div>
+        </div>
+      </div>
+
+      <div id="board" class="board" role="grid" aria-label="Sudoku board"></div>
+
+      <div class="actions">
+        <button id="undoBtn">Undo</button>
+        <button id="eraseBtn">Erase</button>
+        <button id="noteModeBtn">Notes: Off</button>
+        <button id="hintBtn">Hint</button>
+        <button id="checkBtn" class="good">Check</button>
+      </div>
+
+      <div class="msg" id="message">
+        <span><strong>Tip</strong> Use <span class="kbd">1</span>–<span class="kbd">9</span>. Toggle notes with <span class="kbd">N</span>. Undo with <span class="kbd">Ctrl</span>+<span class="kbd">Z</span>.</span>
+        <span class="statusDot" id="statusDot"></span>
+      </div>
+    </section>
+
+    <aside class="card side">
+      <div class="section">
+        <h2>Number pad</h2>
+        <div class="pad" id="pad"></div>
+        <div class="fine">Keyboard, mouse, and touch supported.</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="section">
+        <h2>Download and import</h2>
+        <div class="fileRow">
+          <button id="downloadGameBtn" class="primary">Download current game</button>
+        </div>
+        <div class="fileRow">
+          <input type="file" id="importFile" accept="application/json,.json" />
+          <button id="importBtn">Import game</button>
+        </div>
+        <div class="muted">
+          Export includes puzzle, solved grid, and your progress. Import restores it and persists locally.
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="section">
+        <h2>Shortcuts</h2>
+        <div class="fine">
+          <div><span class="kbd">1</span>–<span class="kbd">9</span> set value (or note if Notes mode on)</div>
+          <div><span class="kbd">Backspace</span> or <span class="kbd">Del</span> erase</div>
+          <div><span class="kbd">N</span> toggle Notes mode</div>
+          <div><span class="kbd">H</span> hint</div>
+          <div><span class="kbd">C</span> check</div>
+          <div><span class="kbd">Ctrl</span>+<span class="kbd">Z</span> undo</div>
+          <div><span class="kbd">Arrows</span> move selection</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="section">
+        <h2>Online source</h2>
+        <div class="muted">
+          This build fetches puzzles from <span class="kbd">SUGOKU_BASE_URL</span>.
+          If fetch fails, it falls back to a built-in puzzle.
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+<script>
+(() => {
+  /* ---------- Configuration ---------- */
+
+  // Online puzzle source (returns JSON like { board: [[...],[...],...] }).
+  // If you want to switch providers later, only adapt fetchPuzzleOnline().
+  const SUGOKU_BASE_URL = "https://sugoku.onrender.com/board";
+
+  // Persistence: only one current game
+  const LS_KEY = "sudoku.persistent.v2.active";
+
+  // Fallback puzzles (givens + solution as 81-char strings, 0 means blank)
+  const FALLBACK = [
+    {
+      id: "F-M-001",
+      difficulty: "medium",
+      givens:  "000260701680070090190004500820100040004602900050003028009300074040050036703018000",
+      solution:"435269781682571493197834562826195347374682915951743628519326874248957136763418259"
+    },
+    {
+      id: "F-H-001",
+      difficulty: "hard",
+      givens:  "000000907000420180000705026100904000050000040000507009920108000034059000507000000",
+      solution:"462831957795426183381795426173984265659312748248567319926178534834259671517643892"
+    }
+  ];
+
+  /* ---------- Helpers ---------- */
+
+  const $ = (sel) => document.querySelector(sel);
+
+  const boardEl = $("#board");
+  const padEl = $("#pad");
+  const msgEl = $("#message");
+  const statusDot = $("#statusDot");
+
+  const difficultySel = $("#difficulty");
+  const newGameBtn = $("#newGameBtn");
+  const resumeBtn = $("#resumeBtn");
+  const clearSaveBtn = $("#clearSaveBtn");
+
+  const gameIdEl = $("#gameId");
+  const gameDiffEl = $("#gameDiff");
+  const timerEl = $("#timer");
+
+  const autoCheckEl = $("#autoCheck");
+  const highlightEl = $("#highlight");
+
+  const undoBtn = $("#undoBtn");
+  const eraseBtn = $("#eraseBtn");
+  const noteModeBtn = $("#noteModeBtn");
+  const hintBtn = $("#hintBtn");
+  const checkBtn = $("#checkBtn");
+
+  const downloadGameBtn = $("#downloadGameBtn");
+  const importFileEl = $("#importFile");
+  const importBtn = $("#importBtn");
+
+  const bit = (n) => (1 << n);
+
+  function nowISO(){ return new Date().toISOString(); }
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function fmtTime(sec) {
+    sec = Math.max(0, sec|0);
+    const m = (sec / 60) | 0;
+    const s = sec % 60;
+    return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  }
+
+  function setMessage(kind, html) {
+    msgEl.querySelector("span").innerHTML = html;
+    statusDot.classList.remove("good","warn","bad");
+    if (kind === "good") statusDot.classList.add("good");
+    else if (kind === "warn") statusDot.classList.add("warn");
+    else if (kind === "bad") statusDot.classList.add("bad");
+  }
+
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  function parseGridStr(str) {
+    if (typeof str !== "string" || str.length !== 81) throw new Error("Invalid grid string");
+    return Array.from(str).map(ch => {
+      const n = ch.charCodeAt(0) - 48;
+      return (n >= 0 && n <= 9) ? n : 0;
+    });
+  }
+
+  function gridToStr(arr){ return arr.map(n => (n|0)).join(""); }
+
+  function board2dTo81(board2d){
+    if (!Array.isArray(board2d) || board2d.length !== 9) throw new Error("Invalid board");
+    const out = [];
+    for (let r = 0; r < 9; r++){
+      if (!Array.isArray(board2d[r]) || board2d[r].length !== 9) throw new Error("Invalid board row");
+      for (let c = 0; c < 9; c++){
+        const v = board2d[r][c] | 0;
+        out.push((v >= 0 && v <= 9) ? v : 0);
+      }
+    }
+    return out;
+  }
+
+  function rc(i){ return { r: (i / 9) | 0, c: i % 9 }; }
+  function idx(r,c){ return r * 9 + c; }
+  function boxIndex(r,c){ return ((r/3)|0) * 3 + ((c/3)|0); }
+
+  /* ---------- Sudoku solver (backtracking with MRV) ---------- */
+
+  function computeMasks(values) {
+    const row = new Array(9).fill(0);
+    const col = new Array(9).fill(0);
+    const box = new Array(9).fill(0);
+
+    for (let i = 0; i < 81; i++){
+      const v = values[i]|0;
+      if (!v) continue;
+      const { r, c } = rc(i);
+      const b = boxIndex(r,c);
+      const m = bit(v);
+      // invalid if duplicate
+      if ((row[r] & m) || (col[c] & m) || (box[b] & m)) return null;
+      row[r] |= m; col[c] |= m; box[b] |= m;
+    }
+    return { row, col, box };
+  }
+
+  function candidatesMask(values, masks, i) {
+    const { r, c } = rc(i);
+    const b = boxIndex(r,c);
+    const used = masks.row[r] | masks.col[c] | masks.box[b];
+    // bits 1..9 allowed if not used
+    // mask for digits 1..9 is 0b1111111110 = 1022
+    return (~used) & 1022;
+  }
+
+  function maskToCandidates(mask) {
+    const out = [];
+    for (let n = 1; n <= 9; n++) if (mask & bit(n)) out.push(n);
+    return out;
+  }
+
+  function solveSudoku(values81) {
+    const values = values81.slice();
+    const masks = computeMasks(values);
+    if (!masks) return null;
+
+    function place(i, n) {
+      const { r, c } = rc(i);
+      const b = boxIndex(r,c);
+      const m = bit(n);
+      values[i] = n;
+      masks.row[r] |= m; masks.col[c] |= m; masks.box[b] |= m;
+    }
+
+    function unplace(i, n) {
+      const { r, c } = rc(i);
+      const b = boxIndex(r,c);
+      const m = bit(n);
+      values[i] = 0;
+      masks.row[r] &= ~m; masks.col[c] &= ~m; masks.box[b] &= ~m;
+    }
+
+    function pickCell() {
+      let bestI = -1;
+      let bestMask = 0;
+      let bestCount = 99;
+
+      for (let i = 0; i < 81; i++){
+        if (values[i] !== 0) continue;
+        const m = candidatesMask(values, masks, i);
+        const count = popcount(m);
+        if (count === 0) return { i: -1, mask: 0, dead: true };
+        if (count < bestCount) {
+          bestCount = count;
+          bestI = i;
+          bestMask = m;
+          if (count === 1) break;
+        }
+      }
+
+      return { i: bestI, mask: bestMask, dead: false };
+    }
+
+    function popcount(x){
+      x = x|0;
+      let c = 0;
+      while (x) { x &= (x - 1); c++; }
+      return c;
+    }
+
+    function dfs() {
+      const pick = pickCell();
+      if (pick.dead) return false;
+      if (pick.i === -1) return true; // solved (no blanks)
+
+      const opts = maskToCandidates(pick.mask);
+      // small shuffle to vary solutions when multiple exist
+      for (let j = opts.length - 1; j > 0; j--){
+        const k = (Math.random() * (j + 1)) | 0;
+        [opts[j], opts[k]] = [opts[k], opts[j]];
+      }
+
+      for (const n of opts){
+        place(pick.i, n);
+        if (dfs()) return true;
+        unplace(pick.i, n);
+      }
+      return false;
+    }
+
+    return dfs() ? values : null;
+  }
+
+  /* ---------- Online fetch ---------- */
+
+  async function fetchWithTimeout(url, opts = {}, ms = 9000) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    try {
+      const res = await fetch(url, { ...opts, signal: ac.signal });
+      return res;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  async function fetchPuzzleOnline(difficulty) {
+    const url = `${SUGOKU_BASE_URL}?difficulty=${encodeURIComponent(difficulty)}`;
+    const res = await fetchWithTimeout(url, { method: "GET" }, 10000);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const values = board2dTo81(data.board);
+    return values; // givens only, solution computed locally
+  }
+
+  function pickFallback(difficulty) {
+    const list = FALLBACK.filter(p => p.difficulty === difficulty);
+    return (list.length ? list : FALLBACK)[(Math.random() * (list.length ? list.length : FALLBACK.length)) | 0];
+  }
+
+  /* ---------- Game state ---------- */
+
+  let state = null;
+  let timerHandle = null;
+
+  function persist() {
+    if (!state) return;
+    const payload = deepClone(state);
+    payload.savedAt = nowISO();
+    localStorage.setItem(LS_KEY, JSON.stringify(payload));
+  }
+
+  function loadPersisted() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    try {
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.givens || !obj.solution || !obj.values) return null;
+      return obj;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearPersisted(){
+    localStorage.removeItem(LS_KEY);
+  }
+
+  function stopTimer() {
+    if (timerHandle) clearInterval(timerHandle);
+    timerHandle = null;
+  }
+
+  function startTimer() {
+    stopTimer();
+    timerHandle = setInterval(() => {
+      if (!state || state.completed) return;
+      state.elapsedSec += 1;
+      timerEl.textContent = fmtTime(state.elapsedSec);
+      persist();
+    }, 1000);
+  }
+
+  function isGiven(i){ return (state.givens[i] | 0) !== 0; }
+
+  function peersOf(i) {
+    const { r, c } = rc(i);
+    const out = new Set();
+
+    for (let cc = 0; cc < 9; cc++) out.add(idx(r, cc));
+    for (let rr = 0; rr < 9; rr++) out.add(idx(rr, c));
+
+    const br = ((r/3)|0) * 3;
+    const bc = ((c/3)|0) * 3;
+    for (let rr = br; rr < br + 3; rr++) for (let cc = bc; cc < bc + 3; cc++) out.add(idx(rr, cc));
+
+    out.delete(i);
+    return out;
+  }
+
+  function conflicts(i, val, values = state.values) {
+    if (!val) return false;
+    const { r, c } = rc(i);
+
+    for (let cc = 0; cc < 9; cc++){
+      const j = idx(r, cc);
+      if (j !== i && values[j] === val) return true;
+    }
+    for (let rr = 0; rr < 9; rr++){
+      const j = idx(rr, c);
+      if (j !== i && values[j] === val) return true;
+    }
+
+    const br = ((r/3)|0) * 3;
+    const bc = ((c/3)|0) * 3;
+    for (let rr = br; rr < br + 3; rr++){
+      for (let cc = bc; cc < bc + 3; cc++){
+        const j = idx(rr, cc);
+        if (j !== i && values[j] === val) return true;
+      }
+    }
+    return false;
+  }
+
+  function isSolved() {
+    for (let i = 0; i < 81; i++){
+      if ((state.values[i]|0) !== (state.solution[i]|0)) return false;
+    }
+    return true;
+  }
+
+  function pushUndo() {
+    state.undo.push({
+      values: state.values.slice(),
+      notes: state.notes.slice(),
+      selected: state.selected,
+      noteMode: state.noteMode,
+      elapsedSec: state.elapsedSec
+    });
+    if (state.undo.length > 200) state.undo.shift();
+  }
+
+  function undo() {
+    if (!state.undo.length) return;
+    const snap = state.undo.pop();
+    state.values = snap.values;
+    state.notes = snap.notes;
+    state.selected = snap.selected;
+    state.noteMode = snap.noteMode;
+    state.elapsedSec = snap.elapsedSec;
+    state.completed = isSolved();
+    renderAll();
+    persist();
+    setMessage("warn", "<strong>Undo</strong> Reverted last move.");
+  }
+
+  function toggleNotesMode() {
+    if (!state) return;
+    state.noteMode = !state.noteMode;
+    noteModeBtn.textContent = "Notes: " + (state.noteMode ? "On" : "Off");
+    persist();
+  }
+
+  function eraseSelected() {
+    if (!state) return;
+    const i = state.selected|0;
+    if (isGiven(i)) return;
+    if (state.values[i] === 0 && state.notes[i] === 0) return;
+    pushUndo();
+    state.values[i] = 0;
+    state.notes[i] = 0;
+    state.completed = false;
+    renderAll();
+    persist();
+  }
+
+  function applyInput(n) {
+    if (!state) return;
+    const i = state.selected|0;
+    if (isGiven(i) || state.completed) return;
+
+    if (state.noteMode) {
+      pushUndo();
+      if (state.values[i] !== 0) state.values[i] = 0;
+      state.notes[i] ^= bit(n);
+      renderCell(i);
+      persist();
+      return;
+    }
+
+    pushUndo();
+    state.notes[i] = 0;
+    state.values[i] = n;
+
+    state.completed = isSolved();
+    renderAll();
+    persist();
+
+    if (state.completed) {
+      stopTimer();
+      setMessage("good", "<strong>Completed</strong> Puzzle solved.");
+      return;
+    }
+
+    const wrong = state.autoCheck && (n !== state.solution[i]);
+    if (wrong) {
+      setMessage("bad", "<strong>Not quite</strong> That number is not correct for this cell.");
+    } else if (conflicts(i, n)) {
+      setMessage("warn", "<strong>Conflict</strong> That duplicates a number in the row, column, or box.");
+    } else {
+      setMessage("warn", "<strong>Playing</strong> Keep going.");
+    }
+  }
+
+  function hint() {
+    if (!state) return;
+    const i = state.selected|0;
+    if (isGiven(i) || state.completed) return;
+
+    if (state.values[i] === state.solution[i]) {
+      setMessage("warn", "<strong>Hint</strong> This cell is already correct.");
+      return;
+    }
+    pushUndo();
+    state.notes[i] = 0;
+    state.values[i] = state.solution[i];
+    state.completed = isSolved();
+    renderAll();
+    persist();
+
+    if (state.completed) {
+      stopTimer();
+      setMessage("good", "<strong>Completed</strong> Puzzle solved.");
+    } else {
+      setMessage("good", "<strong>Hint</strong> Filled the selected cell.");
+    }
+  }
+
+  function check() {
+    if (!state) return;
+
+    let blanks = 0, wrong = 0, conflictsCount = 0;
+    for (let i = 0; i < 81; i++){
+      const v = state.values[i]|0;
+      if (!v) blanks++;
+      else {
+        if (v !== (state.solution[i]|0)) wrong++;
+        if (conflicts(i, v)) conflictsCount++;
+      }
+    }
+
+    state.completed = isSolved();
+    renderAll();
+    persist();
+
+    if (state.completed) {
+      stopTimer();
+      setMessage("good", "<strong>Completed</strong> Puzzle solved.");
+      return;
+    }
+    if (wrong === 0 && conflictsCount === 0 && blanks > 0) {
+      setMessage("good", "<strong>Looking good</strong> No incorrect entries so far. Blanks: " + blanks + ".");
+    } else if (wrong > 0) {
+      setMessage("bad", "<strong>Check</strong> Incorrect entries: " + wrong + ". Conflicts flagged on the board.");
+    } else if (conflictsCount > 0) {
+      setMessage("warn", "<strong>Check</strong> Conflicts found. Resolve duplicates in a row, column, or box.");
+    } else {
+      setMessage("warn", "<strong>Check</strong> Keep going.");
+    }
+  }
+
+  function selectCell(i) {
+    if (!state) return;
+    state.selected = clamp(i|0, 0, 80);
+    renderAll();
+    persist();
+  }
+
+  function moveSelection(dr, dc) {
+    if (!state) return;
+    const { r, c } = rc(state.selected|0);
+    const nr = clamp(r + dr, 0, 8);
+    const nc = clamp(c + dc, 0, 8);
+    selectCell(idx(nr, nc));
+  }
+
+  /* ---------- Rendering ---------- */
+
+  function renderAll() {
+    if (!state) return;
+
+    gameIdEl.textContent = state.id || "-";
+    gameDiffEl.textContent = state.difficulty || "-";
+    timerEl.textContent = fmtTime(state.elapsedSec|0);
+    noteModeBtn.textContent = "Notes: " + (state.noteMode ? "On" : "Off");
+
+    autoCheckEl.checked = !!state.autoCheck;
+    highlightEl.checked = !!state.highlight;
+
+    if (!boardEl.children.length) {
+      boardEl.innerHTML = "";
+      for (let i = 0; i < 81; i++){
+        const d = document.createElement("div");
+        d.className = "cell";
+        d.tabIndex = 0;
+        d.dataset.i = String(i);
+
+        const { r, c } = rc(i);
+        if (c === 2 || c === 5) d.classList.add("bR");
+        if (r === 2 || r === 5) d.classList.add("bB");
+
+        d.addEventListener("click", () => selectCell(i));
+        boardEl.appendChild(d);
+      }
+    }
+
+    for (let i = 0; i < 81; i++) renderCell(i);
+
+    undoBtn.disabled = state.undo.length === 0;
+    eraseBtn.disabled = isGiven(state.selected|0) || state.completed;
+    hintBtn.disabled = isGiven(state.selected|0) || state.completed;
+    checkBtn.disabled = state.completed;
+  }
+
+  function renderCell(i) {
+    const el = boardEl.children[i];
+    if (!el) return;
+
+    // keep base + thick borders
+    const keep = new Set(["cell","bR","bB"]);
+    el.className = el.className.split(" ").filter(c => keep.has(c)).join(" ");
+    if (!el.classList.contains("cell")) el.classList.add("cell");
+
+    const v = state.values[i] | 0;
+    const isG = isGiven(i);
+
+    if (isG) el.classList.add("given");
+    if ((state.selected|0) === i) el.classList.add("selected");
+
+    const highlight = !!state.highlight;
+    const selected = state.selected|0;
+    const sv = state.values[selected]|0;
+
+    if (highlight && selected !== i) {
+      if (peersOf(selected).has(i)) el.classList.add("related");
+      if (sv && v === sv) el.classList.add("sameVal");
+    }
+
+    el.textContent = v ? String(v) : "";
+
+    // notes
+    el.querySelector(".notes")?.remove();
+    if (!v) {
+      const mask = state.notes[i] | 0;
+      if (mask) {
+        const notes = document.createElement("div");
+        notes.className = "notes";
+        for (let n = 1; n <= 9; n++){
+          const s = document.createElement("span");
+          s.textContent = (mask & bit(n)) ? String(n) : "";
+          notes.appendChild(s);
+        }
+        el.appendChild(notes);
+      }
+    }
+
+    if (v && conflicts(i, v)) el.classList.add("conflict");
+
+    if (v && state.autoCheck && !isG) {
+      if (v !== (state.solution[i]|0)) el.classList.add("wrong");
+    }
+
+    el.setAttribute("aria-label", `Row ${((i/9)|0)+1} Column ${(i%9)+1}`);
+  }
+
+  function buildPad() {
+    padEl.innerHTML = "";
+    for (let n = 1; n <= 9; n++){
+      const b = document.createElement("button");
+      b.textContent = String(n);
+      b.addEventListener("click", () => applyInput(n));
+      padEl.appendChild(b);
+    }
+    const erase = document.createElement("button");
+    erase.textContent = "⌫";
+    erase.title = "Erase";
+    erase.addEventListener("click", eraseSelected);
+    padEl.appendChild(erase);
+
+    const notes = document.createElement("button");
+    notes.textContent = "N";
+    notes.title = "Notes mode";
+    notes.addEventListener("click", toggleNotesMode);
+    padEl.appendChild(notes);
+  }
+
+  /* ---------- Export / Import ---------- */
+
+  function downloadJSON(filename, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadCurrentGame() {
+    if (!state) return;
+    const file = {
+      exportedAt: nowISO(),
+      game: {
+        version: state.version,
+        id: state.id,
+        difficulty: state.difficulty,
+        createdAt: state.createdAt,
+        savedAt: nowISO(),
+        elapsedSec: state.elapsedSec,
+        source: state.source || null,
+        givens: gridToStr(state.givens),
+        solution: gridToStr(state.solution),
+        values: gridToStr(state.values),
+        notes: state.notes.slice(),
+        completed: !!state.completed
+      }
+    };
+    downloadJSON(`sudoku-${state.id}-${state.difficulty}.json`, file);
+    setMessage("good", "<strong>Downloaded</strong> Current game exported as JSON.");
+  }
+
+  function importGameFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const obj = JSON.parse(String(r.result || ""));
+          const g = obj?.game;
+          if (!g) throw new Error("Missing game object");
+          if (typeof g.givens !== "string" || g.givens.length !== 81) throw new Error("Invalid givens");
+          if (typeof g.solution !== "string" || g.solution.length !== 81) throw new Error("Invalid solution");
+          if (typeof g.values !== "string" || g.values.length !== 81) throw new Error("Invalid values");
+
+          const imported = {
+            version: 2,
+            id: String(g.id || ("IMPORTED-" + Date.now())),
+            difficulty: String(g.difficulty || "imported"),
+            createdAt: String(g.createdAt || nowISO()),
+            savedAt: nowISO(),
+            source: g.source || null,
+            givens: parseGridStr(g.givens),
+            solution: parseGridStr(g.solution),
+            values: parseGridStr(g.values),
+            notes: Array.isArray(g.notes) && g.notes.length === 81 ? g.notes.map(x => x|0) : new Array(81).fill(0),
+            selected: 0,
+            noteMode: false,
+            elapsedSec: (g.elapsedSec|0) || 0,
+            undo: [],
+            completed: !!g.completed,
+            autoCheck: autoCheckEl.checked,
+            highlight: highlightEl.checked
+          };
+          resolve(imported);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      r.onerror = () => reject(new Error("Failed to read file"));
+      r.readAsText(file);
+    });
+  }
+
+  /* ---------- Game init ---------- */
+
+  function initGameFromValues({ givens81, solution81, difficulty, id, source }) {
+    const values = givens81.slice();
+    const notes = new Array(81).fill(0);
+
+    state = {
+      version: 2,
+      id,
+      difficulty,
+      source: source || null,
+      createdAt: nowISO(),
+      savedAt: null,
+      givens: givens81,
+      solution: solution81,
+      values,
+      notes,
+      selected: 0,
+      noteMode: false,
+      elapsedSec: 0,
+      undo: [],
+      completed: false,
+      autoCheck: autoCheckEl.checked,
+      highlight: highlightEl.checked
+    };
+
+    renderAll();
+    persist();
+    startTimer();
+  }
+
+  async function newGameOnline(diff) {
+    newGameBtn.disabled = true;
+    setMessage("warn", "<strong>Fetching</strong> Downloading a fresh puzzle…");
+
+    // Try a few times in case the puzzle is invalid or solver fails
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const givens = await fetchPuzzleOnline(diff);
+        const solved = solveSudoku(givens);
+        if (!solved) throw new Error("Solver failed");
+        const id = `ON-${diff}-${Date.now().toString(36).toUpperCase()}`;
+        initGameFromValues({
+          givens81: givens,
+          solution81: solved,
+          difficulty: diff,
+          id,
+          source: { type: "sugoku", urlBase: SUGOKU_BASE_URL }
+        });
+        setMessage("warn", "<strong>Playing</strong> Fresh puzzle loaded.");
+        return;
+      } catch (e) {
+        if (attempt === 4) break;
+      }
+    }
+
+    // Fallback if online fetch/solve fails
+    const fb = pickFallback(diff === "random" ? "medium" : diff);
+    initGameFromValues({
+      givens81: parseGridStr(fb.givens),
+      solution81: parseGridStr(fb.solution),
+      difficulty: fb.difficulty,
+      id: fb.id,
+      source: { type: "fallback" }
+    });
+    setMessage("bad", "<strong>Offline fallback</strong> Online fetch failed. Loaded a built-in puzzle.");
+  }
+
+  function initGameFromSave(saved) {
+    state = saved;
+    state.autoCheck = autoCheckEl.checked;
+    state.highlight = highlightEl.checked;
+    state.noteMode = !!state.noteMode;
+    state.selected = clamp(state.selected|0, 0, 80);
+    state.elapsedSec = state.elapsedSec|0;
+    state.undo = Array.isArray(state.undo) ? state.undo : [];
+    state.notes = Array.isArray(state.notes) ? state.notes : new Array(81).fill(0);
+
+    renderAll();
+    persist();
+    startTimer();
+
+    if (state.completed) setMessage("good", "<strong>Completed</strong> You finished this puzzle.");
+    else setMessage("warn", "<strong>Resumed</strong> Your saved game has been restored.");
+  }
+
+  /* ---------- Events ---------- */
+
+  function attachEvents() {
+    newGameBtn.addEventListener("click", () => newGameOnline(difficultySel.value));
+
+    resumeBtn.addEventListener("click", () => {
+      const saved = loadPersisted();
+      if (!saved) {
+        setMessage("warn", "<strong>No save</strong> There is no saved game to resume.");
+        return;
+      }
+      initGameFromSave(saved);
+    });
+
+    clearSaveBtn.addEventListener("click", () => {
+      clearPersisted();
+      setMessage("good", "<strong>Cleared</strong> Saved game removed from this browser.");
+    });
+
+    undoBtn.addEventListener("click", undo);
+    eraseBtn.addEventListener("click", eraseSelected);
+    noteModeBtn.addEventListener("click", toggleNotesMode);
+    hintBtn.addEventListener("click", hint);
+    checkBtn.addEventListener("click", check);
+
+    autoCheckEl.addEventListener("change", () => {
+      if (!state) return;
+      state.autoCheck = autoCheckEl.checked;
+      renderAll();
+      persist();
+    });
+    highlightEl.addEventListener("change", () => {
+      if (!state) return;
+      state.highlight = highlightEl.checked;
+      renderAll();
+      persist();
+    });
+
+    downloadGameBtn.addEventListener("click", downloadCurrentGame);
+
+    importBtn.addEventListener("click", async () => {
+      const f = importFileEl.files && importFileEl.files[0];
+      if (!f) {
+        setMessage("warn", "<strong>Import</strong> Choose a .json file first.");
+        return;
+      }
+      try {
+        const imported = await importGameFromFile(f);
+        initGameFromSave(imported);
+        setMessage("good", "<strong>Imported</strong> Game loaded and saved locally.");
+      } catch (e) {
+        setMessage("bad", "<strong>Import failed</strong> " + (e?.message || "Invalid file."));
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (!state) return;
+
+      const k = e.key;
+
+      if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      if (k === "ArrowUp") { e.preventDefault(); moveSelection(-1, 0); return; }
+      if (k === "ArrowDown") { e.preventDefault(); moveSelection( 1, 0); return; }
+      if (k === "ArrowLeft") { e.preventDefault(); moveSelection( 0,-1); return; }
+      if (k === "ArrowRight") { e.preventDefault(); moveSelection( 0, 1); return; }
+
+      if (k === "Backspace" || k === "Delete") { e.preventDefault(); eraseSelected(); return; }
+
+      if (k === "n" || k === "N") { e.preventDefault(); toggleNotesMode(); return; }
+      if (k === "h" || k === "H") { e.preventDefault(); hint(); return; }
+      if (k === "c" || k === "C") { e.preventDefault(); check(); return; }
+
+      const n = k.charCodeAt(0) - 48;
+      if (n >= 1 && n <= 9) {
+        e.preventDefault();
+        applyInput(n);
+      }
+    });
+  }
+
+  /* ---------- Boot ---------- */
+
+  async function boot() {
+    buildPad();
+    attachEvents();
+
+    const saved = loadPersisted();
+    if (saved) {
+      initGameFromSave(saved);
+      setMessage(saved.completed ? "good" : "warn", saved.completed
+        ? "<strong>Completed</strong> Resume to view, or start a new game."
+        : "<strong>Resumed</strong> Your saved game has been restored.");
+      newGameBtn.disabled = false;
+      return;
+    }
+
+    await newGameOnline(difficultySel.value);
+    newGameBtn.disabled = false;
+  }
+
+  // Ensure New Game button re-enables after boot fetch
+  (async () => {
+    try { await boot(); }
+    finally { newGameBtn.disabled = false; }
+  })();
+
+})();
+</script>
+</body>
+</html>

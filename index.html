@@ -311,10 +311,16 @@ section{
   border-color: rgba(51,199,255,0.30);
 }
 
+/* Default mini text should follow the theme */
 .mini{
   margin-top: 14px;
   font-size: 12px;
   line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Only make it light when it is inside the hero */
+.hero-main .mini{
   color: rgba(255,255,255,0.70);
 }
 

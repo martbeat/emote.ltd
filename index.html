@@ -462,7 +462,44 @@ section{
       line-height: 1.45;
       max-width: 72ch;
     }
+/* Latest posts with thumbnails */
+.item.post{
+  align-items: stretch;
+}
 
+.postRow{
+  display:flex;
+  gap: 12px;
+  align-items:flex-start;
+}
+
+.postThumb{
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--panel2) 75%, transparent);
+}
+
+.postMain{
+  min-width: 0; /* enables ellipsis / wrapping nicely */
+}
+
+.postMeta{
+  display:flex;
+  gap: 10px;
+  flex-wrap:wrap;
+  margin-top: 6px;
+  color: var(--muted2);
+  font-size: 12px;
+}
+
+
+
+
+    
     .chip{
       font-size: 11px;
       padding: 6px 8px;
@@ -1055,6 +1092,35 @@ function formatDate(iso){
     return "";
   }
 }
+function escapeHtml(str){
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function firstImageFromHtml(html){
+  const m = String(html ?? "").match(/<img[^>]+src="([^"]+)"/i);
+  return m ? m[1] : "";
+}
+
+// Blogger/Google thumbs often support size hints. This tries to standardise.
+function normaliseThumb(url, size=160){
+  if(!url) return "";
+  // Patterns seen in Blogger images:
+  //  - ...=s72-c
+  //  - .../s72-c/...
+  //  - .../w72-h72-p-k-no-nu/...
+  let out = url;
+
+  out = out.replace(/=s\d+-c/i, `=s${size}-c`);
+  out = out.replace(/\/s\d+-c\//i, `/s${size}-c/`);
+  out = out.replace(/\/w\d+-h\d+[^/]*\//i, `/w${size}-h${size}/`);
+
+  return out;
+}
 
 async function fetchLatestPosts(){
   const target = document.querySelector("#latestPosts");
@@ -1089,19 +1155,41 @@ async function fetchLatestPosts(){
     }
 
     target.innerHTML = entries.map(e => {
-      const title = e?.title?.$t || "Untitled";
-      const href = (e?.link || []).find(l => l.rel === "alternate")?.href || "https://martymcfry.blogspot.com/";
+      const rawTitle = e?.title?.$t || "Untitled";
+      const title = escapeHtml(rawTitle);
+
+      const href =
+        (e?.link || []).find(l => l.rel === "alternate")?.href
+        || "https://martymcfry.blogspot.com/";
+
       const published = e?.published?.$t || "";
+
       const html = e?.content?.$t || e?.summary?.$t || "";
       const text = stripHtml(html);
-      const excerpt = text.slice(0, 170) + (text.length > 170 ? "…" : "");
+      const excerptRaw = text.slice(0, 170) + (text.length > 170 ? "…" : "");
+      const excerpt = escapeHtml(excerptRaw);
+
+      // 1) Prefer Blogger-provided thumbnail
+      let thumb = e?.["media$thumbnail"]?.url || "";
+
+      // 2) Fallback: first image in the post body
+      if(!thumb) thumb = firstImageFromHtml(html);
+
+      thumb = normaliseThumb(thumb, 200);
+
+      const thumbHtml = thumb
+        ? `<img class="postThumb" src="${thumb}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+        : "";
 
       return `
-        <div class="item">
-          <div>
-            <strong>${title}</strong>
-            <div class="desc">${excerpt}</div>
-            <div class="desc" style="margin-top:6px;">${formatDate(published)}</div>
+        <div class="item post">
+          <div class="postRow">
+            ${thumbHtml}
+            <div class="postMain">
+              <strong>${title}</strong>
+              <div class="desc">${excerpt}</div>
+              <div class="postMeta">${escapeHtml(formatDate(published))}</div>
+            </div>
           </div>
           <a class="chip" href="${href}" target="_blank" rel="noopener noreferrer">Read</a>
         </div>`;
@@ -1119,7 +1207,7 @@ async function fetchLatestPosts(){
   }
 }
 
-fetchLatestPosts();
+    fetchLatestPosts();
 
 
     // ---------- Theme ----------

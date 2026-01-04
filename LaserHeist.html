@@ -56,16 +56,17 @@
       justify-content:space-between;
       align-items:center;
       gap:10px;
+      flex-wrap:wrap;
       background: linear-gradient(180deg, rgba(125,211,252,.12), rgba(255,255,255,.03));
     }
     .hud .left{
       display:flex;
       flex-direction:column;
       gap:4px;
-      min-width: 160px;
+      min-width: 220px;
     }
     .title{
-      font-weight:700;
+      font-weight:800;
       letter-spacing:.2px;
       display:flex;
       gap:8px;
@@ -94,7 +95,7 @@
       justify-content:center;
     }
     .pill .label{ color:var(--muted); font-size:12px }
-    .pill .value{ font-size:18px; font-weight:800 }
+    .pill .value{ font-size:18px; font-weight:900 }
     .pill.timer{
       border-color: rgba(125,211,252,.28);
       background: rgba(125,211,252,.08);
@@ -124,7 +125,7 @@
       color:var(--ink);
       padding:10px 12px;
       border-radius: 12px;
-      font-weight:700;
+      font-weight:800;
       cursor:pointer;
       box-shadow: 0 10px 18px rgba(0,0,0,.18);
       transition: transform .08s ease, background .12s ease, border-color .12s ease;
@@ -201,7 +202,7 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      font-weight:800;
+      font-weight:900;
       letter-spacing: .2px;
       overflow:hidden;
     }
@@ -212,6 +213,8 @@
     .door.open{ opacity:.55; filter:saturate(.85); }
     .switch{ background: linear-gradient(180deg, rgba(125,211,252,.18), rgba(255,255,255,.02)); border-color: rgba(125,211,252,.30); }
     .key{ background: linear-gradient(180deg, rgba(250,204,21,.22), rgba(255,255,255,.02)); border-color: rgba(250,204,21,.35); }
+    .noise{ background: linear-gradient(180deg, rgba(251,113,133,.12), rgba(255,255,255,.02)); border-color: rgba(251,113,133,.22); }
+    .oneway{ background: linear-gradient(180deg, rgba(167,139,250,.16), rgba(255,255,255,.02)); border-color: rgba(167,139,250,.25); }
 
     .entity{
       position:absolute;
@@ -225,7 +228,6 @@
     }
     .player{ font-size: 20px; }
     .camera{ font-size: 18px; }
-    .laserDot{ font-size: 18px; }
     .laserActive{
       outline: 2px solid rgba(251,113,133,.35);
       box-shadow: inset 0 0 0 2px rgba(251,113,133,.18);
@@ -233,6 +235,10 @@
     .seen{
       outline: 3px solid rgba(251,113,133,.55);
       box-shadow: 0 0 0 3px rgba(251,113,133,.12);
+    }
+    .alarm{
+      outline: 2px solid rgba(251,113,133,.35);
+      box-shadow: 0 0 0 3px rgba(251,113,133,.10);
     }
 
     .sideCard{
@@ -299,7 +305,7 @@
     }
     .overlay.show{ display:flex; }
     .modal{
-      width:min(520px, 100%);
+      width:min(620px, 100%);
       border-radius: 18px;
       border:1px solid var(--stroke);
       background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
@@ -319,6 +325,51 @@
       color: var(--muted);
       line-height: 1.35;
     }
+
+    .levelList{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+      max-height: 62vh;
+      overflow:auto;
+      padding: 6px 2px;
+    }
+    @media (min-width: 560px){
+      .levelList{ grid-template-columns: 1fr 1fr; }
+    }
+    .levelBtn{
+      text-align:left;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      padding:12px;
+      border-radius: 14px;
+    }
+    .levelBtn .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .levelBtn .name{
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+    .levelBtn .meta{
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .tag{
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.14);
+      padding:2px 8px;
+      border-radius: 999px;
+    }
+    .tag.done{ border-color: rgba(134,239,172,.35); background: rgba(134,239,172,.10); }
+    .tag.locked{ border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.10); }
   </style>
 </head>
 <body>
@@ -327,7 +378,7 @@
       <div class="card hud">
         <div class="left">
           <div class="title">LaserHeist <span class="sub" id="levelName"></span></div>
-          <div class="sub" id="statusLine">Move 1 tile per turn. Avoid cameras and lasers.</div>
+          <div class="sub" id="statusLine">Move 1 tile per turn. Avoid cameras and lasers. Timer starts on first move.</div>
         </div>
         <div class="right">
           <div class="pill timer" id="timerPill">
@@ -346,7 +397,7 @@
       </div>
 
       <div class="card btnrow">
-        <button class="primary" id="newLevelBtn" title="Load a new level">New level</button>
+        <button class="primary" id="levelsBtn" title="Choose a level">Levels</button>
         <button id="restartBtn" title="Restart this level">Restart</button>
         <button id="undoBtn" title="Undo last move (does not rewind timer)">Undo</button>
       </div>
@@ -356,7 +407,7 @@
       <div class="card boardCard">
         <div class="boardTop">
           <div class="msg" id="msg">Tip: You can swipe on the grid to move.</div>
-          <div class="msg hint">Timer starts on your first move. Undo does not rewind time.</div>
+          <div class="msg hint" id="rulesHint">Undo does not rewind time. Noise tiles trigger an alarm.</div>
         </div>
         <div class="board" id="board" aria-label="Game board"></div>
       </div>
@@ -389,8 +440,11 @@
             <div class="item"><span class="ico">🚪</span><span>Door</span></div>
             <div class="item"><span class="ico">🔘</span><span>Switch</span></div>
             <div class="item"><span class="ico">🟥</span><span>Laser tile</span></div>
+            <div class="item"><span class="ico">🧱</span><span>Push block</span></div>
+            <div class="item"><span class="ico">🔔</span><span>Noise alarm</span></div>
+            <div class="item"><span class="ico">➡️</span><span>One-way entry</span></div>
             <div class="item" style="grid-column:1 / -1">
-              <span class="ico">⌨️</span><span>Arrow keys, WASD, or swipe</span>
+              <span class="ico">⌨️</span><span>Arrow keys, WASD, or swipe. Z=undo, R=restart.</span>
             </div>
           </div>
 
@@ -400,6 +454,7 @@
     </div>
   </div>
 
+  <!-- Win/Lose overlay -->
   <div class="overlay" id="overlay">
     <div class="modal">
       <h2 id="modalTitle">You win</h2>
@@ -411,125 +466,317 @@
     </div>
   </div>
 
+  <!-- Level select overlay -->
+  <div class="overlay" id="levelsOverlay">
+    <div class="modal">
+      <h2>Levels</h2>
+      <p id="progressLine"></p>
+      <div class="levelList" id="levelList"></div>
+      <div class="actions">
+        <button id="resetProgressBtn" class="danger">Reset progress</button>
+        <button class="primary" id="closeLevelsBtn">Close</button>
+      </div>
+      <div class="hint" style="margin-top:10px">
+        Locked levels unlock when you complete the previous one.
+      </div>
+    </div>
+  </div>
+
 <script>
 (() => {
   "use strict";
 
-  // ---------- Levels (tight 8x8) ----------
-  // Tiles legend in "tiles" strings:
-  // # wall, . floor, P player, E exit, K key, D door, S switch, L laser tile, C camera
-  // Cameras and links are defined in arrays for clarity.
+  // =========================
+  // Level pack (40 levels)
+  // Tiles legend in "tiles":
+  // # wall, . floor, P player, E exit, K key, D door, S switch, L laser tile, C camera,
+  // B pushable block, N noise tile (alarm), one-way tiles: ^ > v <
+  // =========================
   const LEVELS = [
-    {
-      id: "L-01",
-      name: "Training",
-      hint: "A camera rotates each turn. Sometimes WAIT is the best move.",
-      w: 8, h: 8,
-      timerSeconds: 60,
-      tiles: [
-        "########",
-        "#P..K..#",
-        "#..#...#",
-        "#..#C..#",
-        "#..#...#",
-        "#.....E#",
-        "#......#",
-        "########",
-      ],
-      cameras: [{ x:4, y:3, dir:"E", pattern:["E","S","W","N"] }],
-      doors: [],
-      lasers: [],
-      switches: [],
-      links: [],
-      rules: { keysRequired: 1 }
+    // --- Basics ---
+    { id:"L-01", name:"Training", hint:"A camera rotates each turn. WAIT is sometimes correct.",
+      w:8,h:8,timerSeconds:60,
+      tiles:["########","#P..K..#","#..#...#","#..#C..#","#..#...#","#.....E#","#......#","########"],
+      cameras:[{x:4,y:3,dir:"E",pattern:["E","S","W","N"]}], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
     },
-    {
-      id: "L-02",
-      name: "Door and switch",
-      hint: "Switch toggles a door. Cameras can see through floor but not through walls or closed doors.",
-      w: 8, h: 8,
-      timerSeconds: 55,
-      tiles: [
-        "########",
-        "#P..#..#",
-        "#..D#K.#",
-        "#..##..#",
-        "#..S...#",
-        "#..#C.E#",
-        "#......#",
-        "########",
-      ],
-      cameras: [{ x:4, y:5, dir:"N", pattern:["N","E","S","W"] }],
-      doors: [{ x:3, y:2, open:false }],
-      lasers: [],
-      switches: [{ x:3, y:4 }],
-      links: [
-        { from: {x:3,y:4}, toggles: [ { type:"door", x:3, y:2 } ] }
-      ],
-      rules: { keysRequired: 1 }
+    { id:"L-02", name:"Door and switch", hint:"Switch toggles the door. Then key. Then exit.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P..#..#","#..D#K.#","#..##..#","#..S...#","#..#C.E#","#......#","########"],
+      cameras:[{x:4,y:5,dir:"N",pattern:["N","E","S","W"]}],
+      doors:[{x:3,y:2,open:false}], lasers:[], switches:[{x:3,y:4}],
+      links:[{from:{x:3,y:4},toggles:[{type:"door",x:3,y:2}]}],
+      rules:{keysRequired:1}
     },
-    {
-      id: "L-03",
-      name: "Laser tiles",
-      hint: "Lasers toggle each turn. Red tiles are safe only when OFF.",
-      w: 8, h: 8,
-      timerSeconds: 45,
-      tiles: [
-        "########",
-        "#P..#..#",
-        "#..L#K.#",
-        "#..L#..#",
-        "#..L#C.#",
-        "#..L...#",
-        "#....E.#",
-        "########",
-      ],
-      cameras: [{ x:5, y:4, dir:"W", pattern:["W","N","E","S"] }],
-      doors: [],
-      lasers: [
-        { x:3, y:2, mode:"toggle" },
-        { x:3, y:3, mode:"toggle" },
-        { x:3, y:4, mode:"toggle" },
-        { x:3, y:5, mode:"toggle" },
-      ],
-      switches: [],
-      links: [],
-      rules: { keysRequired: 1 }
+    { id:"L-03", name:"Laser tiles", hint:"Lasers toggle each turn. Cross on safe beats.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..#..#","#..L#K.#","#..L#..#","#..L#C.#","#..L...#","#....E.#","########"],
+      cameras:[{x:5,y:4,dir:"W",pattern:["W","N","E","S"]}],
+      doors:[], switches:[], links:[],
+      lasers:[{x:3,y:2,mode:"toggle"},{x:3,y:3,mode:"toggle"},{x:3,y:4,mode:"toggle"},{x:3,y:5,mode:"toggle"}],
+      rules:{keysRequired:1}
     },
-    {
-      id: "L-04",
-      name: "The pinch",
-      hint: "Short timer. Plan a path, then execute.",
-      w: 8, h: 8,
-      timerSeconds: 35,
-      tiles: [
-        "########",
-        "#P..#..#",
-        "#.##D#.#",
-        "#..S.#K#",
-        "#..#L..#",
-        "#C.#L.E#",
-        "#..#L..#",
-        "########",
+    { id:"L-04", name:"Two keys", hint:"Two keys required. Watch the sweep.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P..K..#","#..#...#","#..#C..#","#..#..K#","#.....E#","#......#","########"],
+      cameras:[{x:4,y:3,dir:"E",pattern:["E","E","S","S","W","W","N","N"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:2}
+    },
+    { id:"L-05", name:"Crossfire", hint:"Two cameras. Find a safe window.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P.....#","#..#..K#","#..#...#","#..#...#","#C...C.#","#.....E#","########"],
+      cameras:[{x:1,y:5,dir:"E",pattern:["E","S","W","N"]},{x:5,y:5,dir:"W",pattern:["W","N","E","S"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- One-way entry ---
+    { id:"L-06", name:"One-way intro", hint:"You can only enter ➡️ tiles in their arrow direction.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P..>..#","#..#..K#","#..#...#","#..#...#","#......#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-07", name:"One-way maze", hint:"Some routes are one-way. Plan before you commit.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P..>..#","###.#.##","#..#v..#","#..#...#","#..#..K#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-08", name:"One-way under watch", hint:"Time your entry onto arrows as the camera turns.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..>..#","#..#...#","#..#C..#","#..#..K#","#..#^..#","#.....E#","########"],
+      cameras:[{x:4,y:3,dir:"S",pattern:["S","W","N","E"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- Blocks ---
+    { id:"L-09", name:"Push block", hint:"Push 🧱 blocks if the space beyond is free.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P.....#","#..B..K#","#..#...#","#..#...#","#......#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-10", name:"Block the view", hint:"Blocks stop camera sight lines. Use that.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P.....#","#..B..K#","#..#...#","#..#C..#","#......#","#.....E#","########"],
+      cameras:[{x:4,y:4,dir:"W",pattern:["W","N","E","S"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-11", name:"Block and door", hint:"Switch toggles the door. Block placement matters.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P..#..#","#..D#K.#","#..##..#","#..S.B.#","#..#...#","#.....E#","########"],
+      cameras:[],
+      doors:[{x:3,y:2,open:false}],
+      lasers:[],
+      switches:[{x:3,y:4}],
+      links:[{from:{x:3,y:4},toggles:[{type:"door",x:3,y:2}]}],
+      rules:{keysRequired:1}
+    },
+
+    // --- Noise / alarm (accelerates hazards) ---
+    { id:"L-12", name:"Noise intro", hint:"🔔 triggers an alarm: hazards advance twice per turn for 2 turns.",
+      w:8,h:8,timerSeconds:55,
+      tiles:["########","#P.....#","#..N..K#","#..#...#","#..#...#","#......#","#.....E#","########"],
+      cameras:[{x:4,y:5,dir:"N",pattern:["N","E","S","W"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-13", name:"Alarm corridor", hint:"You may need to avoid stepping on 🔔 entirely.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P..#..#","#..N#K.#","#..##..#","#......#","#..#C..#","#.....E#","########"],
+      cameras:[{x:4,y:5,dir:"W",pattern:["W","W","N","E","S","S","E","N"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- Lasers + extras ---
+    { id:"L-14", name:"Laser slalom", hint:"Lasers alternate. Move on safe turns.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P.....#","#.L.LK.#","#..#...#","#.L.L..#","#..#...#","#.....E#","########"],
+      cameras:[], doors:[], switches:[], links:[],
+      lasers:[{x:2,y:2,mode:"toggle"},{x:4,y:2,mode:"toggle"},{x:2,y:4,mode:"toggle"},{x:4,y:4,mode:"toggle"}],
+      rules:{keysRequired:1}
+    },
+    { id:"L-15", name:"Pattern lasers", hint:"Different laser rhythms. Spot the cycle.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P.....#","#..L..K#","#..L...#","#..L...#","#..L...#","#.....E#","########"],
+      cameras:[], doors:[], switches:[], links:[],
+      lasers:[
+        {x:3,y:2,mode:"pattern",pattern:[1,1,0,0]},
+        {x:3,y:3,mode:"pattern",pattern:[0,1,1,0]},
+        {x:3,y:4,mode:"pattern",pattern:[0,0,1,1]},
+        {x:3,y:5,mode:"pattern",pattern:[1,0,0,1]}
       ],
-      cameras: [{ x:1, y:5, dir:"E", pattern:["E","E","S","S","W","W","N","N"] }],
-      doors: [{ x:4, y:2, open:false }],
-      lasers: [
-        { x:4, y:4, mode:"pattern", pattern:[1,0,1,0] },
-        { x:4, y:5, mode:"pattern", pattern:[1,0,1,0] },
-        { x:4, y:6, mode:"pattern", pattern:[1,0,1,0] },
+      rules:{keysRequired:1}
+    },
+
+    // --- Mixed mechanics ramp ---
+    { id:"L-16", name:"Door under watch", hint:"Open the door at the right time, then sprint.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..#..#","#..D#K.#","#..##..#","#..S...#","#..#C..#","#.....E#","########"],
+      cameras:[{x:4,y:5,dir:"W",pattern:["W","W","N","E","S","S","E","N"]}],
+      doors:[{x:3,y:2,open:false}],
+      switches:[{x:3,y:4}],
+      links:[{from:{x:3,y:4},toggles:[{type:"door",x:3,y:2}]}],
+      lasers:[], rules:{keysRequired:1}
+    },
+    { id:"L-17", name:"One-way + laser", hint:"Entry arrows plus toggling lasers. Tight timing.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..>..#","#..L#K.#","#..L#..#","#..L#..#","#..L#^.#","#.....E#","########"],
+      cameras:[], doors:[], switches:[], links:[],
+      lasers:[{x:3,y:2,mode:"toggle"},{x:3,y:3,mode:"toggle"},{x:3,y:4,mode:"toggle"},{x:3,y:5,mode:"toggle"}],
+      rules:{keysRequired:1}
+    },
+    { id:"L-18", name:"Block bridge", hint:"Push the block to clear a path. Do not trap yourself.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P..#..#","#..B#K.#","#..##..#","#......#","#..#...#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-19", name:"Block + one-way", hint:"One-way tiles can prevent pushing from certain angles.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P..>..#","#..B..K#","#..#...#","#..#...#","#..^...#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-20", name:"Alarm and lasers", hint:"Noise can ruin laser timing. Decide whether to step on it.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..#..#","#..N#K.#","#..L#..#","#..L#C.#","#..L#..#","#.....E#","########"],
+      cameras:[{x:5,y:4,dir:"N",pattern:["N","E","S","W"]}],
+      lasers:[{x:3,y:3,mode:"toggle"},{x:3,y:4,mode:"toggle"},{x:3,y:5,mode:"toggle"}],
+      doors:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- Two key challenges ---
+    { id:"L-21", name:"Two-key vault", hint:"Two keys required. Route choice matters.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..K..#","#..D...#","#..##..#","#..S..K#","#..#...#","#.....E#","########"],
+      cameras:[],
+      doors:[{x:3,y:2,open:false}],
+      switches:[{x:3,y:4}],
+      links:[{from:{x:3,y:4},toggles:[{type:"door",x:3,y:2}]}],
+      lasers:[], rules:{keysRequired:2}
+    },
+    { id:"L-22", name:"Two watchers", hint:"Their patterns overlap. Use cover.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P.....#","#..#..K#","#..#...#","#..#...#","#C..#..#","#..C..E#","########"],
+      cameras:[{x:1,y:5,dir:"E",pattern:["E","S","W","N"]},{x:3,y:6,dir:"N",pattern:["N","N","E","S","S","W"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-23", name:"The alley", hint:"A long sight line. Break it with walls and blocks.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P.....#","###.####","#..C...#","####.###","#..B.K.#","#.....E#","########"],
+      cameras:[{x:3,y:3,dir:"E",pattern:["E","E","E","S","W","W","N","N"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- More advanced mixes ---
+    { id:"L-24", name:"Boxed in", hint:"Small safe pocket. WAIT, then dart.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..#..#","#.###..#","#.#C#K.#","#.###..#","#..#...#","#.....E#","########"],
+      cameras:[{x:3,y:3,dir:"N",pattern:["N","E","S","W"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-25", name:"Laser gutter", hint:"A narrow route guarded by toggling lasers.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P.....#","#.####.#","#.LLLL.#","#.####K#","#......#","#.....E#","########"],
+      cameras:[], doors:[], switches:[], links:[],
+      lasers:[{x:2,y:3,mode:"toggle"},{x:3,y:3,mode:"toggle"},{x:4,y:3,mode:"toggle"},{x:5,y:3,mode:"toggle"}],
+      rules:{keysRequired:1}
+    },
+    { id:"L-26", name:"Door feint", hint:"Switch toggles. Avoid stepping twice by mistake.",
+      w:8,h:8,timerSeconds:50,
+      tiles:["########","#P..#..#","#..D#..#","#..##K.#","#..S...#","#..#...#","#.....E#","########"],
+      cameras:[],
+      doors:[{x:3,y:2,open:false}],
+      switches:[{x:3,y:4}],
+      links:[{from:{x:3,y:4},toggles:[{type:"door",x:3,y:2}]}],
+      lasers:[], rules:{keysRequired:1}
+    },
+    { id:"L-27", name:"One-way choke", hint:"The exit route is one-way. Do not overshoot.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P.....#","#..###.#","#..#K#.#","#..###.#","#..>...#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-28", name:"Alarm gate", hint:"Stepping on 🔔 speeds hazards. Sometimes it is unavoidable.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P..#..#","#..N#..#","#..##K.#","#..#C..#","#......#","#.....E#","########"],
+      cameras:[{x:4,y:4,dir:"W",pattern:["W","N","E","S"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- Late pack: tight and tense ---
+    { id:"L-29", name:"Block and laser timing", hint:"Block placement changes your laser window.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P.....#","#..B..K#","#..L...#","#..L.C.#","#..L...#","#.....E#","########"],
+      cameras:[{x:5,y:4,dir:"N",pattern:["N","E","S","W"]}],
+      lasers:[{x:3,y:3,mode:"toggle"},{x:3,y:4,mode:"toggle"},{x:3,y:5,mode:"toggle"}],
+      doors:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-30", name:"Two keys, short clock", hint:"No wasted turns. Commit to a route.",
+      w:8,h:8,timerSeconds:38,
+      tiles:["########","#P..K..#","#..#...#","#..#...#","#..#..K#","#..#...#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:2}
+    },
+    { id:"L-31", name:"Arrow sprint", hint:"Arrows constrain entry. The clock is tight.",
+      w:8,h:8,timerSeconds:40,
+      tiles:["########","#P..>..#","#..#..K#","#..#...#","#..#..v#","#......#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-32", name:"Mirror sweep", hint:"Mirrored camera patterns. Find the safe beat.",
+      w:8,h:8,timerSeconds:45,
+      tiles:["########","#P.....#","#..#..K#","#..#...#","#..#...#","#C.#.C.#","#.....E#","########"],
+      cameras:[{x:1,y:5,dir:"N",pattern:["N","E","S","W"]},{x:5,y:5,dir:"N",pattern:["N","W","S","E"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-33", name:"Alarm, arrows, lasers", hint:"Everything interacts. Keep it calm.",
+      w:8,h:8,timerSeconds:40,
+      tiles:["########","#P..>..#","#..N#K.#","#..L#..#","#..L#C.#","#..L#^.#","#.....E#","########"],
+      cameras:[{x:5,y:4,dir:"W",pattern:["W","N","E","S"]}],
+      lasers:[{x:3,y:3,mode:"toggle"},{x:3,y:4,mode:"toggle"},{x:3,y:5,mode:"toggle"}],
+      doors:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-34", name:"Block the choke", hint:"One block. One choke point. One chance.",
+      w:8,h:8,timerSeconds:40,
+      tiles:["########","#P.....#","#..###.#","#..#B#K#","#..###.#","#..#C..#","#.....E#","########"],
+      cameras:[{x:4,y:5,dir:"N",pattern:["N","E","S","W"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-35", name:"Final exam", hint:"Two keys, lasers, alarm risk, rotating camera.",
+      w:8,h:8,timerSeconds:38,
+      tiles:["########","#P..K..#","#..L#..#","#..L#C.#","#..L#..#","#..N..K#","#.....E#","########"],
+      cameras:[{x:5,y:3,dir:"W",pattern:["W","N","E","S"]}],
+      lasers:[{x:3,y:2,mode:"toggle"},{x:3,y:3,mode:"toggle"},{x:3,y:4,mode:"toggle"}],
+      doors:[], switches:[], links:[], rules:{keysRequired:2}
+    },
+    { id:"L-36", name:"Speed run", hint:"No tricks, just execution. Beat the clock.",
+      w:8,h:8,timerSeconds:28,
+      tiles:["########","#P....E#","#.###..#","#...#..#","#...#.K#","#...#..#","#......#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+
+    // --- Bonus: harder micro-puzzles ---
+    { id:"L-37", name:"Alarm is bait", hint:"The noise tile is a trap. There is another route.",
+      w:8,h:8,timerSeconds:40,
+      tiles:["########","#P..#..#","#..N#..#","#..##..#","#..#..K#","#..#C..#","#.....E#","########"],
+      cameras:[{x:4,y:5,dir:"W",pattern:["W","W","N","E","S","S","E","N"]}],
+      doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-38", name:"Arrows or block", hint:"Either commit to arrows or push the block to reroute.",
+      w:8,h:8,timerSeconds:40,
+      tiles:["########","#P..>..#","#..B...#","#..#..K#","#..#...#","#..^...#","#.....E#","########"],
+      cameras:[], doors:[], lasers:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-39", name:"Laser box", hint:"Pattern lasers plus a rotating camera. Tight.",
+      w:8,h:8,timerSeconds:36,
+      tiles:["########","#P.....#","#..L..K#","#..L.C.#","#..L...#","#..L...#","#.....E#","########"],
+      cameras:[{x:5,y:3,dir:"W",pattern:["W","N","E","S"]}],
+      lasers:[
+        {x:3,y:2,mode:"pattern",pattern:[1,1,0,0]},
+        {x:3,y:3,mode:"pattern",pattern:[0,1,1,0]},
+        {x:3,y:4,mode:"pattern",pattern:[0,0,1,1]},
+        {x:3,y:5,mode:"pattern",pattern:[1,0,0,1]}
       ],
-      switches: [{ x:3, y:3 }],
-      links: [
-        { from: {x:3,y:3}, toggles: [
-          { type:"door", x:4, y:2 },
-          { type:"laserGroup", group:"A" }
-        ] }
-      ],
-      laserGroups: {
-        A: [{x:4,y:4},{x:4,y:5},{x:4,y:6}]
-      },
-      rules: { keysRequired: 1 }
+      doors:[], switches:[], links:[], rules:{keysRequired:1}
+    },
+    { id:"L-40", name:"Last vault", hint:"Everything is tight. Use WAIT deliberately.",
+      w:8,h:8,timerSeconds:34,
+      tiles:["########","#P..K..#","#..#L..#","#..#C..#","#..#L..#","#..N..K#","#.....E#","########"],
+      cameras:[{x:4,y:3,dir:"S",pattern:["S","W","N","E"]}],
+      lasers:[{x:4,y:2,mode:"toggle"},{x:4,y:4,mode:"toggle"}],
+      doors:[], switches:[], links:[], rules:{keysRequired:2}
     }
   ];
 
@@ -540,8 +787,8 @@
   const elKeys = document.getElementById("keysText");
   const elTimer = document.getElementById("timerText");
   const elTimerPill = document.getElementById("timerPill");
-  const elMsg = document.getElementById("msg");
   const elLevelHint = document.getElementById("levelHint");
+  const elRulesHint = document.getElementById("rulesHint");
 
   const overlay = document.getElementById("overlay");
   const modalTitle = document.getElementById("modalTitle");
@@ -549,7 +796,7 @@
   const closeModalBtn = document.getElementById("closeModalBtn");
   const nextBtn = document.getElementById("nextBtn");
 
-  const newLevelBtn = document.getElementById("newLevelBtn");
+  const levelsBtn = document.getElementById("levelsBtn");
   const restartBtn = document.getElementById("restartBtn");
   const undoBtn = document.getElementById("undoBtn");
 
@@ -562,8 +809,15 @@
   const exportBtn = document.getElementById("exportBtn");
   const importBtn = document.getElementById("importBtn");
 
+  const levelsOverlay = document.getElementById("levelsOverlay");
+  const levelList = document.getElementById("levelList");
+  const closeLevelsBtn = document.getElementById("closeLevelsBtn");
+  const resetProgressBtn = document.getElementById("resetProgressBtn");
+  const progressLine = document.getElementById("progressLine");
+
   // ---------- Storage ----------
-  const STORAGE_KEY = "laserheist_v1_save";
+  const SAVE_KEY = "laserheist_v2_save";
+  const PROGRESS_KEY = "laserheist_v2_progress";
 
   // ---------- Game state ----------
   let levelIndex = 0;
@@ -571,6 +825,12 @@
 
   let state = null;
   let history = [];
+
+  // Progress locking
+  let progress = {
+    completed: {},   // levelId -> true
+    unlockedUpTo: 0  // inclusive index
+  };
 
   // Timer starts on first move
   let timer = {
@@ -595,21 +855,15 @@
       default: return {dx:0, dy:0};
     }
   };
-
   const k = (x,y) => `${x},${y}`;
-
-  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-
-  function msToClock(ms){
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
+  const msToClock = (ms) => {
     const total = Math.ceil(ms/1000);
     const m = Math.floor(total / 60);
     const s = total % 60;
     return `${m}:${String(s).padStart(2,"0")}`;
-  }
-
-  function deepCopy(obj){
-    return JSON.parse(JSON.stringify(obj));
-  }
+  };
 
   function showModal(title, body){
     modalTitle.textContent = title;
@@ -628,21 +882,71 @@
     updateButtons();
   }
 
+  function showLevels(){
+    buildLevelList();
+    levelsOverlay.classList.add("show");
+    timer.paused = true;
+    persist();
+    updateButtons();
+  }
+
+  function hideLevels(){
+    levelsOverlay.classList.remove("show");
+    timer.paused = false;
+    timer.lastTickTs = performance.now();
+    persist();
+    updateButtons();
+  }
+
   function updateButtons(){
-    undoBtn.disabled = history.length === 0 || state?.ended;
+    const ended = !!state?.ended;
+    undoBtn.disabled = history.length === 0 || ended;
     restartBtn.disabled = !state || !level;
-    waitBtn.disabled = !state || state.ended;
-    upBtn.disabled = !state || state.ended;
-    downBtn.disabled = !state || state.ended;
-    leftBtn.disabled = !state || state.ended;
-    rightBtn.disabled = !state || state.ended;
+    waitBtn.disabled = !state || ended;
+    upBtn.disabled = !state || ended;
+    downBtn.disabled = !state || ended;
+    leftBtn.disabled = !state || ended;
+    rightBtn.disabled = !state || ended;
+
+    const canNext = isLevelUnlocked(levelIndex + 1);
+    nextBtn.disabled = !canNext;
+  }
+
+  function isLevelUnlocked(idx){
+    if(idx < 0) return false;
+    if(idx === 0) return true;
+    if(idx <= progress.unlockedUpTo) return true;
+    return false;
+  }
+
+  function markCompleted(idx){
+    const id = LEVELS[idx]?.id;
+    if(!id) return;
+    progress.completed[id] = true;
+    progress.unlockedUpTo = Math.max(progress.unlockedUpTo, idx + 1);
+    saveProgress();
+  }
+
+  function loadProgress(){
+    try{
+      const raw = localStorage.getItem(PROGRESS_KEY);
+      if(!raw) return;
+      const p = JSON.parse(raw);
+      if(!p) return;
+      progress.completed = p.completed || {};
+      progress.unlockedUpTo = typeof p.unlockedUpTo === "number" ? p.unlockedUpTo : 0;
+      progress.unlockedUpTo = clamp(progress.unlockedUpTo, 0, LEVELS.length - 1);
+    }catch(_){}
+  }
+
+  function saveProgress(){
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
   }
 
   // ---------- Level parsing ----------
   function loadLevelFromDefinition(def){
     level = deepCopy(def);
 
-    // Build base tile grid and entity placements
     const w = level.w, h = level.h;
     const grid = new Array(w*h).fill("floor");
 
@@ -657,7 +961,11 @@
 
     const cameras = (level.cameras || []).map(c => ({ ...c, step:0 }));
 
-    let player = { x:0, y:0, keys:0 };
+    const blocks = new Map();      // "x,y" -> {x,y}
+    const oneWays = new Map();     // "x,y" -> "^|>|v|<"
+    const noise = new Set();       // "x,y"
+
+    let player = { x:0, y:0 };
     let exit = { x:0, y:0 };
 
     for(let y=0; y<h; y++){
@@ -669,7 +977,7 @@
         if(ch === "#"){ grid[idx] = "wall"; continue; }
         grid[idx] = "floor";
 
-        if(ch === "P"){ player = { x, y, keys:0 }; }
+        if(ch === "P"){ player = { x, y }; }
         if(ch === "E"){ exit = { x, y }; grid[idx] = "exit"; }
         if(ch === "K"){ keys.add(k(x,y)); grid[idx] = "key"; }
         if(ch === "D"){
@@ -682,43 +990,54 @@
           if(!lasers.has(k(x,y))) lasers.set(k(x,y), { x, y, mode:"toggle", active:false });
         }
         if(ch === "C"){
-          // Camera is not a tile type, leave floor unless exit, door, etc
-          // If not defined in cameras list, create a default one.
           if(!cameras.some(c => c.x===x && c.y===y)){
             cameras.push({ x, y, dir:"E", pattern:["E","S","W","N"], step:0 });
           }
         }
+        if(ch === "B"){
+          grid[idx] = "floor";
+          blocks.set(k(x,y), { x, y });
+        }
+        if(ch === "N"){
+          grid[idx] = "noise";
+          noise.add(k(x,y));
+        }
+        if(ch === "^" || ch === ">" || ch === "v" || ch === "<"){
+          grid[idx] = "oneway";
+          oneWays.set(k(x,y), ch);
+        }
       }
     }
 
-    // Default keysRequired
     const keysRequired = (level.rules && Number.isFinite(level.rules.keysRequired))
       ? level.rules.keysRequired
       : keys.size;
 
-    // Timer
     const durationMs = clamp((level.timerSeconds || 60), 10, 999) * 1000;
 
-    // Create runtime state
     state = {
       levelId: level.id,
       w, h,
-      grid, // tile types
+      grid,
       player,
       exit,
       keysRequired,
       keysHave: 0,
-      keysRemaining: Array.from(keys), // positions
+      keysRemaining: Array.from(keys),
       doors: Object.fromEntries([...doors.entries()]),
       switches: Array.from(switches),
       lasers: Object.fromEntries([...lasers.entries()]),
       cameras,
       links: level.links || [],
       laserGroups: level.laserGroups || {},
+      blocks: Object.fromEntries([...blocks.entries()]),
+      oneWays: Object.fromEntries([...oneWays.entries()]),
+      noise: Array.from(noise),
+      alarmTurns: 0,
       turn: 0,
       moves: 0,
       ended: false,
-      lastDangerTiles: [] // for highlighting
+      lastDangerTiles: []
     };
 
     history = [];
@@ -735,16 +1054,11 @@
     persist();
   }
 
-  function findLevelIndexById(id){
-    const idx = LEVELS.findIndex(l => l.id === id);
-    return idx >= 0 ? idx : 0;
-  }
-
   // ---------- Persistence ----------
   function persist(){
     if(!state || !level) return;
     const payload = {
-      v: 1,
+      v: 2,
       levelIndex,
       levelId: state.levelId,
       state,
@@ -757,22 +1071,30 @@
         lastSavedTs: Date.now()
       }
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
   }
 
   function tryRestore(){
     try{
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(SAVE_KEY);
       if(!raw) return false;
       const saved = JSON.parse(raw);
-      if(!saved || saved.v !== 1 || !saved.state) return false;
+      if(!saved || saved.v !== 2 || !saved.state) return false;
 
-      levelIndex = (typeof saved.levelIndex === "number") ? saved.levelIndex : findLevelIndexById(saved.levelId);
+      let idx = (typeof saved.levelIndex === "number") ? saved.levelIndex : 0;
+      idx = clamp(idx, 0, LEVELS.length - 1);
+
+      // If saved level is locked, load highest unlocked
+      if(!isLevelUnlocked(idx)){
+        idx = clamp(progress.unlockedUpTo, 0, LEVELS.length - 1);
+      }
+
+      levelIndex = idx;
       level = deepCopy(LEVELS[levelIndex]);
-
       state = saved.state;
       history = saved.history || [];
 
+      // Timer restore
       timer.durationMs = saved.timer?.durationMs ?? (level.timerSeconds*1000);
       timer.timeLeftMs = saved.timer?.timeLeftMs ?? timer.durationMs;
       timer.running = !!saved.timer?.running;
@@ -794,24 +1116,21 @@
       render();
       updateButtons();
       return true;
-    }catch(e){
+    }catch(_){
       return false;
     }
   }
 
-  // ---------- Game logic ----------
+  // ---------- Board queries ----------
   function isInside(x,y){ return x>=0 && y>=0 && x<state.w && y<state.h; }
-
   function tileAt(x,y){
     if(!isInside(x,y)) return "wall";
     return state.grid[y*state.w + x];
   }
-
   function isWall(x,y){ return tileAt(x,y) === "wall"; }
 
-  function doorAt(x,y){
-    return state.doors[k(x,y)] || null;
-  }
+  function doorAt(x,y){ return state.doors[k(x,y)] || null; }
+  function blockAt(x,y){ return state.blocks[k(x,y)] || null; }
 
   function isBlocked(x,y){
     const t = tileAt(x,y);
@@ -820,16 +1139,32 @@
       const d = doorAt(x,y);
       return d ? !d.open : true;
     }
+    if(blockAt(x,y)) return true;
     return false;
   }
 
+  function oneWayCharAt(x,y){
+    return state.oneWays[k(x,y)] || null;
+  }
+
+  function canEnterOneWay(destX, destY, dx, dy){
+    const ow = oneWayCharAt(destX, destY);
+    if(!ow) return true;
+    // Require movement direction to match the arrow
+    if(ow === ">" && dx === 1 && dy === 0) return true;
+    if(ow === "<" && dx === -1 && dy === 0) return true;
+    if(ow === "^" && dx === 0 && dy === -1) return true;
+    if(ow === "v" && dx === 0 && dy === 1) return true;
+    return false;
+  }
+
+  // ---------- Interactions ----------
   function collectIfKey(x,y){
     const posKey = k(x,y);
     const idx = state.keysRemaining.indexOf(posKey);
     if(idx >= 0){
       state.keysRemaining.splice(idx, 1);
       state.keysHave += 1;
-      // Turn tile into floor (or exit or switch stays as it is, but key tile is standalone here)
       state.grid[y*state.w + x] = "floor";
     }
   }
@@ -838,7 +1173,6 @@
     const posKey = k(x,y);
     if(!state.switches.includes(posKey)) return;
 
-    // Toggle all linked targets from this switch
     const link = state.links.find(l => l.from && l.from.x===x && l.from.y===y);
     if(!link) return;
 
@@ -859,6 +1193,13 @@
     }
   }
 
+  function applyNoiseIfOn(x,y){
+    if(tileAt(x,y) !== "noise") return;
+    // Alarm: hazards advance twice per turn for 2 turns
+    state.alarmTurns = Math.max(state.alarmTurns, 2);
+  }
+
+  // ---------- Timer ----------
   function startTimerIfNeeded(){
     if(timer.running || timer.paused) return;
     timer.running = true;
@@ -866,17 +1207,18 @@
     persist();
   }
 
-  function stepHazards(){
+  // ---------- Hazards ----------
+  function baseHazardStep(){
     state.turn += 1;
 
-    // Cameras follow their pattern based on turn
+    // Cameras follow their pattern
     for(const cam of state.cameras){
       const pattern = cam.pattern && cam.pattern.length ? cam.pattern : dirs;
       const idx = state.turn % pattern.length;
       cam.dir = pattern[idx];
     }
 
-    // Lasers update based on mode
+    // Lasers update
     for(const keyStr of Object.keys(state.lasers)){
       const l = state.lasers[keyStr];
       if(l.mode === "toggle"){
@@ -885,14 +1227,20 @@
         const idx = state.turn % l.pattern.length;
         l.active = !!l.pattern[idx];
       } else {
-        // default to toggle
         l.active = (state.turn % 2 === 0);
       }
     }
   }
 
+  function stepHazards(){
+    baseHazardStep();
+    if(state.alarmTurns > 0){
+      state.alarmTurns -= 1;
+      baseHazardStep(); // extra hazard tick
+    }
+  }
+
   function computeSeenTiles(){
-    // Returns a Set of positions "x,y" that are visible to at least one camera this tick
     const seen = new Set();
     for(const cam of state.cameras){
       const {dx, dy} = dirVec(cam.dir);
@@ -900,11 +1248,14 @@
       let y = cam.y + dy;
       while(isInside(x,y)){
         if(isWall(x,y)) break;
+
         const t = tileAt(x,y);
         if(t === "door"){
           const d = doorAt(x,y);
-          if(d && !d.open) break; // closed door blocks
+          if(d && !d.open) break;
         }
+        if(blockAt(x,y)) break; // blocks stop LoS
+
         seen.add(k(x,y));
         x += dx; y += dy;
       }
@@ -934,33 +1285,76 @@
     }
   }
 
+  // ---------- Turn resolution ----------
+  function tryPushBlock(blockX, blockY, dx, dy){
+    const nx = blockX + dx;
+    const ny = blockY + dy;
+    if(!isInside(nx, ny)) return false;
+    if(isWall(nx, ny)) return false;
+    const t = tileAt(nx, ny);
+    if(t === "door"){
+      const d = doorAt(nx, ny);
+      if(!d || !d.open) return false;
+    }
+    if(blockAt(nx, ny)) return false;
+
+    // Blocks can sit on floor, one-way, noise, key, switch, laser, exit
+    const oldKey = k(blockX, blockY);
+    const newKey = k(nx, ny);
+    const b = state.blocks[oldKey];
+    if(!b) return false;
+
+    delete state.blocks[oldKey];
+    state.blocks[newKey] = { x:nx, y:ny };
+    return true;
+  }
+
   function performTurn(action){
     if(!state || state.ended) return;
 
     startTimerIfNeeded();
 
-    // Time can hit zero between moves
     if(timer.timeLeftMs <= 0){
       state.ended = true;
       endGame(false, "You ran out of time.");
       return;
     }
 
-    // Save snapshot for undo (but we will not rewind timer)
-    history.push({
-      state: deepCopy(state)
-    });
+    history.push({ state: deepCopy(state) });
 
     let moved = false;
 
     if(action.type === "move"){
-      const nx = state.player.x + action.dx;
-      const ny = state.player.y + action.dy;
-      if(isInside(nx, ny) && !isBlocked(nx, ny)){
-        state.player.x = nx;
-        state.player.y = ny;
-        state.moves += 1;
-        moved = true;
+      const dx = action.dx, dy = action.dy;
+      const nx = state.player.x + dx;
+      const ny = state.player.y + dy;
+
+      if(isInside(nx, ny)){
+        // One-way entry restriction
+        if(!canEnterOneWay(nx, ny, dx, dy)){
+          // cancel move
+        } else if(isWall(nx, ny)){
+          // blocked
+        } else if(tileAt(nx, ny) === "door" && (() => {
+          const d = doorAt(nx, ny);
+          return !d || !d.open;
+        })()){
+          // blocked
+        } else if(blockAt(nx, ny)){
+          // attempt push
+          if(tryPushBlock(nx, ny, dx, dy)){
+            state.player.x = nx;
+            state.player.y = ny;
+            state.moves += 1;
+            moved = true;
+          }
+        } else {
+          // free move
+          state.player.x = nx;
+          state.player.y = ny;
+          state.moves += 1;
+          moved = true;
+        }
       }
     } else if(action.type === "wait"){
       state.moves += 1;
@@ -972,51 +1366,49 @@
       return;
     }
 
-    // Resolve pickups and switch on arrival
+    // Arrive: pickups and interactions
     collectIfKey(state.player.x, state.player.y);
     applySwitchIfOn(state.player.x, state.player.y);
+    applyNoiseIfOn(state.player.x, state.player.y);
 
-    // Immediate visibility check after the move (feels fair)
+    // Visibility check immediately after move (feels fair)
     const seenNow = computeSeenTiles();
     state.lastDangerTiles = Array.from(seenNow);
     if(seenNow.has(k(state.player.x, state.player.y))){
       endGame(false, "A camera saw you.");
-      render();
-      updateHUD();
+      render(); updateHUD();
       return;
     }
 
-    // Advance hazards (turn-based)
+    // Advance hazards
     stepHazards();
 
-    // Visibility check after hazards update
+    // Visibility after hazards
     const seenAfter = computeSeenTiles();
     state.lastDangerTiles = Array.from(seenAfter);
 
     if(seenAfter.has(k(state.player.x, state.player.y))){
       endGame(false, "A camera swung onto you.");
-      render();
-      updateHUD();
+      render(); updateHUD();
       return;
     }
 
-    // Laser check after hazards update
+    // Laser check after hazards
     if(isPlayerOnActiveLaser()){
       endGame(false, "You crossed an active laser.");
-      render();
-      updateHUD();
+      render(); updateHUD();
       return;
     }
 
-    // Win check
+    // Win
     if(checkWin()){
-      endGame(true, `Escaped in ${state.moves} moves with ${msToClock(timer.timeLeftMs)} left.`);
-      render();
-      updateHUD();
+      markCompleted(levelIndex);
+      const body = `Escaped in ${state.moves} moves with ${msToClock(timer.timeLeftMs)} left.`;
+      endGame(true, body);
+      render(); updateHUD();
       return;
     }
 
-    // Continue
     persist();
     updateHUD();
     render();
@@ -1027,7 +1419,6 @@
     if(!history.length || state.ended) return;
     const snap = history.pop();
     state = snap.state;
-    // Timer is NOT rewound by design
     persist();
     updateHUD();
     render();
@@ -1035,21 +1426,23 @@
   }
 
   function restartLevel(){
-    if(!level) return;
+    loadLevelFromDefinition(LEVELS[levelIndex]);
+  }
+
+  function goToLevel(idx){
+    idx = clamp(idx, 0, LEVELS.length - 1);
+    if(!isLevelUnlocked(idx)) return;
+    levelIndex = idx;
     loadLevelFromDefinition(LEVELS[levelIndex]);
   }
 
   function nextLevel(){
-    levelIndex = (levelIndex + 1) % LEVELS.length;
-    loadLevelFromDefinition(LEVELS[levelIndex]);
+    const idx = levelIndex + 1;
+    if(!isLevelUnlocked(idx)) return;
+    goToLevel(idx);
   }
 
-  function newLevel(){
-    // Choose a different level (simple rotation)
-    nextLevel();
-  }
-
-  // ---------- Rendering ----------
+  // ---------- UI: HUD + render ----------
   function updateHUD(){
     if(!state) return;
     elLevelName.textContent = `• ${LEVELS[levelIndex]?.name || state.levelId}`;
@@ -1060,6 +1453,9 @@
     const danger = timer.timeLeftMs <= 10000 && timer.running && !state.ended;
     elTimerPill.classList.toggle("danger", danger);
 
+    const alarmText = state.alarmTurns > 0 ? ` Alarm: ${state.alarmTurns} turn(s).` : "";
+    elRulesHint.textContent = `Undo does not rewind time. Noise triggers alarm.${alarmText}`;
+
     elLevelHint.textContent = LEVELS[levelIndex]?.hint || "";
   }
 
@@ -1068,22 +1464,17 @@
 
     elBoard.style.gridTemplateColumns = `repeat(${state.w}, var(--cell))`;
     elBoard.style.gridTemplateRows = `repeat(${state.h}, var(--cell))`;
-
     elBoard.innerHTML = "";
 
     const seen = new Set(state.lastDangerTiles || []);
 
-    // Precompute active lasers for styling
     const activeLasers = new Set();
     for(const keyStr of Object.keys(state.lasers)){
       if(state.lasers[keyStr].active) activeLasers.add(keyStr);
     }
 
-    // Camera positions map
     const camAt = new Map();
-    for(const cam of state.cameras){
-      camAt.set(k(cam.x, cam.y), cam);
-    }
+    for(const cam of state.cameras) camAt.set(k(cam.x, cam.y), cam);
 
     for(let y=0; y<state.h; y++){
       for(let x=0; x<state.w; x++){
@@ -1097,30 +1488,31 @@
         if(t === "door") cell.classList.add("door");
         if(t === "switch") cell.classList.add("switch");
         if(t === "key") cell.classList.add("key");
-        if(t === "laser") cell.classList.add("floor"); // base floor, laser overlay handles the rest
+        if(t === "noise") cell.classList.add("noise");
+        if(t === "oneway") cell.classList.add("oneway");
 
-        // Door open state
+        if(state.alarmTurns > 0 && t !== "wall") cell.classList.add("alarm");
+
         if(t === "door"){
           const d = doorAt(x,y);
           if(d && d.open) cell.classList.add("open");
         }
 
-        // Seen tiles highlight (warning)
         if(seen.has(k(x,y)) && t !== "wall") cell.classList.add("seen");
+        if(activeLasers.has(k(x,y))) cell.classList.add("laserActive");
 
-        // Active lasers highlight
-        if(activeLasers.has(k(x,y))){
-          cell.classList.add("laserActive");
-        }
-
-        // Tile icons (lightweight)
+        // Tile icons
         let tileIcon = "";
         if(t === "exit") tileIcon = "⬛";
         if(t === "door") tileIcon = "🚪";
         if(t === "switch") tileIcon = "🔘";
         if(t === "key") tileIcon = "🔑";
         if(t === "laser") tileIcon = "🟥";
-
+        if(t === "noise") tileIcon = "🔔";
+        if(t === "oneway"){
+          const ow = oneWayCharAt(x,y);
+          tileIcon = ow === ">" ? "➡️" : ow === "<" ? "⬅️" : ow === "^" ? "⬆️" : "⬇️";
+        }
         if(tileIcon){
           const e = document.createElement("div");
           e.className = "entity";
@@ -1128,16 +1520,24 @@
           cell.appendChild(e);
         }
 
-        // Entities
-        const pos = k(x,y);
-        if(pos === k(state.player.x, state.player.y)){
+        // Block
+        if(blockAt(x,y)){
+          const e = document.createElement("div");
+          e.className = "entity";
+          e.textContent = "🧱";
+          cell.appendChild(e);
+        }
+
+        // Player
+        if(k(x,y) === k(state.player.x, state.player.y)){
           const e = document.createElement("div");
           e.className = "entity player";
           e.textContent = "🕵️";
           cell.appendChild(e);
         }
 
-        const cam = camAt.get(pos);
+        // Camera
+        const cam = camAt.get(k(x,y));
         if(cam){
           const e = document.createElement("div");
           e.className = "entity camera";
@@ -1151,10 +1551,62 @@
     }
   }
 
+  // ---------- Level list ----------
+  function mechanicsTags(def){
+    const tags = [];
+    if(def.tiles.some(r => /[L]/.test(r))) tags.push("Lasers");
+    if(def.tiles.some(r => /[D]/.test(r))) tags.push("Doors");
+    if(def.tiles.some(r => /[S]/.test(r))) tags.push("Switches");
+    if(def.tiles.some(r => /[C]/.test(r))) tags.push("Cameras");
+    if(def.tiles.some(r => /[B]/.test(r))) tags.push("Blocks");
+    if(def.tiles.some(r => /[N]/.test(r))) tags.push("Noise");
+    if(def.tiles.some(r => /[\^v<>]/.test(r))) tags.push("One-way");
+    return tags;
+  }
+
+  function buildLevelList(){
+    levelList.innerHTML = "";
+    const doneCount = Object.keys(progress.completed).length;
+    progressLine.textContent = `Completed: ${doneCount}/${LEVELS.length}. Unlocked: ${progress.unlockedUpTo + 1}/${LEVELS.length}.`;
+
+    LEVELS.forEach((def, idx) => {
+      const unlocked = isLevelUnlocked(idx);
+      const done = !!progress.completed[def.id];
+
+      const btn = document.createElement("button");
+      btn.className = "levelBtn";
+      btn.disabled = !unlocked;
+      btn.onclick = () => { hideLevels(); goToLevel(idx); };
+
+      const top = document.createElement("div");
+      top.className = "row";
+
+      const left = document.createElement("div");
+      left.innerHTML = `<div class="name">${String(idx+1).padStart(2,"0")}. ${def.name}</div>`;
+
+      const right = document.createElement("div");
+      right.className = "meta";
+      right.innerHTML = `<span class="tag">${def.timerSeconds}s</span>`
+        + (done ? `<span class="tag done">Done</span>` : (unlocked ? `<span class="tag">Unlocked</span>` : `<span class="tag locked">Locked</span>`));
+
+      top.appendChild(left);
+      top.appendChild(right);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const tags = mechanicsTags(def).slice(0, 5);
+      meta.innerHTML = tags.map(t => `<span class="tag">${t}</span>`).join("");
+
+      btn.appendChild(top);
+      btn.appendChild(meta);
+
+      levelList.appendChild(btn);
+    });
+  }
+
   // ---------- Timer loop ----------
   function tick(now){
     rafId = requestAnimationFrame(tick);
-
     if(!state) return;
     if(timer.paused) return;
     if(!timer.running) return;
@@ -1186,18 +1638,34 @@
 
   undoBtn.addEventListener("click", undo);
   restartBtn.addEventListener("click", restartLevel);
-  newLevelBtn.addEventListener("click", newLevel);
 
   closeModalBtn.addEventListener("click", hideModal);
   nextBtn.addEventListener("click", () => { hideModal(); nextLevel(); });
 
+  levelsBtn.addEventListener("click", showLevels);
+  closeLevelsBtn.addEventListener("click", hideLevels);
+
+  resetProgressBtn.addEventListener("click", () => {
+    progress = { completed:{}, unlockedUpTo:0 };
+    saveProgress();
+    buildLevelList();
+    // If currently on a locked level (should not happen), jump to 0
+    if(!isLevelUnlocked(levelIndex)) goToLevel(0);
+  });
+
   // Keyboard
   window.addEventListener("keydown", (e) => {
-    if(overlay.classList.contains("show")){
-      if(e.key === "Escape") hideModal();
+    const key = e.key.toLowerCase();
+
+    if(levelsOverlay.classList.contains("show")){
+      if(key === "escape") hideLevels();
       return;
     }
-    const key = e.key.toLowerCase();
+    if(overlay.classList.contains("show")){
+      if(key === "escape") hideModal();
+      return;
+    }
+
     if(key === "arrowup" || key === "w") { e.preventDefault(); move(0,-1); }
     else if(key === "arrowdown" || key === "s") { e.preventDefault(); move(0,1); }
     else if(key === "arrowleft" || key === "a") { e.preventDefault(); move(-1,0); }
@@ -1205,6 +1673,7 @@
     else if(key === " " || key === "enter") { e.preventDefault(); wait(); }
     else if(key === "z") { e.preventDefault(); undo(); }
     else if(key === "r") { e.preventDefault(); restartLevel(); }
+    else if(key === "l") { e.preventDefault(); showLevels(); }
   }, { passive:false });
 
   // Swipe on board
@@ -1235,7 +1704,7 @@
   exportBtn.addEventListener("click", () => {
     if(!state) return;
     const payload = {
-      v: 1,
+      v: 2,
       exportedAt: new Date().toISOString(),
       levelIndex,
       timer: {
@@ -1243,7 +1712,8 @@
         timeLeftMs: timer.timeLeftMs,
         running: timer.running
       },
-      state
+      state,
+      progress
     };
     const txt = JSON.stringify(payload, null, 2);
     const blob = new Blob([txt], { type:"application/json" });
@@ -1265,15 +1735,24 @@
       const txt = await file.text();
       try{
         const payload = JSON.parse(txt);
-        if(!payload || payload.v !== 1 || !payload.state) throw new Error("Bad format");
+        if(!payload || payload.v !== 2 || !payload.state) throw new Error("Bad format");
 
-        levelIndex = (typeof payload.levelIndex === "number") ? payload.levelIndex : findLevelIndexById(payload.state.levelId);
+        if(payload.progress){
+          progress = payload.progress;
+          saveProgress();
+        }
+
+        let idx = (typeof payload.levelIndex === "number") ? payload.levelIndex : 0;
+        idx = clamp(idx, 0, LEVELS.length - 1);
+        if(!isLevelUnlocked(idx)) idx = clamp(progress.unlockedUpTo, 0, LEVELS.length - 1);
+
+        levelIndex = idx;
         level = deepCopy(LEVELS[levelIndex]);
 
         state = payload.state;
         history = [];
 
-        timer.durationMs = payload.timer?.durationMs ?? timer.durationMs;
+        timer.durationMs = payload.timer?.durationMs ?? (level.timerSeconds*1000);
         timer.timeLeftMs = payload.timer?.timeLeftMs ?? timer.durationMs;
         timer.running = !!payload.timer?.running;
         timer.paused = false;
@@ -1283,7 +1762,7 @@
         render();
         updateButtons();
         persist();
-      }catch(e){
+      }catch(_){
         showModal("Import failed", "That file did not look like a LaserHeist save.");
       }
     };
@@ -1292,11 +1771,14 @@
 
   // ---------- Boot ----------
   function boot(){
+    loadProgress();
+
     const restored = tryRestore();
     if(!restored){
-      levelIndex = 0;
+      levelIndex = clamp(progress.unlockedUpTo, 0, LEVELS.length - 1);
       loadLevelFromDefinition(LEVELS[levelIndex]);
     }
+
     rafId = requestAnimationFrame(tick);
     updateButtons();
   }

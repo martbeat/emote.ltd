@@ -167,6 +167,79 @@ section{
       text-decoration:none;
     }
 
+/* Desktop: show links inline, hide Menu button */
+.nav{ position: relative; }
+.navToggle{ display:none; }
+.navLinks{
+  display:flex;
+  align-items:center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Mobile: collapse */
+@media (max-width: 700px){
+  .topbar-inner{
+    align-items: center;
+  }
+
+  .brand{
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .logo{
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .brand .tag{ display:none; }          /* stops the brand block getting tall */
+  .brand h1{ font-size: 15px; }
+
+  .navToggle{ display:inline-flex; }
+  .navLinks{
+    display:none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: min(260px, 86vw);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: color-mix(in oklab, var(--bg) 82%, transparent);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .navLinks.open{ display:flex; }
+
+  .navLinks .navlink{
+    display:block;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--panel) 80%, transparent);
+    color: var(--text);
+  }
+
+  .navLinks .navlink:hover{
+    background: color-mix(in oklab, var(--panel2) 85%, transparent);
+    text-decoration: none;
+  }
+
+  .navLinks .btn{
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+    
     .btn{
       border: 1px solid var(--line);
       background: var(--panel);
@@ -715,13 +788,20 @@ section{
         </div>
       </div>
 
-      <nav aria-label="Primary">
-        <a class="navlink" href="#how">How I help</a>
-        <a class="navlink" href="#hub">Hub</a>
-        <a class="navlink" href="#articles">Articles</a>
-        <a class="navlink" href="#contact">Contact</a>
-        <button class="btn" id="themeBtn" type="button" aria-label="Toggle theme">Theme</button>
-      </nav>
+<nav class="nav" aria-label="Primary">
+  <button class="btn navToggle" id="navToggle" type="button" aria-expanded="false" aria-controls="navLinks">
+    Menu
+  </button>
+
+  <div class="navLinks" id="navLinks">
+    <a class="navlink" href="#how">How I help</a>
+    <a class="navlink" href="#hub">Hub</a>
+    <a class="navlink" href="#articles">Articles</a>
+    <a class="navlink" href="#contact">Contact</a>
+    <button class="btn" id="themeBtn" type="button" aria-label="Toggle theme">Theme</button>
+  </div>
+</nav>
+
     </div>
   </header>
 
@@ -1553,6 +1633,38 @@ Style:
         history.replaceState(null, "", id);
       });
     });
+
+  // Mobile nav toggle
+const navToggle = document.getElementById("navToggle");
+const navLinks = document.getElementById("navLinks");
+
+if(navToggle && navLinks){
+  navToggle.addEventListener("click", () => {
+    const isOpen = navLinks.classList.toggle("open");
+    navToggle.setAttribute("aria-expanded", String(isOpen));
+  });
+
+  // Close menu when a link is tapped
+  navLinks.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener("click", () => {
+      navLinks.classList.remove("open");
+      navToggle.setAttribute("aria-expanded", "false");
+    });
+  });
+
+  // Close menu when tapping outside
+  document.addEventListener("click", (e) => {
+    if(!navLinks.classList.contains("open")) return;
+    const within = navLinks.contains(e.target) || navToggle.contains(e.target);
+    if(!within){
+      navLinks.classList.remove("open");
+      navToggle.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
+  
+  
   </script>
 </body>
 </html>

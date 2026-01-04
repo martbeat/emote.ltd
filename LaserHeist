@@ -1,0 +1,1308 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LaserHeist</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --ink:#e8eefc;
+      --muted:#a9b6dd;
+      --accent:#7dd3fc;
+      --danger:#fb7185;
+      --ok:#86efac;
+      --wall:#1f2a4f;
+      --floor:#0c1430;
+      --stroke:rgba(232,238,252,.12);
+      --cell:42px;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 25% 0%, #14214a 0%, var(--bg) 55%, #070b16 100%);
+      color:var(--ink);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .topbar{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      flex-wrap:wrap;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding:12px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.22);
+    }
+    .hud{
+      flex: 1 1 360px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      background: linear-gradient(180deg, rgba(125,211,252,.12), rgba(255,255,255,.03));
+    }
+    .hud .left{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width: 160px;
+    }
+    .title{
+      font-weight:700;
+      letter-spacing:.2px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .sub{
+      color:var(--muted);
+      font-size: 13px;
+    }
+    .hud .right{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .pill{
+      display:flex;
+      gap:8px;
+      align-items:baseline;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.18);
+      min-width: 148px;
+      justify-content:center;
+    }
+    .pill .label{ color:var(--muted); font-size:12px }
+    .pill .value{ font-size:18px; font-weight:800 }
+    .pill.timer{
+      border-color: rgba(125,211,252,.28);
+      background: rgba(125,211,252,.08);
+    }
+    .pill.timer.danger{
+      border-color: rgba(251,113,133,.42);
+      background: rgba(251,113,133,.10);
+      animation: pulse 900ms ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{ transform: scale(1); }
+      50%{ transform: scale(1.03); }
+    }
+
+    .btnrow{
+      flex: 0 0 auto;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    button{
+      appearance:none;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.05);
+      color:var(--ink);
+      padding:10px 12px;
+      border-radius: 12px;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+      touch-action: manipulation;
+    }
+    button:hover{ background: rgba(255,255,255,.08) }
+    button:active{ transform: translateY(1px) }
+    button.primary{
+      border-color: rgba(125,211,252,.35);
+      background: rgba(125,211,252,.14);
+    }
+    button.danger{
+      border-color: rgba(251,113,133,.35);
+      background: rgba(251,113,133,.12);
+    }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+
+    .main{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+    @media (min-width: 880px){
+      .main{
+        grid-template-columns: 1fr 320px;
+        align-items:start;
+      }
+    }
+
+    .boardCard{
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .boardTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .msg{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .board{
+      display:grid;
+      grid-template-columns: repeat(8, var(--cell));
+      grid-template-rows: repeat(8, var(--cell));
+      gap:6px;
+      width: fit-content;
+      margin: 0 auto;
+      touch-action: none;
+      user-select:none;
+    }
+    @media (max-width: 420px){
+      :root{ --cell: 38px; }
+    }
+    @media (min-width: 980px){
+      :root{ --cell: 46px; }
+    }
+
+    .cell{
+      width:var(--cell);
+      height:var(--cell);
+      border-radius: 12px;
+      border:1px solid rgba(232,238,252,.09);
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      letter-spacing: .2px;
+      overflow:hidden;
+    }
+    .wall{ background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)), var(--wall); }
+    .floor{ background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01)), var(--floor); }
+    .exit{ background: linear-gradient(180deg, rgba(134,239,172,.22), rgba(255,255,255,.02)); border-color: rgba(134,239,172,.35); }
+    .door{ background: linear-gradient(180deg, rgba(251,191,36,.15), rgba(255,255,255,.02)); border-color: rgba(251,191,36,.25); }
+    .door.open{ opacity:.55; filter:saturate(.85); }
+    .switch{ background: linear-gradient(180deg, rgba(125,211,252,.18), rgba(255,255,255,.02)); border-color: rgba(125,211,252,.30); }
+    .key{ background: linear-gradient(180deg, rgba(250,204,21,.22), rgba(255,255,255,.02)); border-color: rgba(250,204,21,.35); }
+
+    .entity{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 18px;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,.4));
+      pointer-events:none;
+    }
+    .player{ font-size: 20px; }
+    .camera{ font-size: 18px; }
+    .laserDot{ font-size: 18px; }
+    .laserActive{
+      outline: 2px solid rgba(251,113,133,.35);
+      box-shadow: inset 0 0 0 2px rgba(251,113,133,.18);
+    }
+    .seen{
+      outline: 3px solid rgba(251,113,133,.55);
+      box-shadow: 0 0 0 3px rgba(251,113,133,.12);
+    }
+
+    .sideCard{
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .legend{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      color:var(--muted);
+      font-size: 13px;
+    }
+    .legend .item{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      padding:8px 10px;
+      border:1px solid var(--stroke);
+      border-radius: 12px;
+      background: rgba(0,0,0,.12);
+    }
+    .legend .ico{ width:20px; text-align:center; }
+
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .pad{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      gap:8px;
+    }
+    .pad button{
+      padding:14px 0;
+      font-size:16px;
+    }
+    .pad .blank{
+      background:transparent;
+      border: none;
+      box-shadow:none;
+      cursor:default;
+    }
+    .smallRow{
+      display:flex;
+      gap:8px;
+    }
+    .smallRow button{ flex:1 1 auto; }
+
+    .overlay{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+      z-index: 50;
+    }
+    .overlay.show{ display:flex; }
+    .modal{
+      width:min(520px, 100%);
+      border-radius: 18px;
+      border:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      padding:14px;
+    }
+    .modal h2{ margin: 6px 0 6px; }
+    .modal p{ margin: 0 0 12px; color:var(--muted); }
+    .modal .actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="card hud">
+        <div class="left">
+          <div class="title">LaserHeist <span class="sub" id="levelName"></span></div>
+          <div class="sub" id="statusLine">Move 1 tile per turn. Avoid cameras and lasers.</div>
+        </div>
+        <div class="right">
+          <div class="pill timer" id="timerPill">
+            <div class="label">TIME</div>
+            <div class="value" id="timerText">--</div>
+          </div>
+          <div class="pill">
+            <div class="label">MOVES</div>
+            <div class="value" id="movesText">0</div>
+          </div>
+          <div class="pill">
+            <div class="label">KEYS</div>
+            <div class="value" id="keysText">0/0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card btnrow">
+        <button class="primary" id="newLevelBtn" title="Load a new level">New level</button>
+        <button id="restartBtn" title="Restart this level">Restart</button>
+        <button id="undoBtn" title="Undo last move (does not rewind timer)">Undo</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="card boardCard">
+        <div class="boardTop">
+          <div class="msg" id="msg">Tip: You can swipe on the grid to move.</div>
+          <div class="msg hint">Timer starts on your first move. Undo does not rewind time.</div>
+        </div>
+        <div class="board" id="board" aria-label="Game board"></div>
+      </div>
+
+      <div class="card sideCard">
+        <div class="controls">
+          <div class="pad" aria-label="Controls">
+            <button class="blank" disabled></button>
+            <button id="upBtn">▲</button>
+            <button class="blank" disabled></button>
+
+            <button id="leftBtn">◀</button>
+            <button id="waitBtn" class="primary">WAIT</button>
+            <button id="rightBtn">▶</button>
+
+            <button class="blank" disabled></button>
+            <button id="downBtn">▼</button>
+            <button class="blank" disabled></button>
+          </div>
+
+          <div class="smallRow">
+            <button id="exportBtn">Export</button>
+            <button id="importBtn">Import</button>
+          </div>
+
+          <div class="legend" aria-label="Legend">
+            <div class="item"><span class="ico">🕵️</span><span>Player</span></div>
+            <div class="item"><span class="ico">📷</span><span>Camera</span></div>
+            <div class="item"><span class="ico">🔑</span><span>Key</span></div>
+            <div class="item"><span class="ico">🚪</span><span>Door</span></div>
+            <div class="item"><span class="ico">🔘</span><span>Switch</span></div>
+            <div class="item"><span class="ico">🟥</span><span>Laser tile</span></div>
+            <div class="item" style="grid-column:1 / -1">
+              <span class="ico">⌨️</span><span>Arrow keys, WASD, or swipe</span>
+            </div>
+          </div>
+
+          <div class="hint" id="levelHint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h2 id="modalTitle">You win</h2>
+      <p id="modalBody"></p>
+      <div class="actions">
+        <button id="closeModalBtn">Close</button>
+        <button class="primary" id="nextBtn">Next level</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Levels (tight 8x8) ----------
+  // Tiles legend in "tiles" strings:
+  // # wall, . floor, P player, E exit, K key, D door, S switch, L laser tile, C camera
+  // Cameras and links are defined in arrays for clarity.
+  const LEVELS = [
+    {
+      id: "L-01",
+      name: "Training",
+      hint: "A camera rotates each turn. Sometimes WAIT is the best move.",
+      w: 8, h: 8,
+      timerSeconds: 60,
+      tiles: [
+        "########",
+        "#P..K..#",
+        "#..#...#",
+        "#..#C..#",
+        "#..#...#",
+        "#.....E#",
+        "#......#",
+        "########",
+      ],
+      cameras: [{ x:4, y:3, dir:"E", pattern:["E","S","W","N"] }],
+      doors: [],
+      lasers: [],
+      switches: [],
+      links: [],
+      rules: { keysRequired: 1 }
+    },
+    {
+      id: "L-02",
+      name: "Door and switch",
+      hint: "Switch toggles a door. Cameras can see through floor but not through walls or closed doors.",
+      w: 8, h: 8,
+      timerSeconds: 55,
+      tiles: [
+        "########",
+        "#P..#..#",
+        "#..D#K.#",
+        "#..##..#",
+        "#..S...#",
+        "#..#C.E#",
+        "#......#",
+        "########",
+      ],
+      cameras: [{ x:4, y:5, dir:"N", pattern:["N","E","S","W"] }],
+      doors: [{ x:3, y:2, open:false }],
+      lasers: [],
+      switches: [{ x:3, y:4 }],
+      links: [
+        { from: {x:3,y:4}, toggles: [ { type:"door", x:3, y:2 } ] }
+      ],
+      rules: { keysRequired: 1 }
+    },
+    {
+      id: "L-03",
+      name: "Laser tiles",
+      hint: "Lasers toggle each turn. Red tiles are safe only when OFF.",
+      w: 8, h: 8,
+      timerSeconds: 45,
+      tiles: [
+        "########",
+        "#P..#..#",
+        "#..L#K.#",
+        "#..L#..#",
+        "#..L#C.#",
+        "#..L...#",
+        "#....E.#",
+        "########",
+      ],
+      cameras: [{ x:5, y:4, dir:"W", pattern:["W","N","E","S"] }],
+      doors: [],
+      lasers: [
+        { x:3, y:2, mode:"toggle" },
+        { x:3, y:3, mode:"toggle" },
+        { x:3, y:4, mode:"toggle" },
+        { x:3, y:5, mode:"toggle" },
+      ],
+      switches: [],
+      links: [],
+      rules: { keysRequired: 1 }
+    },
+    {
+      id: "L-04",
+      name: "The pinch",
+      hint: "Short timer. Plan a path, then execute.",
+      w: 8, h: 8,
+      timerSeconds: 35,
+      tiles: [
+        "########",
+        "#P..#..#",
+        "#.##D#.#",
+        "#..S.#K#",
+        "#..#L..#",
+        "#C.#L.E#",
+        "#..#L..#",
+        "########",
+      ],
+      cameras: [{ x:1, y:5, dir:"E", pattern:["E","E","S","S","W","W","N","N"] }],
+      doors: [{ x:4, y:2, open:false }],
+      lasers: [
+        { x:4, y:4, mode:"pattern", pattern:[1,0,1,0] },
+        { x:4, y:5, mode:"pattern", pattern:[1,0,1,0] },
+        { x:4, y:6, mode:"pattern", pattern:[1,0,1,0] },
+      ],
+      switches: [{ x:3, y:3 }],
+      links: [
+        { from: {x:3,y:3}, toggles: [
+          { type:"door", x:4, y:2 },
+          { type:"laserGroup", group:"A" }
+        ] }
+      ],
+      laserGroups: {
+        A: [{x:4,y:4},{x:4,y:5},{x:4,y:6}]
+      },
+      rules: { keysRequired: 1 }
+    }
+  ];
+
+  // ---------- DOM ----------
+  const elBoard = document.getElementById("board");
+  const elLevelName = document.getElementById("levelName");
+  const elMoves = document.getElementById("movesText");
+  const elKeys = document.getElementById("keysText");
+  const elTimer = document.getElementById("timerText");
+  const elTimerPill = document.getElementById("timerPill");
+  const elMsg = document.getElementById("msg");
+  const elLevelHint = document.getElementById("levelHint");
+
+  const overlay = document.getElementById("overlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  const newLevelBtn = document.getElementById("newLevelBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const undoBtn = document.getElementById("undoBtn");
+
+  const upBtn = document.getElementById("upBtn");
+  const downBtn = document.getElementById("downBtn");
+  const leftBtn = document.getElementById("leftBtn");
+  const rightBtn = document.getElementById("rightBtn");
+  const waitBtn = document.getElementById("waitBtn");
+
+  const exportBtn = document.getElementById("exportBtn");
+  const importBtn = document.getElementById("importBtn");
+
+  // ---------- Storage ----------
+  const STORAGE_KEY = "laserheist_v1_save";
+
+  // ---------- Game state ----------
+  let levelIndex = 0;
+  let level = null;
+
+  let state = null;
+  let history = [];
+
+  // Timer starts on first move
+  let timer = {
+    durationMs: 60000,
+    timeLeftMs: 60000,
+    running: false,
+    lastTickTs: 0,
+    paused: false,
+    lastSavedTs: 0
+  };
+
+  let rafId = 0;
+
+  // ---------- Helpers ----------
+  const dirs = ["N","E","S","W"];
+  const dirVec = (d) => {
+    switch(d){
+      case "N": return {dx:0, dy:-1};
+      case "E": return {dx:1, dy:0};
+      case "S": return {dx:0, dy:1};
+      case "W": return {dx:-1, dy:0};
+      default: return {dx:0, dy:0};
+    }
+  };
+
+  const k = (x,y) => `${x},${y}`;
+
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function msToClock(ms){
+    const total = Math.ceil(ms/1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2,"0")}`;
+  }
+
+  function deepCopy(obj){
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function showModal(title, body){
+    modalTitle.textContent = title;
+    modalBody.textContent = body;
+    overlay.classList.add("show");
+    timer.paused = true;
+    persist();
+    updateButtons();
+  }
+
+  function hideModal(){
+    overlay.classList.remove("show");
+    timer.paused = false;
+    timer.lastTickTs = performance.now();
+    persist();
+    updateButtons();
+  }
+
+  function updateButtons(){
+    undoBtn.disabled = history.length === 0 || state?.ended;
+    restartBtn.disabled = !state || !level;
+    waitBtn.disabled = !state || state.ended;
+    upBtn.disabled = !state || state.ended;
+    downBtn.disabled = !state || state.ended;
+    leftBtn.disabled = !state || state.ended;
+    rightBtn.disabled = !state || state.ended;
+  }
+
+  // ---------- Level parsing ----------
+  function loadLevelFromDefinition(def){
+    level = deepCopy(def);
+
+    // Build base tile grid and entity placements
+    const w = level.w, h = level.h;
+    const grid = new Array(w*h).fill("floor");
+
+    const doors = new Map();
+    (level.doors || []).forEach(d => doors.set(k(d.x,d.y), { x:d.x, y:d.y, open: !!d.open }));
+
+    const switches = new Set((level.switches || []).map(s => k(s.x,s.y)));
+
+    const keys = new Set();
+    const lasers = new Map();
+    (level.lasers || []).forEach(l => lasers.set(k(l.x,l.y), { ...l, active:false }));
+
+    const cameras = (level.cameras || []).map(c => ({ ...c, step:0 }));
+
+    let player = { x:0, y:0, keys:0 };
+    let exit = { x:0, y:0 };
+
+    for(let y=0; y<h; y++){
+      const row = level.tiles[y];
+      for(let x=0; x<w; x++){
+        const ch = row[x];
+        const idx = y*w + x;
+
+        if(ch === "#"){ grid[idx] = "wall"; continue; }
+        grid[idx] = "floor";
+
+        if(ch === "P"){ player = { x, y, keys:0 }; }
+        if(ch === "E"){ exit = { x, y }; grid[idx] = "exit"; }
+        if(ch === "K"){ keys.add(k(x,y)); grid[idx] = "key"; }
+        if(ch === "D"){
+          grid[idx] = "door";
+          if(!doors.has(k(x,y))) doors.set(k(x,y), { x, y, open:false });
+        }
+        if(ch === "S"){ grid[idx] = "switch"; switches.add(k(x,y)); }
+        if(ch === "L"){
+          grid[idx] = "laser";
+          if(!lasers.has(k(x,y))) lasers.set(k(x,y), { x, y, mode:"toggle", active:false });
+        }
+        if(ch === "C"){
+          // Camera is not a tile type, leave floor unless exit, door, etc
+          // If not defined in cameras list, create a default one.
+          if(!cameras.some(c => c.x===x && c.y===y)){
+            cameras.push({ x, y, dir:"E", pattern:["E","S","W","N"], step:0 });
+          }
+        }
+      }
+    }
+
+    // Default keysRequired
+    const keysRequired = (level.rules && Number.isFinite(level.rules.keysRequired))
+      ? level.rules.keysRequired
+      : keys.size;
+
+    // Timer
+    const durationMs = clamp((level.timerSeconds || 60), 10, 999) * 1000;
+
+    // Create runtime state
+    state = {
+      levelId: level.id,
+      w, h,
+      grid, // tile types
+      player,
+      exit,
+      keysRequired,
+      keysHave: 0,
+      keysRemaining: Array.from(keys), // positions
+      doors: Object.fromEntries([...doors.entries()]),
+      switches: Array.from(switches),
+      lasers: Object.fromEntries([...lasers.entries()]),
+      cameras,
+      links: level.links || [],
+      laserGroups: level.laserGroups || {},
+      turn: 0,
+      moves: 0,
+      ended: false,
+      lastDangerTiles: [] // for highlighting
+    };
+
+    history = [];
+
+    timer.durationMs = durationMs;
+    timer.timeLeftMs = durationMs;
+    timer.running = false;
+    timer.lastTickTs = 0;
+    timer.paused = false;
+
+    updateHUD();
+    render();
+    updateButtons();
+    persist();
+  }
+
+  function findLevelIndexById(id){
+    const idx = LEVELS.findIndex(l => l.id === id);
+    return idx >= 0 ? idx : 0;
+  }
+
+  // ---------- Persistence ----------
+  function persist(){
+    if(!state || !level) return;
+    const payload = {
+      v: 1,
+      levelIndex,
+      levelId: state.levelId,
+      state,
+      history,
+      timer: {
+        durationMs: timer.durationMs,
+        timeLeftMs: timer.timeLeftMs,
+        running: timer.running,
+        paused: timer.paused,
+        lastSavedTs: Date.now()
+      }
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  function tryRestore(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return false;
+      const saved = JSON.parse(raw);
+      if(!saved || saved.v !== 1 || !saved.state) return false;
+
+      levelIndex = (typeof saved.levelIndex === "number") ? saved.levelIndex : findLevelIndexById(saved.levelId);
+      level = deepCopy(LEVELS[levelIndex]);
+
+      state = saved.state;
+      history = saved.history || [];
+
+      timer.durationMs = saved.timer?.durationMs ?? (level.timerSeconds*1000);
+      timer.timeLeftMs = saved.timer?.timeLeftMs ?? timer.durationMs;
+      timer.running = !!saved.timer?.running;
+      timer.paused = !!saved.timer?.paused;
+      timer.lastTickTs = performance.now();
+
+      // If timer was running and page was closed, subtract elapsed real time
+      const lastSavedTs = saved.timer?.lastSavedTs ?? Date.now();
+      if(timer.running && !timer.paused){
+        const elapsed = Date.now() - lastSavedTs;
+        timer.timeLeftMs = Math.max(0, timer.timeLeftMs - elapsed);
+        if(timer.timeLeftMs === 0 && !state.ended){
+          state.ended = true;
+          showModal("Time’s up", "You ran out of time.");
+        }
+      }
+
+      updateHUD();
+      render();
+      updateButtons();
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
+  // ---------- Game logic ----------
+  function isInside(x,y){ return x>=0 && y>=0 && x<state.w && y<state.h; }
+
+  function tileAt(x,y){
+    if(!isInside(x,y)) return "wall";
+    return state.grid[y*state.w + x];
+  }
+
+  function isWall(x,y){ return tileAt(x,y) === "wall"; }
+
+  function doorAt(x,y){
+    return state.doors[k(x,y)] || null;
+  }
+
+  function isBlocked(x,y){
+    const t = tileAt(x,y);
+    if(t === "wall") return true;
+    if(t === "door"){
+      const d = doorAt(x,y);
+      return d ? !d.open : true;
+    }
+    return false;
+  }
+
+  function collectIfKey(x,y){
+    const posKey = k(x,y);
+    const idx = state.keysRemaining.indexOf(posKey);
+    if(idx >= 0){
+      state.keysRemaining.splice(idx, 1);
+      state.keysHave += 1;
+      // Turn tile into floor (or exit or switch stays as it is, but key tile is standalone here)
+      state.grid[y*state.w + x] = "floor";
+    }
+  }
+
+  function applySwitchIfOn(x,y){
+    const posKey = k(x,y);
+    if(!state.switches.includes(posKey)) return;
+
+    // Toggle all linked targets from this switch
+    const link = state.links.find(l => l.from && l.from.x===x && l.from.y===y);
+    if(!link) return;
+
+    for(const tgt of (link.toggles || [])){
+      if(tgt.type === "door"){
+        const dk = k(tgt.x, tgt.y);
+        if(state.doors[dk]) state.doors[dk].open = !state.doors[dk].open;
+      } else if(tgt.type === "laser"){
+        const lk = k(tgt.x, tgt.y);
+        if(state.lasers[lk]) state.lasers[lk].active = !state.lasers[lk].active;
+      } else if(tgt.type === "laserGroup"){
+        const group = state.laserGroups[tgt.group] || [];
+        for(const p of group){
+          const lk = k(p.x,p.y);
+          if(state.lasers[lk]) state.lasers[lk].active = !state.lasers[lk].active;
+        }
+      }
+    }
+  }
+
+  function startTimerIfNeeded(){
+    if(timer.running || timer.paused) return;
+    timer.running = true;
+    timer.lastTickTs = performance.now();
+    persist();
+  }
+
+  function stepHazards(){
+    state.turn += 1;
+
+    // Cameras follow their pattern based on turn
+    for(const cam of state.cameras){
+      const pattern = cam.pattern && cam.pattern.length ? cam.pattern : dirs;
+      const idx = state.turn % pattern.length;
+      cam.dir = pattern[idx];
+    }
+
+    // Lasers update based on mode
+    for(const keyStr of Object.keys(state.lasers)){
+      const l = state.lasers[keyStr];
+      if(l.mode === "toggle"){
+        l.active = (state.turn % 2 === 0);
+      } else if(l.mode === "pattern" && Array.isArray(l.pattern) && l.pattern.length){
+        const idx = state.turn % l.pattern.length;
+        l.active = !!l.pattern[idx];
+      } else {
+        // default to toggle
+        l.active = (state.turn % 2 === 0);
+      }
+    }
+  }
+
+  function computeSeenTiles(){
+    // Returns a Set of positions "x,y" that are visible to at least one camera this tick
+    const seen = new Set();
+    for(const cam of state.cameras){
+      const {dx, dy} = dirVec(cam.dir);
+      let x = cam.x + dx;
+      let y = cam.y + dy;
+      while(isInside(x,y)){
+        if(isWall(x,y)) break;
+        const t = tileAt(x,y);
+        if(t === "door"){
+          const d = doorAt(x,y);
+          if(d && !d.open) break; // closed door blocks
+        }
+        seen.add(k(x,y));
+        x += dx; y += dy;
+      }
+    }
+    return seen;
+  }
+
+  function isPlayerOnActiveLaser(){
+    const lk = k(state.player.x, state.player.y);
+    const l = state.lasers[lk];
+    return !!(l && l.active);
+  }
+
+  function checkWin(){
+    const onExit = (state.player.x === state.exit.x && state.player.y === state.exit.y);
+    return onExit && state.keysHave >= state.keysRequired;
+  }
+
+  function endGame(win, reason){
+    state.ended = true;
+    persist();
+    updateButtons();
+    if(win){
+      showModal("You win", reason);
+    }else{
+      showModal("Caught", reason);
+    }
+  }
+
+  function performTurn(action){
+    if(!state || state.ended) return;
+
+    startTimerIfNeeded();
+
+    // Time can hit zero between moves
+    if(timer.timeLeftMs <= 0){
+      state.ended = true;
+      endGame(false, "You ran out of time.");
+      return;
+    }
+
+    // Save snapshot for undo (but we will not rewind timer)
+    history.push({
+      state: deepCopy(state)
+    });
+
+    let moved = false;
+
+    if(action.type === "move"){
+      const nx = state.player.x + action.dx;
+      const ny = state.player.y + action.dy;
+      if(isInside(nx, ny) && !isBlocked(nx, ny)){
+        state.player.x = nx;
+        state.player.y = ny;
+        state.moves += 1;
+        moved = true;
+      }
+    } else if(action.type === "wait"){
+      state.moves += 1;
+      moved = true;
+    }
+
+    if(!moved){
+      history.pop();
+      return;
+    }
+
+    // Resolve pickups and switch on arrival
+    collectIfKey(state.player.x, state.player.y);
+    applySwitchIfOn(state.player.x, state.player.y);
+
+    // Immediate visibility check after the move (feels fair)
+    const seenNow = computeSeenTiles();
+    state.lastDangerTiles = Array.from(seenNow);
+    if(seenNow.has(k(state.player.x, state.player.y))){
+      endGame(false, "A camera saw you.");
+      render();
+      updateHUD();
+      return;
+    }
+
+    // Advance hazards (turn-based)
+    stepHazards();
+
+    // Visibility check after hazards update
+    const seenAfter = computeSeenTiles();
+    state.lastDangerTiles = Array.from(seenAfter);
+
+    if(seenAfter.has(k(state.player.x, state.player.y))){
+      endGame(false, "A camera swung onto you.");
+      render();
+      updateHUD();
+      return;
+    }
+
+    // Laser check after hazards update
+    if(isPlayerOnActiveLaser()){
+      endGame(false, "You crossed an active laser.");
+      render();
+      updateHUD();
+      return;
+    }
+
+    // Win check
+    if(checkWin()){
+      endGame(true, `Escaped in ${state.moves} moves with ${msToClock(timer.timeLeftMs)} left.`);
+      render();
+      updateHUD();
+      return;
+    }
+
+    // Continue
+    persist();
+    updateHUD();
+    render();
+    updateButtons();
+  }
+
+  function undo(){
+    if(!history.length || state.ended) return;
+    const snap = history.pop();
+    state = snap.state;
+    // Timer is NOT rewound by design
+    persist();
+    updateHUD();
+    render();
+    updateButtons();
+  }
+
+  function restartLevel(){
+    if(!level) return;
+    loadLevelFromDefinition(LEVELS[levelIndex]);
+  }
+
+  function nextLevel(){
+    levelIndex = (levelIndex + 1) % LEVELS.length;
+    loadLevelFromDefinition(LEVELS[levelIndex]);
+  }
+
+  function newLevel(){
+    // Choose a different level (simple rotation)
+    nextLevel();
+  }
+
+  // ---------- Rendering ----------
+  function updateHUD(){
+    if(!state) return;
+    elLevelName.textContent = `• ${LEVELS[levelIndex]?.name || state.levelId}`;
+    elMoves.textContent = String(state.moves);
+    elKeys.textContent = `${state.keysHave}/${state.keysRequired}`;
+    elTimer.textContent = msToClock(timer.timeLeftMs);
+
+    const danger = timer.timeLeftMs <= 10000 && timer.running && !state.ended;
+    elTimerPill.classList.toggle("danger", danger);
+
+    elLevelHint.textContent = LEVELS[levelIndex]?.hint || "";
+  }
+
+  function render(){
+    if(!state) return;
+
+    elBoard.style.gridTemplateColumns = `repeat(${state.w}, var(--cell))`;
+    elBoard.style.gridTemplateRows = `repeat(${state.h}, var(--cell))`;
+
+    elBoard.innerHTML = "";
+
+    const seen = new Set(state.lastDangerTiles || []);
+
+    // Precompute active lasers for styling
+    const activeLasers = new Set();
+    for(const keyStr of Object.keys(state.lasers)){
+      if(state.lasers[keyStr].active) activeLasers.add(keyStr);
+    }
+
+    // Camera positions map
+    const camAt = new Map();
+    for(const cam of state.cameras){
+      camAt.set(k(cam.x, cam.y), cam);
+    }
+
+    for(let y=0; y<state.h; y++){
+      for(let x=0; x<state.w; x++){
+        const cell = document.createElement("div");
+        cell.className = "cell";
+
+        const t = tileAt(x,y);
+        cell.classList.add(t === "wall" ? "wall" : "floor");
+
+        if(t === "exit") cell.classList.add("exit");
+        if(t === "door") cell.classList.add("door");
+        if(t === "switch") cell.classList.add("switch");
+        if(t === "key") cell.classList.add("key");
+        if(t === "laser") cell.classList.add("floor"); // base floor, laser overlay handles the rest
+
+        // Door open state
+        if(t === "door"){
+          const d = doorAt(x,y);
+          if(d && d.open) cell.classList.add("open");
+        }
+
+        // Seen tiles highlight (warning)
+        if(seen.has(k(x,y)) && t !== "wall") cell.classList.add("seen");
+
+        // Active lasers highlight
+        if(activeLasers.has(k(x,y))){
+          cell.classList.add("laserActive");
+        }
+
+        // Tile icons (lightweight)
+        let tileIcon = "";
+        if(t === "exit") tileIcon = "⬛";
+        if(t === "door") tileIcon = "🚪";
+        if(t === "switch") tileIcon = "🔘";
+        if(t === "key") tileIcon = "🔑";
+        if(t === "laser") tileIcon = "🟥";
+
+        if(tileIcon){
+          const e = document.createElement("div");
+          e.className = "entity";
+          e.textContent = tileIcon;
+          cell.appendChild(e);
+        }
+
+        // Entities
+        const pos = k(x,y);
+        if(pos === k(state.player.x, state.player.y)){
+          const e = document.createElement("div");
+          e.className = "entity player";
+          e.textContent = "🕵️";
+          cell.appendChild(e);
+        }
+
+        const cam = camAt.get(pos);
+        if(cam){
+          const e = document.createElement("div");
+          e.className = "entity camera";
+          const arrow = cam.dir === "N" ? "↑" : cam.dir === "E" ? "→" : cam.dir === "S" ? "↓" : "←";
+          e.textContent = "📷" + arrow;
+          cell.appendChild(e);
+        }
+
+        elBoard.appendChild(cell);
+      }
+    }
+  }
+
+  // ---------- Timer loop ----------
+  function tick(now){
+    rafId = requestAnimationFrame(tick);
+
+    if(!state) return;
+    if(timer.paused) return;
+    if(!timer.running) return;
+    if(state.ended) return;
+
+    const dt = now - timer.lastTickTs;
+    timer.lastTickTs = now;
+
+    timer.timeLeftMs = Math.max(0, timer.timeLeftMs - dt);
+    updateHUD();
+
+    if(timer.timeLeftMs <= 0){
+      state.ended = true;
+      persist();
+      updateButtons();
+      showModal("Time’s up", "You ran out of time.");
+    }
+  }
+
+  // ---------- Input ----------
+  function move(dx,dy){ performTurn({ type:"move", dx, dy }); }
+  function wait(){ performTurn({ type:"wait" }); }
+
+  upBtn.addEventListener("click", () => move(0,-1));
+  downBtn.addEventListener("click", () => move(0,1));
+  leftBtn.addEventListener("click", () => move(-1,0));
+  rightBtn.addEventListener("click", () => move(1,0));
+  waitBtn.addEventListener("click", () => wait());
+
+  undoBtn.addEventListener("click", undo);
+  restartBtn.addEventListener("click", restartLevel);
+  newLevelBtn.addEventListener("click", newLevel);
+
+  closeModalBtn.addEventListener("click", hideModal);
+  nextBtn.addEventListener("click", () => { hideModal(); nextLevel(); });
+
+  // Keyboard
+  window.addEventListener("keydown", (e) => {
+    if(overlay.classList.contains("show")){
+      if(e.key === "Escape") hideModal();
+      return;
+    }
+    const key = e.key.toLowerCase();
+    if(key === "arrowup" || key === "w") { e.preventDefault(); move(0,-1); }
+    else if(key === "arrowdown" || key === "s") { e.preventDefault(); move(0,1); }
+    else if(key === "arrowleft" || key === "a") { e.preventDefault(); move(-1,0); }
+    else if(key === "arrowright" || key === "d") { e.preventDefault(); move(1,0); }
+    else if(key === " " || key === "enter") { e.preventDefault(); wait(); }
+    else if(key === "z") { e.preventDefault(); undo(); }
+    else if(key === "r") { e.preventDefault(); restartLevel(); }
+  }, { passive:false });
+
+  // Swipe on board
+  let touchStart = null;
+  elBoard.addEventListener("pointerdown", (e) => {
+    elBoard.setPointerCapture(e.pointerId);
+    touchStart = { x: e.clientX, y: e.clientY };
+  });
+  elBoard.addEventListener("pointerup", (e) => {
+    if(!touchStart) return;
+    const dx = e.clientX - touchStart.x;
+    const dy = e.clientY - touchStart.y;
+    touchStart = null;
+
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    const threshold = 18;
+    if(absX < threshold && absY < threshold) return;
+
+    if(absX > absY){
+      move(dx > 0 ? 1 : -1, 0);
+    }else{
+      move(0, dy > 0 ? 1 : -1);
+    }
+  });
+
+  // ---------- Export / Import (single save blob) ----------
+  exportBtn.addEventListener("click", () => {
+    if(!state) return;
+    const payload = {
+      v: 1,
+      exportedAt: new Date().toISOString(),
+      levelIndex,
+      timer: {
+        durationMs: timer.durationMs,
+        timeLeftMs: timer.timeLeftMs,
+        running: timer.running
+      },
+      state
+    };
+    const txt = JSON.stringify(payload, null, 2);
+    const blob = new Blob([txt], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `laserheist-save-${state.levelId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  importBtn.addEventListener("click", async () => {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "application/json";
+    inp.onchange = async () => {
+      const file = inp.files && inp.files[0];
+      if(!file) return;
+      const txt = await file.text();
+      try{
+        const payload = JSON.parse(txt);
+        if(!payload || payload.v !== 1 || !payload.state) throw new Error("Bad format");
+
+        levelIndex = (typeof payload.levelIndex === "number") ? payload.levelIndex : findLevelIndexById(payload.state.levelId);
+        level = deepCopy(LEVELS[levelIndex]);
+
+        state = payload.state;
+        history = [];
+
+        timer.durationMs = payload.timer?.durationMs ?? timer.durationMs;
+        timer.timeLeftMs = payload.timer?.timeLeftMs ?? timer.durationMs;
+        timer.running = !!payload.timer?.running;
+        timer.paused = false;
+        timer.lastTickTs = performance.now();
+
+        updateHUD();
+        render();
+        updateButtons();
+        persist();
+      }catch(e){
+        showModal("Import failed", "That file did not look like a LaserHeist save.");
+      }
+    };
+    inp.click();
+  });
+
+  // ---------- Boot ----------
+  function boot(){
+    const restored = tryRestore();
+    if(!restored){
+      levelIndex = 0;
+      loadLevelFromDefinition(LEVELS[levelIndex]);
+    }
+    rafId = requestAnimationFrame(tick);
+    updateButtons();
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

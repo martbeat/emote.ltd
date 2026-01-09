@@ -102,3 +102,41 @@
   border-top: 1px solid #f2f2f2;
   padding-top: 1.5rem;
 }
+
+/* Panel styling – echoes index cards */
+
+.reading-section {
+  background: rgba(240, 243, 242, 0.6);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Section headings */
+
+.reading-section h2 {
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+/* Micro copy */
+
+.micro-copy {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+/* Lists stay calm */
+
+.reading-list li {
+  margin-bottom: 0.9rem;
+}
+
+/* Annotations feel secondary */
+
+.annotation {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.25rem 0 0;
+}

@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "title": "Reading and influences",
+    "note": "The order of these links changes from time to time. That is intentional. Learning is rarely linear, and neither is change."
+  },
+  "tiers": [
+    {
+      "id": "start",
+      "label": "Start here",
+      "microCopy": "A way in, not a conclusion.",
+      "items": [
+        {
+          "name": "Harvard Business Review",
+          "url": "https://hbr.org",
+          "tag": "leadership",
+          "annotation": "Widely shared thinking on leadership and management, useful as a common reference point even when it oversimplifies."
+        },
+        {
+          "name": "London Business School Think",
+          "url": "https://www.london.edu/think",
+          "tag": "leadership",
+          "annotation": "Research-led writing that treats leadership as a systemic and collective practice rather than a personal trait."
+        },
+        {
+          "name": "Nesta",
+          "url": "https://www.nesta.org.uk",
+          "tag": "change",
+          "annotation": "UK-focused innovation work that connects systems change, public value, and emerging technology."
+        },
+        {
+          "name": "Government Digital Service",
+          "url": "https://www.gov.uk/service-manual",
+          "tag": "public",
+          "annotation": "Practical guidance rooted in real delivery, showing what change looks like inside constrained public systems."
+        }
+      ]
+    },
+    {
+      "id": "deep",
+      "label": "Go deeper",
+      "microCopy": "When the simple explanations stop working.",
+      "items": [
+        {
+          "name": "MIT Sloan Management Review",
+          "url": "https://sloanreview.mit.edu",
+          "tag": "change",
+          "annotation": "Serious analysis of digital transformation, organisational learning, and why technology rarely delivers on its own."
+        },
+        {
+          "name": "Oxford Review",
+          "url": "https://oxford-review.com",
+          "tag": "evidence",
+          "annotation": "Evidence-based management writing that challenges intuition, hype, and fashionable shortcuts."
+        },
+        {
+          "name": "Academy of Management Perspectives",
+          "url": "https://journals.aom.org/journal/amp",
+          "tag": "evidence",
+          "annotation": "Translational theory explaining why rational change efforts so often fail in real organisations."
+        },
+        {
+          "name": "Institute for Government",
+          "url": "https://www.instituteforgovernment.org.uk",
+          "tag": "public",
+          "annotation": "Clear-eyed analysis of how government actually works, including incentives, constraints, and trade-offs."
+        }
+      ]
+    },
+    {
+      "id": "challenge",
+      "label": "Challenge your assumptions",
+      "microCopy": "This may change how you see the problem.",
+      "items": [
+        {
+          "name": "Evidence-Based Change (Fielding Graduate University)",
+          "url": "https://www.fielding.edu/innovation-change/ebc",
+          "tag": "evidence",
+          "annotation": "Work in the Argyris and Schön tradition, focused on inquiry, defensive routines, and double-loop learning."
+        },
+        {
+          "name": "Santa Fe Institute",
+          "url": "https://www.santafe.edu",
+          "tag": "evidence",
+          "annotation": "Complexity science applied to organisations and systems, challenging linear planning assumptions."
+        },
+        {
+          "name": "AI Now Institute",
+          "url": "https://ainowinstitute.org",
+          "tag": "ai",
+          "annotation": "Critical research on AI, power, governance, and social impact that resists techno-neutral narratives."
+        },
+        {
+          "name": "Society for Organizational Learning",
+          "url": "https://www.solonline.org",
+          "tag": "change",
+          "annotation": "Systems thinking in practice, including its tensions, failures, and political realities."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+/* -----------------------------
+   Reading & Influences page
+   ----------------------------- */
+
+.reading-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  line-height: 1.6;
+}
+
+/* Header */
+
+.reading-header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* Intro */
+
+.reading-intro p {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+/* Sections */
+
+.reading-section {
+  margin-top: 2.5rem;
+}
+
+.reading-section h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.reading-section .micro-copy {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
+/* Lists */
+
+.reading-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.reading-list li {
+  margin-bottom: 0.5rem;
+}
+
+.reading-list a {
+  text-decoration: none;
+  color: #1a1a1a;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1px;
+}
+
+.reading-list a:hover {
+  border-bottom-color: #000;
+}
+
+/* Footer */
+
+.reading-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Small screens */
+
+@media (max-width: 480px) {
+  .reading-page {
+    padding: 1.25rem 0.75rem 2.5rem;
+  }
+
+  .reading-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .reading-section h2 {
+    font-size: 1.2rem;
+  }
+}

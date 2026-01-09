@@ -5,7 +5,7 @@
   <title>Reading and Influences | eMote</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="./reading.css">
+  <link rel="stylesheet" href="/reading.css">
 </head>
 
 <body>
@@ -77,7 +77,7 @@ function shuffleArray(array, seed) {
   return copy;
 }
 
-fetch('./reading-data.json')
+fetch('/reading-data.json')
   .then(res => res.json())
   .then(data => {
     const container = document.getElementById('reading-content');

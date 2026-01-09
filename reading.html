@@ -10,8 +10,6 @@
 
 <body>
 
-<div id="reading-content"></div>
-  
 <main class="reading-page">
 
   <header class="reading-header">
@@ -32,113 +30,8 @@
     </p>
   </section>
 
-<section class="reading-section" data-tier="start">
-  <h2>Start here</h2>
-  <p class="micro-copy">A way in, not a conclusion.</p>
-
-  <ul class="reading-list">
-    <li>
-      <a href="https://hbr.org" target="_blank" rel="noopener">Harvard Business Review</a>
-      <p class="annotation">
-        Widely shared thinking on leadership and management, useful as a common reference point even when it oversimplifies.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://www.london.edu/think" target="_blank" rel="noopener">London Business School Think</a>
-      <p class="annotation">
-        Research-led writing that treats leadership as a systemic and collective practice rather than a personal trait.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://www.nesta.org.uk" target="_blank" rel="noopener">Nesta</a>
-      <p class="annotation">
-        UK-focused innovation work that connects systems change, public value, and emerging technology.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://www.gov.uk/service-manual" target="_blank" rel="noopener">Government Digital Service</a>
-      <p class="annotation">
-        Practical guidance rooted in real delivery, showing what change looks like inside constrained public systems.
-      </p>
-    </li>
-  </ul>
-</section>
-
-<section class="reading-section" data-tier="deep">
-  <h2>Go deeper</h2>
-  <p class="micro-copy">When the simple explanations stop working.</p>
-
-  <ul class="reading-list">
-    <li>
-      <a href="https://sloanreview.mit.edu" target="_blank" rel="noopener">MIT Sloan Management Review</a>
-      <p class="annotation">
-        Serious analysis of digital transformation, organisational learning, and why technology rarely delivers on its own.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://oxford-review.com" target="_blank" rel="noopener">Oxford Review</a>
-      <p class="annotation">
-        Evidence-based management writing that challenges intuition, hype, and fashionable shortcuts.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://journals.aom.org/journal/amp" target="_blank" rel="noopener">Academy of Management Perspectives</a>
-      <p class="annotation">
-        Translational theory explaining why rational change efforts so often fail in real organisations.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://www.instituteforgovernment.org.uk" target="_blank" rel="noopener">Institute for Government</a>
-      <p class="annotation">
-        Clear-eyed analysis of how government actually works, including incentives, constraints, and trade-offs.
-      </p>
-    </li>
-  </ul>
-</section>
-
-<section class="reading-section" data-tier="challenge">
-  <h2>Challenge your assumptions</h2>
-  <p class="micro-copy">This may change how you see the problem.</p>
-
-  <ul class="reading-list">
-    <li>
-      <a href="https://www.fielding.edu/innovation-change/ebc" target="_blank" rel="noopener">
-        Evidence-Based Change (Fielding Graduate University)
-      </a>
-      <p class="annotation">
-        Work in the Argyris and Schön tradition, focused on inquiry, defensive routines, and double-loop learning.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://www.santafe.edu" target="_blank" rel="noopener">Santa Fe Institute</a>
-      <p class="annotation">
-        Complexity science applied to organisations and systems, challenging linear planning assumptions.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://ainowinstitute.org" target="_blank" rel="noopener">AI Now Institute</a>
-      <p class="annotation">
-        Critical research on AI, power, governance, and social impact that resists techno-neutral narratives.
-      </p>
-    </li>
-
-    <li>
-      <a href="https://www.solonline.org" target="_blank" rel="noopener">Society for Organizational Learning</a>
-      <p class="annotation">
-        Systems thinking in practice, including its tensions, failures, and political realities.
-      </p>
-    </li>
-  </ul>
-</section>
-
+  <!-- JS will render sections here -->
+  <div id="reading-content"></div>
 
   <footer class="reading-footer">
     <p>
@@ -149,15 +42,12 @@
 
 </main>
 
-</body>
-</html>
 <script>
 function getDailySeed() {
   const today = new Date();
-  return today.toISOString().slice(0, 10); // YYYY-MM-DD
+  return today.toISOString().slice(0, 10);
 }
 
-// Simple string-to-number hash
 function hashString(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -167,7 +57,6 @@ function hashString(str) {
   return Math.abs(hash);
 }
 
-// Seeded pseudo-random generator
 function seededRandom(seed) {
   let value = seed;
   return function () {
@@ -176,7 +65,6 @@ function seededRandom(seed) {
   };
 }
 
-// Deterministic shuffle
 function shuffleArray(array, seed) {
   const rand = seededRandom(seed);
   const copy = array.slice();
@@ -188,10 +76,7 @@ function shuffleArray(array, seed) {
 
   return copy;
 }
-</script>
 
-
-<script>
 fetch('reading-data.json')
   .then(res => res.json())
   .then(data => {
@@ -225,3 +110,6 @@ fetch('reading-data.json')
     });
   });
 </script>
+
+</body>
+</html>

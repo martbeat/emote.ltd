@@ -140,3 +140,18 @@
   color: #555;
   margin: 0.25rem 0 0;
 }
+
+
+@media (min-width: 900px) {
+  .reading-layout {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 2rem;
+  }
+
+  .reading-aside {
+    font-size: 0.9rem;
+    color: #666;
+    padding-top: 0.5rem;
+  }
+}

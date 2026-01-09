@@ -179,3 +179,41 @@ fetch('reading-data.json')
     });
   });
 </script>
+<script>
+function getDailySeed() {
+  const today = new Date();
+  return today.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+// Simple string-to-number hash
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+// Seeded pseudo-random generator
+function seededRandom(seed) {
+  let value = seed;
+  return function () {
+    value = (value * 9301 + 49297) % 233280;
+    return value / 233280;
+  };
+}
+
+// Deterministic shuffle
+function shuffleArray(array, seed) {
+  const rand = seededRandom(seed);
+  const copy = array.slice();
+
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
+}
+</script>

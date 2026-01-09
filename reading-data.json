@@ -10,22 +10,28 @@
       "microCopy": "A way in, not a conclusion.",
       "items": [
         {
+          "name": "Government Digital Service Manual",
+          "url": "https://www.gov.uk/service-manual",
+          "tag": "public",
+          "annotation": "Clear, practical guidance grounded in real delivery inside complex public systems."
+        },
+        {
           "name": "Nesta",
           "url": "https://www.nesta.org.uk",
           "tag": "change",
-          "annotation": "Clear, public-interest work on systems change, innovation, and technology grounded in real social outcomes."
+          "annotation": "Systems-focused innovation work with a consistent public value lens."
         },
         {
-          "name": "Government Digital Service",
-          "url": "https://www.gov.uk/service-manual",
+          "name": "Institute for Government",
+          "url": "https://www.instituteforgovernment.org.uk",
           "tag": "public",
-          "annotation": "Practical guidance shaped by delivery inside constrained public systems, not abstract theory."
+          "annotation": "Evidence-led analysis of how government actually functions, including its constraints."
         },
         {
-          "name": "Harvard Business Review – Open Articles",
-          "url": "https://hbr.org/search?term=free",
-          "tag": "leadership",
-          "annotation": "A shared reference point for leadership thinking, useful when read critically and selectively."
+          "name": "London Review of Books",
+          "url": "https://www.lrb.co.uk",
+          "tag": "evidence",
+          "annotation": "Long-form essays that model careful thinking, scepticism, and intellectual restraint."
         }
       ]
     },
@@ -35,28 +41,28 @@
       "microCopy": "When the simple explanations stop working.",
       "items": [
         {
-          "name": "Institute for Government",
-          "url": "https://www.instituteforgovernment.org.uk",
-          "tag": "public",
-          "annotation": "Evidence-led analysis of how government actually functions, including incentives, constraints, and trade-offs."
-        },
-        {
-          "name": "Oxford Review (Free Articles)",
-          "url": "https://oxford-review.com/oxford-review-articles/",
-          "tag": "evidence",
-          "annotation": "Evidence-based management writing that actively challenges fashionable narratives and intuition-led decisions."
-        },
-        {
-          "name": "Behavioural Scientist",
-          "url": "https://behavioralscientist.org",
-          "tag": "evidence",
-          "annotation": "Accessible but rigorous work on human behaviour, decision-making, and organisational life."
-        },
-        {
-          "name": "MIT Sloan Management Review – Free Content",
-          "url": "https://sloanreview.mit.edu/topic/organizational-learning/",
+          "name": "MIT Sloan Management Review (selected open articles)",
+          "url": "https://sloanreview.mit.edu/topic/organizational-culture/",
           "tag": "change",
-          "annotation": "Thoughtful analysis of organisational learning and transformation, beyond technology adoption alone."
+          "annotation": "Thoughtful analysis of organisational change and learning, with a growing open-access archive."
+        },
+        {
+          "name": "Oxford Review",
+          "url": "https://oxford-review.com",
+          "tag": "evidence",
+          "annotation": "Consistently critical, evidence-based writing on leadership and organisational decision-making."
+        },
+        {
+          "name": "Academy of Management Annals (open summaries)",
+          "url": "https://journals.aom.org/annals",
+          "tag": "evidence",
+          "annotation": "High-quality synthesis of management research, useful even when full papers are gated."
+        },
+        {
+          "name": "Behavioural Insights Team Blog",
+          "url": "https://www.bi.team/blogs/",
+          "tag": "evidence",
+          "annotation": "Applied behavioural science with transparency about limits, context, and evidence."
         }
       ]
     },
@@ -65,3 +71,5 @@
       "label": "Challenge your assumptions",
       "microCopy": "This may change how you see the problem.",
       "items": [
+        {
+          "name": "Santa Fe Inst

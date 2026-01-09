@@ -13,25 +13,25 @@
           "name": "Harvard Business Review",
           "url": "https://hbr.org",
           "tag": "leadership",
-          "annotation": "Widely shared thinking on leadership and management, useful as a common reference point even when it oversimplifies."
+          "annotation": "A shared reference point for contemporary leadership and organisational debate, useful precisely because it reflects the mainstream as well as its limits."
         },
         {
-          "name": "London Business School Think",
-          "url": "https://www.london.edu/think",
-          "tag": "leadership",
-          "annotation": "Research-led writing that treats leadership as a systemic and collective practice rather than a personal trait."
-        },
-        {
-          "name": "Nesta",
-          "url": "https://www.nesta.org.uk",
+          "name": "MIT Sloan Management Review",
+          "url": "https://sloanreview.mit.edu",
           "tag": "change",
-          "annotation": "UK-focused innovation work that connects systems change, public value, and emerging technology."
+          "annotation": "Consistently stronger than most management outlets on digital transformation, organisational learning, and the gap between technology and outcomes."
         },
         {
-          "name": "Government Digital Service",
+          "name": "Government Digital Service – Service Manual",
           "url": "https://www.gov.uk/service-manual",
           "tag": "public",
-          "annotation": "Practical guidance rooted in real delivery, showing what change looks like inside constrained public systems."
+          "annotation": "Practical, opinionated guidance grounded in real public-sector delivery rather than theory alone."
+        },
+        {
+          "name": "Institute for Government",
+          "url": "https://www.instituteforgovernment.org.uk",
+          "tag": "public",
+          "annotation": "Clear analysis of how government actually works, including constraints, incentives, and institutional reality."
         }
       ]
     },
@@ -41,28 +41,28 @@
       "microCopy": "When the simple explanations stop working.",
       "items": [
         {
-          "name": "MIT Sloan Management Review",
-          "url": "https://sloanreview.mit.edu",
-          "tag": "change",
-          "annotation": "Serious analysis of digital transformation, organisational learning, and why technology rarely delivers on its own."
-        },
-        {
           "name": "Oxford Review",
           "url": "https://oxford-review.com",
           "tag": "evidence",
-          "annotation": "Evidence-based management writing that challenges intuition, hype, and fashionable shortcuts."
+          "annotation": "Evidence-based management writing that actively challenges intuition, fads, and consultant-friendly simplifications."
         },
         {
           "name": "Academy of Management Perspectives",
           "url": "https://journals.aom.org/journal/amp",
           "tag": "evidence",
-          "annotation": "Translational theory explaining why rational change efforts so often fail in real organisations."
+          "annotation": "Translational research that explains why sensible change efforts fail once they meet real organisations."
         },
         {
-          "name": "Institute for Government",
-          "url": "https://www.instituteforgovernment.org.uk",
+          "name": "Behavioural Insights Team",
+          "url": "https://www.bi.team",
+          "tag": "evidence",
+          "annotation": "Applied behavioural science with a strong track record in public services, policy, and organisational change."
+        },
+        {
+          "name": "OECD – Observatory of Public Sector Innovation",
+          "url": "https://oecd-opsi.org",
           "tag": "public",
-          "annotation": "Clear-eyed analysis of how government actually works, including incentives, constraints, and trade-offs."
+          "annotation": "International perspectives on public-sector innovation that balance ambition with evidence and feasibility."
         }
       ]
     },
@@ -75,25 +75,56 @@
           "name": "Evidence-Based Change (Fielding Graduate University)",
           "url": "https://www.fielding.edu/innovation-change/ebc",
           "tag": "evidence",
-          "annotation": "Work in the Argyris and Schön tradition, focused on inquiry, defensive routines, and double-loop learning."
+          "annotation": "Work rooted in Argyris and Schön, focused on inquiry, defensive routines, and double-loop learning."
         },
         {
           "name": "Santa Fe Institute",
           "url": "https://www.santafe.edu",
           "tag": "evidence",
-          "annotation": "Complexity science applied to organisations and systems, challenging linear planning assumptions."
+          "annotation": "Complexity science applied to systems and organisations, challenging linear planning and control assumptions."
         },
         {
           "name": "AI Now Institute",
           "url": "https://ainowinstitute.org",
           "tag": "ai",
-          "annotation": "Critical research on AI, power, governance, and social impact that resists techno-neutral narratives."
+          "annotation": "Critical research on AI, power, governance, and social consequences that resists techno-neutral narratives."
         },
         {
-          "name": "Society for Organizational Learning",
-          "url": "https://www.solonline.org",
+          "name": "Centre for the Edge",
+          "url": "https://www2.deloitte.com/us/en/pages/center-for-the-edge.html",
           "tag": "change",
-          "annotation": "Systems thinking in practice, including its tensions, failures, and political realities."
+          "annotation": "Thought-provoking work on learning, unlearning, and institutional adaptation under accelerating change."
+        }
+      ]
+    },
+    {
+      "id": "inspired",
+      "label": "What I’m inspired by",
+      "microCopy": "Not answers, but prompts.",
+      "items": [
+        {
+          "name": "London Review of Books",
+          "url": "https://www.lrb.co.uk",
+          "tag": "evidence",
+          "annotation": "Long-form essays that reward slow reading and sharpen how arguments are constructed and challenged."
+        },
+        {
+          "name": "The New York Review of Books",
+          "url": "https://www.nybooks.com",
+          "tag": "evidence",
+          "annotation": "Critical essays that connect politics, culture, history, and power with intellectual seriousness."
+        },
+        {
+          "name": "BFI – Sight and Sound",
+          "url": "https://www.bfi.org.uk/sight-and-sound",
+          "tag": "public",
+          "annotation": "Writing on cinema as cultural and political artefact, not just entertainment."
+        },
+        {
+          "name": "Aeon",
+          "url": "https://aeon.co",
+          "tag": "evidence",
+          "annotation": "Accessible but serious essays on philosophy, psychology, systems, and how we make meaning."
         }
       ]
     }

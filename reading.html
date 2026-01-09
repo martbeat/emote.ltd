@@ -152,34 +152,6 @@
 </body>
 </html>
 <script>
-fetch('reading-data.json')
-  .then(res => res.json())
-  .then(data => {
-    const container = document.getElementById('reading-content');
-
-    data.tiers.forEach(tier => {
-      const section = document.createElement('section');
-      section.className = 'reading-section';
-      section.dataset.tier = tier.id;
-
-      section.innerHTML = `
-        <h2>${tier.label}</h2>
-        <p class="micro-copy">${tier.microCopy}</p>
-        <ul class="reading-list">
-          ${tier.items.map(item => `
-            <li>
-              <a href="${item.url}" target="_blank" rel="noopener">${item.name}</a>
-              <p class="annotation">${item.annotation}</p>
-            </li>
-          `).join('')}
-        </ul>
-      `;
-
-      container.appendChild(section);
-    });
-  });
-</script>
-<script>
 function getDailySeed() {
   const today = new Date();
   return today.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -216,4 +188,40 @@ function shuffleArray(array, seed) {
 
   return copy;
 }
+</script>
+
+
+<script>
+fetch('reading-data.json')
+  .then(res => res.json())
+  .then(data => {
+    const container = document.getElementById('reading-content');
+    const dailySeed = hashString(getDailySeed());
+
+    data.tiers.forEach(tier => {
+      const section = document.createElement('section');
+      section.className = 'reading-section';
+      section.dataset.tier = tier.id;
+
+      const shuffledItems = shuffleArray(
+        tier.items,
+        dailySeed + hashString(tier.id)
+      );
+
+      section.innerHTML = `
+        <h2>${tier.label}</h2>
+        <p class="micro-copy">${tier.microCopy}</p>
+        <ul class="reading-list">
+          ${shuffledItems.map(item => `
+            <li>
+              <a href="${item.url}" target="_blank" rel="noopener">${item.name}</a>
+              <p class="annotation">${item.annotation}</p>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+
+      container.appendChild(section);
+    });
+  });
 </script>

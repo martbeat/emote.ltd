@@ -72,4 +72,30 @@
       "microCopy": "This may change how you see the problem.",
       "items": [
         {
-          "name": "Santa Fe Inst
+          "name": "Santa Fe Institute",
+          "url": "https://www.santafe.edu/research/results",
+          "tag": "evidence",
+          "annotation": "Complexity science that undermines linear planning and simplistic system metaphors."
+        },
+        {
+          "name": "AI Now Institute",
+          "url": "https://ainowinstitute.org/research.html",
+          "tag": "ai",
+          "annotation": "Critical research on AI power, governance, and social consequence without techno-solutionism."
+        },
+        {
+          "name": "Sensemaking by Dave Snowden",
+          "url": "https://thecynefin.co",
+          "tag": "change",
+          "annotation": "Material on complexity, decision-making, and narrative that resists managerial simplification."
+        },
+        {
+          "name": "The New Inquiry",
+          "url": "https://thenewinquiry.com",
+          "tag": "evidence",
+          "annotation": "Essays interrogating technology, power, and culture with intellectual seriousness."
+        }
+      ]
+    }
+  ]
+}

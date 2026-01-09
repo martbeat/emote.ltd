@@ -10,28 +10,28 @@
       "microCopy": "A way in, not a conclusion.",
       "items": [
         {
-          "name": "Government Digital Service Manual",
-          "url": "https://www.gov.uk/service-manual",
-          "tag": "public",
-          "annotation": "Clear, practical guidance grounded in real delivery inside complex public systems."
-        },
-        {
           "name": "Nesta",
           "url": "https://www.nesta.org.uk",
           "tag": "change",
-          "annotation": "Systems-focused innovation work with a consistent public value lens."
+          "annotation": "Serious work on innovation for public good, systems change, and the limits of purely technical solutions."
+        },
+        {
+          "name": "Government Digital Service – Service Manual",
+          "url": "https://www.gov.uk/service-manual",
+          "tag": "public",
+          "annotation": "Clear, practical guidance rooted in real delivery inside constrained public systems."
         },
         {
           "name": "Institute for Government",
           "url": "https://www.instituteforgovernment.org.uk",
           "tag": "public",
-          "annotation": "Evidence-led analysis of how government actually functions, including its constraints."
+          "annotation": "Evidence-led analysis of how government actually works, including incentives, trade-offs, and institutional reality."
         },
         {
-          "name": "London Review of Books",
-          "url": "https://www.lrb.co.uk",
+          "name": "Behavioural Scientist",
+          "url": "https://behavioralscientist.org",
           "tag": "evidence",
-          "annotation": "Long-form essays that model careful thinking, scepticism, and intellectual restraint."
+          "annotation": "Accessible, thoughtful writing on behavioural science, decision-making, and the limits of rational models."
         }
       ]
     },
@@ -41,61 +41,13 @@
       "microCopy": "When the simple explanations stop working.",
       "items": [
         {
-          "name": "MIT Sloan Management Review (selected open articles)",
-          "url": "https://sloanreview.mit.edu/topic/organizational-culture/",
-          "tag": "change",
-          "annotation": "Thoughtful analysis of organisational change and learning, with a growing open-access archive."
-        },
-        {
-          "name": "Oxford Review",
-          "url": "https://oxford-review.com",
+          "name": "Oxford Review (selected open articles)",
+          "url": "https://oxford-review.com/publications/",
           "tag": "evidence",
-          "annotation": "Consistently critical, evidence-based writing on leadership and organisational decision-making."
-        },
-        {
-          "name": "Academy of Management Annals (open summaries)",
-          "url": "https://journals.aom.org/annals",
-          "tag": "evidence",
-          "annotation": "High-quality synthesis of management research, useful even when full papers are gated."
-        },
-        {
-          "name": "Behavioural Insights Team Blog",
-          "url": "https://www.bi.team/blogs/",
-          "tag": "evidence",
-          "annotation": "Applied behavioural science with transparency about limits, context, and evidence."
-        }
-      ]
-    },
-    {
-      "id": "challenge",
-      "label": "Challenge your assumptions",
-      "microCopy": "This may change how you see the problem.",
-      "items": [
-        {
-          "name": "Santa Fe Institute",
-          "url": "https://www.santafe.edu/research/results",
-          "tag": "evidence",
-          "annotation": "Complexity science that undermines linear planning and simplistic system metaphors."
-        },
-        {
-          "name": "AI Now Institute",
-          "url": "https://ainowinstitute.org/research.html",
-          "tag": "ai",
-          "annotation": "Critical research on AI power, governance, and social consequence without techno-solutionism."
+          "annotation": "Evidence-based management writing that challenges intuition, hype, and fashionable shortcuts."
         },
         {
           "name": "Sensemaking by Dave Snowden",
-          "url": "https://thecynefin.co",
+          "url": "https://sensemaking.io/blog/",
           "tag": "change",
-          "annotation": "Material on complexity, decision-making, and narrative that resists managerial simplification."
-        },
-        {
-          "name": "The New Inquiry",
-          "url": "https://thenewinquiry.com",
-          "tag": "evidence",
-          "annotation": "Essays interrogating technology, power, and culture with intellectual seriousness."
-        }
-      ]
-    }
-  ]
-}
+          "annotation": "Cynefin, complexity, and decisio

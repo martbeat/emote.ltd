@@ -1,173 +1,761 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Games</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Games Hub</title>
+  <meta name="description" content="A playful hub page linking to your HTML games." />
+  <style>
+    :root{
+      --bg0:#05060a;
+      --bg1:#070a12;
+      --card:#0e1426cc;
+      --card2:#0b1020cc;
+      --ink:#e9eefc;
+      --muted:#aeb8da;
+      --accent:#7aa7ff;
+      --accent2:#7dffb2;
+      --danger:#ff6b88;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+      --ring: 0 0 0 2px rgba(122,167,255,.20), 0 0 0 6px rgba(122,167,255,.10);
+      --grid: rgba(255,255,255,.06);
+    }
 
-<style>
-:root{
-  --bg:#070913;
-  --card:#101736cc;
-  --ink:#eef1ff;
-  --muted:#b6c0ff;
-  --accent:#7aa7ff;
-  --radius:18px;
-}
+    *{ box-sizing:border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      color:var(--ink);
+      font: 15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 900px at 20% 10%, #15214a 0%, transparent 60%),
+                  radial-gradient(900px 700px at 80% 30%, #123a2d 0%, transparent 62%),
+                  radial-gradient(900px 900px at 50% 95%, #3a1730 0%, transparent 60%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+    }
 
-html,body{
-  margin:0;
-  height:100%;
-  background:
-    radial-gradient(900px 600px at 20% 10%, #1a2a5a 0%, transparent 60%),
-    radial-gradient(700px 600px at 80% 80%, #163b2a 0%, transparent 60%),
-    var(--bg);
-  font-family: system-ui, sans-serif;
-  overflow:hidden;
-  color:var(--ink);
-}
+    /* subtle animated grid */
+    .grid{
+      position:fixed; inset:0;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 46px 46px,
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 46px 46px;
+      opacity:.25;
+      filter: blur(.1px);
+      transform: translateZ(0);
+      animation: gridDrift 18s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes gridDrift{
+      0%{ background-position: 0 0, 0 0; }
+      100%{ background-position: 300px 220px, 300px 220px; }
+    }
 
-h1{
-  position:fixed;
-  top:16px;
-  left:50%;
-  transform:translateX(-50%);
-  font-size:clamp(22px,3vw,32px);
-  letter-spacing:.3px;
-  z-index:5;
-}
+    /* animated background "orbs" */
+    .orb{
+      position:fixed;
+      width: 44vmax; height: 44vmax;
+      border-radius: 50%;
+      filter: blur(50px);
+      opacity:.16;
+      mix-blend-mode: screen;
+      pointer-events:none;
+      transform: translateZ(0);
+    }
+    .orb.a{ left:-12vmax; top:-16vmax; background: radial-gradient(circle at 30% 30%, #7aa7ff, transparent 60%); animation: floatA 13s ease-in-out infinite; }
+    .orb.b{ right:-18vmax; top: 8vmax; background: radial-gradient(circle at 30% 30%, #7dffb2, transparent 60%); animation: floatB 16s ease-in-out infinite; }
+    .orb.c{ left: 10vmax; bottom:-20vmax; background: radial-gradient(circle at 30% 30%, #ff6b88, transparent 60%); animation: floatC 19s ease-in-out infinite; }
+    @keyframes floatA{ 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(6vmax, 5vmax) scale(1.05);} }
+    @keyframes floatB{ 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-7vmax, 4vmax) scale(1.08);} }
+    @keyframes floatC{ 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(5vmax, -6vmax) scale(1.07);} }
 
-.stage{
-  position:absolute;
-  inset:0;
-}
+    /* top UI */
+    header{
+      position:relative;
+      z-index:3;
+      padding: 22px 18px 10px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 14px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .brand h1{
+      margin:0;
+      font-size: clamp(22px, 3.2vw, 34px);
+      letter-spacing: .2px;
+      line-height:1.1;
+    }
+    .brand p{
+      margin:0;
+      color: var(--muted);
+      max-width: 62ch;
+    }
 
-.card{
-  position:absolute;
-  width:260px;
-  border-radius:var(--radius);
-  background:linear-gradient(180deg,var(--card),#0b1128cc);
-  border:1px solid rgba(255,255,255,.12);
-  backdrop-filter:blur(10px);
-  padding:16px;
-  box-shadow:0 20px 40px rgba(0,0,0,.45);
-  user-select:none;
-}
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      gap:10px;
+      align-items:center;
+      margin-top: 2px;
+    }
 
-.card strong{
-  display:block;
-  font-size:18px;
-  margin-bottom:6px;
-}
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
+      backdrop-filter: blur(10px);
+      user-select:none;
+    }
 
-.card p{
-  margin:0 0 14px;
-  font-size:14px;
-  color:var(--muted);
-}
+    button, .ghost{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 10px 12px;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+      backdrop-filter: blur(10px);
+      font-weight: 600;
+      letter-spacing:.2px;
+    }
+    button:hover{ transform: translateY(-1px); border-color: rgba(122,167,255,.35); }
+    button:active{ transform: translateY(0px) scale(.99); }
+    button:focus-visible{ outline:none; box-shadow: var(--ring), 0 10px 24px rgba(0,0,0,.18); }
 
-.card a{
-  display:inline-block;
-  text-decoration:none;
-  font-weight:700;
-  padding:10px 14px;
-  border-radius:12px;
-  background:linear-gradient(180deg,#7aa7ff,#5b86ff);
-  color:#060914;
-}
+    .toggle{
+      display:flex; gap:8px; align-items:center;
+    }
+    .toggle input{
+      width: 44px; height: 26px;
+      appearance:none;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      position:relative;
+      cursor:pointer;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .toggle input:checked{
+      background: rgba(125,255,178,.18);
+      border-color: rgba(125,255,178,.35);
+    }
+    .toggle input::after{
+      content:"";
+      position:absolute; top:3px; left:3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(255,255,255,.85);
+      transition: transform .15s ease;
+      box-shadow: 0 8px 16px rgba(0,0,0,.22);
+    }
+    .toggle input:checked::after{ transform: translateX(18px); }
+    .toggle label{ color: var(--muted); font-weight: 600; }
 
-.card a:hover{
-  filter:brightness(1.1);
-}
-</style>
+    /* stage */
+    .stage{
+      position:relative;
+      z-index:2;
+      height: calc(100% - 94px);
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 10px 12px 18px;
+    }
+
+    .hintbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 8px 6px 12px;
+    }
+    .hintbar .left{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .kbd{
+      font: 12px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+      color: rgba(255,255,255,.85);
+    }
+
+    /* floating cards */
+    .card{
+      position:absolute;
+      width: min(320px, 78vw);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, var(--card), var(--card2));
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+      transform: translate(-50%, -50%);
+      user-select:none;
+      touch-action: none; /* allows smooth dragging on touch */
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(500px 220px at 20% 0%, rgba(122,167,255,.18), transparent 55%),
+                  radial-gradient(420px 220px at 80% 20%, rgba(125,255,178,.12), transparent 60%);
+      opacity:.85;
+      pointer-events:none;
+    }
+    .card .inner{
+      position:relative;
+      padding: 14px 14px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .toprow{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:4px;
+      min-width: 0;
+    }
+    .title strong{
+      font-size: 16px;
+      letter-spacing:.2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .title span{
+      color: var(--muted);
+      font-size: 13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tag{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      color: rgba(255,255,255,.88);
+      flex: 0 0 auto;
+    }
+    .tag.word{ border-color: rgba(122,167,255,.28); }
+    .tag.action{ border-color: rgba(125,255,178,.26); }
+    .tag.puzzle{ border-color: rgba(255,107,136,.25); }
+
+    .desc{
+      margin:0;
+      color: rgba(233,238,252,.92);
+      font-size: 13.5px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding-top: 4px;
+    }
+    a.play{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration:none;
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(122,167,255,.18), rgba(122,167,255,.06));
+      box-shadow: 0 12px 24px rgba(0,0,0,.22);
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+      font-weight: 800;
+      letter-spacing: .2px;
+      flex: 1 1 auto;
+      justify-content:center;
+    }
+    a.play:hover{ transform: translateY(-1px); border-color: rgba(122,167,255,.45); }
+    a.play:active{ transform: translateY(0px) scale(.99); }
+    a.play:focus-visible{ outline:none; box-shadow: var(--ring), 0 12px 24px rgba(0,0,0,.22); }
+
+    .mini{
+      flex: 0 0 auto;
+      display:flex;
+      gap:8px;
+    }
+    .mini button{
+      padding: 10px 11px;
+      border-radius: 12px;
+      font-weight: 800;
+      min-width: 44px;
+    }
+
+    .card.is-focused{
+      border-color: rgba(122,167,255,.35);
+      box-shadow: 0 0 0 1px rgba(122,167,255,.20), var(--shadow);
+    }
+
+    /* footer strip */
+    .footer{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      z-index:3;
+      padding: 10px 12px 14px;
+      pointer-events:none;
+    }
+    .footer .bar{
+      max-width: 1100px;
+      margin: 0 auto;
+      pointer-events:auto;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(10,14,28,.55);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 28px rgba(0,0,0,.25);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .footer .bar .stat{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .dot{
+      width:9px; height:9px; border-radius:50%;
+      background: rgba(125,255,178,.75);
+      box-shadow: 0 0 0 3px rgba(125,255,178,.12);
+    }
+
+    /* reduced motion support */
+    @media (prefers-reduced-motion: reduce){
+      .grid, .orb{ animation:none !important; }
+    }
+  </style>
 </head>
-
 <body>
-<h1>Play Something</h1>
+  <div class="grid" aria-hidden="true"></div>
+  <div class="orb a" aria-hidden="true"></div>
+  <div class="orb b" aria-hidden="true"></div>
+  <div class="orb c" aria-hidden="true"></div>
 
-<div class="stage" id="stage"></div>
+  <header>
+    <div class="brand">
+      <h1>Games Hub</h1>
+      <p>Floating links to your projects. Drag cards around, hit “Shuffle” to remix the layout, or toggle autopilot.</p>
+    </div>
 
-<script>
-/* ---------------------------------------
-   GAME DEFINITIONS (your real filenames)
-----------------------------------------*/
-const games = [
-  {
-    title:"Quordle",
-    file:"Quordle.html",
-    desc:"Four boards. One brain."
-  },
-  {
-    title:"Esquordle",
-    file:"Esquordle.html",
-    desc:"Team Wordle, en español."
-  },
-  {
-    title:"LaserHeist",
-    file:"LaserHeist.html",
-    desc:"Countdown-driven stealth chaos."
-  },
-  {
-    title:"Soduku",
-    file:"Soduku.html",
-    desc:"Persistent, mobile-first Sudoku."
-  }
-];
+    <div class="controls">
+      <button id="shuffleBtn" type="button" title="Randomise positions (S)">Shuffle</button>
+      <button id="gatherBtn" type="button" title="Gather cards to centre (G)">Gather</button>
+      <div class="pill toggle" title="Let the cards drift on their own">
+        <input id="autopilot" type="checkbox" />
+        <label for="autopilot">Autopilot</label>
+      </div>
+    </div>
+  </header>
 
-/* ---------------------------------------
-   BUILD CARDS
-----------------------------------------*/
-const stage = document.getElementById("stage");
-const cards = [];
+  <main class="stage" id="stage" aria-label="Floating game links">
+    <div class="hintbar">
+      <div class="left">
+        <span><span class="kbd">Drag</span> cards</span>
+        <span><span class="kbd">S</span> shuffle</span>
+        <span><span class="kbd">G</span> gather</span>
+        <span><span class="kbd">A</span> autopilot</span>
+      </div>
+      <div class="right">
+        <span id="tip">Tip: click a card to bring it to the front.</span>
+      </div>
+    </div>
+    <!-- cards injected by JS -->
+  </main>
 
-games.forEach((g,i)=>{
-  const el = document.createElement("div");
-  el.className="card";
-  el.innerHTML=`
-    <strong>${g.title}</strong>
-    <p>${g.desc}</p>
-    <a href="${g.file}">Play →</a>
-  `;
-  stage.appendChild(el);
+  <div class="footer">
+    <div class="bar">
+      <div class="stat">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="status">Autopilot: Off</span>
+      </div>
+      <div class="stat">
+        <span id="count">0 games</span>
+        <span>•</span>
+        <span id="updated">Edit the list in the script to add new games</span>
+      </div>
+    </div>
+  </div>
 
-  cards.push({
-    el,
-    phase:Math.random()*Math.PI*2,
-    speed:0.3 + Math.random()*0.2,
-    radiusX:140 + Math.random()*120,
-    radiusY:90 + Math.random()*90,
-    offset:i * (Math.PI/2)
-  });
-});
+  <script>
+    // 1) Add your games here.
+    // Use relative links if these pages sit in the same folder, eg: "squordle.html"
+    // or absolute links eg: "/games/squordle.html"
+    const GAMES = [
+      {
+        title: "Squordle (Team Wordle)",
+        href: "squordle.html",
+        tag: "Word",
+        tagClass: "word",
+        desc: "Shared-screen guessing with multiple boards. Built for taking turns."
+      },
+      {
+        title: "Sudoku (Persistent + Download)",
+        href: "sudoku.html",
+        tag: "Puzzle",
+        tagClass: "puzzle",
+        desc: "Mobile-first Sudoku with persistence and puzzle downloads."
+      },
+      {
+        title: "LaserHeist (Countdown Levels)",
+        href: "laserheist.html",
+        tag: "Action",
+        tagClass: "action",
+        desc: "Tight countdown gameplay with escalating mechanics across levels."
+      }
+      // Add more entries...
+      // { title:"New Game", href:"newgame.html", tag:"Puzzle", tagClass:"puzzle", desc:"One-line description." }
+    ];
 
-/* ---------------------------------------
-   SWOOPING MOTION LOOP
-----------------------------------------*/
-let t = 0;
+    // --- small helpers ---
+    const stage = document.getElementById("stage");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const gatherBtn  = document.getElementById("gatherBtn");
+    const autopilotToggle = document.getElementById("autopilot");
+    const statusEl = document.getElementById("status");
+    const countEl = document.getElementById("count");
 
-function animate(){
-  t += 0.008;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const rand = (a, b) => a + Math.random() * (b - a);
 
-  const cx = window.innerWidth/2;
-  const cy = window.innerHeight/2 + 30;
+    // z-index management so clicked/dragged cards come to front
+    let topZ = 10;
 
-  cards.forEach((c,i)=>{
-    const a = t * c.speed + c.offset;
+    // motion state
+    let autopilot = false;
+    let raf = null;
+    let lastT = performance.now();
 
-    const x = cx + Math.cos(a) * c.radiusX
-                  + Math.sin(a*0.7) * 60;
+    // Build cards
+    const cards = [];
+    countEl.textContent = `${GAMES.length} game${GAMES.length === 1 ? "" : "s"}`;
 
-    const y = cy + Math.sin(a) * c.radiusY
-                  + Math.cos(a*0.9) * 40;
+    function makeCard(game, idx){
+      const el = document.createElement("section");
+      el.className = "card";
+      el.setAttribute("role", "group");
+      el.setAttribute("aria-label", game.title);
 
-    c.el.style.transform =
-      `translate(${x}px,${y}px) translate(-50%,-50%)`;
-  });
+      el.innerHTML = `
+        <div class="inner">
+          <div class="toprow">
+            <div class="title">
+              <strong title="${escapeHtml(game.title)}">${escapeHtml(game.title)}</strong>
+              <span title="${escapeHtml(game.href)}">${escapeHtml(game.href)}</span>
+            </div>
+            <div class="tag ${game.tagClass || ""}">${escapeHtml(game.tag || "Game")}</div>
+          </div>
 
-  requestAnimationFrame(animate);
-}
+          <p class="desc">${escapeHtml(game.desc || "Open the game.")}</p>
 
-animate();
-</script>
+          <div class="actions">
+            <a class="play" href="${encodeURI(game.href)}" target="_self" rel="noopener">
+              Play
+              <span aria-hidden="true">→</span>
+            </a>
+            <div class="mini">
+              <button type="button" class="nudge" title="Nudge">↺</button>
+              <button type="button" class="pin" title="Pin/unpin">📌</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // initial position and velocity
+      const rect = stage.getBoundingClientRect();
+      const w = Math.min(320, rect.width * 0.78);
+      el.style.width = w + "px";
+
+      // place roughly in a circle around centre
+      const cx = rect.width / 2;
+      const cy = (rect.height / 2) + 30;
+      const angle = (idx / Math.max(1, GAMES.length)) * Math.PI * 2;
+      const r = Math.min(rect.width, rect.height) * 0.22;
+
+      const state = {
+        el,
+        x: cx + Math.cos(angle) * r + rand(-40, 40),
+        y: cy + Math.sin(angle) * r + rand(-30, 30),
+        vx: rand(-18, 18),
+        vy: rand(-16, 16),
+        pinned: false,
+        dragging: false,
+        dragDX: 0,
+        dragDY: 0
+      };
+
+      el.style.left = state.x + "px";
+      el.style.top  = state.y + "px";
+      el.style.zIndex = String(++topZ);
+
+      // bring to front on click
+      el.addEventListener("pointerdown", (e) => {
+        // allow normal click on the Play link
+        if (e.target && (e.target.closest("a") || e.target.closest("button"))) return;
+        bringToFront(state);
+      });
+
+      // drag support (pointer events)
+      el.addEventListener("pointerdown", (e) => {
+        const isUI = e.target && (e.target.closest("a") || e.target.closest("button"));
+        if (isUI) return;
+
+        bringToFront(state);
+        state.dragging = true;
+        state.el.classList.add("is-focused");
+
+        const stageRect = stage.getBoundingClientRect();
+        const px = e.clientX - stageRect.left;
+        const py = e.clientY - stageRect.top;
+
+        state.dragDX = state.x - px;
+        state.dragDY = state.y - py;
+
+        el.setPointerCapture(e.pointerId);
+      });
+
+      el.addEventListener("pointermove", (e) => {
+        if (!state.dragging) return;
+
+        const stageRect = stage.getBoundingClientRect();
+        const px = e.clientX - stageRect.left;
+        const py = e.clientY - stageRect.top;
+
+        state.x = px + state.dragDX;
+        state.y = py + state.dragDY;
+
+        // damping while dragging
+        state.vx *= 0.8;
+        state.vy *= 0.8;
+
+        keepInBounds(state);
+        sync(state);
+      });
+
+      el.addEventListener("pointerup", () => {
+        if (!state.dragging) return;
+        state.dragging = false;
+        state.el.classList.remove("is-focused");
+      });
+
+      // mini controls
+      el.querySelector(".nudge").addEventListener("click", () => {
+        bringToFront(state);
+        // give it a little spin
+        state.vx += rand(-60, 60);
+        state.vy += rand(-55, 55);
+      });
+
+      const pinBtn = el.querySelector(".pin");
+      pinBtn.addEventListener("click", () => {
+        state.pinned = !state.pinned;
+        pinBtn.textContent = state.pinned ? "📍" : "📌";
+        pinBtn.title = state.pinned ? "Unpin" : "Pin";
+        if (state.pinned){
+          state.vx = 0; state.vy = 0;
+        }
+      });
+
+      stage.appendChild(el);
+      cards.push(state);
+    }
+
+    function bringToFront(state){
+      state.el.style.zIndex = String(++topZ);
+    }
+
+    function keepInBounds(s){
+      const rect = stage.getBoundingClientRect();
+      const cardRect = s.el.getBoundingClientRect();
+      const w = cardRect.width;
+      const h = cardRect.height;
+
+      // bounds in stage coordinates, but remember card uses translate(-50%, -50%)
+      const minX = w * 0.5 + 10;
+      const maxX = rect.width - w * 0.5 - 10;
+      const minY = h * 0.5 + 60; // keep below header area inside stage
+      const maxY = rect.height - h * 0.5 - 20;
+
+      if (s.x < minX){ s.x = minX; s.vx *= -0.75; }
+      if (s.x > maxX){ s.x = maxX; s.vx *= -0.75; }
+      if (s.y < minY){ s.y = minY; s.vy *= -0.75; }
+      if (s.y > maxY){ s.y = maxY; s.vy *= -0.75; }
+    }
+
+    function sync(s){
+      s.el.style.left = s.x + "px";
+      s.el.style.top  = s.y + "px";
+    }
+
+    function shuffle(){
+      const rect = stage.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2 + 35;
+
+      cards.forEach((s, i) => {
+        bringToFront(s);
+        if (s.pinned) return;
+
+        const angle = rand(0, Math.PI * 2);
+        const r = rand(40, Math.min(rect.width, rect.height) * 0.36);
+        s.x = cx + Math.cos(angle) * r + rand(-40, 40);
+        s.y = cy + Math.sin(angle) * r + rand(-30, 30);
+        s.vx = rand(-55, 55);
+        s.vy = rand(-48, 48);
+        keepInBounds(s);
+        sync(s);
+      });
+    }
+
+    function gather(){
+      const rect = stage.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2 + 35;
+
+      const spacing = 22;
+      const cols = rect.width < 700 ? 1 : 2;
+
+      let row = 0, col = 0;
+
+      cards.forEach((s) => {
+        bringToFront(s);
+        if (s.pinned) return;
+
+        const slotX = cx + (col - (cols - 1)/2) * (340 + spacing);
+        const slotY = cy + (row - 0.5) * (170 + spacing);
+
+        s.vx += (slotX - s.x) * 0.7;
+        s.vy += (slotY - s.y) * 0.7;
+
+        col++;
+        if (col >= cols){ col = 0; row++; }
+      });
+    }
+
+    function tick(t){
+      const dt = Math.min(0.033, (t - lastT) / 1000);
+      lastT = t;
+
+      if (autopilot){
+        cards.forEach((s) => {
+          if (s.pinned || s.dragging) return;
+
+          // gentle wandering with soft friction
+          const wobble = 18;
+          s.vx += Math.sin((t/1000) + s.y * 0.004) * wobble * dt;
+          s.vy += Math.cos((t/1000) + s.x * 0.004) * wobble * dt;
+
+          const friction = 0.92;
+          s.vx *= Math.pow(friction, dt * 60);
+          s.vy *= Math.pow(friction, dt * 60);
+
+          // cap speed
+          const cap = 120;
+          s.vx = clamp(s.vx, -cap, cap);
+          s.vy = clamp(s.vy, -cap, cap);
+
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+
+          keepInBounds(s);
+          sync(s);
+        });
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function setAutopilot(on){
+      autopilot = on;
+      statusEl.textContent = `Autopilot: ${autopilot ? "On" : "Off"}`;
+      document.querySelector(".dot").style.background = autopilot ? "rgba(125,255,178,.75)" : "rgba(255,255,255,.35)";
+      document.querySelector(".dot").style.boxShadow = autopilot ? "0 0 0 3px rgba(125,255,178,.12)" : "0 0 0 3px rgba(255,255,255,.10)";
+
+      if (autopilot && !raf){
+        lastT = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+      if (!autopilot && raf){
+        cancelAnimationFrame(raf);
+        raf = null;
+      }
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    // create all cards
+    GAMES.forEach(makeCard);
+
+    // buttons
+    shuffleBtn.addEventListener("click", shuffle);
+    gatherBtn.addEventListener("click", gather);
+
+    autopilotToggle.addEventListener("change", () => setAutopilot(autopilotToggle.checked));
+
+    // keyboard shortcuts
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "s" || e.key === "S"){ shuffle(); }
+      if (e.key === "g" || e.key === "G"){ gather(); }
+      if (e.key === "a" || e.key === "A"){
+        autopilotToggle.checked = !autopilotToggle.checked;
+        setAutopilot(autopilotToggle.checked);
+      }
+    });
+
+    // keep layout sane on resize
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        cards.forEach((s) => { if (!s.dragging) keepInBounds(s); sync(s); });
+      }, 120);
+    });
+
+    // start with a little motion, then settle
+    shuffle();
+    setAutopilot(true);
+    setTimeout(() => {
+      autopilotToggle.checked = false;
+      setAutopilot(false);
+    }, 2600);
+  </script>
 </body>
 </html>

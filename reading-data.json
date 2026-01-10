@@ -50,4 +50,83 @@
           "name": "Sensemaking by Dave Snowden",
           "url": "https://sensemaking.io/blog/",
           "tag": "change",
-          "annotation": "Cynefin, complexity, and decisio
+          "annotation": "Cynefin, complexity, and decision-making under uncertainty, written from lived practice rather than theory alone."
+        },
+        {
+          "name": "Ribbonfarm",
+          "url": "https://www.ribbonfarm.com",
+          "tag": "leadership",
+          "annotation": "Long-form essays on organisations, power, technology, and modern work that resist simplification."
+        },
+        {
+          "name": "Aeon Essays",
+          "url": "https://aeon.co/essays",
+          "tag": "evidence",
+          "annotation": "Carefully edited long-form essays that explore philosophy, culture, systems, and human behaviour."
+        }
+      ]
+    },
+    {
+      "id": "challenge",
+      "label": "Challenge your assumptions",
+      "microCopy": "This may change how you see the problem.",
+      "items": [
+        {
+          "name": "Santa Fe Institute – Complexity Explorer Essays",
+          "url": "https://www.complexityexplorer.org",
+          "tag": "evidence",
+          "annotation": "Complexity as a discipline rather than a metaphor, with open material on emergence and adaptive systems."
+        },
+        {
+          "name": "AI Now Institute – Research & Writing",
+          "url": "https://ainowinstitute.org/research.html",
+          "tag": "ai",
+          "annotation": "Critical work on AI, power, governance, and social impact that resists techno-neutral narratives."
+        },
+        {
+          "name": "The Maintainers",
+          "url": "https://themaintainers.org/blog/",
+          "tag": "change",
+          "annotation": "A corrective to innovation worship, focused on maintenance, care, and what keeps systems working."
+        },
+        {
+          "name": "Tyranny of Metrics (excerpted essays and talks)",
+          "url": "https://www.jerrymuller.com/the-tyranny-of-metrics",
+          "tag": "evidence",
+          "annotation": "Challenges measurement-driven management and the unintended consequences of performance obsession."
+        }
+      ]
+    },
+    {
+      "id": "inspired",
+      "label": "What I’m inspired by",
+      "microCopy": "Not answers, but prompts.",
+      "items": [
+        {
+          "name": "Ursula K. Le Guin – The Carrier Bag Theory of Fiction",
+          "url": "https://theanarchistlibrary.org/library/ursula-k-le-guin-the-carrier-bag-theory-of-fiction",
+          "tag": "leadership",
+          "annotation": "A powerful reframing of progress, stories, and what we choose to value."
+        },
+        {
+          "name": "George Orwell – Politics and the English Language",
+          "url": "https://www.orwellfoundation.com/the-orwell-foundation/orwell/essays-and-other-works/politics-and-the-english-language/",
+          "tag": "evidence",
+          "annotation": "A reminder that sloppy language enables sloppy thinking, especially in institutions."
+        },
+        {
+          "name": "John Berger – Ways of Seeing (excerpts)",
+          "url": "https://www.bbc.co.uk/programmes/p00c0x28",
+          "tag": "change",
+          "annotation": "On perception, power, and how framing shapes understanding."
+        },
+        {
+          "name": "Adam Curtis – Documentary essays (BBC)",
+          "url": "https://www.bbc.co.uk/programmes/p00gh5ff",
+          "tag": "public",
+          "annotation": "Provocative narrative explorations of power, ideology, and unintended consequences."
+        }
+      ]
+    }
+  ]
+}

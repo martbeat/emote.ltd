@@ -419,6 +419,10 @@
         tag: "Word",
         tagClass: "word",
         desc: "Shared-screen guessing with multiple boards. Built for taking turns."
+      curvePhase: Math.random() * Math.PI * 2,
+curveSpeed: 0.6 + Math.random() * 0.6,
+curveBiasX: rand(-1, 1),
+curveBiasY: rand(-1, 1),
       },
       {
         title: "Sudoku (Persistent + Download)",
@@ -426,6 +430,10 @@
         tag: "Puzzle",
         tagClass: "puzzle",
         desc: "Mobile-first Sudoku with persistence and puzzle downloads."
+curvePhase: Math.random() * Math.PI * 2,
+curveSpeed: 0.6 + Math.random() * 0.6,
+curveBiasX: rand(-1, 1),
+curveBiasY: rand(-1, 1),
       },
       {
         title: "LaserHeist (Countdown Levels)",
@@ -433,6 +441,10 @@
         tag: "Action",
         tagClass: "action",
         desc: "Tight countdown gameplay with escalating mechanics across levels."
+curvePhase: Math.random() * Math.PI * 2,
+curveSpeed: 0.6 + Math.random() * 0.6,
+curveBiasX: rand(-1, 1),
+curveBiasY: rand(-1, 1),
       }
       // Add more entries...
       // { title:"New Game", href:"newgame.html", tag:"Puzzle", tagClass:"puzzle", desc:"One-line description." }
@@ -667,31 +679,38 @@
       const dt = Math.min(0.033, (t - lastT) / 1000);
       lastT = t;
 
-      if (autopilot){
-        cards.forEach((s) => {
-          if (s.pinned || s.dragging) return;
+if (autopilot){
+  cards.forEach((s) => {
+    if (s.pinned || s.dragging) return;
 
-          // gentle wandering with soft friction
-          const wobble = 18;
-          s.vx += Math.sin((t/1000) + s.y * 0.004) * wobble * dt;
-          s.vy += Math.cos((t/1000) + s.x * 0.004) * wobble * dt;
+    // advance curve
+    s.curvePhase += s.curveSpeed * dt;
 
-          const friction = 0.92;
-          s.vx *= Math.pow(friction, dt * 60);
-          s.vy *= Math.pow(friction, dt * 60);
+    // swooping force field (non-circular)
+    const fx =
+      Math.sin(s.curvePhase) * 40 +
+      Math.sin(s.curvePhase * 0.37 + s.curveBiasX) * 25;
 
-          // cap speed
-          const cap = 120;
-          s.vx = clamp(s.vx, -cap, cap);
-          s.vy = clamp(s.vy, -cap, cap);
+    const fy =
+      Math.cos(s.curvePhase * 0.9) * 35 +
+      Math.cos(s.curvePhase * 0.41 + s.curveBiasY) * 20;
 
-          s.x += s.vx * dt;
-          s.y += s.vy * dt;
+    // steer velocity
+    s.vx += fx * dt;
+    s.vy += fy * dt;
 
-          keepInBounds(s);
-          sync(s);
-        });
-      }
+    // damping
+    s.vx *= 0.94;
+    s.vy *= 0.94;
+
+    // integrate
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+
+    keepInBounds(s);
+    sync(s);
+  });
+}
 
       raf = requestAnimationFrame(tick);
     }

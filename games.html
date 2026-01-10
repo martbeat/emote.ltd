@@ -207,7 +207,6 @@
       box-shadow: var(--shadow);
       backdrop-filter: blur(10px);
       overflow:hidden;
-      transform: translate(-50%, -50%);
       user-select:none;
       touch-action: none; /* allows smooth dragging on touch */
     }
@@ -656,10 +655,11 @@ function separationForce(self, all){
       if (s.y > maxY){ s.y = maxY; s.vy *= -0.75; }
     }
 
-    function sync(s){
-      s.el.style.left = s.x + "px";
-      s.el.style.top  = s.y + "px";
-    }
+function sync(s){
+  const rect = s.el.getBoundingClientRect();
+  s.el.style.left = (s.x - rect.width / 2) + "px";
+  s.el.style.top  = (s.y - rect.height / 2) + "px";
+}
 
     function shuffle(){
       const rect = stage.getBoundingClientRect();

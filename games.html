@@ -95,4 +95,79 @@ const games = [
   {
     title:"Quordle",
     file:"Quordle.html",
-    desc:"Four
+    desc:"Four boards. One brain."
+  },
+  {
+    title:"Esquordle",
+    file:"Esquordle.html",
+    desc:"Team Wordle, en español."
+  },
+  {
+    title:"LaserHeist",
+    file:"LaserHeist.html",
+    desc:"Countdown-driven stealth chaos."
+  },
+  {
+    title:"Soduku",
+    file:"Soduku.html",
+    desc:"Persistent, mobile-first Sudoku."
+  }
+];
+
+/* ---------------------------------------
+   BUILD CARDS
+----------------------------------------*/
+const stage = document.getElementById("stage");
+const cards = [];
+
+games.forEach((g,i)=>{
+  const el = document.createElement("div");
+  el.className="card";
+  el.innerHTML=`
+    <strong>${g.title}</strong>
+    <p>${g.desc}</p>
+    <a href="${g.file}">Play →</a>
+  `;
+  stage.appendChild(el);
+
+  cards.push({
+    el,
+    phase:Math.random()*Math.PI*2,
+    speed:0.3 + Math.random()*0.2,
+    radiusX:140 + Math.random()*120,
+    radiusY:90 + Math.random()*90,
+    offset:i * (Math.PI/2)
+  });
+});
+
+/* ---------------------------------------
+   SWOOPING MOTION LOOP
+----------------------------------------*/
+let t = 0;
+
+function animate(){
+  t += 0.008;
+
+  const cx = window.innerWidth/2;
+  const cy = window.innerHeight/2 + 30;
+
+  cards.forEach((c,i)=>{
+    const a = t * c.speed + c.offset;
+
+    const x = cx + Math.cos(a) * c.radiusX
+                  + Math.sin(a*0.7) * 60;
+
+    const y = cy + Math.sin(a) * c.radiusY
+                  + Math.cos(a*0.9) * 40;
+
+    c.el.style.transform =
+      `translate(${x}px,${y}px) translate(-50%,-50%)`;
+  });
+
+  requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>

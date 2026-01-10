@@ -398,7 +398,7 @@
     <div class="bar">
       <div class="stat">
         <span class="dot" aria-hidden="true"></span>
-        <span id="status">Autopilot: Off</span>
+        <span id="status">Autopilot: On</span>
       </div>
       <div class="stat">
         <span id="count">0 games</span>
@@ -786,7 +786,7 @@ const swoopY =
     shuffle();
     setAutopilot(true);
     setTimeout(() => {
-      autopilotToggle.checked = false;
+      autopilotToggle.checked = true;
       setAutopilot(false);
     }, 2600);
   </script>

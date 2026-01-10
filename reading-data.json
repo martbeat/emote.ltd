@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Reading and influences",
-    "note": "The order of these links changes from time to time. That is intentional. Learning is rarely linear, and neither is change."
+    "note": "The order of these links changes from time to time. Learning is rarely linear, and neither is change."
   },
   "tiers": [
     {
@@ -10,22 +10,28 @@
       "microCopy": "A way in, not a conclusion.",
       "items": [
         {
-          "name": "How systems thinking enhances systems leadership",
-          "url": "https://i2insights.org/2021/04/13/systems-thinking-and-leadership/",
-          "tag": "change",
-          "annotation": "Practical, open explanation of how systems thinking deepens leadership practice and guards against unintended consequences. :contentReference[oaicite:0]{index=0}"
+          "name": "Institute for Government",
+          "url": "https://www.instituteforgovernment.org.uk",
+          "tag": "public",
+          "annotation": "Clear, practical analysis of how government actually works, including constraints, incentives, and trade-offs."
         },
         {
-          "name": "Appreciative Inquiry",
-          "url": "https://en.wikipedia.org/wiki/Appreciative_inquiry",
-          "tag": "change",
-          "annotation": "Overview of the strengths-based organisational change method that shifts focus from problem-solving to generative inquiry. :contentReference[oaicite:1]{index=1}"
+          "name": "Government Digital Service – Service Manual",
+          "url": "https://www.gov.uk/service-manual",
+          "tag": "public",
+          "annotation": "Plain-language guidance grounded in real delivery, showing what good looks like inside complex public systems."
         },
         {
-          "name": "Theory U",
-          "url": "https://en.wikipedia.org/wiki/Theory_U",
+          "name": "Nesta",
+          "url": "https://www.nesta.org.uk",
           "tag": "change",
-          "annotation": "Accessible summary of an organisational change and learning framework focused on emerging future possibilities. :contentReference[oaicite:2]{index=2}"
+          "annotation": "UK-focused work on innovation, systems change, and public value, often willing to question its own assumptions."
+        },
+        {
+          "name": "Behavioural Insights Team",
+          "url": "https://www.bi.team/publications/",
+          "tag": "evidence",
+          "annotation": "Applied behavioural science with real-world trials, not just theory or slogans."
         }
       ]
     },
@@ -35,28 +41,28 @@
       "microCopy": "When the simple explanations stop working.",
       "items": [
         {
-          "name": "Reconfiguring work: Change management in the age of gen AI",
-          "url": "https://www.mckinsey.com/capabilities/quantumblack/our-insights/reconfiguring-work-change-management-in-the-age-of-gen-ai",
-          "tag": "ai",
-          "annotation": "Free article on how organisations must evolve change management to turn AI from a tool into a transformative capability. :contentReference[oaicite:3]{index=3}"
-        },
-        {
-          "name": "Complex adaptive systems and AI governance",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12365527/",
-          "tag": "ai",
-          "annotation": "Open review of how complex systems science informs AI governance challenges such as emergent behaviour and feedback loops. :contentReference[oaicite:4]{index=4}"
-        },
-        {
-          "name": "Agentic leadership (context and framework)",
-          "url": "https://en.wikipedia.org/wiki/Agentic_leadership",
-          "tag": "leadership",
-          "annotation": "Overview of a modern leadership framing that treats AI as an amplifier of core leadership capacities rather than just a tool. :contentReference[oaicite:5]{index=5}"
-        },
-        {
-          "name": "The Fifth Discipline",
-          "url": "https://en.wikipedia.org/wiki/The_Fifth_Discipline",
+          "name": "Oxford Review (open articles)",
+          "url": "https://oxford-review.com/analysis/",
           "tag": "evidence",
-          "annotation": "Canonical source on learning organisations and systems thinking fundamentals from Peter Senge. :contentReference[oaicite:6]{index=6}"
+          "annotation": "Evidence-based management writing that explicitly challenges intuition-led and fad-driven thinking."
+        },
+        {
+          "name": "NIST AI Risk Management Framework",
+          "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+          "tag": "ai",
+          "annotation": "A rare example of serious, non-hyped thinking about AI, risk, governance, and organisational responsibility."
+        },
+        {
+          "name": "Paul Graham – Essays",
+          "url": "https://paulgraham.com/articles.html",
+          "tag": "leadership",
+          "annotation": "Long-form essays on thinking, power, and systems that reward slow reading and scepticism."
+        },
+        {
+          "name": "OECD – Digital Government and AI",
+          "url": "https://www.oecd.org/gov/digital-government/",
+          "tag": "public",
+          "annotation": "International, comparative analysis of digital government and AI, useful for escaping local echo chambers."
         }
       ]
     },
@@ -66,16 +72,59 @@
       "microCopy": "This may change how you see the problem.",
       "items": [
         {
-          "name": "Best Free AI Strategy Frameworks",
-          "url": "https://www.linkedin.com/pulse/best-free-ai-strategy-frameworks-insights-business-leaders-moioli-l99xf",
-          "tag": "ai",
-          "annotation": "A curated list of free strategy frameworks and insights for aligning AI with organisational strategy and value creation. :contentReference[oaicite:7]{index=7}"
+          "name": "Santa Fe Institute – Complexity Explorer Essays",
+          "url": "https://www.santafe.edu/research/results/essays",
+          "tag": "evidence",
+          "annotation": "Complexity science applied to real systems, undermining linear planning and control assumptions."
         },
         {
-          "name": "AI in organisational change management (Medium overview — free summary)",
-          "url": "https://medium.com/@adnanmasood/ai-in-organizational-change-management-case-studies-best-practices-ethical-implications-and-179be4ec2583",
+          "name": "AI Now Institute – Research",
+          "url": "https://ainowinstitute.org/research",
           "tag": "ai",
-          "annotation": "Analysis of real-world AI and change management examples that emphasises people-centric and ethical perspectives (“open in app”). :contentReference[oaicite:8]{index=8}"
+          "annotation": "Critical work on AI, power, labour, and governance that resists the idea that technology is neutral or inevitable."
+        },
+        {
+          "name": "The Long Now Foundation – Essays",
+          "url": "https://longnow.org/ideas/",
+          "tag": "leadership",
+          "annotation": "Long-term thinking about systems, responsibility, and unintended consequences."
+        },
+        {
+          "name": "Cory Doctorow – Pluralistic Ignorance & Tech Essays",
+          "url": "https://pluralistic.net",
+          "tag": "change",
+          "annotation": "Sharp, sometimes uncomfortable writing on technology, power, enshittification, and institutional failure."
+        }
+      ]
+    },
+    {
+      "id": "inspired",
+      "label": "What I’m inspired by",
+      "microCopy": "Not answers, but prompts.",
+      "items": [
+        {
+          "name": "Adam Curtis – Documentary essays",
+          "url": "https://www.bbc.co.uk/programmes/p02nrss1",
+          "tag": "leadership",
+          "annotation": "Narrative explorations of power, ideology, and unintended consequences in modern systems."
+        },
+        {
+          "name": "London Review of Books – Essays",
+          "url": "https://www.lrb.co.uk/the-paper/v45",
+          "tag": "evidence",
+          "annotation": "Long-form cultural and political essays that reward patience and resist simplification."
+        },
+        {
+          "name": "Aeon Essays",
+          "url": "https://aeon.co/essays",
+          "tag": "change",
+          "annotation": "Philosophical and cultural writing that often reframes familiar questions in unexpected ways."
+        },
+        {
+          "name": "The Atlantic – Technology & Ideas",
+          "url": "https://www.theatlantic.com/technology/",
+          "tag": "ai",
+          "annotation": "Selective, long-form journalism on technology and society. Worth reading critically, not passively."
         }
       ]
     }

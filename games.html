@@ -682,25 +682,32 @@ if (autopilot){
   cards.forEach((s) => {
     if (s.pinned || s.dragging) return;
 
-    // advance curve
+    // advance internal phase
     s.curvePhase += s.curveSpeed * dt;
 
-    // swooping force field (non-circular)
-    const fx =
-      Math.sin(s.curvePhase) * 40 +
-      Math.sin(s.curvePhase * 0.37 + s.curveBiasX) * 25;
+    // long-form drift direction (very slow rotation)
+    const driftAngle =
+      Math.sin(s.curvePhase * 0.12 + s.curveBiasX) * Math.PI;
 
-    const fy =
-      Math.cos(s.curvePhase * 0.9) * 35 +
-      Math.cos(s.curvePhase * 0.41 + s.curveBiasY) * 20;
+    const driftX = Math.cos(driftAngle) * 22;
+    const driftY = Math.sin(driftAngle) * 22;
 
-    // steer velocity
-    s.vx += fx * dt;
-    s.vy += fy * dt;
+    // wide swooping forces
+    const swoopX =
+      Math.sin(s.curvePhase) * 35 +
+      Math.sin(s.curvePhase * 0.27 + s.curveBiasX) * 18;
 
-    // damping
-    s.vx *= 0.94;
-    s.vy *= 0.94;
+    const swoopY =
+      Math.cos(s.curvePhase * 0.85) * 30 +
+      Math.cos(s.curvePhase * 0.31 + s.curveBiasY) * 16;
+
+    // combine forces
+    s.vx += (swoopX + driftX) * dt;
+    s.vy += (swoopY + driftY) * dt;
+
+    // softer damping = more freedom
+    s.vx *= 0.965;
+    s.vy *= 0.965;
 
     // integrate
     s.x += s.vx * dt;
@@ -710,6 +717,7 @@ if (autopilot){
     sync(s);
   });
 }
+
 
       raf = requestAnimationFrame(tick);
     }

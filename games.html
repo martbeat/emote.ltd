@@ -609,6 +609,31 @@ const state = {
       cards.push(state);
     }
 
+function separationForce(self, all){
+  let fx = 0;
+  let fy = 0;
+
+  all.forEach(other => {
+    if (other === self) return;
+
+    const dx = self.x - other.x;
+    const dy = self.y - other.y;
+    const d2 = dx*dx + dy*dy;
+
+    if (d2 < 80000 && d2 > 1){ // ~280px radius
+      const d = Math.sqrt(d2);
+      const strength = (280 - d) / 280; // 0 → 1
+      const push = strength * strength * 120; // quadratic ramp
+
+      fx += (dx / d) * push;
+      fy += (dy / d) * push;
+    }
+  });
+
+  return { fx, fy };
+}
+
+    
     function bringToFront(state){
       state.el.style.zIndex = String(++topZ);
     }
@@ -708,9 +733,12 @@ const swoopY =
   Math.cos(s.curvePhase * 0.85) * 50 +
   Math.cos(s.curvePhase * 0.31 + s.curveBiasY) * 26;
 
-    // combine forces
-    s.vx += (swoopX + driftX) * dt;
-    s.vy += (swoopY + driftY) * dt;
+// separation from other cards
+const sep = separationForce(s, cards);
+
+// combine forces
+s.vx += (swoopX + driftX + sep.fx) * dt;
+s.vy += (swoopY + driftY + sep.fy) * dt;
 
     // softer damping = more freedom
     s.vx *= 0.965;

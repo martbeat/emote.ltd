@@ -409,6 +409,11 @@
   </div>
 
   <script>
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+
+    
     // 1) Add your games here.
     // Use relative links if these pages sit in the same folder, eg: "squordle.html"
     // or absolute links eg: "/games/squordle.html"

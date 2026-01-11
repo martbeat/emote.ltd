@@ -71,12 +71,13 @@
       "label": "Challenge your assumptions",
       "microCopy": "This may change how you see the problem.",
       "items": [
-        {
-          "name": "Santa Fe Institute – Complexity Explorer Essays",
-          "url": "https://www.santafe.edu/research/results/essays",
-          "tag": "evidence",
-          "annotation": "Complexity science applied to real systems, undermining linear planning and control assumptions."
-        },
+{
+  "name": "Complexity and Management (Emergence Journal)",
+  "url": "https://journal.emergentpublications.com/Article/d1e0f606-a3e4-4064-a047-182db09089ac/academic",
+  "tag": "evidence",
+  "annotation": "Critical review of how complexity theory has been applied to management practice, assessing its robustness beyond superficial metaphor."
+},
+
         {
           "name": "AI Now Institute – Research",
           "url": "https://ainowinstitute.org/research",

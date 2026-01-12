@@ -408,6 +408,62 @@
   transform: rotate(90deg);
 }
 
+/* === End of round celebration === */
+.celebration{
+  position: fixed;
+  inset: 0;
+  background: rgba(5,6,10,.75);
+  backdrop-filter: blur(6px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index: 999;
+}
+
+.celebration.hidden{
+  display:none;
+}
+
+.celebrationCard{
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
+  border:1px solid rgba(122,167,255,.6);
+  border-radius: 20px;
+  box-shadow: 0 25px 60px rgba(0,0,0,.6);
+  padding: 28px 32px;
+  min-width: 280px;
+  text-align:center;
+  animation: popIn .35s ease;
+}
+
+.celebrationCard.win{
+  border-color: rgba(125,255,178,.8);
+}
+
+.celebrationCard.lose{
+  border-color: rgba(255,107,136,.8);
+}
+
+.celebrationCard.tie{
+  border-color: rgba(255,211,110,.8);
+}
+
+.celebrationCard h3{
+  margin:0 0 10px 0;
+  font-size: 20px;
+}
+
+.celebrationCard .pips{
+  color: var(--muted);
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+@keyframes popIn{
+  from{ transform: scale(.9); opacity:0; }
+  to{ transform: scale(1); opacity:1; }
+}
+
+  
 </style>
 </head>
 <body>
@@ -928,6 +984,22 @@ if(state.chain.length === 0){
       endTurn();
     }
   }
+function showCelebration(result){
+  const wrap = document.getElementById("celebration");
+  const card = document.getElementById("celebrationCard");
+  const title = document.getElementById("celebrationTitle");
+  const pips = document.getElementById("celebrationPips");
+
+  card.className = "celebrationCard " + result.type;
+  title.textContent = result.title;
+  pips.textContent = result.detail;
+
+  wrap.classList.remove("hidden");
+}
+
+function hideCelebration(){
+  document.getElementById("celebration").classList.add("hidden");
+}
 
   function endTurn(){
     // win checks
@@ -972,14 +1044,42 @@ if(state.chain.length === 0){
     }
   }
 
-  function finish(message){
-    state.over = true;
-    state.started = true;
-    state.pendingChoice = null;
-    state.selectedIndex = null;
-    log(message, "sys");
-    refresh();
+function finish(message){
+  state.over = true;
+  state.started = true;
+  state.pendingChoice = null;
+  state.selectedIndex = null;
+
+  const mePips = pipTotal(state.me);
+  const aiPips = pipTotal(state.ai);
+
+  let result;
+
+  if(mePips < aiPips){
+    result = {
+      type: "win",
+      title: "You win 🎉",
+      detail: `Your pips: ${mePips} • AI pips: ${aiPips}`
+    };
+  } else if(aiPips < mePips){
+    result = {
+      type: "lose",
+      title: "AI wins",
+      detail: `AI pips: ${aiPips} • Your pips: ${mePips}`
+    };
+  } else {
+    result = {
+      type: "tie",
+      title: "It’s a tie",
+      detail: `Both players: ${mePips} pips`
+    };
   }
+
+  log(message, "sys");
+  refresh();
+  showCelebration(result);
+}
+
 
   function startNewGame(){
     state.deck = shuffle(makeDeck());
@@ -994,6 +1094,7 @@ if(state.chain.length === 0){
     state.pendingChoice = null;
     state.lastMoveWasPass = {me:false, ai:false};
     ui.log.innerHTML = "";
+hideCelebration();
 
     // deal 7 each
     for(let i=0;i<7;i++){
@@ -1227,5 +1328,17 @@ if(state.chain.length === 0){
   refresh();
 })();
 </script>
+
+<div id="celebration" class="celebration hidden">
+  <div id="celebrationCard" class="celebrationCard">
+    <h3 id="celebrationTitle"></h3>
+    <div id="celebrationPips" class="pips"></div>
+    <button class="primary" onclick="document.getElementById('newBtn').click()">
+      New Game
+    </button>
+  </div>
+</div>
+
+  
 </body>
 </html>

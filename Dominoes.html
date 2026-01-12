@@ -395,6 +395,18 @@
   background:
     linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
 }
+/* === Orientation correction for snake rows === */
+.trainRow.reverse .tile{
+  transform: rotate(180deg);
+}
+
+.trainRow.reverse .tile.double{
+  transform: rotate(90deg);
+}
+
+.tile.double{
+  transform: rotate(90deg);
+}
 
 </style>
 </head>
@@ -772,7 +784,7 @@
     ui.turnWho.textContent = !state.started ? "–" : (state.turn === "me" ? "You" : "AI");
     ui.roundState.textContent = state.over ? "Finished" : (state.started ? "In play" : "Not started");
 
-  // train (snake layout)
+// train (responsive snake layout)
 ui.train.innerHTML = "";
 
 if(state.chain.length === 0){
@@ -783,13 +795,21 @@ if(state.chain.length === 0){
   ui.train.appendChild(hint);
 } else {
 
-  const ROW_LIMIT = 8; // tiles per row before snaking
+  const TRAIN_WIDTH = ui.train.clientWidth;
+  const TILE_WIDTH = 54; // small horizontal tile incl gap
+  const GAP = 10;
+
+  const tilesPerRow = Math.max(
+    4,
+    Math.floor(TRAIN_WIDTH / (TILE_WIDTH + GAP))
+  );
+
   let row;
-  let direction = 1; // 1 = L→R, -1 = R→L
+  let direction = 1;
 
   state.chain.forEach((t, i) => {
 
-    if(i % ROW_LIMIT === 0){
+    if(i % tilesPerRow === 0){
       row = document.createElement("div");
       row.className = "trainRow" + (direction === -1 ? " reverse" : "");
       ui.train.appendChild(row);
@@ -798,22 +818,18 @@ if(state.chain.length === 0){
 
     const isDouble = t.a === t.b;
 
-    const el = makeTileEl(
-      t,
-      {
-        small:true,
-        horizontal: !isDouble,
-      }
-    );
+    const el = makeTileEl(t, {
+      small: true,
+      horizontal: !isDouble
+    });
 
     if(isDouble){
-      el.classList.add("vertical", "double");
+      el.classList.add("double");
     }
 
     row.appendChild(el);
   });
 }
-
     // AI hand backs
     ui.aiHand.innerHTML = "";
     for(let i=0;i<state.ai.length;i++){

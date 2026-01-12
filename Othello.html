@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IAGO (Othello/Reversi) vs AI</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0e1630;
+      --ink:#eaf0ff;
+      --muted:#aab6e6;
+      --accent:#7aa7ff;
+      --ok:#7dffb2;
+      --warn:#ffcc66;
+      --bad:#ff6b88;
+      --grid:#0a5b2e;
+      --grid2:#0b6a35;
+      --line:rgba(255,255,255,.10);
+      --shadow: 0 16px 40px rgba(0,0,0,.45);
+      --r:16px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1100px 600px at 15% 10%, rgba(122,167,255,.25), transparent 60%),
+                  radial-gradient(900px 520px at 85% 20%, rgba(125,255,178,.18), transparent 55%),
+                  radial-gradient(900px 560px at 50% 105%, rgba(255,204,102,.14), transparent 55%),
+                  var(--bg);
+      color:var(--ink);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+    }
+    .wrap{
+      width:min(1000px, 100%);
+      padding:16px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:baseline;
+      gap:10px 14px;
+      padding:14px 16px;
+      background: linear-gradient(180deg, rgba(17,26,51,.95), rgba(14,22,48,.85));
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+    }
+    header h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.3px;
+    }
+    header .sub{
+      color:var(--muted);
+      font-size:13px;
+      margin-right:auto;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+    @media (min-width: 860px){
+      .grid{ grid-template-columns: 1fr 330px; align-items:start; }
+    }
+    .boardCard{
+      background: linear-gradient(180deg, rgba(17,26,51,.92), rgba(14,22,48,.86));
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    .sideCard{
+      background: linear-gradient(180deg, rgba(17,26,51,.92), rgba(14,22,48,.86));
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+      position:sticky;
+      top:14px;
+    }
+
+    .boardTop{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:10px 12px;
+      margin-bottom:12px;
+    }
+    .turnPill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.05);
+      font-size:13px;
+    }
+    .discIcon{
+      width:14px; height:14px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.25);
+      background: #000;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
+    }
+    .discIcon.white{ background:#f3f6ff; border-color: rgba(0,0,0,.18); }
+
+    .score{
+      display:flex; gap:10px; flex-wrap:wrap;
+      color:var(--muted);
+      font-size:13px;
+      margin-left:auto;
+    }
+    .score b{ color:var(--ink); font-weight:650; }
+
+    .board{
+      width: min(560px, 100%);
+      aspect-ratio: 1 / 1;
+      margin: 0 auto;
+      display:grid;
+      grid-template-columns: repeat(8, 1fr);
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.16);
+      background: linear-gradient(180deg, rgba(10,91,46,.95), rgba(10,80,42,.92));
+    }
+    .sq{
+      position:relative;
+      border:1px solid rgba(0,0,0,.18);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+      touch-action:manipulation;
+    }
+    .sq:nth-child(16n+1), .sq:nth-child(16n+2), .sq:nth-child(16n+3), .sq:nth-child(16n+4),
+    .sq:nth-child(16n+5), .sq:nth-child(16n+6), .sq:nth-child(16n+7), .sq:nth-child(16n+8){
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0));
+    }
+    .sq:hover{ filter:brightness(1.05); }
+    .sq.disabled{ cursor:not-allowed; opacity:.85; }
+
+    .disc{
+      width: 78%;
+      height: 78%;
+      border-radius: 999px;
+      transform: translateZ(0);
+      box-shadow:
+        0 10px 18px rgba(0,0,0,.35),
+        inset 0 0 0 2px rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition: transform 160ms ease;
+    }
+    .disc.black{
+      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.18), rgba(255,255,255,0) 35%),
+                  radial-gradient(circle at 60% 70%, rgba(255,255,255,.08), rgba(255,255,255,0) 45%),
+                  #06060a;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .disc.white{
+      background: radial-gradient(circle at 30% 25%, rgba(0,0,0,.10), rgba(0,0,0,0) 35%),
+                  radial-gradient(circle at 60% 70%, rgba(0,0,0,.06), rgba(0,0,0,0) 45%),
+                  #f3f6ff;
+      border: 1px solid rgba(0,0,0,.12);
+      box-shadow:
+        0 10px 18px rgba(0,0,0,.25),
+        inset 0 0 0 2px rgba(0,0,0,.05);
+    }
+
+    .hintDot{
+      position:absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(122,167,255,.95);
+      box-shadow: 0 0 0 5px rgba(122,167,255,.15);
+      opacity:.0;
+      transform: scale(.9);
+      transition: opacity 140ms ease, transform 140ms ease;
+      pointer-events:none;
+    }
+    .sq.legal .hintDot{
+      opacity: 1;
+      transform: scale(1);
+    }
+    .sq.legal:hover .hintDot{
+      box-shadow: 0 0 0 7px rgba(122,167,255,.18);
+    }
+
+    .flash{
+      animation: flash 520ms ease;
+    }
+    @keyframes flash{
+      0%{ outline: 0px solid rgba(125,255,178,.0); }
+      30%{ outline: 4px solid rgba(125,255,178,.35); }
+      100%{ outline: 0px solid rgba(125,255,178,.0); }
+    }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .k{ color:var(--muted); font-size:12px; }
+    .msg{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--ink);
+      font-size:13px;
+      min-height: 44px;
+      display:flex;
+      align-items:center;
+    }
+    .msg small{ color:var(--muted); }
+    label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin:10px 0 6px;
+    }
+    select, button, input[type="checkbox"]{
+      font: inherit;
+    }
+    select, .btn{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:var(--ink);
+      outline:none;
+    }
+    select:focus, .btn:focus{
+      border-color: rgba(122,167,255,.55);
+      box-shadow: 0 0 0 4px rgba(122,167,255,.14);
+    }
+    .btn{
+      cursor:pointer;
+      text-align:center;
+      font-weight:650;
+      user-select:none;
+    }
+    .btnRow{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(122,167,255,.32), rgba(122,167,255,.14));
+      border-color: rgba(122,167,255,.40);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,107,136,.28), rgba(255,107,136,.12));
+      border-color: rgba(255,107,136,.38);
+    }
+    .btn.ghost{
+      background: rgba(255,255,255,.04);
+    }
+    .tog{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      margin-top:10px;
+      font-size:13px;
+    }
+    .tog span{ color:var(--muted); font-size:12px; }
+    .small{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:10px;
+      line-height:1.35;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.05);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .pill b{ color:var(--ink); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>IAGO</h1>
+      <div class="sub">Othello/Reversi vs AI (minimax + alpha-beta)</div>
+      <div class="pill"><b>Tip:</b> corners matter. Mobility matters more early.</div>
+    </header>
+
+    <div class="grid">
+      <div class="boardCard">
+        <div class="boardTop">
+          <div class="turnPill" id="turnPill">
+            <div class="discIcon" id="turnIcon"></div>
+            <div id="turnText">Turn</div>
+          </div>
+
+          <div class="score" id="scoreLine">
+            <div>Black: <b id="blackScore">2</b></div>
+            <div>White: <b id="whiteScore">2</b></div>
+            <div>Empty: <b id="emptyScore">60</b></div>
+          </div>
+        </div>
+
+        <div class="board" id="board" aria-label="Othello board"></div>
+      </div>
+
+      <div class="sideCard">
+        <div class="row" style="align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-weight:700;">Controls</div>
+            <div class="k">Saved automatically in this browser</div>
+          </div>
+          <div class="pill" id="statusPill"><b>AI</b> ready</div>
+        </div>
+
+        <label for="youPlay">You play</label>
+        <select id="youPlay">
+          <option value="B">Black (first)</option>
+          <option value="W">White (second)</option>
+        </select>
+
+        <label for="difficulty">AI difficulty</label>
+        <select id="difficulty">
+          <option value="2">Fast (depth 2)</option>
+          <option value="3">Easy (depth 3)</option>
+          <option value="4" selected>Normal (depth 4)</option>
+          <option value="5">Hard (depth 5)</option>
+          <option value="6">Brutal (depth 6)</option>
+        </select>
+
+        <div class="tog">
+          <div>
+            Show legal moves<br><span>Highlights playable squares</span>
+          </div>
+          <input type="checkbox" id="showHints" checked />
+        </div>
+
+        <div class="tog">
+          <div>
+            Auto-play AI<br><span>AI moves immediately on its turns</span>
+          </div>
+          <input type="checkbox" id="autoAI" checked />
+        </div>
+
+        <div class="btnRow">
+          <button class="btn primary" id="newGame">New game</button>
+          <button class="btn ghost" id="undoBtn" title="Undo last full turn (you + AI) if possible">Undo</button>
+        </div>
+        <div class="btnRow">
+          <button class="btn ghost" id="aiMoveBtn">AI move now</button>
+          <button class="btn danger" id="resetBtn">Reset all</button>
+        </div>
+
+        <div class="msg" id="msg"></div>
+
+        <div class="small">
+          AI uses minimax with alpha-beta pruning and a heuristic that weights corners, corner-adjacent danger, mobility, stability and disk count by game phase.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Game definition: standard Othello (aka Reversi/Othello). Name "Iago" is commonly associated with Othello AIs.
+  // Representation: 0 empty, 1 black, -1 white.
+  const SIZE = 8;
+  const EMPTY = 0, BLACK = 1, WHITE = -1;
+  const DIRS = [
+    [-1,-1], [-1,0], [-1,1],
+    [ 0,-1],         [ 0,1],
+    [ 1,-1], [ 1,0], [ 1,1],
+  ];
+
+  const $ = (id) => document.getElementById(id);
+
+  const elBoard = $("board");
+  const elMsg = $("msg");
+  const elBlackScore = $("blackScore");
+  const elWhiteScore = $("whiteScore");
+  const elEmptyScore = $("emptyScore");
+  const elTurnText = $("turnText");
+  const elTurnIcon = $("turnIcon");
+  const elStatusPill = $("statusPill");
+
+  const elYouPlay = $("youPlay");
+  const elDifficulty = $("difficulty");
+  const elShowHints = $("showHints");
+  const elAutoAI = $("autoAI");
+  const elNewGame = $("newGame");
+  const elUndoBtn = $("undoBtn");
+  const elAIMoveBtn = $("aiMoveBtn");
+  const elResetBtn = $("resetBtn");
+
+  const LS_KEY = "iago_othello_v1";
+
+  let state = null;
+  let busy = false;
+
+  function nowMsg(html){ elMsg.innerHTML = html; }
+
+  function mkInitialBoard(){
+    const b = Array.from({length: SIZE}, () => Array(SIZE).fill(EMPTY));
+    // Standard Othello start
+    b[3][3] = WHITE;
+    b[3][4] = BLACK;
+    b[4][3] = BLACK;
+    b[4][4] = WHITE;
+    return b;
+  }
+
+  function cloneBoard(b){
+    return b.map(row => row.slice());
+  }
+
+  function inBounds(r,c){
+    return r>=0 && r<SIZE && c>=0 && c<SIZE;
+  }
+
+  function opponent(p){ return -p; }
+
+  function countPieces(b){
+    let black=0, white=0, empty=0;
+    for (let r=0;r<SIZE;r++){
+      for (let c=0;c<SIZE;c++){
+        if (b[r][c]===BLACK) black++;
+        else if (b[r][c]===WHITE) white++;
+        else empty++;
+      }
+    }
+    return {black, white, empty};
+  }
+
+  function getFlips(b, r, c, p){
+    if (b[r][c] !== EMPTY) return [];
+    const flips = [];
+    for (const [dr,dc] of DIRS){
+      let rr = r+dr, cc = c+dc;
+      const line = [];
+      while (inBounds(rr,cc) && b[rr][cc] === opponent(p)){
+        line.push([rr,cc]);
+        rr += dr; cc += dc;
+      }
+      if (line.length && inBounds(rr,cc) && b[rr][cc] === p){
+        flips.push(...line);
+      }
+    }
+    return flips;
+  }
+
+  function legalMoves(b, p){
+    const moves = [];
+    for (let r=0;r<SIZE;r++){
+      for (let c=0;c<SIZE;c++){
+        const flips = getFlips(b,r,c,p);
+        if (flips.length) moves.push({r,c, flips});
+      }
+    }
+    return moves;
+  }
+
+  function applyMove(b, move, p){
+    const nb = cloneBoard(b);
+    nb[move.r][move.c] = p;
+    for (const [rr,cc] of move.flips){
+      nb[rr][cc] = p;
+    }
+    return nb;
+  }
+
+  function isGameOver(b){
+    return legalMoves(b, BLACK).length === 0 && legalMoves(b, WHITE).length === 0;
+  }
+
+  function winnerText(b){
+    const {black, white} = countPieces(b);
+    if (black > white) return "Black wins.";
+    if (white > black) return "White wins.";
+    return "Draw.";
+  }
+
+  // Heuristic evaluation
+  const CORNERS = [[0,0],[0,7],[7,0],[7,7]];
+  const X_SQUARES = [[1,1],[1,6],[6,1],[6,6]]; // diagonally adjacent to corners
+  const C_SQUARES = [[0,1],[1,0],[0,6],[1,7],[6,0],[7,1],[6,7],[7,6]]; // edge-adjacent to corners
+
+  function cornerOwner(b, r, c){
+    return b[r][c];
+  }
+
+  function mobilityScore(b, p){
+    return legalMoves(b, p).length - legalMoves(b, opponent(p)).length;
+  }
+
+  function cornerScore(b, p){
+    let s = 0;
+    for (const [r,c] of CORNERS){
+      const v = b[r][c];
+      if (v === p) s += 1;
+      else if (v === opponent(p)) s -= 1;
+    }
+    return s;
+  }
+
+  function cornerDangerScore(b, p){
+    // Penalize occupying X/C squares when the corner is empty or enemy-held
+    let s = 0;
+
+    for (let i=0;i<4;i++){
+      const [cr,cc] = CORNERS[i];
+      const co = cornerOwner(b, cr, cc);
+
+      const [xr,xc] = X_SQUARES[i];
+      const xv = b[xr][xc];
+      if (xv === p){
+        if (co === EMPTY) s -= 1.5;
+        else if (co === opponent(p)) s -= 1.0;
+      } else if (xv === opponent(p)){
+        if (co === EMPTY) s += 1.5;
+        else if (co === p) s += 1.0;
+      }
+
+      // Two C squares per corner
+      const cs = (i===0) ? [[0,1],[1,0]]
+              : (i===1) ? [[0,6],[1,7]]
+              : (i===2) ? [[7,1],[6,0]]
+                        : [[7,6],[6,7]];
+
+      for (const [rr,cc2] of cs){
+        const cv = b[rr][cc2];
+        if (cv === p){
+          if (co === EMPTY) s -= 0.8;
+          else if (co === opponent(p)) s -= 0.5;
+        } else if (cv === opponent(p)){
+          if (co === EMPTY) s += 0.8;
+          else if (co === p) s += 0.5;
+        }
+      }
+    }
+    return s;
+  }
+
+  function edgeScore(b, p){
+    // Simple edge occupancy (excluding corners) with mild weight
+    let s = 0;
+    const coords = [];
+    for (let c=1;c<7;c++){ coords.push([0,c],[7,c]); }
+    for (let r=1;r<7;r++){ coords.push([r,0],[r,7]); }
+    for (const [r,c] of coords){
+      const v = b[r][c];
+      if (v === p) s += 1;
+      else if (v === opponent(p)) s -= 1;
+    }
+    return s;
+  }
+
+  function discDiff(b, p){
+    const {black, white} = countPieces(b);
+    const mine = (p===BLACK) ? black : white;
+    const theirs = (p===BLACK) ? white : black;
+    return mine - theirs;
+  }
+
+  function gamePhase(b){
+    // 0..1 based on empties
+    const {empty} = countPieces(b);
+    return 1 - (empty / 60); // start ~0, end ~1
+  }
+
+  function evaluate(b, p){
+    // Phase-weighted evaluation
+    const phase = gamePhase(b);
+
+    const c = cornerScore(b,p);
+    const danger = cornerDangerScore(b,p);
+    const mob = mobilityScore(b,p);
+    const edge = edgeScore(b,p);
+    const diff = discDiff(b,p);
+
+    // Weights: early favor mobility & safety, late favor disk count
+    const wCorner = 100;
+    const wDanger = 45;
+    const wMob = (1 - phase) * 18 + 3;
+    const wEdge = 6;
+    const wDiff = phase * 2.4;
+
+    return wCorner*c + wDanger*danger + wMob*mob + wEdge*edge + wDiff*diff;
+  }
+
+  // Minimax with alpha-beta, pass handling
+  function minimax(b, playerToMove, maximizingFor, depth, alpha, beta){
+    // Returns {score, bestMove}
+    const over = isGameOver(b);
+    if (depth === 0 || over){
+      const s = over ? endgameScore(b, maximizingFor) : evaluate(b, maximizingFor);
+      return {score: s, bestMove: null};
+    }
+
+    const moves = legalMoves(b, playerToMove);
+
+    // Pass if no moves
+    if (moves.length === 0){
+      return minimax(b, opponent(playerToMove), maximizingFor, depth-1, alpha, beta);
+    }
+
+    let bestMove = null;
+
+    if (playerToMove === maximizingFor){
+      let best = -Infinity;
+      for (const m of orderMoves(moves, b, playerToMove)){
+        const nb = applyMove(b, m, playerToMove);
+        const res = minimax(nb, opponent(playerToMove), maximizingFor, depth-1, alpha, beta);
+        if (res.score > best){
+          best = res.score;
+          bestMove = m;
+        }
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;
+      }
+      return {score: best, bestMove};
+    } else {
+      let best = Infinity;
+      for (const m of orderMoves(moves, b, playerToMove)){
+        const nb = applyMove(b, m, playerToMove);
+        const res = minimax(nb, opponent(playerToMove), maximizingFor, depth-1, alpha, beta);
+        if (res.score < best){
+          best = res.score;
+          bestMove = m;
+        }
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;
+      }
+      return {score: best, bestMove};
+    }
+  }
+
+  function endgameScore(b, p){
+    // In endgame, prefer actual outcome heavily
+    const {black, white} = countPieces(b);
+    const mine = (p===BLACK) ? black : white;
+    const theirs = (p===BLACK) ? white : black;
+    if (mine > theirs) return 1e9 + (mine-theirs);
+    if (mine < theirs) return -1e9 - (theirs-mine);
+    return 0;
+  }
+
+  function moveKey(m){ return m.r*8 + m.c; }
+
+  function orderMoves(moves, b, p){
+    // Ordering improves alpha-beta: corners first, then safe edges, then by flips count
+    const cornerSet = new Set(CORNERS.map(([r,c]) => r*8+c));
+    const xSet = new Set(X_SQUARES.map(([r,c]) => r*8+c));
+    const cSet = new Set(C_SQUARES.map(([r,c]) => r*8+c));
+
+    return moves.slice().sort((a,bm) => {
+      const ak = moveKey(a), bk = moveKey(bm);
+      const aCorner = cornerSet.has(ak), bCorner = cornerSet.has(bk);
+      if (aCorner !== bCorner) return aCorner ? -1 : 1;
+
+      const aBad = xSet.has(ak) || cSet.has(ak);
+      const bBad = xSet.has(bk) || cSet.has(bk);
+      if (aBad !== bBad) return aBad ? 1 : -1;
+
+      // more flips slightly preferred early, but not dominant
+      return bm.flips.length - a.flips.length;
+    });
+  }
+
+  // UI rendering
+  function render(){
+    const b = state.board;
+    const p = state.toMove;
+
+    const {black, white, empty} = countPieces(b);
+    elBlackScore.textContent = black;
+    elWhiteScore.textContent = white;
+    elEmptyScore.textContent = empty;
+
+    elTurnIcon.className = "discIcon" + (p===WHITE ? " white" : "");
+    elTurnText.textContent = (p===BLACK ? "Black" : "White") + " to move";
+
+    const you = state.you;
+    const ai = opponent(you);
+
+    // Status text
+    if (isGameOver(b)){
+      elStatusPill.innerHTML = "<b>Game</b> over";
+      nowMsg(`<b>Game over.</b> ${winnerText(b)} <small>Final: Black ${black}, White ${white}.</small>`);
+    } else if (p === you){
+      elStatusPill.innerHTML = "<b>Your</b> move";
+      const lm = legalMoves(b, p).length;
+      if (lm === 0){
+        nowMsg(`<b>No legal moves.</b> You must pass. Click “AI move now” or wait if Auto-play AI is on.`);
+      } else {
+        nowMsg(`Your turn. <small>${lm} legal move${lm===1?"":"s"}.</small>`);
+      }
+    } else {
+      elStatusPill.innerHTML = "<b>AI</b> thinking";
+      const lm = legalMoves(b, p).length;
+      if (lm === 0){
+        nowMsg(`<b>AI has no legal moves.</b> Turn passes back to you.`);
+      } else {
+        nowMsg(`AI’s turn. <small>${lm} legal move${lm===1?"":"s"}.</small>`);
+      }
+    }
+
+    // Build board once
+    if (!elBoard.dataset.built){
+      elBoard.innerHTML = "";
+      for (let r=0;r<SIZE;r++){
+        for (let c=0;c<SIZE;c++){
+          const sq = document.createElement("div");
+          sq.className = "sq";
+          sq.dataset.r = r;
+          sq.dataset.c = c;
+
+          const dot = document.createElement("div");
+          dot.className = "hintDot";
+          sq.appendChild(dot);
+
+          sq.addEventListener("click", onSquareClick);
+          elBoard.appendChild(sq);
+        }
+      }
+      elBoard.dataset.built = "1";
+    }
+
+    const legal = legalMoves(b, p);
+    const legalSet = new Map();
+    for (const m of legal) legalSet.set(moveKey(m), m);
+
+    const showHints = !!state.showHints;
+    const yourTurn = (p === state.you);
+    const clickable = yourTurn && !busy && !isGameOver(b);
+
+    for (const sq of elBoard.children){
+      const r = +sq.dataset.r;
+      const c = +sq.dataset.c;
+      const v = b[r][c];
+
+      // clear piece
+      sq.querySelectorAll(".disc").forEach(n => n.remove());
+
+      sq.classList.remove("legal","disabled");
+
+      if (v === BLACK || v === WHITE){
+        const d = document.createElement("div");
+        d.className = "disc " + (v===BLACK ? "black" : "white");
+        sq.appendChild(d);
+      } else {
+        const k = r*8 + c;
+        const isLegal = legalSet.has(k);
+
+        if (showHints && isLegal && !isGameOver(b)){
+          // show hints only for side to move
+          sq.classList.add("legal");
+        }
+        if (!clickable || !isLegal){
+          sq.classList.add("disabled");
+        }
+      }
+    }
+
+    save();
+    maybeAutoAIMove();
+  }
+
+  function flashSquare(r,c){
+    const idx = r*8+c;
+    const sq = elBoard.children[idx];
+    if (!sq) return;
+    sq.classList.remove("flash");
+    void sq.offsetWidth; // reflow
+    sq.classList.add("flash");
+  }
+
+  function onSquareClick(e){
+    if (busy) return;
+    if (isGameOver(state.board)) return;
+
+    const r = +e.currentTarget.dataset.r;
+    const c = +e.currentTarget.dataset.c;
+
+    if (state.toMove !== state.you) return;
+
+    const moves = legalMoves(state.board, state.toMove);
+    const m = moves.find(x => x.r===r && x.c===c);
+    if (!m) return;
+
+    // Save history for undo: snapshot before your move, plus after AI move
+    pushHistory();
+
+    state.board = applyMove(state.board, m, state.toMove);
+    state.toMove = opponent(state.toMove);
+    flashSquare(r,c);
+
+    // Handle pass states
+    handlePasses();
+    render();
+  }
+
+  function handlePasses(){
+    // If side to move has no moves, pass once. If both none, game over.
+    if (isGameOver(state.board)) return;
+    const moves = legalMoves(state.board, state.toMove);
+    if (moves.length === 0){
+      state.toMove = opponent(state.toMove);
+    }
+  }
+
+  function aiChooseMove(){
+    const depth = +state.depth;
+    const ai = opponent(state.you);
+    const p = state.toMove;
+
+    if (p !== ai) return null;
+
+    const moves = legalMoves(state.board, p);
+    if (moves.length === 0) return null;
+
+    // Quick win: take a corner if available
+    const cornerSet = new Set(CORNERS.map(([r,c]) => r*8+c));
+    const cornerMove = moves.find(m => cornerSet.has(moveKey(m)));
+    if (cornerMove) return cornerMove;
+
+    const res = minimax(state.board, p, p, depth, -Infinity, Infinity);
+    return res.bestMove || moves[0];
+  }
+
+  async function doAIMove(){
+    if (busy) return;
+    if (isGameOver(state.board)) return;
+
+    const ai = opponent(state.you);
+    if (state.toMove !== ai) return;
+
+    busy = true;
+    elStatusPill.innerHTML = "<b>AI</b> thinking";
+
+    // Let the UI update before heavy compute
+    await new Promise(requestAnimationFrame);
+
+    // If AI has no move, pass
+    const lm = legalMoves(state.board, state.toMove);
+    if (lm.length === 0){
+      state.toMove = opponent(state.toMove);
+      busy = false;
+      render();
+      return;
+    }
+
+    const move = aiChooseMove();
+    if (move){
+      state.board = applyMove(state.board, move, state.toMove);
+      state.toMove = opponent(state.toMove);
+      flashSquare(move.r, move.c);
+    }
+
+    handlePasses();
+    busy = false;
+    render();
+  }
+
+  function maybeAutoAIMove(){
+    if (!state.autoAI) return;
+    if (busy) return;
+    if (isGameOver(state.board)) return;
+    if (state.toMove === opponent(state.you)){
+      // Slight delay to feel responsive without being jarring
+      setTimeout(() => { doAIMove(); }, 40);
+    }
+  }
+
+  // Undo: revert to prior snapshot (one full ply pair if available)
+  function pushHistory(){
+    state.history.push({
+      board: cloneBoard(state.board),
+      toMove: state.toMove
+    });
+    // Keep small
+    if (state.history.length > 20) state.history.shift();
+  }
+
+  function undo(){
+    if (busy) return;
+    if (!state.history.length) return;
+    const prev = state.history.pop();
+    state.board = cloneBoard(prev.board);
+    state.toMove = prev.toMove;
+    render();
+  }
+
+  function newGame(keepSettings=true){
+    const settings = keepSettings ? {
+      you: state?.you ?? BLACK,
+      depth: state?.depth ?? 4,
+      showHints: state?.showHints ?? true,
+      autoAI: state?.autoAI ?? true
+    } : {
+      you: BLACK, depth: 4, showHints: true, autoAI: true
+    };
+
+    state = {
+      board: mkInitialBoard(),
+      toMove: BLACK,
+      you: settings.you,
+      depth: settings.depth,
+      showHints: settings.showHints,
+      autoAI: settings.autoAI,
+      history: []
+    };
+
+    // If you chose White, AI starts
+    render();
+  }
+
+  function resetAll(){
+    localStorage.removeItem(LS_KEY);
+    state = null;
+    loadOrInit();
+  }
+
+  function syncControlsFromState(){
+    elYouPlay.value = (state.you === BLACK) ? "B" : "W";
+    elDifficulty.value = String(state.depth);
+    elShowHints.checked = !!state.showHints;
+    elAutoAI.checked = !!state.autoAI;
+  }
+
+  function syncStateFromControls(startNewIfColorChanged=false){
+    const newYou = (elYouPlay.value === "B") ? BLACK : WHITE;
+    const colorChanged = newYou !== state.you;
+
+    state.depth = +elDifficulty.value;
+    state.showHints = !!elShowHints.checked;
+    state.autoAI = !!elAutoAI.checked;
+
+    if (startNewIfColorChanged && colorChanged){
+      state.you = newYou;
+      newGame(true);
+      return;
+    }
+    state.you = newYou;
+  }
+
+  function save(){
+    try{
+      const payload = {
+        board: state.board,
+        toMove: state.toMove,
+        you: state.you,
+        depth: state.depth,
+        showHints: state.showHints,
+        autoAI: state.autoAI,
+        history: state.history
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(payload));
+    }catch(_){}
+  }
+
+  function loadOrInit(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw){
+        const p = JSON.parse(raw);
+        if (p && Array.isArray(p.board) && p.board.length === 8){
+          state = {
+            board: p.board,
+            toMove: p.toMove ?? BLACK,
+            you: p.you ?? BLACK,
+            depth: p.depth ?? 4,
+            showHints: p.showHints ?? true,
+            autoAI: p.autoAI ?? true,
+            history: Array.isArray(p.history) ? p.history : []
+          };
+          syncControlsFromState();
+          render();
+          return;
+        }
+      }
+    }catch(_){}
+    // default
+    state = { board: mkInitialBoard(), toMove: BLACK, you: BLACK, depth: 4, showHints: true, autoAI: true, history: [] };
+    syncControlsFromState();
+    render();
+  }
+
+  // Wire controls
+  elYouPlay.addEventListener("change", () => {
+    syncStateFromControls(true);
+    save();
+  });
+  elDifficulty.addEventListener("change", () => { syncStateFromControls(false); save(); render(); });
+  elShowHints.addEventListener("change", () => { syncStateFromControls(false); save(); render(); });
+  elAutoAI.addEventListener("change", () => { syncStateFromControls(false); save(); render(); });
+
+  elNewGame.addEventListener("click", () => { newGame(true); });
+  elUndoBtn.addEventListener("click", () => { undo(); });
+  elAIMoveBtn.addEventListener("click", () => { doAIMove(); });
+  elResetBtn.addEventListener("click", () => { resetAll(); });
+
+  // Init
+  loadOrInit();
+})();
+</script>
+</body>
+</html>

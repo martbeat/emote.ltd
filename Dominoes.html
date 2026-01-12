@@ -3,1153 +3,362 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Dominoes vs AI (Standard Draw Game)</title>
+<title>Dominoes vs AI – Snake Layout</title>
+
 <style>
-  :root{
-    --bg:#0b1020;
-    --panel:#121a33;
-    --panel2:#0e152b;
-    --ink:#e9eefc;
-    --muted:#aeb8da;
-    --accent:#7aa7ff;
-    --good:#7dffb2;
-    --bad:#ff6b88;
-    --warn:#ffd36e;
-    --line:#263058;
-    --shadow: 0 10px 25px rgba(0,0,0,.35);
-    --radius:16px;
-  }
-  *{ box-sizing:border-box; }
-  html,body{ height:100%; }
-  body{
-    margin:0;
-    font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    color:var(--ink);
-    background: radial-gradient(1200px 600px at 30% -10%, #1a2550 0%, transparent 60%),
-                radial-gradient(900px 500px at 110% 10%, #163b52 0%, transparent 55%),
-                linear-gradient(180deg, #070a12, #05060a);
-  }
-  .wrap{
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 16px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-  }
-  header{
-    display:flex;
-    gap:12px;
-    align-items:flex-start;
-    justify-content:space-between;
-    flex-wrap:wrap;
-  }
-  .title{
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-  }
-  h1{
-    margin:0;
-    font-size:18px;
-    letter-spacing:.2px;
-  }
-  .sub{
-    color:var(--muted);
-    font-size:12px;
-  }
-  .controls{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
-    justify-content:flex-end;
-  }
-  button{
-    cursor:pointer;
-    border:1px solid var(--line);
-    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-    color:var(--ink);
-    padding:10px 12px;
-    border-radius:12px;
-    box-shadow: var(--shadow);
-    transition: transform .06s ease, border-color .15s ease;
-    user-select:none;
-  }
-  button:hover{ border-color:#3950a0; }
-  button:active{ transform: translateY(1px); }
-  button.primary{
-    border-color: rgba(122,167,255,.55);
-  }
-  button.good{
-    border-color: rgba(125,255,178,.45);
-  }
-  button.bad{
-    border-color: rgba(255,107,136,.45);
-  }
-  button:disabled{
-    opacity:.55;
-    cursor:not-allowed;
-    transform:none;
-  }
-  .grid{
-    display:grid;
-    grid-template-columns: 1.2fr .8fr;
-    gap:12px;
-  }
-  @media (max-width: 900px){
-    .grid{ grid-template-columns: 1fr; }
-  }
-  .card{
-    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-    border:1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow:hidden;
-  }
-  .card h2{
-    margin:0;
-    font-size:13px;
-    color:var(--muted);
-    letter-spacing:.25px;
-    padding:12px 14px;
-    border-bottom:1px solid rgba(38,48,88,.65);
-    background: linear-gradient(180deg, rgba(0,0,0,.15), transparent);
-  }
-  .card .body{
-    padding:14px;
-  }
-  .status{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-  }
-  .statusRow{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
-    justify-content:space-between;
-  }
-  .pill{
-    display:inline-flex;
-    gap:8px;
-    align-items:center;
-    padding:8px 10px;
-    border-radius: 999px;
-    border:1px solid rgba(38,48,88,.8);
-    background: rgba(0,0,0,.18);
-    color:var(--muted);
-    font-size:12px;
-  }
-  .pill strong{ color:var(--ink); font-weight:600; }
-  .log{
-    border:1px solid rgba(38,48,88,.7);
-    border-radius: 14px;
-    background: rgba(0,0,0,.18);
-    padding:10px;
-    height: 190px;
-    overflow:auto;
-    font-size:12px;
-    color: var(--muted);
-  }
-  .log .entry{ margin:0 0 8px 0; }
-  .log .entry:last-child{ margin:0; }
-  .log .me{ color:#dbe6ff; }
-  .log .ai{ color:#d7ffe7; }
-  .log .sys{ color:#ffdca0; }
+:root{
+  --bg:#0b1020;
+  --panel:#121a33;
+  --ink:#e9eefc;
+  --muted:#aeb8da;
+  --accent:#7aa7ff;
+  --line:#263058;
+  --radius:14px;
+  --shadow:0 8px 20px rgba(0,0,0,.35);
+}
 
-  .boardTop{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    justify-content:space-between;
-    flex-wrap:wrap;
-    margin-bottom:10px;
-  }
-  .ends{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
-  }
-  .endBox{
-    border:1px solid rgba(38,48,88,.75);
-    border-radius: 14px;
-    background: rgba(0,0,0,.18);
-    padding:10px 12px;
-    min-width: 160px;
-  }
-  .endBox .label{
-    color:var(--muted);
-    font-size:11px;
-    margin-bottom:6px;
-  }
-  .endBox .value{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    font-weight:700;
-  }
-  .pipDot{
-    width:10px;
-    height:10px;
-    border-radius:999px;
-    background: var(--accent);
-    box-shadow: 0 0 0 3px rgba(122,167,255,.15);
-  }
+body{
+  margin:0;
+  font:14px/1.4 system-ui,Segoe UI,Roboto,Arial;
+  background:linear-gradient(180deg,#060912,#03040a);
+  color:var(--ink);
+}
 
-  .train{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    overflow:auto;
-    padding: 10px 4px 8px;
-    border-top:1px solid rgba(38,48,88,.55);
-  }
-  .trainHint{
-    color:var(--muted);
-    font-size:12px;
-    margin: 0 0 8px 0;
-  }
+.wrap{
+  max-width:1200px;
+  margin:auto;
+  padding:14px;
+}
 
-  .handRow{
-    display:flex;
-    gap:10px;
-    align-items:flex-start;
-    justify-content:space-between;
-    flex-wrap:wrap;
-    margin-bottom:10px;
-  }
-  .handInfo{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
-  }
-  .hand{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-  }
+h1{ margin:0 0 6px 0; font-size:18px; }
+.sub{ color:var(--muted); font-size:12px; margin-bottom:10px; }
 
-  /* Domino tile */
-  .tile{
-    width:52px;
-    height:88px;
-    border-radius: 12px;
-    border:1px solid rgba(38,48,88,.8);
-    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
-    box-shadow: 0 10px 18px rgba(0,0,0,.25);
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    align-items:stretch;
-    justify-content:stretch;
-    user-select:none;
-  }
-  .tile.small{
-    width:44px;
-    height:74px;
-    border-radius: 11px;
-  }
-  .tile.horizontal{
-    width:88px;
-    height:52px;
-    flex-direction:row;
-  }
-  .tile.small.horizontal{
-    width:74px;
-    height:44px;
-  }
-  .tile::after{
-    content:"";
-    position:absolute;
-    left:50%;
-    top:50%;
-    transform: translate(-50%,-50%);
-    width:90%;
-    height:1px;
-    background: rgba(38,48,88,.9);
-  }
-  .tile.horizontal::after{
-    width:1px;
-    height:90%;
-  }
-  .half{
-    flex:1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    position:relative;
-  }
-  .pip{
-    width: 30px;
-    height: 30px;
-    border-radius: 10px;
-    display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap:3px;
-    padding:4px;
-    background: rgba(0,0,0,.12);
-    border:1px solid rgba(38,48,88,.55);
-  }
-  .tile.small .pip{ width:26px; height:26px; border-radius:9px; }
-  .pip span{
-    display:block;
-    border-radius:999px;
-    background: rgba(233,238,252,.92);
-    opacity:0;
-  }
-  .tile.playable{
-    outline: 2px solid rgba(125,255,178,.55);
-    box-shadow: 0 0 0 5px rgba(125,255,178,.10), 0 10px 18px rgba(0,0,0,.25);
-  }
-  .tile.selected{
-    outline: 2px solid rgba(122,167,255,.75);
-    box-shadow: 0 0 0 6px rgba(122,167,255,.12), 0 10px 18px rgba(0,0,0,.25);
-    transform: translateY(-1px);
-  }
-  .tile.blocked{
-    opacity:.55;
-    filter: saturate(.7);
-  }
-  .tile .badge{
-    position:absolute;
-    top:-8px;
-    right:-8px;
-    background: rgba(0,0,0,.55);
-    border:1px solid rgba(38,48,88,.85);
-    padding:4px 6px;
-    border-radius: 999px;
-    font-size:11px;
-    color: var(--muted);
-  }
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:12px;
+}
 
-  .aiHand{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
-  }
-  .back{
-    width:44px;
-    height:74px;
-    border-radius: 12px;
-    border:1px solid rgba(38,48,88,.75);
-    background:
-      radial-gradient(circle at 30% 20%, rgba(122,167,255,.25), transparent 55%),
-      radial-gradient(circle at 80% 70%, rgba(125,255,178,.18), transparent 55%),
-      linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-    box-shadow: 0 10px 18px rgba(0,0,0,.25);
-  }
-  .help{
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 8px;
-  }
-  .sideChoice{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-top:10px;
-    padding-top:10px;
-    border-top:1px solid rgba(38,48,88,.55);
-  }
-  .sideChoice .note{
-    color: var(--muted);
-    font-size:12px;
-    flex: 1 1 auto;
-  }
+button{
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:8px 12px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+button:disabled{ opacity:.5; cursor:not-allowed; }
+
+.controls{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+
+/* ---------- Domino visuals ---------- */
+
+.domino{
+  width:46px;
+  height:78px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+  display:flex;
+  flex-direction:column;
+  box-shadow:var(--shadow);
+}
+
+.domino.horizontal{
+  width:78px;
+  height:46px;
+  flex-direction:row;
+}
+
+.domino.double{
+  transform:rotate(90deg);
+}
+
+.half{
+  flex:1;
+  display:grid;
+  place-items:center;
+}
+
+.pips{
+  width:26px;
+  height:26px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  grid-template-rows:repeat(3,1fr);
+  gap:3px;
+}
+
+.pips span{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#fff;
+  opacity:0;
+}
+
+.domino::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:90%;
+  height:1px;
+  background:var(--line);
+  transform:translate(-50%,-50%);
+}
+
+.domino.horizontal::after{
+  width:1px;
+  height:90%;
+}
+
+/* ---------- Snake layout ---------- */
+
+.snake{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  overflow-x:hidden;
+}
+
+.snakeRow{
+  display:flex;
+  gap:8px;
+}
+
+.snakeRow.reverse{
+  flex-direction:row-reverse;
+}
+
+/* ---------- Hands ---------- */
+
+.hand{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+
+.playable{
+  outline:2px solid rgba(125,255,178,.6);
+  cursor:pointer;
+}
+
+.back{
+  width:46px;
+  height:78px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:radial-gradient(circle at 30% 30%,rgba(122,167,255,.25),transparent 60%);
+}
+
+/* ---------- Layout ---------- */
+
+.grid{
+  display:grid;
+  grid-template-columns:1.4fr .6fr;
+  gap:12px;
+}
+
+@media(max-width:900px){
+  .grid{ grid-template-columns:1fr; }
+}
 </style>
 </head>
+
 <body>
 <div class="wrap">
-  <header>
-    <div class="title">
-      <h1>Dominoes vs AI</h1>
-      <div class="sub">Standard draw game: double-six set, 7 tiles each, highest double starts, draw until you can play, block ends by lowest pip total.</div>
-    </div>
-    <div class="controls">
-      <button class="primary" id="newBtn">New Game</button>
-      <button id="rulesBtn">Rules</button>
-      <button class="bad" id="concedeBtn">Concede</button>
-    </div>
-  </header>
 
-  <div class="grid">
-    <section class="card">
-      <h2>Table</h2>
-      <div class="body">
-        <div class="boardTop">
-          <div class="ends">
-            <div class="endBox">
-              <div class="label">Left end</div>
-              <div class="value"><span class="pipDot"></span><span id="leftEnd">–</span></div>
-            </div>
-            <div class="endBox">
-              <div class="label">Right end</div>
-              <div class="value"><span class="pipDot"></span><span id="rightEnd">–</span></div>
-            </div>
-          </div>
-          <div class="pill">
-            Turn: <strong id="turnWho">–</strong>
-          </div>
-        </div>
+<h1>Dominoes vs AI</h1>
+<div class="sub">Standard draw game · doubles turn sideways · snake layout</div>
 
-        <p class="trainHint" id="trainHint">Play a tile that matches either end.</p>
-        <div class="train" id="train"></div>
+<div class="controls">
+  <button id="newGame">New Game</button>
+  <button id="drawBtn">Draw</button>
+  <button id="passBtn">Pass</button>
+</div>
 
-        <div class="sideChoice" id="sideChoice" style="display:none;">
-          <div class="note" id="sideNote">This tile fits both ends. Choose where to play it.</div>
-          <button class="good" id="playLeftBtn">Play to Left</button>
-          <button class="good" id="playRightBtn">Play to Right</button>
-          <button id="cancelChoiceBtn">Cancel</button>
-        </div>
-      </div>
-    </section>
+<div class="grid">
+  <div class="card">
+    <strong>Table</strong>
+    <div id="snake" class="snake"></div>
+  </div>
 
-    <aside class="card">
-      <h2>Players</h2>
-      <div class="body status">
-        <div class="statusRow">
-          <div class="pill">Boneyard: <strong id="boneyardCount">–</strong></div>
-          <div class="pill">Round: <strong id="roundState">–</strong></div>
-        </div>
+  <div class="card">
+    <strong>AI</strong>
+    <div id="aiHand" class="hand"></div>
 
-        <div class="statusRow">
-          <div class="pill">AI tiles: <strong id="aiCount">–</strong></div>
-          <div class="pill">Your tiles: <strong id="meCount">–</strong></div>
-        </div>
+    <hr>
 
-        <div style="border-top:1px solid rgba(38,48,88,.55); padding-top:12px;">
-          <div class="handRow">
-            <div class="handInfo">
-              <div class="pill">AI hand (hidden)</div>
-            </div>
-          </div>
-          <div class="aiHand" id="aiHand"></div>
-        </div>
-
-        <div style="border-top:1px solid rgba(38,48,88,.55); padding-top:12px;">
-          <div class="handRow">
-            <div class="handInfo">
-              <div class="pill">Your hand</div>
-              <button class="good" id="drawBtn">Draw</button>
-              <button id="passBtn">Pass</button>
-            </div>
-          </div>
-          <div class="hand" id="myHand"></div>
-          <div class="help" id="helpText"></div>
-        </div>
-
-        <div style="border-top:1px solid rgba(38,48,88,.55); padding-top:12px;">
-          <div class="pill">Log</div>
-          <div class="log" id="log"></div>
-        </div>
-      </div>
-    </aside>
+    <strong>You</strong>
+    <div id="myHand" class="hand"></div>
   </div>
 </div>
 
+</div>
+
 <script>
-/* Dominoes vs AI
-   - Double-six set (0..6)
-   - 7 tiles each
-   - Highest double starts. If no doubles, highest pip-sum tile starts.
-   - On your turn: must play if possible. Otherwise draw until you can or boneyard empty, then pass.
-   - Win: first to empty hand. If blocked: lowest pip total wins (ties possible).
-*/
+/* --------- Utilities ---------- */
 
-(() => {
-  const $ = (id) => document.getElementById(id);
+function makePips(n){
+  const map={
+    0know:[],
+    1:[4],
+    2:[0,8],
+    3:[0,4,8],
+    4:[0,2,6,8],
+    5:[0,2,4,6,8],
+    6:[0,2,3,5,6,8]
+  }[n]||[];
 
-  const ui = {
-    newBtn: $("newBtn"),
-    rulesBtn: $("rulesBtn"),
-    concedeBtn: $("concedeBtn"),
-    drawBtn: $("drawBtn"),
-    passBtn: $("passBtn"),
-    train: $("train"),
-    myHand: $("myHand"),
-    aiHand: $("aiHand"),
-    leftEnd: $("leftEnd"),
-    rightEnd: $("rightEnd"),
-    boneyardCount: $("boneyardCount"),
-    aiCount: $("aiCount"),
-    meCount: $("meCount"),
-    turnWho: $("turnWho"),
-    roundState: $("roundState"),
-    log: $("log"),
-    helpText: $("helpText"),
-    trainHint: $("trainHint"),
-    sideChoice: $("sideChoice"),
-    sideNote: $("sideNote"),
-    playLeftBtn: $("playLeftBtn"),
-    playRightBtn: $("playRightBtn"),
-    cancelChoiceBtn: $("cancelChoiceBtn"),
-  };
-
-  const state = {
-    deck: [],
-    boneyard: [],
-    me: [],
-    ai: [],
-    chain: [], // each entry: {a,b} oriented left->right
-    turn: "me", // "me" | "ai"
-    started: false,
-    over: false,
-    selectedIndex: null,
-    pendingChoice: null, // {player:"me", tileIndex, fits:{left:boolean,right:boolean}, orientations:{left:[a,b], right:[a,b]}}
-    lastMoveWasPass: { me:false, ai:false },
-  };
-
-  function log(msg, who="sys"){
-    const p = document.createElement("div");
-    p.className = `entry ${who}`;
-    p.textContent = msg;
-    ui.log.appendChild(p);
-    ui.log.scrollTop = ui.log.scrollHeight;
+  const el=document.createElement("div");
+  el.className="pips";
+  for(let i=0;i<9;i++){
+    const s=document.createElement("span");
+    if(map.includes(i)) s.style.opacity=1;
+    el.appendChild(s);
   }
+  return el;
+}
 
-  function shuffle(arr){
-    for(let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]] = [arr[j],arr[i]];
+function dominoEl(tile, opts={}){
+  const d=document.createElement("div");
+  d.className="domino";
+  if(opts.horizontal) d.classList.add("horizontal");
+  if(opts.double) d.classList.add("double");
+  if(opts.playable) d.classList.add("playable");
+
+  const h1=document.createElement("div");
+  h1.className="half";
+  h1.appendChild(makePips(tile.a));
+
+  const h2=document.createElement("div");
+  h2.className="half";
+  h2.appendChild(makePips(tile.b));
+
+  d.append(h1,h2);
+  return d;
+}
+
+/* --------- Game State ---------- */
+
+let deck=[], boneyard=[], me=[], ai=[], chain=[];
+let turn="me";
+
+function newGame(){
+  deck=[];
+  for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)deck.push({a,b});
+  deck.sort(()=>Math.random()-0.5);
+
+  me=deck.splice(0,7);
+  ai=deck.splice(0,7);
+  boneyard=[...deck];
+  chain=[];
+
+  // opening move
+  const all=[...me.map(t=>({...t,p:"me"})),...ai.map(t=>({...t,p:"ai"}))];
+  all.sort((x,y)=>(y.a===y.b)-(x.a===x.b)||((y.a+y.b)-(x.a+x.b)));
+  const o=all[0];
+  chain.push({a:o.a,b:o.b});
+  (o.p==="me"?me:ai).splice((o.p==="me"?me:ai).findIndex(t=>t.a===o.a&&t.b===o.b),1);
+  turn=o.p==="me"?"ai":"me";
+
+  render();
+  if(turn==="ai") setTimeout(aiTurn,400);
+}
+
+/* --------- Rendering ---------- */
+
+function render(){
+  const snake=document.getElementById("snake");
+  snake.innerHTML="";
+
+  const maxPerRow=Math.max(4,Math.floor(snake.clientWidth/90));
+  let row=[], rows=[row], dir=1;
+
+  chain.forEach((t,i)=>{
+    if(row.length>=maxPerRow){
+      row=[];
+      rows.push(row);
+      dir*=-1;
     }
-    return arr;
-  }
-
-  function tileKey(t){ return `${t.a}|${t.b}`; }
-  function tileSum(t){ return t.a + t.b; }
-  function isDouble(t){ return t.a === t.b; }
-
-  function makeDeck(){
-    const deck = [];
-    for(let a=0;a<=6;a++){
-      for(let b=a;b<=6;b++){
-        deck.push({a,b});
-      }
-    }
-    return deck;
-  }
-
-  function cloneTile(t){ return {a:t.a, b:t.b}; }
-
-  function chainEnds(){
-    if(state.chain.length === 0) return {left:null, right:null};
-    return {
-      left: state.chain[0].a,
-      right: state.chain[state.chain.length-1].b
-    };
-  }
-
-  function orientationsForPlacement(tile, endValue){
-    // returns array of oriented tiles [ {a,b} ] that match endValue at the connecting side
-    // For left placement: tile.b must equal leftEnd, because chain[0].a is left open end, new tile goes before it, so newTile.b connects to leftEnd.
-    // For right placement: tile.a must equal rightEnd, because newTile.a connects to rightEnd.
-    const opts = [];
-    if(tile.a === endValue) opts.push({a: tile.a, b: tile.b}); // tile.a matches, orientation depends on usage context
-    if(tile.b === endValue) opts.push({a: tile.b, b: tile.a}); // flip so a matches endValue
-    // Caller will interpret whether "a" or "b" must match based on side logic, so this helper is used carefully below.
-    return opts;
-  }
-
-  function canPlayTile(tile){
-    if(state.chain.length === 0) return true;
-    const {left,right} = chainEnds();
-    return (tile.a===left || tile.b===left || tile.a===right || tile.b===right);
-  }
-
-  function playableMovesForHand(hand){
-    const moves = [];
-    if(state.chain.length === 0){
-      for(let i=0;i<hand.length;i++){
-        moves.push({index:i, side:"start", oriented: cloneTile(hand[i])});
-      }
-      return moves;
-    }
-    const {left,right} = chainEnds();
-    for(let i=0;i<hand.length;i++){
-      const t = hand[i];
-      // Left placement: newTile.b must match left
-      if(t.a === left) moves.push({index:i, side:"left", oriented:{a:t.b, b:t.a}}); // flip so b matches? wait: if t.a==left, need newTile.b=left => oriented (other,left)
-      if(t.b === left) moves.push({index:i, side:"left", oriented:{a:t.a, b:t.b}}); // if b==left, oriented (a,b) already has b==left? No, b==left means b is left, so yes b==left
-      // Right placement: newTile.a must match right
-      if(t.a === right) moves.push({index:i, side:"right", oriented:{a:t.a, b:t.b}});
-      if(t.b === right) moves.push({index:i, side:"right", oriented:{a:t.b, b:t.a}});
-    }
-    return moves;
-  }
-
-  function placeTileFromHand(player, tileIndex, side){
-    const hand = player === "me" ? state.me : state.ai;
-    const tile = hand[tileIndex];
-    if(!tile) return false;
-
-    if(state.chain.length === 0){
-      // starting tile: keep as is
-      state.chain.push(cloneTile(tile));
-      hand.splice(tileIndex, 1);
-      state.lastMoveWasPass[player] = false;
-      return true;
-    }
-
-    const {left,right} = chainEnds();
-
-    if(side === "left"){
-      // new tile goes before chain: newTile.b must equal left
-      let oriented = null;
-      if(tile.b === left) oriented = {a: tile.a, b: tile.b};
-      else if(tile.a === left) oriented = {a: tile.b, b: tile.a};
-      if(!oriented) return false;
-      state.chain.unshift(oriented);
-      hand.splice(tileIndex, 1);
-      state.lastMoveWasPass[player] = false;
-      return true;
-    }
-
-    if(side === "right"){
-      // new tile goes after chain: newTile.a must equal right
-      let oriented = null;
-      if(tile.a === right) oriented = {a: tile.a, b: tile.b};
-      else if(tile.b === right) oriented = {a: tile.b, b: tile.a};
-      if(!oriented) return false;
-      state.chain.push(oriented);
-      hand.splice(tileIndex, 1);
-      state.lastMoveWasPass[player] = false;
-      return true;
-    }
-
-    return false;
-  }
-
-  function drawTile(player){
-    if(state.boneyard.length === 0) return null;
-    const t = state.boneyard.pop();
-    if(player === "me") state.me.push(t);
-    else state.ai.push(t);
-    return t;
-  }
-
-  function pipTotal(hand){
-    return hand.reduce((s,t)=>s+t.a+t.b,0);
-  }
-
-  function bestOpeningIndex(hand){
-    // Highest double, else highest sum.
-    let best = -1;
-    let bestScore = -1;
-    for(let i=0;i<hand.length;i++){
-      const t = hand[i];
-      const score = (isDouble(t) ? 100 : 0) + tileSum(t);
-      if(score > bestScore){
-        bestScore = score;
-        best = i;
-      }
-    }
-    return best;
-  }
-
-  function renderPips(n){
-    // 3x3 positions: indices
-    // 0 1 2
-    // 3 4 5
-    // 6 7 8
-    const on = new Set();
-    const add = (idx) => on.add(idx);
-
-    if(n === 0){
-      // none
-    } else if(n === 1){
-      add(4);
-    } else if(n === 2){
-      add(0); add(8);
-    } else if(n === 3){
-      add(0); add(4); add(8);
-    } else if(n === 4){
-      add(0); add(2); add(6); add(8);
-    } else if(n === 5){
-      add(0); add(2); add(4); add(6); add(8);
-    } else if(n === 6){
-      add(0); add(2); add(3); add(5); add(6); add(8);
-    }
-    const pip = document.createElement("div");
-    pip.className = "pip";
-    for(let i=0;i<9;i++){
-      const s = document.createElement("span");
-      if(on.has(i)) s.style.opacity = "1";
-      pip.appendChild(s);
-    }
-    return pip;
-  }
-
-  function makeTileEl(tile, opts={}){
-    const el = document.createElement("div");
-    el.className = "tile" + (opts.small ? " small" : "") + (opts.horizontal ? " horizontal" : "");
-    if(opts.playable) el.classList.add("playable");
-    if(opts.selected) el.classList.add("selected");
-    if(opts.blocked) el.classList.add("blocked");
-    if(opts.badge){
-      const b = document.createElement("div");
-      b.className = "badge";
-      b.textContent = opts.badge;
-      el.appendChild(b);
-    }
-
-    const half1 = document.createElement("div");
-    half1.className = "half";
-    const half2 = document.createElement("div");
-    half2.className = "half";
-
-    half1.appendChild(renderPips(tile.a));
-    half2.appendChild(renderPips(tile.b));
-
-    el.appendChild(half1);
-    el.appendChild(half2);
-    return el;
-  }
-
-  function updateButtons(){
-    const myTurn = state.turn === "me" && !state.over && state.started;
-    ui.drawBtn.disabled = !myTurn || state.boneyard.length === 0;
-    ui.passBtn.disabled = !myTurn || hasAnyPlayable(state.me) || state.boneyard.length > 0;
-    ui.concedeBtn.disabled = state.over || !state.started;
-  }
-
-  function hasAnyPlayable(hand){
-    if(state.chain.length === 0) return true;
-    const {left,right} = chainEnds();
-    return hand.some(t => t.a===left || t.b===left || t.a===right || t.b===right);
-  }
-
-  function refresh(){
-    // counts
-    ui.boneyardCount.textContent = state.boneyard.length;
-    ui.aiCount.textContent = state.ai.length;
-    ui.meCount.textContent = state.me.length;
-
-    // ends
-    const {left,right} = chainEnds();
-    ui.leftEnd.textContent = left === null ? "–" : String(left);
-    ui.rightEnd.textContent = right === null ? "–" : String(right);
-
-    ui.turnWho.textContent = !state.started ? "–" : (state.turn === "me" ? "You" : "AI");
-    ui.roundState.textContent = state.over ? "Finished" : (state.started ? "In play" : "Not started");
-
-    // train
-    ui.train.innerHTML = "";
-    if(state.chain.length === 0){
-      const hint = document.createElement("div");
-      hint.style.color = "var(--muted)";
-      hint.style.fontSize = "12px";
-      hint.textContent = "No tiles on table yet.";
-      ui.train.appendChild(hint);
-    } else {
-      // keep train horizontal for scrolling
-      for(const t of state.chain){
-        const el = makeTileEl(t, {small:true, horizontal:true});
-        ui.train.appendChild(el);
-      }
-    }
-
-    // AI hand backs
-    ui.aiHand.innerHTML = "";
-    for(let i=0;i<state.ai.length;i++){
-      const b = document.createElement("div");
-      b.className = "back";
-      ui.aiHand.appendChild(b);
-    }
-
-    // my hand
-    ui.myHand.innerHTML = "";
-    const myTurn = state.turn === "me" && !state.over && state.started && !state.pendingChoice;
-    const {left:leftEnd, right:rightEnd} = chainEnds();
-    for(let i=0;i<state.me.length;i++){
-      const t = state.me[i];
-      const playable = myTurn && (state.chain.length === 0 || t.a===leftEnd || t.b===leftEnd || t.a===rightEnd || t.b===rightEnd);
-      const selected = state.selectedIndex === i;
-      const el = makeTileEl(t, {playable, selected, horizontal:false});
-      el.title = `${t.a}-${t.b}`;
-      el.addEventListener("click", () => {
-        if(!myTurn) return;
-        state.selectedIndex = (state.selectedIndex === i) ? null : i;
-        tryCommitSelected();
-        refresh();
-      });
-      ui.myHand.appendChild(el);
-    }
-
-    // help text
-    ui.trainHint.textContent = state.chain.length === 0
-      ? "Opening: highest double starts (handled automatically)."
-      : "Match either end. If you cannot play, draw until you can, or pass if the boneyard is empty.";
-
-    const playableCount = myTurn ? playableMovesForHand(state.me).length : 0;
-    if(state.over){
-      ui.helpText.textContent = "Round finished. Start a new game to play again.";
-    } else if(!state.started){
-      ui.helpText.textContent = "Start a new game.";
-    } else if(state.pendingChoice){
-      ui.helpText.textContent = "Choose left or right placement for the selected tile.";
-    } else if(state.turn === "me"){
-      if(playableCount > 0){
-        ui.helpText.textContent = "Click a playable tile to play it. If a tile fits both ends, you will be asked where to place it.";
-      } else if(state.boneyard.length > 0){
-        ui.helpText.textContent = "No playable tile. Click Draw.";
-      } else {
-        ui.helpText.textContent = "No playable tile and boneyard empty. Click Pass.";
-      }
-    } else {
-      ui.helpText.textContent = "AI is thinking…";
-    }
-
-    // side choice UI
-    ui.sideChoice.style.display = state.pendingChoice ? "flex" : "none";
-
-    updateButtons();
-  }
-
-  function tryCommitSelected(){
-    if(state.selectedIndex === null) return;
-    const idx = state.selectedIndex;
-    const t = state.me[idx];
-    if(!t) return;
-
-    if(state.chain.length === 0){
-      // should not happen after auto-opening, but allow: place as start
-      placeTileFromHand("me", idx, "start");
-      log(`You open with ${t.a}-${t.b}.`, "me");
-      state.selectedIndex = null;
-      endTurn();
-      return;
-    }
-
-    const {left,right} = chainEnds();
-    const fitsLeft = (t.a===left || t.b===left);
-    const fitsRight = (t.a===right || t.b===right);
-
-    if(!fitsLeft && !fitsRight) return;
-
-    if(fitsLeft && fitsRight && left !== right){
-      // ask where to place
-      state.pendingChoice = {
-        player: "me",
-        tileIndex: idx,
-        fits: {left:true, right:true}
-      };
-      ui.sideNote.textContent = `Tile ${t.a}-${t.b} matches both ends (${left} and ${right}). Choose a side.`;
-      return;
-    }
-
-    // auto side
-    const side = fitsRight ? "right" : "left";
-    const ok = placeTileFromHand("me", idx, side);
-    if(ok){
-      log(`You play ${t.a}-${t.b} to the ${side}.`, "me");
-      state.selectedIndex = null;
-      endTurn();
-    }
-  }
-
-  function endTurn(){
-    // win checks
-    if(state.me.length === 0){
-      finish(`You win by playing your last tile.`);
-      return;
-    }
-    if(state.ai.length === 0){
-      finish(`AI wins by playing its last tile.`);
-      return;
-    }
-
-    // blocked check: both passed and boneyard empty OR no one can play and no draws
-    if(state.boneyard.length === 0){
-      const meCan = hasAnyPlayable(state.me);
-      const aiCan = hasAnyPlayable(state.ai);
-      if(!meCan && !aiCan){
-        const meP = pipTotal(state.me);
-        const aiP = pipTotal(state.ai);
-        if(meP < aiP) finish(`Blocked game. You win on lowest pip total (${meP} vs ${aiP}).`);
-        else if(aiP < meP) finish(`Blocked game. AI wins on lowest pip total (${aiP} vs ${meP}).`);
-        else finish(`Blocked game. Tie on pip total (${meP} each).`);
-        return;
-      }
-    }
-
-    state.turn = (state.turn === "me") ? "ai" : "me";
-    refresh();
-
-    if(state.turn === "ai" && !state.over){
-      set_symbolsThinking(true);
-      setTimeout(aiTurn, 350);
-    } else {
-      set_symbolsThinking(false);
-    }
-  }
-
-  function set_symbolsThinking(on){
-    // lightweight: change hint while AI turn
-    if(on){
-      ui.trainHint.textContent = "AI turn…";
-    }
-  }
-
-  function finish(message){
-    state.over = true;
-    state.started = true;
-    state.pendingChoice = null;
-    state.selectedIndex = null;
-    log(message, "sys");
-    refresh();
-  }
-
-  function startNewGame(){
-    state.deck = shuffle(makeDeck());
-    state.boneyard = state.deck.slice();
-    state.me = [];
-    state.ai = [];
-    state.chain = [];
-    state.turn = "me";
-    state.started = true;
-    state.over = false;
-    state.selectedIndex = null;
-    state.pendingChoice = null;
-    state.lastMoveWasPass = {me:false, ai:false};
-    ui.log.innerHTML = "";
-
-    // deal 7 each
-    for(let i=0;i<7;i++){
-      state.me.push(state.boneyard.pop());
-      state.ai.push(state.boneyard.pop());
-    }
-
-    // decide opening tile: highest double among both hands; if none, highest sum tile among both.
-    const meOpenIdx = bestOpeningIndex(state.me);
-    const aiOpenIdx = bestOpeningIndex(state.ai);
-
-    const meBest = state.me[meOpenIdx];
-    const aiBest = state.ai[aiOpenIdx];
-
-    const meScore = (isDouble(meBest) ? 100 : 0) + tileSum(meBest);
-    const aiScore = (isDouble(aiBest) ? 100 : 0) + tileSum(aiBest);
-
-    if(aiScore > meScore){
-      // AI opens
-      const t = state.ai[aiOpenIdx];
-      placeTileFromHand("ai", aiOpenIdx, "start");
-      state.turn = "me";
-      log(`AI opens with ${t.a}-${t.b}.`, "ai");
-    } else {
-      // You open
-      const t = state.me[meOpenIdx];
-      placeTileFromHand("me", meOpenIdx, "start");
-      state.turn = "ai";
-      log(`You open with ${t.a}-${t.b}.`, "me");
-    }
-
-    // After opening, next turn is the other player
-    refresh();
-    if(state.turn === "ai"){
-      setTimeout(aiTurn, 350);
-    }
-  }
-
-  function passTurn(player){
-    state.lastMoveWasPass[player] = true;
-    log(`${player === "me" ? "You" : "AI"} pass.`, player === "me" ? "me" : "ai");
-    endTurn();
-  }
-
-  function aiTurn(){
-    if(state.over || state.turn !== "ai") return;
-
-    // Ensure AI can play or draw
-    while(!hasAnyPlayable(state.ai) && state.boneyard.length > 0){
-      const t = drawTile("ai");
-      log(`AI draws a tile.`, "ai");
-      refresh();
-      // If draw makes it playable, it will play below.
-      // If not, loop draws again (standard draw-until-playable).
-    }
-
-    if(!hasAnyPlayable(state.ai)){
-      // no draws possible
-      passTurn("ai");
-      return;
-    }
-
-    // choose best move using heuristic
-    const move = aiChooseMove();
-    if(!move){
-      passTurn("ai");
-      return;
-    }
-
-    const t = state.ai[move.index];
-    const ok = placeTileFromHand("ai", move.index, move.side === "start" ? "start" : move.side);
-    if(ok){
-      log(`AI plays ${t.a}-${t.b} to the ${move.side}.`, "ai");
-    } else {
-      // fallback: should not happen, but avoid stalling
-      log(`AI hesitates and passes (unexpected).`, "ai");
-      passTurn("ai");
-      return;
-    }
-
-    endTurn();
-  }
-
-  function aiChooseMove(){
-    const moves = playableMovesForHand(state.ai);
-    if(moves.length === 0) return null;
-
-    const ends = chainEnds();
-    const left = ends.left;
-    const right = ends.right;
-
-    // pip frequency in AI hand to prefer keeping common pips
-    const freq = new Array(7).fill(0);
-    for(const t of state.ai){
-      freq[t.a]++; freq[t.b]++;
-    }
-
-    function moveScore(m){
-      const t = state.ai[m.index];
-      const sum = tileSum(t);
-      const dbl = isDouble(t) ? 1 : 0;
-
-      // After placement, what new ends are exposed? Used to prefer exposing values AI has many of.
-      let newLeft = left, newRight = right;
-      if(state.chain.length === 0){
-        newLeft = t.a; newRight = t.b;
-      } else if(m.side === "left"){
-        // oriented tile is placed, exposed end becomes oriented.a
-        // We need the orientation actually used by placeTileFromHand rules.
-        const exposed = (t.b === left) ? t.a : t.b; // if b matched left, exposed is a, else exposed is b
-        newLeft = exposed;
-      } else if(m.side === "right"){
-        const exposed = (t.a === right) ? t.b : t.a; // if a matched right, exposed is b, else exposed is a
-        newRight = exposed;
-      }
-
-      const exposeBonus = (newLeft !== null ? freq[newLeft] : 0) + (newRight !== null ? freq[newRight] : 0);
-
-      // Prefer doubles modestly, prefer higher sum, prefer exposing pips AI holds.
-      // Slightly penalize playing tiles that consume a pip AI holds many of, to keep flexibility.
-      let consumePenalty = 0;
-      if(state.chain.length !== 0){
-        if(m.side === "left") consumePenalty = (t.a === left || t.b === left) ? (freq[left] * 0.2) : 0;
-        if(m.side === "right") consumePenalty = (t.a === right || t.b === right) ? (freq[right] * 0.2) : 0;
-      }
-
-      return (dbl*2.2) + (sum*0.35) + (exposeBonus*0.25) - consumePenalty;
-    }
-
-    let best = moves[0];
-    let bestS = moveScore(best);
-    for(let i=1;i<moves.length;i++){
-      const s = moveScore(moves[i]);
-      if(s > bestS){
-        bestS = s;
-        best = moves[i];
-      }
-    }
-    return best;
-  }
-
-  // UI actions
-  ui.newBtn.addEventListener("click", () => startNewGame());
-
-  ui.rulesBtn.addEventListener("click", () => {
-    alert(
-      "Dominoes (standard draw game)\n\n" +
-      "• Set: double-six (0–6)\n" +
-      "• Deal: 7 tiles each, remainder is the boneyard\n" +
-      "• Start: highest double starts; if none, highest pip-sum tile\n" +
-      "• Play: match a tile to either open end on the table\n" +
-      "• If you cannot play: draw tiles until you can, or until the boneyard is empty\n" +
-      "• If boneyard empty and you still cannot play: pass\n" +
-      "• Win: first to empty hand\n" +
-      "• Blocked: if no one can move and no boneyard, lowest pip total wins"
-    );
+    row.push({t,dir});
   });
 
-  ui.concedeBtn.addEventListener("click", () => {
-    if(!state.started || state.over) return;
-    finish("You concede. AI wins.");
+  rows.forEach((r,i)=>{
+    const rowEl=document.createElement("div");
+    rowEl.className="snakeRow"+(i%2?" reverse":"");
+    r.forEach(o=>{
+      rowEl.appendChild(
+        dominoEl(o.t,{
+          horizontal:true,
+          double:o.t.a===o.t.b
+        })
+      );
+    });
+    snake.appendChild(rowEl);
   });
 
-  ui.drawBtn.addEventListener("click", () => {
-    if(state.turn !== "me" || state.over || !state.started) return;
+  const my=document.getElementById("myHand");
+  my.innerHTML="";
+  me.forEach((t,i)=>{
+    const el=dominoEl(t,{playable:true});
+    el.onclick=()=>playMe(i);
+    my.appendChild(el);
+  });
 
-    if(state.boneyard.length === 0){
-      log("Boneyard is empty.", "sys");
-      refresh();
-      return;
+  const aiH=document.getElementById("aiHand");
+  aiH.innerHTML="";
+  ai.forEach(()=>aiH.appendChild(document.createElement("div")).className="back");
+}
+
+/* --------- Turns ---------- */
+
+function playMe(i){
+  if(turn!=="me") return;
+  const t=me[i];
+  const L=chain[0].a, R=chain.at(-1).b;
+
+  if(t.a===L||t.b===L){
+    chain.unshift({a:t.a===L?t.b:t.a,b:L});
+  }else if(t.a===R||t.b===R){
+    chain.push({a:R,b:t.a===R?t.b:t.a});
+  }else return;
+
+  me.splice(i,1);
+  turn="ai";
+  render();
+  setTimeout(aiTurn,400);
+}
+
+function aiTurn(){
+  for(let i=0;i<ai.length;i++){
+    const t=ai[i],L=chain[0].a,R=chain.at(-1).b;
+    if(t.a===L||t.b===L){
+      chain.unshift({a:t.a===L?t.b:t.a,b:L});
+      ai.splice(i,1); turn="me"; render(); return;
     }
-
-    const t = drawTile("me");
-    log(`You draw ${t.a}-${t.b}.`, "me");
-    state.selectedIndex = null;
-    refresh();
-
-    // If drawing makes a playable tile available, player must still choose/play.
-    // Standard rule is draw until can play. Enforce: if still cannot play, keep drawing.
-    if(!hasAnyPlayable(state.me) && state.boneyard.length > 0){
-      ui.helpText.textContent = "Still no playable tile. Draw again.";
-    } else if(hasAnyPlayable(state.me)){
-      ui.helpText.textContent = "You can play now. Click a playable tile.";
-    } else {
-      ui.helpText.textContent = "No playable tiles and boneyard empty. Pass.";
+    if(t.a===R||t.b===R){
+      chain.push({a:R,b:t.a===R?t.b:t.a});
+      ai.splice(i,1); turn="me"; render(); return;
     }
+  }
+  if(boneyard.length) ai.push(boneyard.pop());
+  else turn="me";
+  render();
+}
 
-    updateButtons();
-  });
+/* --------- Controls ---------- */
 
-  ui.passBtn.addEventListener("click", () => {
-    if(state.turn !== "me" || state.over || !state.started) return;
-    if(hasAnyPlayable(state.me)) return;
-    if(state.boneyard.length > 0) return; // must draw if possible
-    passTurn("me");
-  });
+document.getElementById("newGame").onclick=newGame;
+document.getElementById("drawBtn").onclick=()=>{ if(turn==="me"&&boneyard.length){ me.push(boneyard.pop()); render(); }};
+document.getElementById("passBtn").onclick=()=>{ if(turn==="me") turn="ai",setTimeout(aiTurn,400); };
 
-  ui.playLeftBtn.addEventListener("click", () => {
-    const p = state.pendingChoice;
-    if(!p) return;
-    if(p.player !== "me") return;
-    const t = state.me[p.tileIndex];
-    const ok = placeTileFromHand("me", p.tileIndex, "left");
-    state.pendingChoice = null;
-    state.selectedIndex = null;
-    if(ok) log(`You play ${t.a}-${t.b} to the left.`, "me");
-    refresh();
-    endTurn();
-  });
-
-  ui.playRightBtn.addEventListener("click", () => {
-    const p = state.pendingChoice;
-    if(!p) return;
-    if(p.player !== "me") return;
-    const t = state.me[p.tileIndex];
-    const ok = placeTileFromHand("me", p.tileIndex, "right");
-    state.pendingChoice = null;
-    state.selectedIndex = null;
-    if(ok) log(`You play ${t.a}-${t.b} to the right.`, "me");
-    refresh();
-    endTurn();
-  });
-
-  ui.cancelChoiceBtn.addEventListener("click", () => {
-    state.pendingChoice = null;
-    refresh();
-  });
-
-  // Initial screen
-  log("Click New Game to start.", "sys");
-  refresh();
-})();
+newGame();
 </script>
 </body>
 </html>

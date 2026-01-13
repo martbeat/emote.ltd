@@ -155,6 +155,8 @@
     .sq.lastTo::after{
       background: rgba(125,255,178,.14);
     }
+.sq.whitePiece { color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.sq.blackPiece { color: #000000; text-shadow: 0 1px 2px rgba(255,255,255,.4); }
 
     .dot{
       width: 14px;
@@ -548,8 +550,14 @@
       if(lm && i === lm.from) d.classList.add("lastFrom");
       if(lm && i === lm.to) d.classList.add("lastTo");
 
-      const p = S.board[i];
-      d.textContent = PIECE_UNI[p];
+const p = S.board[i];
+d.textContent = PIECE_UNI[p];
+
+if (p !== ".") {
+  if (p === p.toUpperCase()) d.classList.add("whitePiece");
+  else d.classList.add("blackPiece");
+}
+
 
       // move hints
       if(selected !== -1){

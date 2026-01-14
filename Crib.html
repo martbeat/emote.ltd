@@ -1042,14 +1042,6 @@ const lead = pickNextLead(
     }
 
     game.phase = "pegging";
-const lead = pickNextLead(
-  { humanHand: game.humanHand, aiHand: game.aiHand },
-  game.lastPegPlayer
-);
-
-
-
-
     // Non-dealer leads
 const lead = (game.dealer === "human") ? "ai" : "human";
 resetPeggingSequence(lead);

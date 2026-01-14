@@ -1075,13 +1075,6 @@ function endPegSequenceIfNeeded(){
   }
 }
 
-
-resetPeggingSequence(lead);
-render();
-save();
-    }
-  }
-
   function finishPeggingIfHandEmpty(){
     if (game.humanHand.length === 0 && game.aiHand.length === 0){
       // If sequence ended naturally without bothGo reset, award last card (if total < 31 and not already reset)

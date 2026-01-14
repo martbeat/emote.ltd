@@ -895,6 +895,7 @@
       aiScore: 0,
       dealer: "human", // toggles each hand
       handIndex: 1,
+lastCardAwarded: false,
 
       // Per-hand
       phase: "deal", // deal -> discard -> cut -> pegging -> count -> done
@@ -1070,6 +1071,7 @@ const lead = pickNextLead(
     }
 
     game.phase = "pegging";
+    game.lastCardAwarded = false;
     // Non-dealer leads
 const lead = (game.dealer === "human") ? "ai" : "human";
 
@@ -1088,7 +1090,14 @@ function endPegSequenceIfNeeded(){
 
   if (bothGo || bothStuck){
     if (game.pegTotal < 31 && game.lastPegPlayer){
-      addScore(game.lastPegPlayer, 1, "last card for 1");
+      if (
+  !game.lastCardAwarded &&
+  game.pegTotal < 31 &&
+  game.lastPegPlayer
+){
+  addScore(game.lastPegPlayer, 1, "last card for 1");
+  game.lastCardAwarded = true;
+}
       if (game.ended) return;
     }
 

@@ -493,6 +493,34 @@
     return 0;
   }
 
+
+  function endPeggingSequence(reason){
+  // Award last card if needed
+  if (game.pegTotal < 31 && game.lastPegPlayer){
+    addScore(game.lastPegPlayer, 1, "last card for 1");
+  }
+
+  // Decide next lead
+  const lead = pickNextLead(
+    { humanHand: game.humanHand, aiHand: game.aiHand },
+    game.lastPegPlayer
+  );
+
+  // Reset pegging state
+  game.pegSeq = [];
+  game.goAI = false;
+  game.lastPegPlayer = null;
+
+  render();
+  save();
+
+  // If AI leads, immediately continue
+  if (game.turn === "ai"){
+    maybeAITurn();
+  }
+}
+
+  
   function peggingScoreAfterPlay(seq, newTotal){
     // seq includes the newly played card at end
     let pts = 0;
@@ -1044,7 +1072,7 @@ const lead = pickNextLead(
     game.phase = "pegging";
     // Non-dealer leads
 const lead = (game.dealer === "human") ? "ai" : "human";
-resetPeggingSequence(lead);
+
     setMsg("Pegging: play cards up to 31. Score 15s, 31s, pairs, runs, go, last card.");
     logLine(`<b>Cut:</b> starter is ${cardStr(game.starter)}. Pegging begins. ${game.turn === "human" ? "You" : "AI"} to lead.`);
   }
@@ -1069,7 +1097,7 @@ function endPegSequenceIfNeeded(){
       game.lastPegPlayer
     );
 
-    resetPeggingSequence(lead);
+   
     render();
     save();
   }
@@ -1204,15 +1232,6 @@ function endPegSequenceIfNeeded(){
     }
   }
 
-function resetPeggingSequence(leadPlayer) {
-  game.pegSeq = [];
-  game.pegTotal = 0;
-  game.goHuman = false;
-  game.goAI = false;
-  game.lastPegPlayer = null;
-  game.turn = leadPlayer;
-}
-
   
   function confirm(){
     if (game.ended) return;
@@ -1265,8 +1284,8 @@ function resetPeggingSequence(leadPlayer) {
     game.turn = "ai";
     render();
     save();
-    endPegSequenceIfNeeded();
-    finishPeggingIfHandEmpty();
+endPeggingSequence("both-stuck");
+
     maybeAITurn();
   }
 
@@ -1302,7 +1321,6 @@ const lead = (who === "human")
   ? (game.humanHand.length ? "human" : "ai")
   : (game.aiHand.length ? "ai" : "human");
 
-resetPeggingSequence(lead);
 render();
 save();
 maybeAITurn();
@@ -1314,8 +1332,8 @@ return;
     render();
     save();
 
-    endPegSequenceIfNeeded();
-    finishPeggingIfHandEmpty();
+endPeggingSequence("both-stuck");
+
     maybeAITurn();
   }
 
@@ -1329,6 +1347,17 @@ return;
   // ===== AI turn driver =====
   let aiBusy = false;
   function maybeAITurn(){
+if (
+  game.phase === "pegging" &&
+  game.turn === "ai" &&
+  game.pegTotal === 0 &&
+  game.aiHand.length > 0
+){
+  // AI must play — force it
+  game.goAI = false;
+}
+
+    
     if (aiBusy) return;
     if (game.ended) return;
     if (game.turn !== "ai") return;
@@ -1353,8 +1382,8 @@ render();
 save();
 
 // 🔴 FORCE resolution here
-endPegSequenceIfNeeded();
-finishPeggingIfHandEmpty();
+endPeggingSequence("both-stuck");
+
 
 // 🔴 If still AI’s turn after resolution, continue
 if (game.turn === "ai") {

@@ -510,6 +510,8 @@
   game.pegSeq = [];
   game.goAI = false;
   game.lastPegPlayer = null;
+  game.lastCardAwarded = false;
+
 
   render();
   save();
@@ -1282,6 +1284,7 @@ function go(){
   if (game.ended) return;
   if (game.phase !== "pegging") return;
   if (game.turn !== "human") return;
+if (game.goHuman) return;
 
   // 🔒 HARD GUARD: cannot say go twice
   if (game.goHuman) return;
@@ -1381,6 +1384,7 @@ endPeggingSequence("both-stuck");
         const idx = aiChoosePegPlayStrong(game);
 
         if (idx === null){
+            if (game.goAI) return;   // ✅ ADD THIS
           // 🔒 AI cannot say go twice
           if (game.goAI) return;
 

@@ -1348,46 +1348,51 @@ endPeggingSequence("both-stuck");
 
   // ===== AI turn driver =====
   let aiBusy = false;
+
   function maybeAITurn(){
-if (
-  game.phase === "pegging" &&
-  game.turn === "ai" &&
-  game.pegTotal === 0 &&
-  game.aiHand.length > 0
-){
-  // AI must play — force it
-  game.goAI = false;
-}
-
-    
-    if (aiBusy) return;
-    if (game.ended) return;
-    if (game.turn !== "ai") return;
-
-    aiBusy = true;
-    setTimeout(() => {
-      try {
-        if (game.phase === "pegging"){
-          const idx = aiChoosePegPlayStrong(game);
-if (idx === null){
-  // 🔒 AI cannot say go twice
-  if (game.goAI){
-    aiBusy = false;
-    return;
+  // 🔒 Safety: if AI is leading a fresh sequence, it must not be stuck in go
+  if (
+    game.phase === "pegging" &&
+    game.turn === "ai" &&
+    game.pegTotal === 0 &&
+    game.aiHand.length > 0
+  ){
+    game.goAI = false;
   }
 
-  game.goAI = true;
-  logLine(`<b>AI:</b> go.`);
-  game.turn = "human";
+  if (aiBusy) return;
+  if (game.ended) return;
+  if (game.turn !== "ai") return;
 
-  render();
-  save();
+  aiBusy = true;
 
-  checkEndOfPeggingSequence();
-}
+  setTimeout(() => {
+    try {
+      if (game.phase === "pegging"){
+        const idx = aiChoosePegPlayStrong(game);
+
+        if (idx === null){
+          // 🔒 AI cannot say go twice
+          if (game.goAI) return;
+
+          game.goAI = true;
+          logLine(`<b>AI:</b> go.`);
+          game.turn = "human";
+
+          render();
+          save();
+
+          checkEndOfPeggingSequence();
+        } else {
+          playPegCard("ai", idx);
+        }
       }
-    }, 260);
-  }
+    } finally {
+      aiBusy = false;
+    }
+  }, 260);
+}
+
 
 function checkEndOfPeggingSequence(){
   // If both players have said go, end immediately

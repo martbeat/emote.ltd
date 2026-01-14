@@ -1,661 +1,165 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cribbage vs AI</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Cribbage (Full 2-Player) vs AI</title>
   <style>
     :root{
-      --bg:#070a12;
-      --panel:#0e1426cc;
-      --panel2:#0b1020cc;
+      --bg0:#070912;
+      --bg1:#0b1020;
+      --card:#101a33cc;
+      --card2:#0d142acc;
       --ink:#e9eefc;
       --muted:#aeb8da;
       --accent:#7aa7ff;
       --good:#7dffb2;
+      --warn:#ffcc66;
       --bad:#ff6b88;
-      --line:#1b2748;
-      --shadow: 0 10px 26px rgba(0,0,0,.35);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
       --r:16px;
-      --tap:46px;
+      --tap:48px;
     }
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+    *{box-sizing:border-box}
     body{
       margin:0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:
-        radial-gradient(1200px 700px at 20% 10%, #0b1531 0%, transparent 60%),
-        radial-gradient(1000px 600px at 90% 20%, #112243 0%, transparent 55%),
-        var(--bg);
+      background: radial-gradient(1200px 700px at 30% -10%, #18204a, transparent 60%),
+                  radial-gradient(1000px 700px at 90% 20%, #1a4a3a, transparent 55%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
       color:var(--ink);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
     }
-    .wrap{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 14px;
+    .app{
+      width:min(980px, 100%);
+      padding:12px;
       display:flex;
       flex-direction:column;
-      gap: 12px;
+      gap:10px;
     }
-    .row{ display:flex; gap:12px; align-items:stretch; flex-wrap:wrap; }
-    .card{
-      background: linear-gradient(180deg, var(--panel), var(--panel2));
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      padding: 12px;
-    }
-    .topbar{
+
+    .top{
       display:flex;
       gap:10px;
-      align-items:center;
-      justify-content:space-between;
       flex-wrap:wrap;
     }
-    h1{
-      font-size: 16px;
-      margin:0;
-      letter-spacing:.2px;
-      color: var(--ink);
-      font-weight: 800;
+    .panel{
+      background: linear-gradient(180deg, var(--card), var(--card2));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:10px;
     }
-    .small{
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.25;
+    .scorePanel{flex: 1 1 360px}
+    .statusPanel{flex: 2 1 420px}
+    .actionsPanel{flex: 1 1 200px; display:flex; flex-direction:column; gap:8px}
+
+    .row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .k{color:var(--muted); font-size:12px}
+    .v{font-weight:700}
+    .small{font-size:12px; color:var(--muted)}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(122,167,255,.15);
+      border:1px solid rgba(122,167,255,.25);
+      font-size:12px;
+      white-space:nowrap;
     }
-    .btns{ display:flex; gap:8px; flex-wrap:wrap; }
-    button{
-      appearance:none;
-      border:1px solid rgba(255,255,255,.14);
+    .badge.good{background: rgba(125,255,178,.14); border-color: rgba(125,255,178,.25)}
+    .badge.warn{background: rgba(255,204,102,.14); border-color: rgba(255,204,102,.25)}
+    .badge.bad{background: rgba(255,107,136,.14); border-color: rgba(255,107,136,.25)}
+
+    .progressWrap{margin-top:8px; display:grid; gap:8px}
+    .progressRow{display:grid; grid-template-columns: 64px 1fr 44px; gap:10px; align-items:center}
+    .bar{
+      height:12px;
+      border-radius:999px;
       background: rgba(255,255,255,.06);
-      color: var(--ink);
-      border-radius: 12px;
-      padding: 10px 12px;
-      min-height: var(--tap);
-      cursor:pointer;
-      font-weight: 750;
-      letter-spacing:.2px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
     }
-    button:hover{ background: rgba(255,255,255,.09); }
-    button:active{ transform: translateY(1px); }
+    .bar > i{display:block; height:100%; background: linear-gradient(90deg, rgba(122,167,255,.9), rgba(125,255,178,.9)); width:0%}
+    .bar.ai > i{background: linear-gradient(90deg, rgba(255,204,102,.9), rgba(255,107,136,.9))}
+    button{
+      height:var(--tap);
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color:var(--ink);
+      cursor:pointer;
+      font-weight:700;
+      padding:0 12px;
+    }
     button.primary{
-      background: rgba(122,167,255,.18);
-      border-color: rgba(122,167,255,.45);
+      background: rgba(122,167,255,.22);
+      border-color: rgba(122,167,255,.35);
     }
     button.good{
-      background: rgba(125,255,178,.14);
-      border-color: rgba(125,255,178,.45);
+      background: rgba(125,255,178,.18);
+      border-color: rgba(125,255,178,.30);
     }
-    button.danger{
-      background: rgba(255,107,136,.14);
-      border-color: rgba(255,107,136,.45);
+    button.bad{
+      background: rgba(255,107,136,.16);
+      border-color: rgba(255,107,136,.28);
     }
     button:disabled{
       opacity:.45;
       cursor:not-allowed;
-      transform:none;
     }
-    .grid{
+
+    .mid{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .tablePanel{flex: 2 1 520px}
+    .logPanel{flex: 1 1 260px; max-height: 340px; overflow:auto}
+
+    .tableGrid{
       display:grid;
       grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    @media (min-width: 860px){
-      .grid{ grid-template-columns: 1.05fr .95fr; }
-    }
-    .scoreline{
-      display:flex;
       gap:10px;
-      align-items:center;
+    }
+    .pileRow{
+      display:flex;
+      align-items:flex-start;
       justify-content:space-between;
-      flex-wrap:wrap;
-      margin-top:10px;
-    }
-    .scorebox{
-      display:flex;
       gap:10px;
-      align-items:center;
       flex-wrap:wrap;
     }
-    .pill{
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      font-size: 12px;
-      color: var(--muted);
+    .pile{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 180px;
+      flex: 1 1 180px;
+    }
+    .pileTitle{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .cardsLine{
       display:flex;
       gap:8px;
-      align-items:center;
-      white-space:nowrap;
-    }
-    .pill b{ color: var(--ink); font-weight: 900; }
-    .pill .tag{ color: var(--accent); font-weight: 900; }
-
-    .pegtrack{
-      margin-top: 10px;
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding-top: 10px;
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:10px;
-    }
-    .trackrow{ display:flex; align-items:center; gap:10px; }
-    .tracklabel{ width: 72px; font-size: 12px; color: var(--muted); }
-    .bar{
-      flex: 1;
-      height: 14px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      position:relative;
-      overflow:hidden;
-    }
-    .bar .fill{
-      height:100%;
-      width:0%;
-      background: linear-gradient(90deg, rgba(122,167,255,.20), rgba(125,255,178,.18));
-    }
-    .bar .peg{
-      position:absolute;
-      top:-4px;
-      width: 10px;
-      height: 22px;
-      border-radius: 6px;
-      background: rgba(255,255,255,.85);
-      box-shadow: 0 6px 18px rgba(0,0,0,.35);
-    }
-    .bar .peg.human{ background: rgba(125,255,178,.95); }
-    .bar .peg.ai{ background: rgba(122,167,255,.95); }
-
-    .playarea{ display:flex; flex-direction:column; gap:10px; }
-    .subhead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
       flex-wrap:wrap;
-    }
-    .subhead h2{
-      margin:0;
-      font-size: 14px;
-      font-weight: 900;
-      color: var(--ink);
-    }
-    .hint{ font-size: 12px; color: var(--muted); line-height:1.3; }
-
-    .divider{ height:1px; background: rgba(255,255,255,.08); margin:10px 0; }
-
-    .centerline{
-      display:flex;
       align-items:center;
+      min-height:56px;
+    }
+
+    .cardEl{
+      width:44px;
+      height:56px;
+      border-radius:12px;
+      background: rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.12);
+      display:flex;
+      flex-direction:column;
       justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
+      padding:6px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.28);
+      user-select:none;
+      touch-action: manipulation;
     }
-    .starter{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    .badge{
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .stack{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-
-    .cards{ display:flex; gap:8px; flex-wrap:wrap; }
-    .cbtn{
-      min-width: 54px;
-      padding: 10px 10px;
-      border-radius: 14px;
-      text-align:center;
-      font-weight: 950;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      line-height: 1.05;
-    }
-    .cbtn small{
-      display:block;
-      font-size: 11px;
-      margin-top: 3px;
-      color: var(--muted);
-      font-weight: 900;
-    }
-    .cbtn.sel{
-      outline: 2px solid rgba(125,255,178,.70);
-      background: rgba(125,255,178,.14);
-      border-color: rgba(125,255,178,.35);
-    }
-    .cbtn.playable{ outline: 2px solid rgba(122,167,255,.55); }
-    .cbtn.dead{ opacity:.35; }
-
-    .log{
-      max-height: 240px;
-      overflow:auto;
-      border-top:1px solid rgba(255,255,255,.08);
-      padding-top:10px;
-      font-size: 12px;
-      color: var(--muted);
-      line-height:1.35;
-    }
-    .log b{ color: var(--ink); }
-    .log .good{ color: var(--good); font-weight: 900; }
-    .log .bad{ color: var(--bad); font-weight: 900; }
-
-    .win{ font-weight: 950; color: var(--good); }
-    .lose{ font-weight: 950; color: var(--bad); }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <div class="topbar">
-        <div>
-          <h1>Cribbage vs AI</h1>
-          <div class="small" id="subtitle">Full 2 player rules, first to 121. Mobile first.</div>
-        </div>
-        <div class="btns">
-          <button class="primary" id="btnNew">New game</button>
-          <button id="btnUndo" title="Undo is only for your last action in the current phase">Undo</button>
-          <button id="btnHelp">Rules hints</button>
-        </div>
-      </div>
-
-      <div class="scoreline">
-        <div class="scorebox">
-          <div class="pill"><span class="tag">You</span> score <b id="scHuman">0</b></div>
-          <div class="pill"><span class="tag">AI</span> score <b id="scAI">0</b></div>
-          <div class="pill">Dealer: <b id="dealerWho">You</b></div>
-          <div class="pill">Phase: <b id="phaseName">—</b></div>
-        </div>
-        <div class="pill">Turn: <b id="turnWho">—</b></div>
-      </div>
-
-      <div class="pegtrack">
-        <div class="trackrow">
-          <div class="tracklabel">You</div>
-          <div class="bar">
-            <div class="fill" id="fillHuman"></div>
-            <div class="peg human" id="pegHuman" style="left:0%"></div>
-          </div>
-          <div class="pill"><b id="scHuman2">0</b>/121</div>
-        </div>
-        <div class="trackrow">
-          <div class="tracklabel">AI</div>
-          <div class="bar">
-            <div class="fill" id="fillAI"></div>
-            <div class="peg ai" id="pegAI" style="left:0%"></div>
-          </div>
-          <div class="pill"><b id="scAI2">0</b>/121</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="card playarea">
-        <div class="subhead">
-          <h2>Table</h2>
-          <div class="hint" id="tableHint"></div>
-        </div>
-
-        <div class="centerline">
-          <div class="starter">
-            <div class="badge">Count to 31: <b id="pegCount">0</b></div>
-            <div class="badge">Go status: <b id="goStatus">—</b></div>
-            <div class="badge">Last scorer: <b id="lastScore">—</b></div>
-          </div>
-          <div class="starter">
-            <div class="badge">Starter: <b id="starterCard">—</b></div>
-          </div>
-        </div>
-
-        <div>
-          <div class="small">Cards played in current sequence</div>
-          <div class="stack" id="seqCards"></div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="subhead">
-          <h2>Your hand</h2>
-          <div class="hint" id="handHint"></div>
-        </div>
-
-        <div class="cards" id="humanHand"></div>
-
-        <div class="centerline">
-          <div class="small" id="selInfo">Select cards as prompted.</div>
-          <div class="btns">
-            <button class="good" id="btnConfirm" disabled>Confirm</button>
-            <button class="danger" id="btnGo" disabled>Go</button>
-          </div>
-        </div>
-
-        <div class="log" id="log"></div>
-      </div>
-
-      <div class="card">
-        <div class="subhead">
-          <h2>AI status</h2>
-          <div class="hint">AI uses safe, simple heuristics for discard and pegging.</div>
-        </div>
-        <div class="divider"></div>
-        <div class="small">AI hand size: <b id="aiHandN">0</b></div>
-        <div class="small" style="margin-top:6px">Crib size: <b id="cribN">0</b></div>
-        <div class="small" style="margin-top:6px">Hand number: <b id="handNo">1</b></div>
-
-        <div class="divider"></div>
-        <div class="subhead">
-          <h2>Show</h2>
-          <div class="hint">End of hand scoring breakdown appears here.</div>
-        </div>
-        <div class="log" id="breakdown"></div>
-      </div>
-    </div>
-  </div>
-
-<script>
-(() => {
-  "use strict";
-
-  // ===== Constants and helpers =====
-  const SUITS = ["♠","♥","♦","♣"];
-  const RANKS = [null,"A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-  const val15 = (r) => (r >= 10 ? 10 : r);
-
-  const STORE_KEY = "cribbage_ai_clean_v1";
-
-  function cardStr(c){ return c ? `${RANKS[c.r]}${c.s}` : "—"; }
-  function makeDeck(){
-    const d = [];
-    for (const s of SUITS) for (let r = 1; r <= 13; r++) d.push({r,s});
-    return d;
-  }
-  function shuffle(a){
-    for (let i = a.length - 1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-  function sortHand(h){
-    return h.slice().sort((a,b) => (a.r - b.r) || (a.s.localeCompare(b.s)));
-  }
-  function clone(o){ return JSON.parse(JSON.stringify(o)); }
-
-  function allChoose2(n){
-    const out = [];
-    for (let i = 0; i < n; i++) for (let j = i+1; j < n; j++) out.push([i,j]);
-    return out;
-  }
-
-  // ===== UI =====
-  const ui = {
-    scHuman: document.getElementById("scHuman"),
-    scAI: document.getElementById("scAI"),
-    scHuman2: document.getElementById("scHuman2"),
-    scAI2: document.getElementById("scAI2"),
-    pegHuman: document.getElementById("pegHuman"),
-    pegAI: document.getElementById("pegAI"),
-    fillHuman: document.getElementById("fillHuman"),
-    fillAI: document.getElementById("fillAI"),
-    dealerWho: document.getElementById("dealerWho"),
-    phaseName: document.getElementById("phaseName"),
-    turnWho: document.getElementById("turnWho"),
-    tableHint: document.getElementById("tableHint"),
-    handHint: document.getElementById("handHint"),
-    pegCount: document.getElementById("pegCount"),
-    goStatus: document.getElementById("goStatus"),
-    lastScore: document.getElementById("lastScore"),
-    starterCard: document.getElementById("starterCard"),
-    seqCards: document.getElementById("seqCards"),
-    humanHand: document.getElementById("humanHand"),
-    aiHandN: document.getElementById("aiHandN"),
-    cribN: document.getElementById("cribN"),
-    handNo: document.getElementById("handNo"),
-    selInfo: document.getElementById("selInfo"),
-    log: document.getElementById("log"),
-    breakdown: document.getElementById("breakdown"),
-    btnConfirm: document.getElementById("btnConfirm"),
-    btnGo: document.getElementById("btnGo"),
-    btnNew: document.getElementById("btnNew"),
-    btnUndo: document.getElementById("btnUndo"),
-    btnHelp: document.getElementById("btnHelp"),
-  };
-
-  // ===== Game state =====
-  function defaultGame(){
-    return {
-      version: 1,
-      humanScore: 0,
-      aiScore: 0,
-      dealer: (Math.random() < 0.5) ? "human" : "ai",
-      handIndex: 1,
-      phase: "discard", // discard -> pegging -> count -> done
-      turn: "human", // who is to act in discard and pegging
-
-      deck: [],
-      humanHand: [],
-      aiHand: [],
-      crib: [],
-      starter: null,
-
-      // Pegging state
-      pegSeq: [],
-      pegTotal: 0,
-      goHuman: false,
-      goAI: false,
-      lastPegPlayer: null,
-
-      // Snapshots for counting
-      snapHumanKeep: null,
-      snapAIKeep: null,
-      snapCrib4: null,
-
-      ended: false,
-      msg: ""
-    };
-  }
-
-  let game = null;
-  let selection = new Set(); // indices in human hand during discard
-  let undoStack = []; // one level
-
-  function save(){
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(game)); } catch(e){}
-  }
-  function load(){
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return null;
-      const g = JSON.parse(raw);
-      if (!g || g.version !== 1) return null;
-      return g;
-    } catch(e){ return null; }
-  }
-
-  // ===== Logging =====
-  function logLine(html){
-    ui.log.innerHTML = html + "<br>" + ui.log.innerHTML;
-  }
-  function breakdownLine(html){
-    ui.breakdown.innerHTML = html + "<br>" + ui.breakdown.innerHTML;
-  }
-  function clearBreakdown(){ ui.breakdown.innerHTML = ""; }
-
-  function setMsg(m){
-    game.msg = m;
-    ui.tableHint.textContent = m;
-  }
-
-  // ===== Scoring: pegging =====
-  function scorePairsPeg(seq){
-    if (seq.length < 2) return 0;
-    const lastR = seq[seq.length - 1].r;
-    let n = 1;
-    for (let i = seq.length - 2; i >= 0; i--){
-      if (seq[i].r === lastR) n++;
-      else break;
-    }
-    if (n === 2) return 2;
-    if (n === 3) return 6;
-    if (n === 4) return 12;
-    return 0;
-  }
-
-  function scoreRunPeg(seq){
-    const maxK = Math.min(seq.length, 8);
-    for (let k = maxK; k >= 3; k--){
-      const slice = seq.slice(seq.length - k);
-      const counts = new Map();
-      let minR = 99, maxR = -99;
-      for (const c of slice){
-        counts.set(c.r, (counts.get(c.r)||0) + 1);
-        minR = Math.min(minR, c.r);
-        maxR = Math.max(maxR, c.r);
-      }
-      const uniq = Array.from(counts.keys()).sort((a,b)=>a-b);
-      if (uniq.length < 3) continue;
-
-      let consecutive = true;
-      for (let i = 1; i < uniq.length; i++){
-        if (uniq[i] !== uniq[i-1] + 1){ consecutive = false; break; }
-      }
-      if (!consecutive) continue;
-      if (maxR - minR + 1 !== uniq.length) continue;
-
-      let mult = 1;
-      for (const r of uniq) mult *= counts.get(r);
-      return uniq.length * mult;
-    }
-    return 0;
-  }
-
-  function peggingScoreAfterPlay(seq, total){
-    let pts = 0;
-    const reasons = [];
-    if (total === 15){ pts += 2; reasons.push("15 for 2"); }
-    if (total === 31){ pts += 2; reasons.push("31 for 2"); }
-    const p = scorePairsPeg(seq);
-    if (p){
-      pts += p;
-      if (p === 2) reasons.push("pair for 2");
-      else if (p === 6) reasons.push("three of a kind for 6");
-      else reasons.push("four of a kind for 12");
-    }
-    const r = scoreRunPeg(seq);
-    if (r){ pts += r; reasons.push(`run for ${r}`); }
-    return {pts, reasons};
-  }
-
-  // ===== Scoring: hand and crib =====
-  function scoreFifteens(cards){
-    const vals = cards.map(c => val15(c.r));
-    let count = 0;
-    const n = vals.length;
-    for (let mask = 1; mask < (1<<n); mask++){
-      let sum = 0;
-      for (let i = 0; i < n; i++) if (mask & (1<<i)) sum += vals[i];
-      if (sum === 15) count++;
-    }
-    return count * 2;
-  }
-
-  function comb(n,k){
-    if (k < 0 || k > n) return 0;
-    if (k === 0 || k === n) return 1;
-    let num=1, den=1;
-    for (let i=1; i<=k; i++){
-      num *= (n - (k - i));
-      den *= i;
-    }
-    return Math.round(num/den);
-  }
-
-  function scorePairsHand(cards){
-    const m = new Map();
-    for (const c of cards) m.set(c.r, (m.get(c.r)||0) + 1);
-    let pts = 0;
-    for (const n of m.values()) pts += comb(n,2) * 2;
-    return pts;
-  }
-
-  function scoreRunsHand(cards){
-    const m = new Map();
-    for (const c of cards) m.set(c.r, (m.get(c.r)||0) + 1);
-    const present = new Array(14).fill(0);
-    for (const [r,n] of m.entries()) present[r] = n;
-
-    for (let L = 5; L >= 3; L--){
-      let totalMult = 0;
-      for (let start = 1; start <= 14 - L; start++){
-        let mult = 1;
-        let ok = true;
-        for (let r = start; r < start + L; r++){
-          if (present[r] === 0){ ok = false; break; }
-          mult *= present[r];
-        }
-        if (ok) totalMult += mult;
-      }
-      if (totalMult) return L * totalMult;
-    }
-    return 0;
-  }
-
-  function scoreFlush(hand4, starter, isCrib){
-    const s = hand4[0].s;
-    const all4 = hand4.every(c => c.s === s);
-    if (!all4) return 0;
-    const five = starter && starter.s === s;
-    if (isCrib) return five ? 5 : 0;
-    return five ? 5 : 4;
-  }
-
-  function scoreNobs(hand4, starter){
-    if (!starter) return 0;
-    for (const c of hand4) if (c.r === 11 && c.s === starter.s) return 1;
-    return 0;
-  }
-
-  function scoreHand(hand4, starter, isCrib){
-    const cards5 = hand4.concat([starter]);
-    const f15 = scoreFifteens(cards5);
-    const pr = scorePairsHand(cards5);
-    const rn = scoreRunsHand(cards5);
-    const fl = scoreFlush(hand4, starter, isCrib);
-    const nb = scoreNobs(hand4, starter);
-    return {
-      total: f15 + pr + rn + fl + nb,
-      parts: { fifteens:f15, pairs:pr, runs:rn, flush:fl, nobs:nb }
-    };
-  }
-
-  function partsStr(p){
-    const seg = [];
-    if (p.fifteens) seg.push(`15s ${p.fifteens}`);
-    if (p.pairs) seg.push(`pairs ${p.pairs}`);
-    if (p.runs) seg.push(`runs ${p.runs}`);
-    if (p.flush) seg.push(`flush ${p.flush}`);
-    if (p.nobs) seg.push(`nobs ${p.nobs}`);
-    return seg.length ? seg.join(", ") : "no points";
-  }
-
-  // ===== Legal plays =====
-  function legalIndices(hand, currentTotal){
-    const out = [];
-    for (let i = 0; i < hand.length; i++){
-      if (currentTotal + val15(hand[i].r) <= 31) out.push(i);
-    }
-    return out;
-  }
-
-  function nextLeadAfterReset(lastPlayer){
-    const lpHas = (lastPlayer === "human" ? game.humanHand.length : game.aiHand.length) > 0;
-    const other = (lastPlayer === "human") ? "ai" : "human";
-    const otherHas = (other === "human" ? game.humanHand.length : game.aiHand.length) > 0;
-    if (lpHas) return lastPlayer;
-    if (o
+    .cardEl.playable{outline: 2px solid rgba(125,255,178,.35)}
+    .cardEl.selected{outline: 2px solid rgba(12

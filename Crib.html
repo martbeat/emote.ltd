@@ -1346,14 +1346,23 @@
             const moves = legalPlays(game.aiHand, game.pegTotal);
             if (moves.length === 0){
               pushUndo(); // still allow undo, but only your own action is intended. Keep harmless.
-              game.goAI = true;
-              logLine(`<b>AI:</b> go.`);
-              ui.goStatus.textContent = goText();
-              game.turn = "human";
-              render();
-              save();
-              endPegSequenceIfNeeded();
-              finishPeggingIfHandEmpty();
+game.goAI = true;
+logLine(`<b>AI:</b> go.`);
+ui.goStatus.textContent = goText();
+
+// Immediately resolve if human also stuck
+game.turn = "human";
+render();
+save();
+
+// 🔴 FORCE resolution here
+endPegSequenceIfNeeded();
+finishPeggingIfHandEmpty();
+
+// 🔴 If still AI’s turn after resolution, continue
+if (game.turn === "ai") {
+  maybeAITurn();
+}
             }
           } else {
             playPegCard("ai", idx);

@@ -929,11 +929,8 @@
     game.crib = [];
     game.starter = null;
 
-    game.pegSeq = [];
-    game.pegTotal = 0;
-    game.goHuman = false;
-    game.goAI = false;
-    game.lastPegPlayer = null;
+resetPeggingSequence(nextLead);
+
 
     // Deal 6 each
     for (let i = 0; i < 6; i++){
@@ -1043,11 +1040,8 @@
     }
 
     game.phase = "pegging";
-    game.pegSeq = [];
-    game.pegTotal = 0;
-    game.goHuman = false;
-    game.goAI = false;
-    game.lastPegPlayer = null;
+resetPeggingSequence(nextLead);
+
 
     // Non-dealer leads
     game.turn = (game.dealer === "human") ? "ai" : "human";
@@ -1070,10 +1064,8 @@
         if (game.ended) return;
       }
       // reset
-      game.pegSeq = [];
-      game.pegTotal = 0;
-      game.goHuman = false;
-      game.goAI = false;
+resetPeggingSequence(nextLead);
+
       const lead = pickNextLead({
         humanHand: game.humanHand,
         aiHand: game.aiHand
@@ -1216,6 +1208,16 @@
     }
   }
 
+function resetPeggingSequence(leadPlayer) {
+  game.pegSeq = [];
+  game.pegTotal = 0;
+  game.goHuman = false;
+  game.goAI = false;
+  game.lastPegPlayer = null;
+  game.turn = leadPlayer;
+}
+
+  
   function confirm(){
     if (game.ended) return;
     if (game.phase === "discard" && game.turn === "human"){
@@ -1299,11 +1301,8 @@
 
     // If 31, reset and same player leads (handled here)
     if (newTotal === 31){
-      game.pegSeq = [];
-      game.pegTotal = 0;
-      game.goHuman = false;
-      game.goAI = false;
-      game.lastPegPlayer = null;
+resetPeggingSequence(nextLead);
+
       game.turn = (who === "human") ? (game.humanHand.length ? "human" : "ai") : (game.aiHand.length ? "ai" : "human");
       render();
       save();

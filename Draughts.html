@@ -5,65 +5,20 @@
 <title>Draughts vs AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body {
-    font-family: system-ui, sans-serif;
-    background:#222;
-    color:#eee;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-  }
-
+  body { font-family: system-ui, sans-serif; background:#222; color:#eee; display:flex; flex-direction:column; align-items:center; }
   h1 { margin: 10px 0; }
-
-  #board {
-    display:grid;
-    grid-template-columns:repeat(8, 1fr);
-    width:90vmin;
-    max-width:480px;
-    aspect-ratio:1;
-    border:4px solid #444;
-  }
-
-  .square {
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-  }
-
+  #board { display:grid; grid-template-columns:repeat(8, 1fr); width:90vmin; max-width:480px; aspect-ratio:1; border:4px solid #444; }
+  .square { display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; }
   .dark { background:#5a3b1f; }
   .light { background:#e6d2b5; cursor:default; }
-
-  .piece {
-    width:70%;
-    height:70%;
-    border-radius:50%;
-    box-shadow: inset 0 0 0 3px rgba(0,0,0,.4);
-  }
-
+  .piece { width:70%; height:70%; border-radius:50%; box-shadow: inset 0 0 0 3px rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; }
   .red { background:#c0392b; }
   .black { background:#2c3e50; }
-
-  .king::after {
-    content:"♕";
-    color:#fff;
-    font-size:1.6em;
-    font-weight:bold;
-  }
-
-  .selected {
-    outline:4px solid #f1c40f;
-  }
-
-  .hint {
-    box-shadow: inset 0 0 0 4px #2ecc71;
-  }
-
-  #status {
-    margin-top:10px;
-    min-height:1.5em;
-  }
+  .king::after { content:"♕"; color:#fff; font-size:1.6em; font-weight:bold; }
+  .selected { outline:4px solid #f1c40f; border-radius:50%; }
+  .hint { box-shadow: inset 0 0 0 4px #2ecc71; }
+  #status { margin-top:10px; min-height:1.5em; text-align:center; max-width:480px; }
+  .small { opacity:.9; font-size:.92em; }
 </style>
 </head>
 <body>
@@ -74,7 +29,6 @@
 
 <script>
 /* ------------------ Game Model ------------------ */
-
 const EMPTY = 0;
 const RED = 1;
 const RED_KING = 2;
@@ -83,7 +37,17 @@ const BLACK_KING = -2;
 
 let board = [];
 let currentPlayer = RED;
+
+// UI selection: only matters for human (RED)
 let selected = null;
+
+// If a multi-jump capture chain is in progress, the player must continue with the same piece
+// forcedFrom = {r,c} or null
+let forcedFrom = null;
+
+// legalMoves contains either:
+// - normal moves: {from,to}
+// - capture start moves: {from,to, cap, chain:[{from,to,cap}, ...] }  (chain includes this step + subsequent forced captures)
 let legalMoves = [];
 
 function initBoard() {
@@ -100,15 +64,16 @@ function initBoard() {
 
 function isKing(p){ return Math.abs(p)===2; }
 function owner(p){ return Math.sign(p); }
+function inBounds(r,c){ return r>=0 && r<8 && c>=0 && c<8; }
 
 /* ------------------ Rendering ------------------ */
-
 const boardDiv = document.getElementById("board");
 const statusDiv = document.getElementById("status");
 
 function render() {
   boardDiv.innerHTML = "";
-  legalMoves = getAllMoves(board, currentPlayer);
+
+  legalMoves = getAllMoves(board, currentPlayer, forcedFrom);
 
   for (let r=0;r<8;r++){
     for (let c=0;c<8;c++){
@@ -119,37 +84,51 @@ function render() {
         sq.onclick = ()=>onSquareClick(r,c);
       }
 
-      if (board[r][c]!==EMPTY){
+      const pVal = board[r][c];
+      if (pVal!==EMPTY){
         const p = document.createElement("div");
-        p.className = "piece " + (board[r][c]>0?"red":"black");
-        if (isKing(board[r][c])) p.classList.add("king");
-        if (selected && selected.r===r && selected.c===c)
-          p.classList.add("selected");
+        p.className = "piece " + (pVal>0?"red":"black");
+        if (isKing(pVal)) p.classList.add("king");
+        if (selected && selected.r===r && selected.c===c) p.classList.add("selected");
         sq.appendChild(p);
       }
 
+      // hint squares: if selected is a from, highlight its legal "to" targets
       if (selected){
-        legalMoves
-          .filter(m=>m.from.r===selected.r && m.from.c===selected.c)
-          .forEach(m=>{
-            if (m.to.r===r && m.to.c===c)
-              sq.classList.add("hint");
-          });
+        const targets = legalMoves.filter(m => m.from.r===selected.r && m.from.c===selected.c);
+        for (const m of targets){
+          if (m.to.r===r && m.to.c===c) sq.classList.add("hint");
+        }
       }
 
       boardDiv.appendChild(sq);
     }
   }
 
-  statusDiv.textContent =
-    currentPlayer===RED ? "Your move" : "AI thinking…";
+  if (currentPlayer===RED){
+    if (forcedFrom){
+      statusDiv.innerHTML = `Your move: continue jumping with the selected piece.<div class="small">(Multi-jump capture in progress)</div>`;
+    } else {
+      const mustCapture = legalMoves.length && legalMoves[0].cap;
+      statusDiv.innerHTML = mustCapture
+        ? `Your move: capture is required.`
+        : `Your move.`;
+    }
+  } else {
+    statusDiv.textContent = "AI thinking…";
+  }
 }
 
 /* ------------------ Input ------------------ */
-
 function onSquareClick(r,c){
   if (currentPlayer!==RED) return;
 
+  // During a forced capture chain, only the forced piece can be selected/moved
+  if (forcedFrom){
+    selected = { ...forcedFrom };
+  }
+
+  // Try to perform move if a piece is selected and click matches a legal target
   if (selected){
     const move = legalMoves.find(m =>
       m.from.r===selected.r &&
@@ -157,157 +136,299 @@ function onSquareClick(r,c){
       m.to.r===r && m.to.c===c
     );
     if (move){
-      applyMove(board, move);
+      // Apply only the first step of the chosen chain
+      const step = move.chain ? move.chain[0] : move;
+      applyStep(board, step);
+
+      // If that was a capture and more captures exist for the same piece, force continuation
+      if (step.cap){
+        const nextForced = { r: step.to.r, c: step.to.c };
+        const nextCaps = getCaptureChainsForPiece(board, nextForced.r, nextForced.c);
+        if (nextCaps.length){
+          forcedFrom = nextForced;
+          selected = nextForced;
+          render();
+          return;
+        }
+      }
+
+      // Otherwise end turn
+      forcedFrom = null;
+      selected = null;
       endTurn();
       return;
     }
   }
 
+  // No move made: select a piece (only if allowed)
   if (board[r][c]!==EMPTY && owner(board[r][c])===RED){
+    if (forcedFrom){
+      // can only re-select the forced piece, ignore others
+      if (r===forcedFrom.r && c===forcedFrom.c){
+        selected = {r,c};
+        render();
+      }
+      return;
+    }
     selected = {r,c};
     render();
   }
 }
 
-/* ------------------ Moves ------------------ */
+/* ------------------ Move Generation (with multi-jump) ------------------ */
 
-function getAllMoves(b, player){
-  let captures = [];
-  let moves = [];
+// Returns list of legal moves for player.
+// If any capture exists, ONLY capture moves are returned.
+// If restrictFrom provided, only moves/captures for that single piece are returned.
+function getAllMoves(b, player, restrictFrom=null){
+  let captureMoves = [];
+  let quietMoves = [];
 
-  for (let r=0;r<8;r++){
-    for (let c=0;c<8;c++){
-      if (owner(b[r][c])===player){
-        const pm = getMovesForPiece(b,r,c);
-        captures.push(...pm.captures);
-        moves.push(...pm.moves);
+  const iterSquares = [];
+  if (restrictFrom){
+    iterSquares.push([restrictFrom.r, restrictFrom.c]);
+  } else {
+    for (let r=0;r<8;r++) for (let c=0;c<8;c++) iterSquares.push([r,c]);
+  }
+
+  for (const [r,c] of iterSquares){
+    if (!inBounds(r,c)) continue;
+    if (owner(b[r][c])!==player) continue;
+
+    const chains = getCaptureChainsForPiece(b, r, c);
+    if (chains.length){
+      // Each chain is an array of steps: [{from,to,cap}, ...]
+      for (const chain of chains){
+        captureMoves.push({
+          from: {...chain[0].from},
+          to: {...chain[0].to},
+          cap: {...chain[0].cap},
+          chain: chain
+        });
       }
+    } else if (!restrictFrom){
+      quietMoves.push(...getQuietMovesForPiece(b,r,c));
+    } else {
+      // in forced mode and no captures, that means no legal moves (should not happen mid-chain),
+      // return empty and let caller handle
     }
   }
-  return captures.length ? captures : moves;
+
+  return captureMoves.length ? captureMoves : quietMoves;
 }
 
-function getMovesForPiece(b,r,c){
+function getQuietMovesForPiece(b,r,c){
   const p = b[r][c];
-  const dirs = [];
-
-  if (p===RED || p===RED_KING) dirs.push([-1,-1],[-1,1]);
-  if (p===BLACK || p===BLACK_KING) dirs.push([1,-1],[1,1]);
-  if (isKing(p)) dirs.push(...dirs.map(d=>[-d[0],-d[1]]));
-
-  let moves=[], captures=[];
-
+  const dirs = getMoveDirs(p);
+  const moves = [];
   for (const [dr,dc] of dirs){
     const r1=r+dr,c1=c+dc;
-    const r2=r+2*dr,c2=c+2*dc;
-
     if (inBounds(r1,c1) && b[r1][c1]===EMPTY){
       moves.push({from:{r,c},to:{r:r1,c:c1}});
     }
-    if (inBounds(r2,c2) &&
-        owner(b[r1]?.[c1])===-owner(p) &&
-        b[r2][c2]===EMPTY){
-      captures.push({
+  }
+  return moves;
+}
+
+function getMoveDirs(p){
+  // Men move forward only. Kings move both ways.
+  const dirs = [];
+  if (p===RED || p===RED_KING) dirs.push([-1,-1],[-1,1]);
+  if (p===BLACK || p===BLACK_KING) dirs.push([1,-1],[1,1]);
+  if (isKing(p)){
+    // add opposite directions not already included
+    const extra = dirs.map(d=>[-d[0],-d[1]]);
+    for (const d of extra){
+      if (!dirs.some(x=>x[0]===d[0] && x[1]===d[1])) dirs.push(d);
+    }
+  }
+  return dirs;
+}
+
+// Returns all capture chains for a given piece at (r,c) on board b.
+// Each chain is an array of steps: [{from,to,cap}, ...]
+// English draughts rule note implemented here: promotion is applied when a step lands on the back rank,
+// and any further captures in the same turn are allowed as a king from that point.
+function getCaptureChainsForPiece(b, r, c){
+  const p = b[r][c];
+  if (p===EMPTY) return [];
+  const player = owner(p);
+
+  const results = [];
+  const start = {r,c};
+
+  function dfs(boardState, fromPos, pieceVal, chainSoFar){
+    const caps = getImmediateCaptures(boardState, fromPos.r, fromPos.c, pieceVal);
+
+    if (!caps.length){
+      if (chainSoFar.length) results.push(chainSoFar);
+      return;
+    }
+
+    for (const step of caps){
+      const nb = cloneBoard(boardState);
+      applyStep(nb, step); // includes crowning if applicable
+      const newPiece = nb[step.to.r][step.to.c];
+      dfs(nb, {r:step.to.r, c:step.to.c}, newPiece, chainSoFar.concat([step]));
+    }
+  }
+
+  dfs(b, start, p, []);
+  // Filter out empty chains (none)
+  return results.filter(ch => ch.length>0 && owner(b[r][c])===player);
+}
+
+function getImmediateCaptures(b,r,c,pieceVal){
+  const dirs = getMoveDirs(pieceVal);
+  const caps = [];
+
+  for (const [dr,dc] of dirs){
+    const r1=r+dr, c1=c+dc;
+    const r2=r+2*dr, c2=c+2*dc;
+    if (!inBounds(r2,c2) || !inBounds(r1,c1)) continue;
+    const mid = b[r1][c1];
+    if (mid!==EMPTY && owner(mid)===-owner(pieceVal) && b[r2][c2]===EMPTY){
+      caps.push({
         from:{r,c},
         to:{r:r2,c:c2},
         cap:{r:r1,c:c1}
       });
     }
   }
-  return {moves,captures};
+  return caps;
 }
 
-function inBounds(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+/* ------------------ Apply step (single jump or quiet move) ------------------ */
 
-/* ------------------ Apply ------------------ */
+function applyStep(b, step){
+  const p = b[step.from.r][step.from.c];
+  b[step.from.r][step.from.c]=EMPTY;
+  b[step.to.r][step.to.c]=p;
+  if (step.cap) b[step.cap.r][step.cap.c]=EMPTY;
 
-function applyMove(b,m){
-  const p = b[m.from.r][m.from.c];
-  b[m.from.r][m.from.c]=EMPTY;
-  b[m.to.r][m.to.c]=p;
-  if (m.cap) b[m.cap.r][m.cap.c]=EMPTY;
-
-  if (p===RED && m.to.r===0) b[m.to.r][m.to.c]=RED_KING;
-  if (p===BLACK && m.to.r===7) b[m.to.r][m.to.c]=BLACK_KING;
+  // crowning
+  if (p===RED && step.to.r===0) b[step.to.r][step.to.c]=RED_KING;
+  if (p===BLACK && step.to.r===7) b[step.to.r][step.to.c]=BLACK_KING;
 }
 
 /* ------------------ Turn / AI ------------------ */
 
 function endTurn(){
-  selected=null;
-  currentPlayer*=-1;
+  currentPlayer *= -1;
   render();
   if (currentPlayer===BLACK){
-    setTimeout(aiMove,300);
+    setTimeout(aiTurn, 250);
   }
 }
 
-function aiMove(){
-  const move = bestMove(board, BLACK, 5);
-  if (move){
-    applyMove(board, move);
-    currentPlayer=RED;
+function aiTurn(){
+  // AI chooses an entire chain when capturing, then executes it fully in one turn.
+  const chosen = bestMove(board, BLACK, 6);
+  if (!chosen){
+    currentPlayer = RED;
     render();
+    return;
   }
+
+  if (chosen.chain && chosen.chain.length){
+    for (const step of chosen.chain){
+      applyStep(board, step);
+    }
+  } else {
+    applyStep(board, chosen);
+  }
+
+  currentPlayer = RED;
+  forcedFrom = null;
+  selected = null;
+  render();
 }
 
-/* ------------------ AI ------------------ */
+/* ------------------ AI (minimax over full turns) ------------------ */
 
-function bestMove(b,player,depth){
-  let best=null;
-  let bestScore=-Infinity;
+function bestMove(b, player, depth){
+  const moves = getAllMoves(b, player, null);
+  if (!moves.length) return null;
 
-  for (const m of getAllMoves(b,player)){
+  let best = null;
+  let bestScore = -Infinity;
+
+  for (const m of moves){
     const nb = cloneBoard(b);
-    applyMove(nb,m);
-    const score = -negamax(nb,-player,depth-1,-Infinity,Infinity);
-    if (score>bestScore){
-      bestScore=score;
-      best=m;
+
+    // Apply whole chain for captures
+    if (m.chain && m.chain.length){
+      for (const step of m.chain) applyStep(nb, step);
+    } else {
+      applyStep(nb, m);
+    }
+
+    const score = -negamax(nb, -player, depth-1, -Infinity, Infinity);
+    if (score > bestScore){
+      bestScore = score;
+      best = m;
     }
   }
   return best;
 }
 
-function negamax(b,player,depth,alpha,beta){
-  if (depth===0) return evaluate(b,player);
+function negamax(b, player, depth, alpha, beta){
+  const moves = getAllMoves(b, player, null);
+  if (depth===0) return evaluate(b, player);
+  if (!moves.length) return -99999;
 
-  const moves = getAllMoves(b,player);
-  if (!moves.length) return -999;
+  let value = -Infinity;
 
-  let value=-Infinity;
   for (const m of moves){
     const nb = cloneBoard(b);
-    applyMove(nb,m);
-    value = Math.max(
-      value,
-      -negamax(nb,-player,depth-1,-beta,-alpha)
-    );
-    alpha = Math.max(alpha,value);
-    if (alpha>=beta) break;
+
+    if (m.chain && m.chain.length){
+      for (const step of m.chain) applyStep(nb, step);
+    } else {
+      applyStep(nb, m);
+    }
+
+    const score = -negamax(nb, -player, depth-1, -beta, -alpha);
+    value = Math.max(value, score);
+    alpha = Math.max(alpha, value);
+    if (alpha >= beta) break;
   }
   return value;
 }
 
-function evaluate(b,player){
-  let score=0;
-  for (let r=0;r<8;r++)
+function evaluate(b, player){
+  // Simple material + mobility
+  let score = 0;
+
+  for (let r=0;r<8;r++){
     for (let c=0;c<8;c++){
-      const p=b[r][c];
-      if (p!==EMPTY){
-        const v = isKing(p)?3:1;
-        score += owner(p)===player ? v : -v;
+      const p = b[r][c];
+      if (p===EMPTY) continue;
+
+      const v = isKing(p) ? 3.2 : 1.0;
+      score += (owner(p)===player ? v : -v);
+
+      // slight advancement bonus for men
+      if (!isKing(p)){
+        const adv = (owner(p)===RED) ? (7-r) : r;
+        score += (owner(p)===player ? adv*0.03 : -adv*0.03);
       }
     }
+  }
+
+  // mobility (small)
+  const myMoves = getAllMoves(b, player, null).length;
+  const oppMoves = getAllMoves(b, -player, null).length;
+  score += (myMoves - oppMoves) * 0.05;
+
   return score;
 }
 
 function cloneBoard(b){
-  return b.map(r=>r.slice());
+  return b.map(row => row.slice());
 }
 
 /* ------------------ Start ------------------ */
-
 initBoard();
 render();
 </script>

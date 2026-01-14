@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Draughts vs AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background:#222;
+    color:#eee;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  h1 { margin: 10px 0; }
+
+  #board {
+    display:grid;
+    grid-template-columns:repeat(8, 1fr);
+    width:90vmin;
+    max-width:480px;
+    aspect-ratio:1;
+    border:4px solid #444;
+  }
+
+  .square {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+
+  .dark { background:#5a3b1f; }
+  .light { background:#e6d2b5; cursor:default; }
+
+  .piece {
+    width:70%;
+    height:70%;
+    border-radius:50%;
+    box-shadow: inset 0 0 0 3px rgba(0,0,0,.4);
+  }
+
+  .red { background:#c0392b; }
+  .black { background:#2c3e50; }
+
+  .king::after {
+    content:"♕";
+    color:#fff;
+    font-size:1.6em;
+    font-weight:bold;
+  }
+
+  .selected {
+    outline:4px solid #f1c40f;
+  }
+
+  .hint {
+    box-shadow: inset 0 0 0 4px #2ecc71;
+  }
+
+  #status {
+    margin-top:10px;
+    min-height:1.5em;
+  }
+</style>
+</head>
+<body>
+
+<h1>Draughts</h1>
+<div id="board"></div>
+<div id="status"></div>
+
+<script>
+/* ------------------ Game Model ------------------ */
+
+const EMPTY = 0;
+const RED = 1;
+const RED_KING = 2;
+const BLACK = -1;
+const BLACK_KING = -2;
+
+let board = [];
+let currentPlayer = RED;
+let selected = null;
+let legalMoves = [];
+
+function initBoard() {
+  board = Array.from({length:8}, () => Array(8).fill(EMPTY));
+
+  for (let r=0;r<3;r++)
+    for (let c=0;c<8;c++)
+      if ((r+c)%2===1) board[r][c] = BLACK;
+
+  for (let r=5;r<8;r++)
+    for (let c=0;c<8;c++)
+      if ((r+c)%2===1) board[r][c] = RED;
+}
+
+function isKing(p){ return Math.abs(p)===2; }
+function owner(p){ return Math.sign(p); }
+
+/* ------------------ Rendering ------------------ */
+
+const boardDiv = document.getElementById("board");
+const statusDiv = document.getElementById("status");
+
+function render() {
+  boardDiv.innerHTML = "";
+  legalMoves = getAllMoves(board, currentPlayer);
+
+  for (let r=0;r<8;r++){
+    for (let c=0;c<8;c++){
+      const sq = document.createElement("div");
+      sq.className = "square " + ((r+c)%2?"dark":"light");
+
+      if ((r+c)%2===1){
+        sq.onclick = ()=>onSquareClick(r,c);
+      }
+
+      if (board[r][c]!==EMPTY){
+        const p = document.createElement("div");
+        p.className = "piece " + (board[r][c]>0?"red":"black");
+        if (isKing(board[r][c])) p.classList.add("king");
+        if (selected && selected.r===r && selected.c===c)
+          p.classList.add("selected");
+        sq.appendChild(p);
+      }
+
+      if (selected){
+        legalMoves
+          .filter(m=>m.from.r===selected.r && m.from.c===selected.c)
+          .forEach(m=>{
+            if (m.to.r===r && m.to.c===c)
+              sq.classList.add("hint");
+          });
+      }
+
+      boardDiv.appendChild(sq);
+    }
+  }
+
+  statusDiv.textContent =
+    currentPlayer===RED ? "Your move" : "AI thinking…";
+}
+
+/* ------------------ Input ------------------ */
+
+function onSquareClick(r,c){
+  if (currentPlayer!==RED) return;
+
+  if (selected){
+    const move = legalMoves.find(m =>
+      m.from.r===selected.r &&
+      m.from.c===selected.c &&
+      m.to.r===r && m.to.c===c
+    );
+    if (move){
+      applyMove(board, move);
+      endTurn();
+      return;
+    }
+  }
+
+  if (board[r][c]!==EMPTY && owner(board[r][c])===RED){
+    selected = {r,c};
+    render();
+  }
+}
+
+/* ------------------ Moves ------------------ */
+
+function getAllMoves(b, player){
+  let captures = [];
+  let moves = [];
+
+  for (let r=0;r<8;r++){
+    for (let c=0;c<8;c++){
+      if (owner(b[r][c])===player){
+        const pm = getMovesForPiece(b,r,c);
+        captures.push(...pm.captures);
+        moves.push(...pm.moves);
+      }
+    }
+  }
+  return captures.length ? captures : moves;
+}
+
+function getMovesForPiece(b,r,c){
+  const p = b[r][c];
+  const dirs = [];
+
+  if (p===RED || p===RED_KING) dirs.push([-1,-1],[-1,1]);
+  if (p===BLACK || p===BLACK_KING) dirs.push([1,-1],[1,1]);
+  if (isKing(p)) dirs.push(...dirs.map(d=>[-d[0],-d[1]]));
+
+  let moves=[], captures=[];
+
+  for (const [dr,dc] of dirs){
+    const r1=r+dr,c1=c+dc;
+    const r2=r+2*dr,c2=c+2*dc;
+
+    if (inBounds(r1,c1) && b[r1][c1]===EMPTY){
+      moves.push({from:{r,c},to:{r:r1,c:c1}});
+    }
+    if (inBounds(r2,c2) &&
+        owner(b[r1]?.[c1])===-owner(p) &&
+        b[r2][c2]===EMPTY){
+      captures.push({
+        from:{r,c},
+        to:{r:r2,c:c2},
+        cap:{r:r1,c:c1}
+      });
+    }
+  }
+  return {moves,captures};
+}
+
+function inBounds(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+
+/* ------------------ Apply ------------------ */
+
+function applyMove(b,m){
+  const p = b[m.from.r][m.from.c];
+  b[m.from.r][m.from.c]=EMPTY;
+  b[m.to.r][m.to.c]=p;
+  if (m.cap) b[m.cap.r][m.cap.c]=EMPTY;
+
+  if (p===RED && m.to.r===0) b[m.to.r][m.to.c]=RED_KING;
+  if (p===BLACK && m.to.r===7) b[m.to.r][m.to.c]=BLACK_KING;
+}
+
+/* ------------------ Turn / AI ------------------ */
+
+function endTurn(){
+  selected=null;
+  currentPlayer*=-1;
+  render();
+  if (currentPlayer===BLACK){
+    setTimeout(aiMove,300);
+  }
+}
+
+function aiMove(){
+  const move = bestMove(board, BLACK, 5);
+  if (move){
+    applyMove(board, move);
+    currentPlayer=RED;
+    render();
+  }
+}
+
+/* ------------------ AI ------------------ */
+
+function bestMove(b,player,depth){
+  let best=null;
+  let bestScore=-Infinity;
+
+  for (const m of getAllMoves(b,player)){
+    const nb = cloneBoard(b);
+    applyMove(nb,m);
+    const score = -negamax(nb,-player,depth-1,-Infinity,Infinity);
+    if (score>bestScore){
+      bestScore=score;
+      best=m;
+    }
+  }
+  return best;
+}
+
+function negamax(b,player,depth,alpha,beta){
+  if (depth===0) return evaluate(b,player);
+
+  const moves = getAllMoves(b,player);
+  if (!moves.length) return -999;
+
+  let value=-Infinity;
+  for (const m of moves){
+    const nb = cloneBoard(b);
+    applyMove(nb,m);
+    value = Math.max(
+      value,
+      -negamax(nb,-player,depth-1,-beta,-alpha)
+    );
+    alpha = Math.max(alpha,value);
+    if (alpha>=beta) break;
+  }
+  return value;
+}
+
+function evaluate(b,player){
+  let score=0;
+  for (let r=0;r<8;r++)
+    for (let c=0;c<8;c++){
+      const p=b[r][c];
+      if (p!==EMPTY){
+        const v = isKing(p)?3:1;
+        score += owner(p)===player ? v : -v;
+      }
+    }
+  return score;
+}
+
+function cloneBoard(b){
+  return b.map(r=>r.slice());
+}
+
+/* ------------------ Start ------------------ */
+
+initBoard();
+render();
+</script>
+
+</body>
+</html>

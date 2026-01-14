@@ -944,13 +944,28 @@
     advancePegTurn();
   }
 
-  function playerGo(){
-    if(!(state.phase==="pegging" && state.turn===0)) return;
-    if(playerHasLegalPeg()) return;
-    state.goCalled[0] = true;
-    addLog(`<span class="t">You say</span> <b>GO</b>.`);
-    advancePegTurn();
-  }
+function playerGo(){
+  if(state.phase !== "pegging") return;
+  if(state.turn !== 0) return;
+
+  // NEW: prevent repeated GO
+  if(state.goCalled[0]) return;
+
+  // If player actually has a legal move, GO is illegal
+  if(playerHasLegalPeg()) return;
+
+  state.goCalled[0] = true;
+  addLog(`<span class="t">You say</span> <b>GO</b>.`);
+
+  // Immediately pass turn
+  state.turn = 1;
+
+  // Resolve if needed
+  finalizeGoIfNeeded(false);
+  renderAll();
+  maybeAIMove();
+}
+
 
   function playPegCard(who, card){
     const newCount = state.pegCount + pegValue(card);
@@ -1014,6 +1029,15 @@
   }
 
   function finalizeGoIfNeeded(forceEnd=false){
+      // NEW: if count is 0 and no one can play, end pegging
+  if (
+    state.pegCount === 0 &&
+    !hasPlayable(0) &&
+    !hasPlayable(1)
+  ){
+    scoreShow();
+    return;
+  }
     // If someone said GO and the other cannot play (or force end), the last pegger gets 1 (or 2 if ended on 31 already counted separately).
     // Also if count hits 31, reset automatically without go point (31 already scored as 2 in peggingPoints).
     if(state.pegCount===31){

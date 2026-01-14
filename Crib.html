@@ -1057,27 +1057,32 @@ resetPeggingSequence(lead);
     logLine(`<b>Cut:</b> starter is ${cardStr(game.starter)}. Pegging begins. ${game.turn === "human" ? "You" : "AI"} to lead.`);
   }
 
-  function endPegSequenceIfNeeded(){
-    // If both said go OR no cards can be played by either, award last card (if total < 31), then reset
-    const humanHas = legalPlays(game.humanHand, game.pegTotal).length > 0;
-    const aiHas = legalPlays(game.aiHand, game.pegTotal).length > 0;
+function endPegSequenceIfNeeded(){
+  let lead;
 
-    const bothStuck = !humanHas && !aiHas;
-    const bothGo = game.goHuman && game.goAI;
+  const humanHas = legalPlays(game.humanHand, game.pegTotal).length > 0;
+  const aiHas = legalPlays(game.aiHand, game.pegTotal).length > 0;
 
-    if (bothGo || bothStuck){
-      if (game.pegTotal < 31 && game.lastPegPlayer){
-        addScore(game.lastPegPlayer, 1, "last card for 1");
-        breakdownLine(`<b>Pegging:</b> ${game.lastPegPlayer === "human" ? "You" : "AI"} score 1 for last card.`);
-        if (game.ended) return;
-      }
-      // reset
+  const bothStuck = !humanHas && !aiHas;
+  const bothGo = game.goHuman && game.goAI;
 
+  if (bothGo || bothStuck){
+    if (game.pegTotal < 31 && game.lastPegPlayer){
+      addScore(game.lastPegPlayer, 1, "last card for 1");
+      if (game.ended) return;
+    }
 
-const lead = pickNextLead(
-  { humanHand: game.humanHand, aiHand: game.aiHand },
-  game.lastPegPlayer
-);
+    lead = pickNextLead(
+      { humanHand: game.humanHand, aiHand: game.aiHand },
+      game.lastPegPlayer
+    );
+
+    resetPeggingSequence(lead);
+    render();
+    save();
+  }
+}
+
 
 resetPeggingSequence(lead);
 render();
@@ -1312,14 +1317,15 @@ const lead = pickNextLead(
   game.lastPegPlayer
 );
 
-resetPeggingSequence(lead);
+const lead = (who === "human")
+  ? (game.humanHand.length ? "human" : "ai")
+  : (game.aiHand.length ? "ai" : "human");
 
-      game.turn = (who === "human") ? (game.humanHand.length ? "human" : "ai") : (game.aiHand.length ? "ai" : "human");
-      render();
-      save();
-      finishPeggingIfHandEmpty();
-      maybeAITurn();
-      return;
+resetPeggingSequence(lead);
+render();
+save();
+maybeAITurn();
+return;
     }
 
     // switch turn

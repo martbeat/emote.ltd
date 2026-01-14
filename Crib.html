@@ -1,1568 +1,273 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cribbage vs AI</title>
-  <style>
-    :root{
-      --bg:#070a12;
-      --panel:#0e1426cc;
-      --panel2:#0b1020cc;
-      --ink:#e9eefc;
-      --muted:#aeb8da;
-      --accent:#7aa7ff;
-      --good:#7dffb2;
-      --bad:#ff6b88;
-      --line:#1b2748;
-      --shadow: 0 10px 26px rgba(0,0,0,.35);
-      --r:16px;
-      --tap: 46px;
-    }
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 700px at 20% 10%, #0b1531 0%, transparent 60%),
-                  radial-gradient(1000px 600px at 90% 20%, #112243 0%, transparent 55%),
-                  var(--bg);
-      color:var(--ink);
-    }
-    .wrap{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 14px;
-      display:flex;
-      flex-direction:column;
-      gap: 12px;
-    }
-    .row{ display:flex; gap:12px; align-items:stretch; flex-wrap:wrap; }
-    .card{
-      background: linear-gradient(180deg, var(--panel), var(--panel2));
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      padding: 12px;
-    }
-    .topbar{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      flex-wrap:wrap;
-    }
-    h1{
-      font-size: 16px;
-      margin:0;
-      letter-spacing:.2px;
-      color: var(--ink);
-      font-weight: 700;
-    }
-    .small{
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.25;
-    }
-    .btns{ display:flex; gap:8px; flex-wrap:wrap; }
-    button{
-      appearance:none;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: var(--ink);
-      border-radius: 12px;
-      padding: 10px 12px;
-      min-height: var(--tap);
-      cursor:pointer;
-      font-weight: 650;
-      letter-spacing:.2px;
-    }
-    button:hover{ background: rgba(255,255,255,.09); }
-    button:active{ transform: translateY(1px); }
-    button.primary{
-      background: rgba(122,167,255,.18);
-      border-color: rgba(122,167,255,.45);
-    }
-    button.good{
-      background: rgba(125,255,178,.14);
-      border-color: rgba(125,255,178,.45);
-      color: var(--ink);
-    }
-    button.danger{
-      background: rgba(255,107,136,.14);
-      border-color: rgba(255,107,136,.45);
-    }
-    button:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-      transform:none;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    @media (min-width: 860px){
-      .grid{ grid-template-columns: 1.05fr .95fr; }
-    }
-
-    .scoreline{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      flex-wrap:wrap;
-    }
-    .scorebox{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    .pill{
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      font-size: 12px;
-      color: var(--muted);
-      display:flex;
-      gap:8px;
-      align-items:center;
-      white-space:nowrap;
-    }
-    .pill b{ color: var(--ink); font-weight: 800; }
-    .pill .tag{ color: var(--accent); font-weight: 800; }
-
-    .pegtrack{
-      margin-top: 10px;
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding-top: 10px;
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:10px;
-    }
-    .trackrow{
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
-    .tracklabel{
-      width: 72px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .bar{
-      flex: 1;
-      height: 14px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      position:relative;
-      overflow:hidden;
-    }
-    .bar .fill{
-      height:100%;
-      width:0%;
-      background: linear-gradient(90deg, rgba(122,167,255,.20), rgba(125,255,178,.18));
-    }
-    .bar .peg{
-      position:absolute;
-      top:-4px;
-      width: 10px;
-      height: 22px;
-      border-radius: 6px;
-      background: rgba(255,255,255,.85);
-      box-shadow: 0 6px 18px rgba(0,0,0,.35);
-    }
-    .bar .peg.human{ background: rgba(125,255,178,.95); }
-    .bar .peg.ai{ background: rgba(122,167,255,.95); }
-
-    .playarea{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    .stack{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .subhead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .subhead h2{
-      margin:0;
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--ink);
-    }
-    .hint{
-      font-size: 12px;
-      color: var(--muted);
-      line-height:1.3;
-    }
-
-    .cards{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-    .cbtn{
-      min-width: 48px;
-      padding: 10px 10px;
-      border-radius: 14px;
-      text-align:center;
-      font-weight: 900;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      line-height: 1.05;
-    }
-    .cbtn small{
-      display:block;
-      font-size: 11px;
-      margin-top: 3px;
-      color: var(--muted);
-      font-weight: 800;
-    }
-    .cbtn.sel{
-      outline: 2px solid rgba(125,255,178,.65);
-      background: rgba(125,255,178,.14);
-      border-color: rgba(125,255,178,.35);
-    }
-    .cbtn.playable{
-      outline: 2px solid rgba(122,167,255,.55);
-    }
-    .cbtn.dead{
-      opacity:.35;
-    }
-
-    .log{
-      max-height: 240px;
-      overflow:auto;
-      border-top:1px solid rgba(255,255,255,.08);
-      padding-top:10px;
-      font-size: 12px;
-      color: var(--muted);
-      line-height:1.35;
-    }
-    .log b{ color: var(--ink); }
-    .log .good{ color: var(--good); font-weight: 800; }
-    .log .bad{ color: var(--bad); font-weight: 800; }
-    .divider{
-      height:1px;
-      background: rgba(255,255,255,.08);
-      margin:10px 0;
-    }
-    .centerline{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .starter{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .badge{
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .win{
-      font-weight: 950;
-      color: var(--good);
-    }
-    .lose{
-      font-weight: 950;
-      color: var(--bad);
-    }
-    .sr{ position:absolute; left:-9999px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cribbage vs AI</title>
+<style>
+body{
+  margin:0;
+  font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  background:#0b1020;
+  color:#e9eefc;
+}
+.wrap{max-width:900px;margin:auto;padding:12px}
+.card{background:#141b35;border-radius:14px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+button{padding:10px 14px;border-radius:12px;border:0;background:#3a5cff;color:#fff;font-weight:700}
+button:disabled{opacity:.4}
+.hand button{min-width:44px}
+.log{font-size:13px;max-height:200px;overflow:auto}
+.badge{background:#222b55;padding:4px 8px;border-radius:8px;font-size:12px}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="topbar">
-        <div>
-          <h1>Cribbage vs AI</h1>
-          <div class="small" id="subtitle">Full 2-player rules, first to 121. Mobile-first.</div>
-        </div>
-        <div class="btns">
-          <button class="primary" id="btnNew">New game</button>
-          <button id="btnUndo" title="Undo only available for your last action in the current phase">Undo</button>
-          <button id="btnHelp">Rules hints</button>
-        </div>
-      </div>
 
-      <div class="scoreline" style="margin-top:10px">
-        <div class="scorebox">
-          <div class="pill"><span class="tag">You</span> score <b id="scHuman">0</b></div>
-          <div class="pill"><span class="tag">AI</span> score <b id="scAI">0</b></div>
-          <div class="pill">Dealer: <b id="dealerWho">You</b></div>
-          <div class="pill">Phase: <b id="phaseName">—</b></div>
-        </div>
-        <div class="pill">Turn: <b id="turnWho">—</b></div>
-      </div>
+<div class="wrap">
 
-      <div class="pegtrack">
-        <div class="trackrow">
-          <div class="tracklabel">You</div>
-          <div class="bar" aria-label="You score track">
-            <div class="fill" id="fillHuman"></div>
-            <div class="peg human" id="pegHuman" style="left:0%"></div>
-          </div>
-          <div class="pill"><b id="scHuman2">0</b>/121</div>
-        </div>
-        <div class="trackrow">
-          <div class="tracklabel">AI</div>
-          <div class="bar" aria-label="AI score track">
-            <div class="fill" id="fillAI"></div>
-            <div class="peg ai" id="pegAI" style="left:0%"></div>
-          </div>
-          <div class="pill"><b id="scAI2">0</b>/121</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="card playarea">
-        <div class="subhead">
-          <h2>Table</h2>
-          <div class="hint" id="tableHint"></div>
-        </div>
-
-        <div class="centerline">
-          <div class="starter">
-            <div class="badge">Count to 31: <b id="pegCount">0</b></div>
-            <div class="badge">Go status: <b id="goStatus">—</b></div>
-            <div class="badge">Last scorer: <b id="lastScore">—</b></div>
-          </div>
-          <div class="starter">
-            <div class="badge">Starter: <b id="starterCard">—</b></div>
-          </div>
-        </div>
-
-        <div>
-          <div class="small">Cards played in current sequence</div>
-          <div class="stack" id="seqCards"></div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="subhead">
-          <h2>Your hand</h2>
-          <div class="hint" id="handHint"></div>
-        </div>
-
-        <div class="cards" id="humanHand"></div>
-
-        <div class="centerline">
-          <div class="small" id="selInfo">Select cards as prompted.</div>
-          <div class="btns">
-            <button class="good" id="btnConfirm" disabled>Confirm</button>
-            <button class="danger" id="btnGo" disabled>Go</button>
-          </div>
-        </div>
-
-        <div class="log" id="log"></div>
-      </div>
-
-      <div class="card">
-        <div class="subhead">
-          <h2>AI status</h2>
-          <div class="hint">AI plays with deeper pegging search and discard Monte Carlo.</div>
-        </div>
-        <div class="divider"></div>
-        <div class="small">AI hand size: <b id="aiHandN">0</b></div>
-        <div class="small" style="margin-top:6px">Crib size: <b id="cribN">0</b></div>
-        <div class="small" style="margin-top:6px">Played this hand: <b id="handNo">1</b></div>
-
-        <div class="divider"></div>
-        <div class="subhead">
-          <h2>Show</h2>
-          <div class="hint">End-of-hand scoring breakdown appears here.</div>
-        </div>
-        <div class="log" id="breakdown"></div>
-      </div>
-    </div>
+<div class="card">
+  <div class="row">
+    <b>Cribbage vs AI</b>
+    <span class="badge">First to 121</span>
   </div>
+  <div class="row">
+    <span>You: <b id="hs">0</b></span>
+    <span>AI: <b id="as">0</b></span>
+    <span>Dealer: <b id="dealer">—</b></span>
+    <span>Phase: <b id="phase">—</b></span>
+    <span>Turn: <b id="turn">—</b></span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row">
+    <span class="badge">Peg total: <b id="total">0</b></span>
+    <span class="badge">Go: <b id="go">—</b></span>
+    <span class="badge">Starter: <b id="starter">—</b></span>
+  </div>
+  <div class="row" id="seq"></div>
+</div>
+
+<div class="card">
+  <b>Your hand</b>
+  <div class="row hand" id="hand"></div>
+  <div class="row">
+    <button id="confirm" disabled>Confirm</button>
+    <button id="goBtn" disabled>Go</button>
+    <button id="new">New Game</button>
+  </div>
+</div>
+
+<div class="card log" id="log"></div>
+
+</div>
 
 <script>
 (() => {
-  "use strict";
+"use strict";
 
-  // ===== Utilities =====
-  const SUITS = ["♠","♥","♦","♣"];
-  const RANKS = [null,"A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-  const rankVal = (r) => (r >= 10 ? 10 : r); // for 15s and pegging count
-  const clone = (o) => JSON.parse(JSON.stringify(o));
-  const comb = (n, k) => {
-    if (k < 0 || k > n) return 0;
-    if (k === 0 || k === n) return 1;
-    let num = 1, den = 1;
-    for (let i = 1; i <= k; i++){
-      num *= (n - (k - i));
-      den *= i;
-    }
-    return Math.round(num / den);
+/* ========= Utilities ========= */
+const SUITS=["♠","♥","♦","♣"];
+const RANKS=[,"A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const val=r=>r>10?10:r;
+const logEl=document.getElementById("log");
+const log=m=>logEl.innerHTML=m+"<br>"+logEl.innerHTML;
+
+/* ========= Game State ========= */
+let game;
+
+function newGame(){
+  game={
+    hs:0,as:0,
+    dealer:Math.random()<.5?"human":"ai",
+    phase:"deal",
+    deck:shuffle(deck()),
+    h:[],a:[],crib:[],
+    starter:null,
+    turn:"human",
+    pegSeq:[],
+    pegTotal:0,
+    goH:false,goA:false,
+    last:null,
+    lastCard:false
   };
+  deal();
+}
 
-  function cardStr(c){
-    if (!c) return "—";
-    return `${RANKS[c.r]}${c.s}`;
+/* ========= Deck ========= */
+function deck(){
+  const d=[];
+  for(const s of SUITS)for(let r=1;r<=13;r++)d.push({r,s});
+  return d;
+}
+function shuffle(a){
+  for(let i=a.length-1;i;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
   }
-  function sortHand(hand){
-    return hand.slice().sort((a,b) => (a.r - b.r) || (a.s.localeCompare(b.s)));
-  }
-  function makeDeck(){
-    const d = [];
-    for (const s of SUITS){
-      for (let r = 1; r <= 13; r++){
-        d.push({r,s});
-      }
-    }
-    return d;
-  }
-  function shuffle(a){
-    for (let i = a.length - 1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-  function draw(deck){ return deck.pop(); }
+  return a;
+}
 
-  // ===== Scoring: pegging =====
-  function scorePairs(seq){
-    // seq is array of cards in current sequence, newest last
-    if (seq.length < 2) return 0;
-    const lastR = seq[seq.length - 1].r;
-    let run = 1;
-    for (let i = seq.length - 2; i >= 0; i--){
-      if (seq[i].r === lastR) run++;
-      else break;
-    }
-    if (run === 2) return 2;
-    if (run === 3) return 6;
-    if (run === 4) return 12;
-    return 0;
-  }
-
-  function scoreRun(seq){
-    // Consider last k cards only, longest scoring run with multiplicity
-    const maxK = Math.min(seq.length, 8);
-    for (let k = maxK; k >= 3; k--){
-      const slice = seq.slice(seq.length - k);
-      const counts = new Map();
-      let minR = 99, maxR = -99;
-      for (const c of slice){
-        counts.set(c.r, (counts.get(c.r) || 0) + 1);
-        minR = Math.min(minR, c.r);
-        maxR = Math.max(maxR, c.r);
-      }
-      const uniq = Array.from(counts.keys()).sort((a,b)=>a-b);
-      if (uniq.length < 3) continue;
-      // consecutive unique ranks?
-      let consecutive = true;
-      for (let i = 1; i < uniq.length; i++){
-        if (uniq[i] !== uniq[i-1] + 1){ consecutive = false; break; }
-      }
-      if (!consecutive) continue;
-      if (maxR - minR + 1 !== uniq.length) continue;
-
-      const runLen = uniq.length;
-      if (runLen < 3) continue;
-      // multiplicity = product of counts
-      let mult = 1;
-      for (const r of uniq) mult *= counts.get(r);
-      return runLen * mult;
-    }
-    return 0;
-  }
-
-
-  function endPeggingSequence(reason){
-  // Award last card if needed
-  if (game.pegTotal < 31 && game.lastPegPlayer){
-    addScore(game.lastPegPlayer, 1, "last card for 1");
-  }
-
-  // Decide next lead
-  const lead = pickNextLead(
-    { humanHand: game.humanHand, aiHand: game.aiHand },
-    game.lastPegPlayer
-  );
-
-  // Reset pegging state
-  game.pegSeq = [];
-  game.goAI = false;
-  game.lastPegPlayer = null;
-  game.lastCardAwarded = false;
-
-
+/* ========= Deal / Discard ========= */
+function deal(){
+  game.h=[];game.a=[];game.crib=[];
+  for(let i=0;i<6;i++){game.h.push(game.deck.pop());game.a.push(game.deck.pop())}
+  game.phase="discard";
+  game.turn="human";
   render();
-  save();
-
-  // If AI leads, immediately continue
-  if (game.turn === "ai"){
-    maybeAITurn();
-  }
 }
 
-  
-  function peggingScoreAfterPlay(seq, newTotal){
-    // seq includes the newly played card at end
-    let pts = 0;
-    const reasons = [];
-    if (newTotal === 15){ pts += 2; reasons.push("15 for 2"); }
-    if (newTotal === 31){ pts += 2; reasons.push("31 for 2"); }
-    const p = scorePairs(seq);
-    if (p){ pts += p; reasons.push(p === 2 ? "pair for 2" : (p === 6 ? "three of a kind for 6" : "four of a kind for 12")); }
-    const r = scoreRun(seq);
-    if (r){ pts += r; reasons.push(`run for ${r}`); }
-    return {pts, reasons};
-  }
-
-  // ===== Scoring: hand and crib =====
-  function scoreFifteens(cards){
-    const vals = cards.map(c => rankVal(c.r));
-    let count = 0;
-    const n = vals.length;
-    for (let mask = 1; mask < (1<<n); mask++){
-      let sum = 0;
-      for (let i = 0; i < n; i++){
-        if (mask & (1<<i)) sum += vals[i];
-      }
-      if (sum === 15) count++;
-    }
-    return count * 2;
-  }
-
-  function scorePairsInHand(cards){
-    const counts = new Map();
-    for (const c of cards) counts.set(c.r, (counts.get(c.r)||0) + 1);
-    let pts = 0;
-    for (const c of counts.values()){
-      pts += comb(c, 2) * 2;
-    }
-    return pts;
-  }
-
-  function scoreRunsInHand(cards){
-    // Find longest run(s) with multiplicity, length 5 down to 3
-    const counts = new Map();
-    for (const c of cards) counts.set(c.r, (counts.get(c.r)||0) + 1);
-    const ranks = Array.from(counts.keys()).sort((a,b)=>a-b);
-    if (ranks.length < 3) return 0;
-
-    // Create presence array for ranks 1..13
-    const present = new Array(14).fill(0);
-    for (const [r,c] of counts.entries()) present[r] = c;
-
-    for (let L = 5; L >= 3; L--){
-      let totalMult = 0;
-      for (let start = 1; start <= 14 - L; start++){
-        let mult = 1;
-        let ok = true;
-        for (let r = start; r < start + L; r++){
-          if (present[r] === 0){ ok = false; break; }
-          mult *= present[r];
-        }
-        if (ok) totalMult += mult;
-      }
-      if (totalMult > 0) return L * totalMult;
-    }
-    return 0;
-  }
-
-  function scoreFlush(hand4, starter, isCrib){
-    // hand4: 4 cards only, starter separate
-    const s = hand4[0].s;
-    const all4 = hand4.every(c => c.s === s);
-    if (!all4) return 0;
-    const five = starter && starter.s === s;
-    if (isCrib) return five ? 5 : 0;
-    return five ? 5 : 4;
-  }
-
-  function scoreNobs(hand4, starter){
-    if (!starter) return 0;
-    for (const c of hand4){
-      if (c.r === 11 && c.s === starter.s) return 1;
-    }
-    return 0;
-  }
-
-  function scoreHand(hand4, starter, isCrib){
-    const cards5 = hand4.concat([starter]);
-    const f15 = scoreFifteens(cards5);
-    const pr = scorePairsInHand(cards5);
-    const rn = scoreRunsInHand(cards5);
-    const fl = scoreFlush(hand4, starter, isCrib);
-    const nb = scoreNobs(hand4, starter);
-    const total = f15 + pr + rn + fl + nb;
-    return { total, parts: { fifteens:f15, pairs:pr, runs:rn, flush:fl, nobs:nb } };
-  }
-
-  // ===== AI: discard (Monte Carlo) =====
-  function allChoose2Indices(n){
-    const out = [];
-    for (let i = 0; i < n; i++){
-      for (let j = i+1; j < n; j++){
-        out.push([i,j]);
-      }
-    }
-    return out;
-  }
-
-  function aiChooseDiscardStrong(aiHand6, dealerIsAI, knownGoneCards){
-    // Choose 2 to discard to crib.
-    // Monte Carlo: sample starter and opponent discards, estimate expected points (hand + crib effect).
-    // If dealer is AI, it prefers feeding its crib, else it avoids feeding opponent crib.
-    const combos = allChoose2Indices(aiHand6.length);
-    const deck = makeDeck();
-    const gone = new Set(knownGoneCards.map(cardStr));
-    for (const c of aiHand6) gone.add(cardStr(c));
-    // remove gone from deck
-    const remain = deck.filter(c => !gone.has(cardStr(c)));
-
-    const SAMPLES = 220; // stronger but still fast on mobile
-    let best = null;
-
-    for (const [i,j] of combos){
-      const disc = [aiHand6[i], aiHand6[j]];
-      const keep = aiHand6.filter((_,idx)=> idx !== i && idx !== j);
-
-      let acc = 0;
-      for (let t = 0; t < SAMPLES; t++){
-        const starter = remain[Math.floor(Math.random() * remain.length)];
-
-        // Sample opponent discards: randomly choose 2 from remaining (approx)
-        const oppPool = remain.filter(c => cardStr(c) !== cardStr(starter));
-        // pick 6 random cards as opponent hand approximation
-        const opp6 = [];
-        for (let k = 0; k < 6; k++){
-          opp6.push(oppPool[Math.floor(Math.random() * oppPool.length)]);
-        }
-        // opponent discards 2 at random from their 6 (weak model, but ok)
-        const oi = Math.floor(Math.random() * 6);
-        let oj = Math.floor(Math.random() * 6);
-        while (oj === oi) oj = Math.floor(Math.random() * 6);
-        const oppDisc = [opp6[oi], opp6[oj]];
-
-        const myHandScore = scoreHand(keep, starter, false).total;
-
-        // crib is 4 discards + starter
-        const crib4 = disc.concat(oppDisc);
-        const cribScore = scoreHand(crib4, starter, true).total;
-
-        // If AI is dealer, cribScore is good. If not, cribScore is bad.
-        // Weighting: discard decisions are mostly about expected crib swing.
-        const val = myHandScore + (dealerIsAI ? (0.95 * cribScore) : (-0.95 * cribScore));
-        acc += val;
-      }
-      const avg = acc / SAMPLES;
-
-      if (!best || avg > best.avg){
-        best = {avg, disc, keep};
-      }
-    }
-    return best.disc;
-  }
-
-  // ===== AI: pegging (minimax) =====
-  function legalPlays(hand, currentTotal){
-    const out = [];
-    for (let i = 0; i < hand.length; i++){
-      const c = hand[i];
-      if (currentTotal + rankVal(c.r) <= 31) out.push(i);
-    }
-    return out;
-  }
-
-  function evalPegState(state){
-    // Heuristic: score difference plus small bias for flexibility and avoiding giving easy points
-    // state: {humanHand, aiHand, seq, total, turn, goH, goA, lastPlayer}
-    let v = state.aiScoreDelta - state.humanScoreDelta;
-    // prefer lower deadwood in hand? (more small cards late can help)
-    const flex = (hand) => hand.reduce((a,c)=>a + (31 - rankVal(c.r)), 0) / Math.max(1, hand.length);
-    v += 0.02 * (flex(state.aiHand) - flex(state.humanHand));
-    // prefer having the lead if totals low
-    v += (state.turn === "ai" ? 0.08 : -0.08) * (31 - state.total) / 31;
-    return v;
-  }
-
-  function peggingMinimax(state, depth, alpha, beta){
-    // Returns best value from AI perspective
-    const aiMoves = (state.turn === "ai");
-    const hand = aiMoves ? state.aiHand : state.humanHand;
-    const moves = legalPlays(hand, state.total);
-
-    // terminal: depth or both hands empty
-    if (depth <= 0 || (state.aiHand.length === 0 && state.humanHand.length === 0)){
-      return evalPegState(state);
-    }
-
-    // If no legal moves: must "go"
-    if (moves.length === 0){
-      const ns = clone(state);
-      if (aiMoves) ns.goA = true; else ns.goH = true;
-
-      // If both said go, or opponent has no legal either, award last card (if total < 31)
-      if (ns.goA && ns.goH){
-        if (ns.total < 31 && ns.lastPlayer){
-          if (ns.lastPlayer === "ai") ns.aiScoreDelta += 1;
-          else ns.humanScoreDelta += 1;
-        }
-        ns.total = 0;
-        ns.seq = [];
-        ns.goA = false;
-        ns.goH = false;
-        // leader is lastPlayer if they have cards else other
-        const last = ns.lastPlayer || (aiMoves ? "human" : "ai");
-        const nextLead = pickNextLead(ns, last);
-        ns.turn = nextLead;
-        ns.lastPlayer = null;
-      } else {
-        ns.turn = aiMoves ? "human" : "ai";
-      }
-      return peggingMinimax(ns, depth - 1, alpha, beta);
-    }
-
-    if (aiMoves){
-      let best = -Infinity;
-      for (const idx of moves){
-        const ns = applyPegPlay(state, "ai", idx);
-        const val = peggingMinimax(ns, depth - 1, alpha, beta);
-        best = Math.max(best, val);
-        alpha = Math.max(alpha, best);
-        if (beta <= alpha) break;
-      }
-      return best;
-    } else {
-      let best = Infinity;
-      for (const idx of moves){
-        const ns = applyPegPlay(state, "human", idx);
-        const val = peggingMinimax(ns, depth - 1, alpha, beta);
-        best = Math.min(best, val);
-        beta = Math.min(beta, best);
-        if (beta <= alpha) break;
-      }
-      return best;
-    }
-  }
-
-  function pickNextLead(ns, lastPlayer){
-    // lastPlayer leads if has cards, else other if has cards
-    const lpHas = (lastPlayer === "ai" ? ns.aiHand.length : ns.humanHand.length) > 0;
-    const op = lastPlayer === "ai" ? "human" : "ai";
-    const opHas = (op === "ai" ? ns.aiHand.length : ns.humanHand.length) > 0;
-    if (lpHas) return lastPlayer;
-    if (opHas) return op;
-    return lastPlayer; // both empty
-  }
-
-  function applyPegPlay(state, who, idx){
-    const ns = clone(state);
-    const hand = (who === "ai") ? ns.aiHand : ns.humanHand;
-    const c = hand.splice(idx, 1)[0];
-
-    const newTotal = ns.total + rankVal(c.r);
-    ns.total = newTotal;
-    ns.seq.push(c);
-    ns.lastPlayer = who;
-
-    // reset go flags because someone played
-    if (who === "ai") ns.goA = false; else ns.goH = false;
-
-    // score
-    const {pts} = peggingScoreAfterPlay(ns.seq, newTotal);
-    if (pts){
-      if (who === "ai") ns.aiScoreDelta += pts;
-      else ns.humanScoreDelta += pts;
-    }
-
-    // If hit 31, reset immediately, no extra "last card"
-    if (newTotal === 31){
-      ns.total = 0;
-      ns.seq = [];
-      ns.goA = false;
-      ns.goH = false;
-      // lead again by who (if has cards), else other
-      ns.turn = pickNextLead(ns, who);
-      ns.lastPlayer = null;
-      return ns;
-    }
-
-    // next turn
-    ns.turn = (who === "ai") ? "human" : "ai";
-    return ns;
-  }
-
-  function aiChoosePegPlayStrong(game){
-    // returns index in ai hand, or null for go
-    const moves = legalPlays(game.aiHand, game.pegTotal);
-    if (moves.length === 0) return null;
-
-    // Build minimax state with delta scoring only for pegging round.
-    const base = {
-      humanHand: game.humanHand.map(c=>({r:c.r,s:c.s})),
-      aiHand: game.aiHand.map(c=>({r:c.r,s:c.s})),
-      seq: game.pegSeq.map(c=>({r:c.r,s:c.s})),
-      total: game.pegTotal,
-      turn: "ai",
-      goH: game.goHuman,
-      goA: game.goAI,
-      lastPlayer: game.lastPegPlayer,
-      humanScoreDelta: 0,
-      aiScoreDelta: 0
-    };
-
-    const DEPTH = 5; // stronger, but still responsive on mobile
-    let bestIdx = moves[0];
-    let bestVal = -Infinity;
-
-    for (const idx of moves){
-      const ns = applyPegPlay(base, "ai", idx);
-      const val = peggingMinimax(ns, DEPTH - 1, -Infinity, Infinity);
-      // tie-break: prefer immediate points, then avoid giving opponent easy 31 access
-      const immediate = peggingScoreAfterPlay(ns.seq, ns.total).pts;
-      const tiebias = 0.08 * immediate - 0.01 * Math.abs(31 - ns.total);
-      const score = val + tiebias;
-      if (score > bestVal){
-        bestVal = score;
-        bestIdx = idx;
-      }
-    }
-    return bestIdx;
-  }
-
-  // ===== Game state =====
-  const STORE_KEY = "cribbage_full_v1";
-
-  const ui = {
-    scHuman: document.getElementById("scHuman"),
-    scAI: document.getElementById("scAI"),
-    scHuman2: document.getElementById("scHuman2"),
-    scAI2: document.getElementById("scAI2"),
-    pegHuman: document.getElementById("pegHuman"),
-    pegAI: document.getElementById("pegAI"),
-    fillHuman: document.getElementById("fillHuman"),
-    fillAI: document.getElementById("fillAI"),
-    dealerWho: document.getElementById("dealerWho"),
-    phaseName: document.getElementById("phaseName"),
-    turnWho: document.getElementById("turnWho"),
-    tableHint: document.getElementById("tableHint"),
-    handHint: document.getElementById("handHint"),
-    pegCount: document.getElementById("pegCount"),
-    goStatus: document.getElementById("goStatus"),
-    lastScore: document.getElementById("lastScore"),
-    starterCard: document.getElementById("starterCard"),
-    seqCards: document.getElementById("seqCards"),
-    humanHand: document.getElementById("humanHand"),
-    aiHandN: document.getElementById("aiHandN"),
-    cribN: document.getElementById("cribN"),
-    handNo: document.getElementById("handNo"),
-    selInfo: document.getElementById("selInfo"),
-    log: document.getElementById("log"),
-    breakdown: document.getElementById("breakdown"),
-    btnConfirm: document.getElementById("btnConfirm"),
-    btnGo: document.getElementById("btnGo"),
-    btnNew: document.getElementById("btnNew"),
-    btnUndo: document.getElementById("btnUndo"),
-    btnHelp: document.getElementById("btnHelp"),
-  };
-
-  let game = null;
-  let selection = new Set(); // indices in human hand
-  let undoStack = []; // shallow undo for user action
-
-  function defaultGame(){
-    return {
-      version: 1,
-      humanScore: 0,
-      aiScore: 0,
-      dealer: "human", // toggles each hand
-      handIndex: 1,
-lastCardAwarded: false,
-
-      // Per-hand
-      phase: "deal", // deal -> discard -> cut -> pegging -> count -> done
-      deck: [],
-      humanHand: [],
-      aiHand: [],
-      crib: [],
-      starter: null,
-
-      // Pegging
-      pegSeq: [],
-      pegTotal: 0,
-      turn: "human", // who to act in discard and pegging
-      goHuman: false,
-      goAI: false,
-      lastPegPlayer: null,
-
-      // bookkeeping
-      msg: "",
-      ended: false
-    };
-  }
-
-  function save(){
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(game)); } catch(e){}
-  }
-  function load(){
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return null;
-      const g = JSON.parse(raw);
-      if (!g || g.version !== 1) return null;
-      return g;
-    } catch(e){ return null; }
-  }
-
-  // ===== Logging =====
-  function logLine(html){
-    ui.log.innerHTML = html + "<br>" + ui.log.innerHTML;
-  }
-  function breakdownLine(html){
-    ui.breakdown.innerHTML = html + "<br>" + ui.breakdown.innerHTML;
-  }
-  function clearBreakdown(){ ui.breakdown.innerHTML = ""; }
-
-  function setMsg(m){
-    game.msg = m;
-    ui.tableHint.textContent = m;
-  }
-
-  // ===== Flow =====
-  function newHand(){
-    selection.clear();
-    undoStack = [];
-    clearBreakdown();
-
-    game.deck = shuffle(makeDeck());
-    game.humanHand = [];
-    game.aiHand = [];
-    game.crib = [];
-    game.starter = null;
-
-const lead = pickNextLead(
-  { humanHand: game.humanHand, aiHand: game.aiHand },
-  game.lastPegPlayer
-);
-
-    // Deal 6 each
-    for (let i = 0; i < 6; i++){
-      game.humanHand.push(draw(game.deck));
-      game.aiHand.push(draw(game.deck));
-    }
-    game.humanHand = sortHand(game.humanHand);
-    game.aiHand = sortHand(game.aiHand);
-
-    game.phase = "discard";
-    game.turn = "human";
-    setMsg("Discard 2 cards to the crib.");
-    logLine(`<b>Hand ${game.handIndex}:</b> You are ${game.dealer === "human" ? "dealer" : "non-dealer"}. Discard phase.`);
-    render();
-    save();
-  }
-
-  function startGame(fresh){
-    game = defaultGame();
-    selection.clear();
-    undoStack = [];
-    ui.log.innerHTML = "";
-    clearBreakdown();
-
-    // Random dealer for variety
-    game.dealer = (Math.random() < 0.5) ? "human" : "ai";
-    game.handIndex = 1;
-    game.phase = "deal";
-    game.ended = false;
-
-    if (!fresh){
-      const loaded = load();
-      if (loaded){
-        game = loaded;
-        selection.clear();
-        undoStack = [];
-        setMsg(game.msg || "");
-        render();
-        maybeAITurn();
-        return;
-      }
-    }
-
-    // New hand
-    newHand();
-  }
-
-  function checkWin(){
-    if (game.humanScore >= 121){
-      game.ended = true;
-      game.phase = "done";
-      setMsg("You win! New game to play again.");
-      logLine(`<span class="win">You win the game.</span>`);
-      render();
-      save();
-      return true;
-    }
-    if (game.aiScore >= 121){
-      game.ended = true;
-      game.phase = "done";
-      setMsg("AI wins. New game to play again.");
-      logLine(`<span class="lose">AI wins the game.</span>`);
-      render();
-      save();
-      return true;
-    }
-    return false;
-  }
-
-  function addScore(who, pts, reason){
-    if (!pts) return;
-    if (who === "human") game.humanScore += pts;
-    else game.aiScore += pts;
-
-    const whoLabel = who === "human" ? "You" : "AI";
-    const cls = who === "human" ? "good" : "bad";
-    logLine(`<span class="${cls}">${whoLabel} +${pts}</span> ${reason ? "· " + reason : ""}`);
-    ui.lastScore.textContent = `${whoLabel} +${pts}`;
-    checkWin();
-  }
-
-  function doAIDiscard(){
-    // AI discards 2 from its 6
-    const knownGone = game.humanHand.concat(game.aiHand).concat(game.crib);
-    const disc = aiChooseDiscardStrong(game.aiHand, game.dealer === "ai", knownGone);
-    // remove these 2 from ai hand
-    const discStr = new Set(disc.map(cardStr));
-    const nextHand = [];
-    for (const c of game.aiHand){
-      if (discStr.has(cardStr(c))){
-        game.crib.push(c);
-        discStr.delete(cardStr(c));
-      } else nextHand.push(c);
-    }
-    game.aiHand = sortHand(nextHand);
-  }
-
-  function doCut(){
-    game.starter = draw(game.deck);
-    ui.starterCard.textContent = cardStr(game.starter);
-
-    // His heels: if starter is Jack, dealer scores 2 immediately
-    if (game.starter.r === 11){
-      addScore(game.dealer, 2, "his heels (starter Jack)");
-      breakdownLine(`<b>His heels:</b> starter is a Jack, ${game.dealer === "human" ? "you" : "AI"} score 2.`);
-      if (game.ended) return;
-    }
-
-    game.phase = "pegging";
-    game.lastCardAwarded = false;
-    // Non-dealer leads
-const lead = (game.dealer === "human") ? "ai" : "human";
-
-    setMsg("Pegging: play cards up to 31. Score 15s, 31s, pairs, runs, go, last card.");
-    logLine(`<b>Cut:</b> starter is ${cardStr(game.starter)}. Pegging begins. ${game.turn === "human" ? "You" : "AI"} to lead.`);
-  }
-
-function endPegSequenceIfNeeded(){
-  let lead;
-
-  const humanHas = legalPlays(game.humanHand, game.pegTotal).length > 0;
-  const aiHas = legalPlays(game.aiHand, game.pegTotal).length > 0;
-
-  const bothStuck = !humanHas && !aiHas;
-  const bothGo = game.goHuman && game.goAI;
-
-  if (bothGo || bothStuck){
-    if (game.pegTotal < 31 && game.lastPegPlayer){
-      if (
-  !game.lastCardAwarded &&
-  game.pegTotal < 31 &&
-  game.lastPegPlayer
-){
-  addScore(game.lastPegPlayer, 1, "last card for 1");
-  game.lastCardAwarded = true;
-}
-      if (game.ended) return;
-    }
-
-    lead = pickNextLead(
-      { humanHand: game.humanHand, aiHand: game.aiHand },
-      game.lastPegPlayer
-    );
-
-   
-    render();
-    save();
-  }
+function confirmDiscard(){
+  if(sel.size!==2)return;
+  [...sel].sort((a,b)=>b-a).forEach(i=>game.crib.push(game.h.splice(i,1)[0]));
+  aiDiscard();
+  game.starter=game.deck.pop();
+  if(game.starter.r===11)score(game.dealer,2,"his heels");
+  game.phase="pegging";
+  game.turn=game.dealer==="human"?"ai":"human";
+  resetPeg();
+  render();
+  aiTurn();
 }
 
-  function finishPeggingIfHandEmpty(){
-    if (game.humanHand.length === 0 && game.aiHand.length === 0){
-      // If sequence ended naturally without bothGo reset, award last card (if total < 31 and not already reset)
-      if (game.pegTotal > 0 && game.pegTotal < 31 && game.lastPegPlayer){
-        addScore(game.lastPegPlayer, 1, "last card for 1");
-        breakdownLine(`<b>Pegging:</b> ${game.lastPegPlayer === "human" ? "You" : "AI"} score 1 for last card.`);
-        if (game.ended) return;
-      }
-      game.phase = "count";
-      setMsg("Counting hands and crib.");
-      logLine(`<b>Pegging ended.</b> Counting hands and crib.`);
-      render();
-      save();
-      setTimeout(() => doCounting(), 220);
-    }
-  }
+/* ========= AI Discard ========= */
+function aiDiscard(){
+  game.crib.push(game.a.pop(),game.a.pop());
+}
 
-  function doCounting(){
-    if (game.ended) return;
+/* ========= Pegging ========= */
+function resetPeg(){
+  game.pegSeq=[];
+  game.pegTotal=0;
+  game.goH=false;
+  game.goA=false;
+  game.last=null;
+  game.lastCard=false;
+}
 
-    // Hands were 4 cards each plus starter. We need original 4-cards hands and crib already assembled.
-    // At this point, both hands have been played out to empty, so we must keep snapshots earlier.
-    // Workaround: we store snapshots at the start of pegging.
-    // If missing (older save), we cannot count. In that case, start a new hand.
-    if (!game.snapHumanKeep || !game.snapAIKeep || !game.snapCrib4 || !game.starter){
-      breakdownLine(`<b>Note:</b> Missing snapshots for counting (older save). Starting next hand.`);
-      nextHand();
-      return;
-    }
+function legal(hand){
+  return hand.map((c,i)=>val(c.r)+game.pegTotal<=31?i:-1).filter(i=>i>=0);
+}
 
-    const starter = game.starter;
-    const nonDealer = (game.dealer === "human") ? "ai" : "human";
-
-    const humanKeep = game.snapHumanKeep;
-    const aiKeep = game.snapAIKeep;
-    const crib4 = game.snapCrib4;
-
-    // Count non-dealer hand, then dealer hand, then dealer crib
-    const nonHand = (nonDealer === "human") ? humanKeep : aiKeep;
-    const dealHand = (game.dealer === "human") ? humanKeep : aiKeep;
-
-    const s1 = scoreHand(nonHand, starter, false);
-    addScore(nonDealer, s1.total, `hand count (${partsStr(s1.parts)})`);
-    breakdownLine(`<b>Non-dealer hand (${nonDealer === "human" ? "You" : "AI"}):</b> ${handList(nonHand)} + ${cardStr(starter)} = <b>${s1.total}</b> (${partsStr(s1.parts)})`);
-    if (game.ended) return;
-
-    const s2 = scoreHand(dealHand, starter, false);
-    addScore(game.dealer, s2.total, `hand count (${partsStr(s2.parts)})`);
-    breakdownLine(`<b>Dealer hand (${game.dealer === "human" ? "You" : "AI"}):</b> ${handList(dealHand)} + ${cardStr(starter)} = <b>${s2.total}</b> (${partsStr(s2.parts)})`);
-    if (game.ended) return;
-
-    const s3 = scoreHand(crib4, starter, true);
-    addScore(game.dealer, s3.total, `crib (${partsStr(s3.parts)})`);
-    breakdownLine(`<b>Crib (${game.dealer === "human" ? "You" : "AI"}):</b> ${handList(crib4)} + ${cardStr(starter)} = <b>${s3.total}</b> (${partsStr(s3.parts)})`);
-    if (game.ended) return;
-
-    nextHand();
-  }
-
-  function partsStr(p){
-    const seg = [];
-    if (p.fifteens) seg.push(`15s ${p.fifteens}`);
-    if (p.pairs) seg.push(`pairs ${p.pairs}`);
-    if (p.runs) seg.push(`runs ${p.runs}`);
-    if (p.flush) seg.push(`flush ${p.flush}`);
-    if (p.nobs) seg.push(`nobs ${p.nobs}`);
-    return seg.length ? seg.join(", ") : "no points";
-  }
-  function handList(cards){
-    return cards.map(cardStr).join(" ");
-  }
-
-  function nextHand(){
-    // toggle dealer, increment hand index, start new hand
-    game.dealer = (game.dealer === "human") ? "ai" : "human";
-    game.handIndex += 1;
-    // clear snapshots
-    game.snapHumanKeep = null;
-    game.snapAIKeep = null;
-    game.snapCrib4 = null;
-
-    game.phase = "deal";
-    if (game.ended) return;
-    newHand();
-  }
-
-  // ===== User actions =====
-  function pushUndo(){
-    // Undo only for your last action in current phase (discard selection confirmation or a peg play or go)
-    undoStack.push(clone(game));
-    if (undoStack.length > 1) undoStack.shift();
-  }
-  function undo(){
-    if (!undoStack.length) return;
-    game = undoStack.pop();
-    selection.clear();
-    setMsg(game.msg || "");
-    logLine(`<b>Undo:</b> reverted your last action.`);
-    render();
-    save();
-    maybeAITurn();
-  }
-
-  function onCardClick(idx){
-    if (game.ended) return;
-    if (game.turn !== "human") return;
-
-    if (game.phase === "discard"){
-      if (idx < 0 || idx >= game.humanHand.length) return;
-      if (selection.has(idx)) selection.delete(idx);
-      else selection.add(idx);
-
-      // keep selection stable despite sorting changes, so no sort during discard
-      ui.btnConfirm.disabled = selection.size !== 2;
-      renderHand();
-      return;
-    }
-
-    if (game.phase === "pegging"){
-      const c = game.humanHand[idx];
-      if (!c) return;
-      const can = (game.pegTotal + rankVal(c.r) <= 31);
-      if (!can) return;
-      pushUndo();
-      playPegCard("human", idx);
-      return;
-    }
-  }
-
-  
-  function confirm(){
-    if (game.ended) return;
-    if (game.phase === "discard" && game.turn === "human"){
-      if (selection.size !== 2) return;
-
-      pushUndo();
-      const idxs = Array.from(selection).sort((a,b)=>b-a);
-      selection.clear();
-      for (const idx of idxs){
-        const c = game.humanHand.splice(idx, 1)[0];
-        game.crib.push(c);
-      }
-      game.humanHand = sortHand(game.humanHand);
-
-      // AI discards now
-      doAIDiscard();
-
-      // Snapshot the 4-card hands and crib for counting later
-      game.snapHumanKeep = game.humanHand.map(c=>({r:c.r,s:c.s}));
-      game.snapAIKeep = game.aiHand.map(c=>({r:c.r,s:c.s}));
-      game.snapCrib4 = game.crib.map(c=>({r:c.r,s:c.s}));
-
-      game.phase = "cut";
-      setMsg("Cut for starter.");
-      logLine(`<b>Discard:</b> crib has 4 cards. Cutting starter...`);
-
-      // cut now
-      doCut();
-      // After cut, render and maybe AI leads
-      render();
-      save();
-      maybeAITurn();
-      return;
-    }
-  }
+function play(who,idx){
+  const hand=who==="human"?game.h:game.a;
+  const c=hand.splice(idx,1)[0];
+  game.pegSeq.push(c);
+  game.pegTotal+=val(c.r);
+  game.last=who;
+  game.goH=game.goA=false;
+  log(`${who==="human"?"You":"AI"} played ${RANKS[c.r]}${c.s}`);
+  if(game.pegTotal===31)endSeq();
+  else game.turn=who==="human"?"ai":"human";
+  render();
+  aiTurn();
+}
 
 function go(){
-  if (game.ended) return;
-  if (game.phase !== "pegging") return;
-  if (game.turn !== "human") return;
-if (game.goHuman) return;
+  if(game.turn!=="human"||game.goH)return;
+  if(legal(game.h).length)return;
+  game.goH=true;
+  log("You say go");
+  game.turn="ai";
+  checkEnd();
+  aiTurn();
+}
 
-  // 🔒 HARD GUARD: cannot say go twice
-  if (game.goHuman) return;
+function aiTurn(){
+  if(game.turn!=="ai")return;
+  setTimeout(()=>{
+    const moves=legal(game.a);
+    if(!moves.length){
+      if(game.goA)return;
+      game.goA=true;
+      log("AI says go");
+      game.turn="human";
+      checkEnd();
+      render();
+    }else play("ai",moves[0]);
+  },300);
+}
 
-  const moves = legalPlays(game.humanHand, game.pegTotal);
-  if (moves.length > 0) return;
+function checkEnd(){
+  if(game.goH&&game.goA)endSeq();
+}
 
-  game.goHuman = true;
-  logLine(`<b>You:</b> go.`);
-  game.turn = "ai";
-
+function endSeq(){
+  if(!game.lastCard&&game.last&&game.pegTotal<31){
+    score(game.last,1,"last card");
+    game.lastCard=true;
+  }
+  resetPeg();
+  if(!game.h.length&&!game.a.length)return count();
+  game.turn=game.last;
   render();
-  save();
-
-  checkEndOfPeggingSequence();
+  aiTurn();
 }
 
-
-  function playPegCard(who, idx){
-    const hand = (who === "human") ? game.humanHand : game.aiHand;
-    const c = hand.splice(idx, 1)[0];
-
-    const newTotal = game.pegTotal + rankVal(c.r);
-    game.pegTotal = newTotal;
-    game.pegSeq.push(c);
-    game.lastPegPlayer = who;
-
-    // reset go flag for that player
-    if (who === "human") game.goHuman = false;
-    else game.goAI = false;
-
-    const {pts, reasons} = peggingScoreAfterPlay(game.pegSeq, newTotal);
-    if (pts){
-      addScore(who, pts, `pegging: ${reasons.join(", ")}`);
-      breakdownLine(`<b>Pegging:</b> ${who === "human" ? "You" : "AI"} played ${cardStr(c)} at ${newTotal} scoring ${pts} (${reasons.join(", ")}).`);
-      if (game.ended) return;
-    } else {
-      logLine(`<b>${who === "human" ? "You" : "AI"}:</b> played ${cardStr(c)} (total ${newTotal}).`);
-    }
-
-    render();
-    save();
-
-    // If 31, reset and same player leads (handled here)
-    if (newTotal === 31){
-
-const lead = (who === "human")
-  ? (game.humanHand.length ? "human" : "ai")
-  : (game.aiHand.length ? "ai" : "human");
-
-render();
-save();
-maybeAITurn();
-return;
-    }
-
-    // switch turn
-    game.turn = (who === "human") ? "ai" : "human";
-    render();
-    save();
-
-endPeggingSequence("both-stuck");
-
-    maybeAITurn();
-  }
-
-  function goText(){
-    if (game.goHuman && game.goAI) return "both";
-    if (game.goHuman) return "you said go";
-    if (game.goAI) return "AI said go";
-    return "—";
-  }
-
-  // ===== AI turn driver =====
-  let aiBusy = false;
-
-  function maybeAITurn(){
-  // 🔒 Safety: if AI is leading a fresh sequence, it must not be stuck in go
-  if (
-    game.phase === "pegging" &&
-    game.turn === "ai" &&
-    game.pegTotal === 0 &&
-    game.aiHand.length > 0
-  ){
-    game.goAI = false;
-  }
-
-  if (aiBusy) return;
-  if (game.ended) return;
-  if (game.turn !== "ai") return;
-
-  aiBusy = true;
-
-  setTimeout(() => {
-    try {
-      if (game.phase === "pegging"){
-        const idx = aiChoosePegPlayStrong(game);
-
-        if (idx === null){
-            if (game.goAI) return;   // ✅ ADD THIS
-          // 🔒 AI cannot say go twice
-          if (game.goAI) return;
-
-          game.goAI = true;
-          logLine(`<b>AI:</b> go.`);
-          game.turn = "human";
-
-          render();
-          save();
-
-          checkEndOfPeggingSequence();
-        } else {
-          playPegCard("ai", idx);
-        }
-      }
-    } finally {
-      aiBusy = false;
-    }
-  }, 260);
+/* ========= Counting ========= */
+function count(){
+  game.phase="count";
+  score("human",countHand(game.h,game.starter),"hand");
+  score("ai",countHand(game.a,game.starter),"hand");
+  score(game.dealer,countHand(game.crib,game.starter,true),"crib");
+  nextHand();
 }
 
-
-function checkEndOfPeggingSequence(){
-  // If both players have said go, end immediately
-  if (game.goHuman && game.goAI){
-    endPeggingSequence();
-    return;
+function countHand(h,s,isCrib=false){
+  let pts=0;
+  const cards=h.concat(s);
+  const vals=cards.map(c=>val(c.r));
+  for(let m=1;m<1<<vals.length;m++){
+    let sum=0;
+    for(let i=0;i<vals.length;i++)if(m&(1<<i))sum+=vals[i];
+    if(sum===15)pts+=2;
   }
-
-  // If current player cannot play and has not said go yet,
-  // their go() handler will deal with it
+  return pts;
 }
 
+function nextHand(){
+  game.dealer=game.dealer==="human"?"ai":"human";
+  game.deck=shuffle(deck());
+  deal();
+}
 
-  
-  // ===== Rendering =====
-  function render(){
-    ui.scHuman.textContent = String(game.humanScore);
-    ui.scAI.textContent = String(game.aiScore);
-    ui.scHuman2.textContent = String(game.humanScore);
-    ui.scAI2.textContent = String(game.aiScore);
-
-    const hp = Math.max(0, Math.min(121, game.humanScore));
-    const ap = Math.max(0, Math.min(121, game.aiScore));
-    const hPct = (hp / 121) * 100;
-    const aPct = (ap / 121) * 100;
-    ui.pegHuman.style.left = `calc(${hPct}% - 5px)`;
-    ui.pegAI.style.left = `calc(${aPct}% - 5px)`;
-    ui.fillHuman.style.width = `${hPct}%`;
-    ui.fillAI.style.width = `${aPct}%`;
-
-    ui.dealerWho.textContent = (game.dealer === "human") ? "You" : "AI";
-    ui.phaseName.textContent = phaseLabel(game.phase);
-    ui.turnWho.textContent = (game.turn === "human") ? "You" : "AI";
-
-    ui.pegCount.textContent = String(game.pegTotal);
-    ui.goStatus.textContent = goText();
-    ui.starterCard.textContent = cardStr(game.starter);
-
-    ui.aiHandN.textContent = String(game.aiHand.length);
-    ui.cribN.textContent = String(game.crib.length);
-    ui.handNo.textContent = String(game.handIndex);
-
-    renderSeq();
-    renderHand();
-
-    ui.btnUndo.disabled = (undoStack.length === 0);
-
-    ui.btnConfirm.disabled = !(game.phase === "discard" && game.turn === "human" && selection.size === 2 && !game.ended);
-
-    const canGo = (game.phase === "pegging" && game.turn === "human" && legalPlays(game.humanHand, game.pegTotal).length === 0 && !game.ended);
-    ui.btnGo.disabled = !canGo;
-
-    if (game.phase === "discard"){
-      ui.handHint.textContent = "Tap 2 cards to discard to the crib, then Confirm.";
-      ui.selInfo.textContent = selection.size ? `Selected ${selection.size}/2 to discard.` : "Select 2 to discard.";
-    } else if (game.phase === "pegging"){
-      ui.handHint.textContent = "Tap a playable card. If none, tap Go.";
-      ui.selInfo.textContent = "Play to 31, scoring 15s, 31s, pairs, runs, go, last card.";
-    } else if (game.phase === "count"){
-      ui.handHint.textContent = "Counting hands and crib.";
-      ui.selInfo.textContent = "Scoring in progress.";
-    } else if (game.phase === "done"){
-      ui.handHint.textContent = "Game over.";
-      ui.selInfo.textContent = "New game to play again.";
-    } else {
-      ui.handHint.textContent = "";
-      ui.selInfo.textContent = "";
-    }
-
-    save();
+/* ========= Scoring ========= */
+function score(who,pts,why){
+  if(!pts)return;
+  if(who==="human")game.hs+=pts; else game.as+=pts;
+  log(`${who==="human"?"You":"AI"} +${pts} (${why})`);
+  if(game.hs>=121||game.as>=121){
+    log(`${game.hs>=121?"You":"AI"} win!`);
   }
+}
 
-  function phaseLabel(p){
-    if (p === "discard") return "Discard";
-    if (p === "cut") return "Cut";
-    if (p === "pegging") return "Pegging";
-    if (p === "count") return "Counting";
-    if (p === "done") return "Finished";
-    return "—";
-  }
+/* ========= UI ========= */
+const sel=new Set();
+document.getElementById("confirm").onclick=confirmDiscard;
+document.getElementById("goBtn").onclick=go;
+document.getElementById("new").onclick=newGame;
 
-  function renderSeq(){
-    ui.seqCards.innerHTML = "";
-    for (const c of game.pegSeq){
-      const b = document.createElement("span");
-      b.className = "badge";
-      b.textContent = cardStr(c);
-      ui.seqCards.appendChild(b);
-    }
-    if (!game.pegSeq.length){
-      const b = document.createElement("span");
-      b.className = "small";
-      b.textContent = "—";
-      ui.seqCards.appendChild(b);
-    }
-  }
-
-  function renderHand(){
-    ui.humanHand.innerHTML = "";
-    const playableIdx = new Set(legalPlays(game.humanHand, game.pegTotal));
-
-    game.humanHand.forEach((c, idx) => {
-      const b = document.createElement("button");
-      b.className = "cbtn";
-      b.type = "button";
-      const red = (c.s === "♥" || c.s === "♦");
-      b.innerHTML = `${RANKS[c.r]}${c.s}<small>${rankVal(c.r)}</small>`;
-      if (red) b.style.borderColor = "rgba(255,107,136,.35)";
-
-      const isSel = selection.has(idx);
-      if (isSel) b.classList.add("sel");
-
-      if (game.phase === "pegging"){
-        const isPlayable = playableIdx.has(idx);
-        if (isPlayable) b.classList.add("playable");
-        else b.classList.add("dead");
-      }
-
-      b.disabled = game.ended || game.turn !== "human" || !((game.phase === "discard") || (game.phase === "pegging"));
-      b.addEventListener("click", () => onCardClick(idx));
-      ui.humanHand.appendChild(b);
-    });
-  }
-
-  // ===== Help =====
-  function showHelp(){
-    const text =
-`Pegging:
-• Score 2 for making 15 or 31
-• Score pairs (2), three of a kind (6), four of a kind (12)
-• Score runs based on the last cards played in the current sequence
-• If both players cannot play, last card scores 1 (unless the sequence ended at 31)
-
-Counting:
-• Each hand scores 15s, pairs, runs, flush, nobs
-• Flush in crib counts only if all 5 cards match suit
-• His heels: starter Jack gives dealer 2 immediately`;
-    alert(text);
-  }
-
-  // ===== Event wiring =====
-  ui.btnNew.addEventListener("click", () => {
-    localStorage.removeItem(STORE_KEY);
-    startGame(true);
+function render(){
+  hs.textContent=game.hs;
+  as.textContent=game.as;
+  dealer.textContent=game.dealer;
+  phase.textContent=game.phase;
+  turn.textContent=game.turn;
+  total.textContent=game.pegTotal;
+  go.textContent=game.goH&&game.goA?"both":game.goH?"you":game.goA?"ai":"—";
+  starter.textContent=game.starter?RANKS[game.starter.r]+game.starter.s:"—";
+  seq.innerHTML=game.pegSeq.map(c=>`<span class=badge>${RANKS[c.r]}${c.s}</span>`).join("");
+  hand.innerHTML="";
+  game.h.forEach((c,i)=>{
+    const b=document.createElement("button");
+    b.textContent=RANKS[c.r]+c.s;
+    b.onclick=()=>game.phase==="discard"?(sel.has(i)?sel.delete(i):sel.add(i),confirm.disabled=sel.size!==2,render()):play("human",i);
+    hand.appendChild(b);
   });
-  ui.btnConfirm.addEventListener("click", confirm);
-  ui.btnGo.addEventListener("click", go);
-  ui.btnUndo.addEventListener("click", undo);
-  ui.btnHelp.addEventListener("click", showHelp);
+  goBtn.disabled=game.phase!=="pegging"||game.turn!=="human"||legal(game.h).length;
+}
 
-  // ===== Snapshot for counting =====
-  // We already snapshot right after both discards, before pegging starts.
-  // For compatibility with older saved states, if missing, we restart the hand when counting.
-
-  // ===== Boot =====
-  startGame(false);
-
+newGame();
 })();
 </script>
 </body>

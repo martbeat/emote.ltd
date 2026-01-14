@@ -929,8 +929,10 @@
     game.crib = [];
     game.starter = null;
 
-resetPeggingSequence(nextLead);
-
+const lead = pickNextLead(
+  { humanHand: game.humanHand, aiHand: game.aiHand },
+  game.lastPegPlayer
+);
 
     // Deal 6 each
     for (let i = 0; i < 6; i++){
@@ -1040,11 +1042,17 @@ resetPeggingSequence(nextLead);
     }
 
     game.phase = "pegging";
-resetPeggingSequence(nextLead);
+const lead = pickNextLead(
+  { humanHand: game.humanHand, aiHand: game.aiHand },
+  game.lastPegPlayer
+);
+
+
 
 
     // Non-dealer leads
-    game.turn = (game.dealer === "human") ? "ai" : "human";
+const lead = (game.dealer === "human") ? "ai" : "human";
+resetPeggingSequence(lead);
     setMsg("Pegging: play cards up to 31. Score 15s, 31s, pairs, runs, go, last card.");
     logLine(`<b>Cut:</b> starter is ${cardStr(game.starter)}. Pegging begins. ${game.turn === "human" ? "You" : "AI"} to lead.`);
   }
@@ -1064,18 +1072,16 @@ resetPeggingSequence(nextLead);
         if (game.ended) return;
       }
       // reset
-resetPeggingSequence(nextLead);
 
-      const lead = pickNextLead({
-        humanHand: game.humanHand,
-        aiHand: game.aiHand
-      }, game.lastPegPlayer || (game.turn === "human" ? "ai" : "human"));
-      game.turn = lead;
-      game.lastPegPlayer = null;
-      ui.goStatus.textContent = "—";
-      ui.pegCount.textContent = String(game.pegTotal);
-      render();
-      save();
+
+const lead = pickNextLead(
+  { humanHand: game.humanHand, aiHand: game.aiHand },
+  game.lastPegPlayer
+);
+
+resetPeggingSequence(lead);
+render();
+save();
     }
   }
 
@@ -1301,7 +1307,12 @@ function resetPeggingSequence(leadPlayer) {
 
     // If 31, reset and same player leads (handled here)
     if (newTotal === 31){
-resetPeggingSequence(nextLead);
+const lead = pickNextLead(
+  { humanHand: game.humanHand, aiHand: game.aiHand },
+  game.lastPegPlayer
+);
+
+resetPeggingSequence(lead);
 
       game.turn = (who === "human") ? (game.humanHand.length ? "human" : "ai") : (game.aiHand.length ? "ai" : "human");
       render();
@@ -1344,7 +1355,7 @@ resetPeggingSequence(nextLead);
             // AI go
             const moves = legalPlays(game.aiHand, game.pegTotal);
             if (moves.length === 0){
-              pushUndo(); // still allow undo, but only your own action is intended. Keep harmless.
+
 game.goAI = true;
 logLine(`<b>AI:</b> go.`);
 ui.goStatus.textContent = goText();

@@ -1297,10 +1297,6 @@ function resetPeggingSequence(leadPlayer) {
 
     // If 31, reset and same player leads (handled here)
     if (newTotal === 31){
-const lead = pickNextLead(
-  { humanHand: game.humanHand, aiHand: game.aiHand },
-  game.lastPegPlayer
-);
 
 const lead = (who === "human")
   ? (game.humanHand.length ? "human" : "ai")

@@ -984,6 +984,16 @@ function playerGo(){
   }
 
   function advancePegTurn(){
+  // If pegging is truly finished, move to show
+if (
+  state.playedHands[0].length === 0 &&
+  state.playedHands[1].length === 0 &&
+  state.pegCount === 0
+){
+  scoreShow();
+  return;
+}
+    
     if(checkWin()) return;
     // Determine if round pegging ends (both hands empty)
     if(state.playedHands[0].length===0 && state.playedHands[1].length===0){
@@ -1045,6 +1055,8 @@ function playerGo(){
       state.pegCount=0;
       state.pegSeq=[];
       state.goCalled=[false,false];
+// IMPORTANT: last pegger leads the new go
+state.turn = state.lastPegger;
       addLog(`<span class="t">Count reset to 0.</span>`);
       // Next lead is the player who played last card, already state.turn toggled in advancePegTurn.
       return;

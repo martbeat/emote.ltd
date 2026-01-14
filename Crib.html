@@ -1269,25 +1269,27 @@ function endPegSequenceIfNeeded(){
     }
   }
 
-  function go(){
-    if (game.ended) return;
-    if (game.phase !== "pegging") return;
-    if (game.turn !== "human") return;
+function go(){
+  if (game.ended) return;
+  if (game.phase !== "pegging") return;
+  if (game.turn !== "human") return;
 
-    const moves = legalPlays(game.humanHand, game.pegTotal);
-    if (moves.length > 0) return; // must play if possible
+  // 🔒 HARD GUARD: cannot say go twice
+  if (game.goHuman) return;
 
-    pushUndo();
-    game.goHuman = true;
-    logLine(`<b>You:</b> go.`);
-    ui.goStatus.textContent = goText();
-    game.turn = "ai";
-    render();
-    save();
-endPeggingSequence("both-stuck");
+  const moves = legalPlays(game.humanHand, game.pegTotal);
+  if (moves.length > 0) return;
 
-    maybeAITurn();
-  }
+  game.goHuman = true;
+  logLine(`<b>You:</b> go.`);
+  game.turn = "ai";
+
+  render();
+  save();
+
+  checkEndOfPeggingSequence();
+}
+
 
   function playPegCard(who, idx){
     const hand = (who === "human") ? game.humanHand : game.aiHand;
@@ -1367,39 +1369,39 @@ if (
       try {
         if (game.phase === "pegging"){
           const idx = aiChoosePegPlayStrong(game);
-          if (idx === null){
-            // AI go
-            const moves = legalPlays(game.aiHand, game.pegTotal);
-            if (moves.length === 0){
+if (idx === null){
+  // 🔒 AI cannot say go twice
+  if (game.goAI){
+    aiBusy = false;
+    return;
+  }
 
-game.goAI = true;
-logLine(`<b>AI:</b> go.`);
-ui.goStatus.textContent = goText();
+  game.goAI = true;
+  logLine(`<b>AI:</b> go.`);
+  game.turn = "human";
 
-// Immediately resolve if human also stuck
-game.turn = "human";
-render();
-save();
+  render();
+  save();
 
-// 🔴 FORCE resolution here
-endPeggingSequence("both-stuck");
-
-
-// 🔴 If still AI’s turn after resolution, continue
-if (game.turn === "ai") {
-  maybeAITurn();
+  checkEndOfPeggingSequence();
 }
-            }
-          } else {
-            playPegCard("ai", idx);
-          }
-        }
-      } finally {
-        aiBusy = false;
       }
     }, 260);
   }
 
+function checkEndOfPeggingSequence(){
+  // If both players have said go, end immediately
+  if (game.goHuman && game.goAI){
+    endPeggingSequence();
+    return;
+  }
+
+  // If current player cannot play and has not said go yet,
+  // their go() handler will deal with it
+}
+
+
+  
   // ===== Rendering =====
   function render(){
     ui.scHuman.textContent = String(game.humanScore);

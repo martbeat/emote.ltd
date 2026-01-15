@@ -1,459 +1,1123 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Mornington Crescent — Pass & Play Edition</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<style>
-:root{
-  --bg:#070a12;
-  --panel:#0e1426;
-  --ink:#e9eefc;
-  --muted:#aeb8da;
-  --accent:#7aa7ff;
-  --good:#7dffb2;
-  --bad:#ff6b88;
-}
-
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: radial-gradient(1200px 800px at 20% 10%, rgba(122,167,255,.15), transparent 60%),
-              linear-gradient(180deg,#05060a,var(--bg));
-  color:var(--ink);
-}
-
-header{
-  max-width:1200px;
-  margin:auto;
-  padding:18px 16px 10px;
-}
-
-h1{
-  margin:0;
-  font-size:20px;
-}
-
-.sub{
-  margin-top:6px;
-  color:var(--muted);
-  font-size:13px;
-}
-
-main{
-  max-width:1200px;
-  margin:auto;
-  padding:0 16px 20px;
-  display:grid;
-  grid-template-columns: 1.4fr .6fr;
-  gap:14px;
-}
-
-@media(max-width:900px){
-  main{grid-template-columns:1fr}
-}
-
-.panel{
-  background:linear-gradient(180deg,rgba(14,20,38,.95),rgba(10,14,28,.95));
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:18px;
-  box-shadow:0 14px 40px rgba(0,0,0,.45);
-  overflow:hidden;
-}
-
-.panel h2{
-  margin:0;
-  padding:12px 14px;
-  font-size:14px;
-  border-bottom:1px solid rgba(255,255,255,.1);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.controls{
-  padding:12px 14px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-label{
-  font-size:12px;
-  color:var(--muted);
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  min-width:160px;
-}
-
-select,button{
-  border-radius:12px;
-  border:1px solid rgba(255,255,255,.15);
-  background:rgba(4,7,14,.7);
-  color:var(--ink);
-  padding:10px;
-}
-
-button{
-  cursor:pointer;
-  font-weight:700;
-}
-
-button.primary{
-  background:linear-gradient(135deg,var(--accent),#5c7dff);
-  color:#061026;
-}
-
-button.good{
-  background:linear-gradient(135deg,var(--good),#4ddfa0);
-  color:#042018;
-}
-
-button.bad{
-  background:linear-gradient(135deg,var(--bad),#ff4f6f);
-  color:#2a050b;
-}
-
-button:disabled{
-  opacity:.45;
-  cursor:not-allowed;
-}
-
-.status{
-  padding:12px 14px;
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  border-top:1px solid rgba(255,255,255,.08);
-}
-
-.pill{
-  padding:8px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.14);
-  font-size:12px;
-  color:var(--muted);
-}
-
-.board{
-  padding:12px 14px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.tag{
-  padding:8px 10px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.14);
-  font-size:12px;
-  display:inline-flex;
-  gap:6px;
-  align-items:center;
-}
-
-.log{
-  padding:12px 14px;
-  max-height:520px;
-  overflow:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.entry{
-  padding:10px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(2,4,10,.35);
-  font-size:12px;
-  color:var(--muted);
-}
-
-.entry b{color:var(--ink)}
-
-.entry.good{border-color:rgba(125,255,178,.45)}
-.entry.bad{border-color:rgba(255,107,136,.45)}
-.entry.info{border-color:rgba(122,167,255,.45)}
-
-.footer{
-  padding:10px 14px;
-  border-top:1px solid rgba(255,255,255,.08);
-  font-size:11px;
-  color:var(--muted);
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mornington Crescent: Pass-and-Play Edition</title>
+  <style>
+    :root{
+      --bg0:#05060a;
+      --bg1:#070a12;
+      --card:#0e1426cc;
+      --card2:#0b1020cc;
+      --ink:#e9eefc;
+      --muted:#aeb8da;
+      --accent:#7aa7ff;
+      --accent2:#7dffb2;
+      --danger:#ff6b88;
+      --shadow: 0 14px 40px rgba(0,0,0,.45);
+      --ring: 0 0 0 3px rgba(122,167,255,.25);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1100px 700px at 20% 10%, rgba(122,167,255,.12), transparent 55%),
+        radial-gradient(900px 600px at 90% 20%, rgba(125,255,178,.10), transparent 55%),
+        radial-gradient(900px 800px at 50% 100%, rgba(255,107,136,.08), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+    }
+    header{
+      padding:18px 16px 10px;
+      max-width:1200px;
+      margin:0 auto;
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .title{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      min-width:280px;
+    }
+    .badge{
+      width:44px;height:44px;
+      border-radius:14px;
+      background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(125,255,178,.75));
+      box-shadow: var(--shadow);
+      display:grid;
+      place-items:center;
+      color:#0a1020;
+      font-weight:900;
+      letter-spacing:.5px;
+    }
+    h1{
+      margin:0;
+      font-size:18px;
+      line-height:1.2;
+    }
+    .sub{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      max-width:760px;
+    }
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:0 16px 18px;
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr}
+    }
+    .card{
+      background: linear-gradient(180deg, var(--card), var(--card2));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.2px;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .card h2 .mini{
+      color:var(--muted);
+      font-weight:600;
+      font-size:12px;
+    }
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:12px 14px 14px;
+      align-items:flex-end;
+    }
+    label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      color:var(--muted);
+      font-size:12px;
+      min-width:180px;
+      flex:1;
+    }
+    select, input[type="text"], input[type="number"]{
+      width:100%;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(4,7,14,.6);
+      color:var(--ink);
+      padding:10px 10px;
+      outline:none;
+    }
+    select:focus, input:focus{ box-shadow: var(--ring); border-color: rgba(122,167,255,.45); }
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      margin-left:auto;
+    }
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(6,10,20,.65);
+      color:var(--ink);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    button:hover{ border-color: rgba(122,167,255,.55); }
+    button.primary{
+      background: linear-gradient(135deg, rgba(122,167,255,.95), rgba(122,167,255,.65));
+      color:#071022;
+      border-color: rgba(122,167,255,.55);
+    }
+    button.good{
+      background: linear-gradient(135deg, rgba(125,255,178,.95), rgba(125,255,178,.60));
+      color:#06161a;
+      border-color: rgba(125,255,178,.55);
+    }
+    button.danger{
+      background: linear-gradient(135deg, rgba(255,107,136,.95), rgba(255,107,136,.62));
+      color:#1a060b;
+      border-color: rgba(255,107,136,.55);
+    }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+    .board{
+      padding:14px;
+      display:grid;
+      gap:10px;
+    }
+    .line{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .moveTag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(3,6,14,.45);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .moveTag b{ color: var(--ink); }
+    .statusbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:12px 14px 14px;
+      border-top:1px solid rgba(255,255,255,.08);
+      align-items:center;
+      justify-content:space-between;
+    }
+    .pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(2,4,10,.35);
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .pill strong{ color: var(--ink); font-weight:800; }
+    .hint{
+      border-top:1px solid rgba(255,255,255,.08);
+      padding:12px 14px 14px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+    }
+    .log{
+      padding:12px 14px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      max-height: 600px;
+      overflow:auto;
+    }
+    .log .entry{
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(2,4,10,.32);
+      border-radius:14px;
+      padding:10px 10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .log .entry .who{
+      color:var(--ink);
+      font-weight:900;
+      letter-spacing:.2px;
+      margin-bottom:6px;
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      align-items:baseline;
+    }
+    .log .entry .who span{
+      color:var(--muted);
+      font-weight:700;
+      font-size:11px;
+    }
+    .toast{
+      position:fixed;
+      left:50%;
+      transform:translateX(-50%);
+      bottom:14px;
+      background: rgba(2,4,10,.86);
+      border:1px solid rgba(255,255,255,.14);
+      box-shadow: var(--shadow);
+      color: var(--ink);
+      padding:10px 12px;
+      border-radius:14px;
+      font-size:12px;
+      display:none;
+      max-width:min(860px, calc(100vw - 24px));
+      z-index:9999;
+    }
+    .toast.show{display:block}
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      border-radius:8px;
+      padding:1px 6px;
+      color:var(--ink);
+      font-size:11px;
+    }
+    .small{ font-size:11px; color:var(--muted); margin:0; }
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      width:100%;
+    }
+    @media (max-width: 640px){
+      .grid2{ grid-template-columns:1fr; }
+    }
+  </style>
 </head>
-
 <body>
-
 <header>
-  <h1>Mornington Crescent</h1>
-  <div class="sub">
-    Pass-and-play for humans and AIs.  
-    The rules are ancient, binding, frequently revised, and mostly invented.
+  <div class="title">
+    <div class="badge">MC</div>
+    <div>
+      <h1>Mornington Crescent: Pass-and-Play Edition</h1>
+      <p class="sub">
+        Choose a station connected to your current one. The announcer will insist the rules are ancient, binding, and administered by a committee that has never met yet is always furious.
+        Win by <b>landing on Mornington Crescent</b>.
+      </p>
+    </div>
   </div>
+  <p class="small">
+    Keys: <span class="kbd">Enter</span> play move, <span class="kbd">P</span> pass, <span class="kbd">N</span> new game.
+  </p>
 </header>
 
-<main>
+<div class="wrap">
+  <section class="card" aria-label="Game">
+    <h2>
+      <span>Board</span>
+      <span class="mini" id="modeLabel">Mode: Pass-and-Play</span>
+    </h2>
 
-<section class="panel">
-<h2>Game</h2>
+    <div class="controls">
+      <div class="grid2">
+        <label>
+          Game mode
+          <select id="gameMode">
+            <option value="pnp">Pass-and-play (2–4)</option>
+            <option value="solo">Solo vs AI</option>
+          </select>
+        </label>
 
-<div class="controls">
-  <label>
-    Players
-    <select id="players">
-      <option value="2">2 players</option>
-      <option value="3">3 players</option>
-      <option value="4">4 players</option>
-    </select>
-  </label>
+        <label>
+          Players
+          <select id="playerCount">
+            <option value="2">2 players</option>
+            <option value="3">3 players</option>
+            <option value="4">4 players</option>
+          </select>
+        </label>
+      </div>
 
-  <label>
-    AI seats
-    <select id="aiCount">
-      <option value="0">All human</option>
-      <option value="1">1 AI</option>
-      <option value="2">2 AI</option>
-    </select>
-  </label>
+      <label>
+        Ruleset
+        <select id="ruleset">
+          <option value="standard">Standard (sensible nonsense)</option>
+          <option value="full">Full Rules (utterly binding)</option>
+          <option value="gentle">Gentleperson’s Variant (polite chaos)</option>
+        </select>
+      </label>
 
-  <div style="align-self:flex-end;display:flex;gap:8px">
-    <button id="play" class="primary">Play move</button>
-    <button id="pass">Pass</button>
-    <button id="new" class="good">New game</button>
-  </div>
+      <label id="difficultyWrap">
+        Difficulty (AI only)
+        <select id="difficulty">
+          <option value="casual">Casual</option>
+          <option value="sharp">Sharp</option>
+          <option value="vindictive">Vindictive</option>
+        </select>
+      </label>
+
+      <label>
+        Current player
+        <select id="currentPlayerPick"></select>
+      </label>
+
+      <label>
+        Next station
+        <select id="stationPick"></select>
+      </label>
+
+      <div class="btnrow">
+        <button class="primary" id="playBtn">Play Move</button>
+        <button class="good" id="passBtn">Pass</button>
+        <button id="newBtn">New Game</button>
+      </div>
+    </div>
+
+    <div class="board">
+      <div class="line" id="positions"></div>
+      <div class="line" id="legalMoves"></div>
+
+      <div class="statusbar">
+        <div class="pill"><strong id="turnWho">Player</strong> turn</div>
+        <div class="pill">Round <strong id="roundN">1</strong></div>
+        <div class="pill">Active rules <strong id="ruleN">0</strong></div>
+        <div class="pill">Distance to MC <strong id="prox">?</strong></div>
+      </div>
+    </div>
+
+    <div class="hint" id="hint"></div>
+  </section>
+
+  <aside class="card" aria-label="Commentary">
+    <h2>
+      <span>Commentary</span>
+      <span class="mini">Announcer’s desk</span>
+    </h2>
+    <div class="log" id="log"></div>
+    <div class="hint">
+      Pass-and-play note: the game is intentionally “open information” (you can see everyone’s options). The dishonourable part is not cheating. It is quoting by-law numbers that do not exist.
+    </div>
+  </aside>
 </div>
 
-<div class="board" id="board"></div>
-
-<div class="status">
-  <div class="pill">Turn: <b id="turn"></b></div>
-  <div class="pill">Round <b id="round"></b></div>
-</div>
-</section>
-
-<section class="panel">
-<h2>Commentary</h2>
-<div class="log" id="log"></div>
-<div class="footer">
-  Win only by landing exactly on <b>Mornington Crescent</b>.  
-  Saying it loudly does not help. It never has.
-</div>
-</section>
-
-</main>
+<div class="toast" id="toast"></div>
 
 <script>
-/* ------------------------------
-   Network (expanded but curated)
---------------------------------*/
+(() => {
+  // Target
+  const MC = "Mornington Crescent";
 
-const MC = "Mornington Crescent";
+  // A more realistic (still simplified) set of stations and connections.
+  // This is not a full Tube map. It is a playable network with recognisable hubs and line-like chains.
+  // The fun is the faux rules, not geographic accuracy.
+  const EDGES = {};
+  function link(a,b){
+    if(!EDGES[a]) EDGES[a]=[];
+    if(!EDGES[b]) EDGES[b]=[];
+    if(!EDGES[a].includes(b)) EDGES[a].push(b);
+    if(!EDGES[b].includes(a)) EDGES[b].push(a);
+  }
+  function chain(arr){
+    for(let i=0;i<arr.length-1;i++) link(arr[i], arr[i+1]);
+  }
 
-const EDGES = {
-  "Paddington":["Baker Street","Edgware Road"],
-  "Edgware Road":["Paddington","Baker Street"],
-  "Baker Street":["Edgware Road","Paddington","Bond Street","Euston"],
-  "Bond Street":["Baker Street","Oxford Circus","Green Park"],
-  "Oxford Circus":["Bond Street","Tottenham Court Road","Green Park"],
-  "Tottenham Court Road":["Oxford Circus","Leicester Square","Goodge Street"],
-  "Goodge Street":["Tottenham Court Road","Warren Street"],
-  "Warren Street":["Goodge Street","Euston"],
-  "Euston":["Warren Street","King's Cross","Camden Town","Baker Street"],
-  "King's Cross":["Euston","Angel","Russell Square"],
-  "Russell Square":["King's Cross","Holborn"],
-  "Holborn":["Russell Square","Leicester Square"],
-  "Leicester Square":["Holborn","Tottenham Court Road","Charing Cross"],
-  "Charing Cross":["Leicester Square","Embankment"],
-  "Embankment":["Charing Cross","Westminster"],
-  "Westminster":["Embankment","Green Park"],
-  "Green Park":["Westminster","Bond Street","Oxford Circus","Piccadilly Circus"],
-  "Piccadilly Circus":["Green Park","Leicester Square"],
-  "Angel":["King's Cross","Highbury & Islington"],
-  "Highbury & Islington":["Angel","Finsbury Park"],
-  "Finsbury Park":["Highbury & Islington"],
-  "Camden Town":["Euston",MC],
-  "Mornington Crescent":["Camden Town"]
-};
+  // Northern (core-ish)
+  chain(["Morden","South Wimbledon","Colliers Wood","Tooting Broadway","Balham","Clapham South","Clapham Common","Clapham North","Stockwell",
+         "Oval","Kennington","Elephant & Castle","Borough","London Bridge","Bank","Moorgate","Old Street","Angel","King's Cross St Pancras",
+         "Euston","Warren Street","Goodge Street","Tottenham Court Road","Leicester Square","Charing Cross","Embankment","Waterloo"]);
+  // Northern (Camden branch)
+  chain(["Euston","Camden Town","Mornington Crescent","Euston"]);
+  chain(["Camden Town","Chalk Farm","Belsize Park","Hampstead","Golders Green","Finchley Central","High Barnet"]);
+  chain(["Finchley Central","Mill Hill East"]);
 
-const STATIONS = Object.keys(EDGES);
+  // Central
+  chain(["West Ruislip","Ruislip Gardens","South Ruislip","Northolt","Greenford","Perivale","Hanger Lane","North Acton","East Acton",
+         "White City","Shepherd's Bush","Holland Park","Notting Hill Gate","Queensway","Lancaster Gate","Marble Arch","Bond Street",
+         "Oxford Circus","Tottenham Court Road","Holborn","Chancery Lane","St Paul's","Bank","Liverpool Street","Bethnal Green","Mile End",
+         "Stratford","Leyton","Leytonstone","Epping"]);
 
-/* ------------------------------
-   Commentary engine
---------------------------------*/
+  // Victoria
+  chain(["Brixton","Stockwell","Vauxhall","Pimlico","Victoria","Green Park","Oxford Circus","Warren Street","Euston","King's Cross St Pancras","Finsbury Park","Highbury & Islington"]);
+  // Piccadilly
+  chain(["Heathrow","Hounslow West","Hounslow Central","Hounslow East","Turnham Green","Hammersmith","Earl's Court","South Kensington","Knightsbridge",
+         "Hyde Park Corner","Green Park","Piccadilly Circus","Leicester Square","Covent Garden","Holborn","Russell Square","King's Cross St Pancras","Finsbury Park","Arsenal"]);
+  // Jubilee (partial)
+  chain(["Stanmore","Canons Park","Queensbury","Wembley Park","Baker Street","Bond Street","Green Park","Westminster","Waterloo","London Bridge","Bermondsey","Canada Water","Canary Wharf"]);
+  // Bakerloo
+  chain(["Harrow & Wealdstone","Kenton","South Kenton","North Wembley","Wembley Central","Stonebridge Park","Harlesden","Willesden Junction","Kensal Green",
+         "Queen's Park","Kilburn Park","Maida Vale","Warwick Avenue","Paddington","Edgware Road","Marylebone","Baker Street","Regent's Park",
+         "Oxford Circus","Piccadilly Circus","Charing Cross","Embankment","Waterloo","Lambeth North","Elephant & Castle"]);
+  // District-ish (partial)
+  chain(["Wimbledon","Putney Bridge","Earl's Court","Gloucester Road","South Kensington","Sloane Square","Victoria","St James's Park","Westminster","Embankment","Temple","Blackfriars","Mansion House","Cannon Street","Monument","Tower Hill"]);
+  // Circle/Met/H&C-ish overlaps (partial)
+  chain(["Paddington","Bayswater","Notting Hill Gate","High Street Kensington","Gloucester Road","South Kensington","Sloane Square","Victoria","St James's Park","Westminster","Embankment","Temple","Blackfriars","Mansion House","Cannon Street","Monument","Tower Hill","Aldgate","Liverpool Street","Moorgate","Barbican","Farringdon","King's Cross St Pancras","Euston Square","Great Portland Street","Baker Street","Edgware Road","Paddington"]);
+  chain(["Hammersmith","Barons Court","Earl's Court","Gloucester Road"]);
+  chain(["King's Cross St Pancras","Euston","Camden Town"]); // reinforce
+  // Interchanges worth having
+  link("Oxford Circus","Bond Street");
+  link("Oxford Circus","Green Park");
+  link("Tottenham Court Road","Oxford Circus");
+  link("Tottenham Court Road","Goodge Street");
+  link("Leicester Square","Piccadilly Circus");
+  link("Charing Cross","Leicester Square");
+  link("Holborn","Tottenham Court Road");
+  link("Holborn","Leicester Square");
+  link("Bank","Monument");
+  link("Liverpool Street","Bank");
+  link("Moorgate","Liverpool Street");
+  link("Finsbury Park","Highbury & Islington");
 
-const COMMENTARY = {
-  start:[
-    "The board is laid out. No one agrees who laid it out.",
-    "Officials shuffle papers they definitely wrote themselves.",
-    "The signal lamp flickers. This is taken as consent."
-  ],
-  move:[
-    "A confident choice, immediately questioned.",
-    "A move is made. Somewhere, a precedent is misquoted.",
-    "Textbook play, from a textbook no one can locate.",
-    "An inspired decision, according to the wrong handbook."
-  ],
-  reject:[
-    "Rejected. The reason is waved vaguely at the ceiling.",
-    "Illegal. Someone coughs 'sub-clause'.",
-    "Denied on grounds that will be clear later."
-  ],
-  pass:[
-    "A pass. The room murmurs.",
-    "Passing is permitted, but frowned upon by history.",
-    "A tactical pause, or a cry for help."
-  ],
-  approach:[
-    "This is beginning to look deliberate.",
-    "The Crescent grows nearer. No one says how near.",
-    "There is a sense of gathering inevitability."
-  ],
-  win:[
-    "Mornington Crescent. The ruling stands.",
-    "There it is. No appeal will be heard.",
-    "Victory is declared. The rulebook snaps shut."
-  ],
-  ai:[
-    "The AI nods, having simulated regret.",
-    "The AI claims this was always the plan.",
-    "The AI moves with unsettling confidence."
-  ]
-};
+  // Ensure MC node exists
+  if(!EDGES[MC]) EDGES[MC] = ["Camden Town"];
 
-function say(type,text,className="info"){
-  const e=document.createElement("div");
-  e.className="entry "+className;
-  e.innerHTML="<b>"+type+":</b> "+text;
-  log.prepend(e);
-}
+  const STATIONS = Object.keys(EDGES).sort((a,b)=>a.localeCompare(b));
 
-/* ------------------------------
-   Game state
---------------------------------*/
+  const RULESETS = {
+    standard: { name:"Standard", tokenStart: 0, chaos: 0.35, mcFeeBias: 0.55 },
+    full:     { name:"Full Rules", tokenStart: 1, chaos: 0.60, mcFeeBias: 0.85 },
+    gentle:   { name:"Gentleperson’s", tokenStart: 0, chaos: 0.22, mcFeeBias: 0.30 }
+  };
 
-let players=[], current=0, round=1;
+  const DIFF = {
+    casual: { aiGreed: 0.60, vetoMean: 0.10, tokenHunger: 0.18, drama: 0.35 },
+    sharp: { aiGreed: 0.78, vetoMean: 0.18, tokenHunger: 0.34, drama: 0.45 },
+    vindictive: { aiGreed: 0.92, vetoMean: 0.28, tokenHunger: 0.50, drama: 0.60 }
+  };
 
-const board=document.getElementById("board");
-const log=document.getElementById("log");
+  const els = {
+    gameMode: document.getElementById('gameMode'),
+    playerCount: document.getElementById('playerCount'),
+    ruleset: document.getElementById('ruleset'),
+    difficulty: document.getElementById('difficulty'),
+    difficultyWrap: document.getElementById('difficultyWrap'),
+    currentPlayerPick: document.getElementById('currentPlayerPick'),
+    stationPick: document.getElementById('stationPick'),
+    playBtn: document.getElementById('playBtn'),
+    passBtn: document.getElementById('passBtn'),
+    newBtn: document.getElementById('newBtn'),
+    positions: document.getElementById('positions'),
+    legalMoves: document.getElementById('legalMoves'),
+    log: document.getElementById('log'),
+    toast: document.getElementById('toast'),
+    turnWho: document.getElementById('turnWho'),
+    roundN: document.getElementById('roundN'),
+    ruleN: document.getElementById('ruleN'),
+    prox: document.getElementById('prox'),
+    hint: document.getElementById('hint'),
+    modeLabel: document.getElementById('modeLabel')
+  };
 
-function distance(a){
-  const q=[a], d={[a]:0};
-  while(q.length){
-    const u=q.shift();
-    if(u===MC) return d[u];
-    for(const v of EDGES[u]){
-      if(d[v]==null){d[v]=d[u]+1;q.push(v);}
+  let state;
+
+  function rand(n){ return Math.floor(Math.random()*n); }
+  function choice(arr){ return arr[rand(arr.length)]; }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function showToast(msg){
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => els.toast.classList.remove('show'), 1800);
+  }
+
+  function log(who, text, tone=""){
+    const e = document.createElement('div');
+    e.className = 'entry';
+    const now = new Date();
+    const t = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    e.innerHTML = `
+      <div class="who">${escapeHtml(who)} <span>${t}</span></div>
+      <div>${escapeHtml(text)}</div>
+    `;
+    if(tone === "danger"){
+      e.style.borderColor = "rgba(255,107,136,.45)";
+    } else if(tone === "good"){
+      e.style.borderColor = "rgba(125,255,178,.40)";
+    } else if(tone === "info"){
+      e.style.borderColor = "rgba(122,167,255,.40)";
+    }
+    els.log.prepend(e);
+  }
+
+  function bfsDistance(from){
+    const q = [from];
+    const dist = {[from]:0};
+    while(q.length){
+      const u = q.shift();
+      if(u === MC) return dist[u];
+      for(const v of (EDGES[u]||[])){
+        if(dist[v] == null){
+          dist[v] = dist[u] + 1;
+          q.push(v);
+        }
+      }
+    }
+    return Infinity;
+  }
+
+  // Commentary helpers
+  const Announcer = {
+    openers: [
+      "Order in the studio. Order on the network. Chaos everywhere else.",
+      "We remind viewers this is a game of pure logic conducted under total nonsense.",
+      "The committee has published new guidance. It is blank. This changes everything.",
+      "A hush falls over the interchanges. Someone opens a folder marked ‘precedent’.",
+      "Welcome back. The rules remain authoritative, invisible, and slightly damp."
+    ],
+    compliance: [
+      "Compliance has been observed. It will not be tolerated for long.",
+      "The move is provisionally admissible pending an inquiry into its vibes.",
+      "Officials confer, nod, and immediately disagree with themselves.",
+      "The adjudicator stamps a form, then refuses to explain the stamp.",
+      "A legal-looking whistle is blown in the general direction of Camden."
+    ],
+    rejection: [
+      "Rejected. This is not personal, it is procedural nonsense.",
+      "Denied under an interpretation that is both strict and imaginary.",
+      "A veto is issued. Nobody knows by whom. Everyone applauds politely.",
+      "Disallowed. The rule is ancient. The reason is modern. The paperwork is eternal.",
+      "No. Simply no. The committee has spoken via interpretive dance."
+    ],
+    mcTease: [
+      "That station name is spoken softly in the corridors of power.",
+      "A player reaches for the forbidden syllables. A clipboard trembles.",
+      "Mornington Crescent is approached like a wild animal: slowly, respectfully, with a witness present.",
+      "The studio lights flicker. Somewhere, an intern drops a stack of by-laws.",
+      "The Crescent looms. Someone clears their throat in a legally significant way."
+    ],
+    endersWin: [
+      "Victory certified. The certificate is immediately misplaced, but still binding.",
+      "The winner is recorded in the ledger under ‘astonishing but technically fine’.",
+      "The audience gasps. The adjudicator nods once. A gavel is produced for no reason.",
+      "The committee resigns in protest, then reappoints itself on the spot."
+    ],
+    endersLose: [
+      "Defeat recorded under ‘avoidable tragedies’ and ‘hubris at Zone 1’.",
+      "The paperwork is filed. The shame is laminated.",
+      "A polite round of applause for the loser, who will now be audited.",
+      "The committee thanks you for your participation and fines you for it."
+    ]
+  };
+
+  function sayAnnouncer(kind, extra="", tone="info"){
+    const table = Announcer[kind] || [];
+    const base = table.length ? choice(table) : "";
+    const msg = extra ? `${base} ${extra}`.trim() : base;
+    log("Announcer", msg, tone);
+  }
+
+  // Faux rules
+  const RULEBOOK = {
+    parityBans: (move, pid, st) => {
+      const oddBanned = (st.round % 2 === 1);
+      const letters = move.replace(/[^A-Za-z]/g,'').length;
+      const isOdd = (letters % 2 === 1);
+      if(oddBanned && isOdd){
+        return { ok:false, costTokens:0, reason:"Parity clause", flavour:`Odd letter-count station on an odd round. The Parity Office is incandescent.`, severity:"danger" };
+      }
+      if(!oddBanned && !isOdd){
+        return { ok:false, costTokens:0, reason:"Parity inversion", flavour:`Even letter-count station on an even round. This violates the Inversion Memorandum (revoked, but still enforced).`, severity:"danger" };
+      }
+      return { ok:true, costTokens:0, reason:"Parity cleared", flavour:"Parity provisions satisfied. A rare moment of administrative peace.", severity:"info" };
+    },
+    vowelsTax: (move, pid, st) => {
+      const vowels = (move.match(/[aeiou]/ig) || []).length;
+      const base = st.ruleset === "full" ? 1 : 0;
+      const extra = vowels >= 11 ? 2 : vowels >= 9 ? 1 : 0;
+      const cost = base + extra;
+      if(cost > 0){
+        return { ok:true, costTokens:cost, reason:"Vowel levy", flavour:`Vowel levy assessed: ${cost} token${cost===1?"":"s"}. The Treasury insists vowels are a luxury service.`, severity:"info" };
+      }
+      return { ok:true, costTokens:0, reason:"No vowel levy", flavour:"Vowel levy waived. The Treasury looks briefly human.", severity:"good" };
+    },
+    lastLetterBan: (move, pid, st) => {
+      const prev = st.lastMove[st.prevPlayerId];
+      if(!prev) return { ok:true, costTokens:0, reason:"No prior move", flavour:"No terminal entanglement detected. For now.", severity:"info" };
+      const a = prev.trim().slice(-1).toLowerCase();
+      const b = move.trim().slice(-1).toLowerCase();
+      if(a && b && a === b && st.ruleset !== "gentle"){
+        return { ok:false, costTokens:0, reason:"Kensington protocol", flavour:`Terminal letter matches the previous player’s last station. The Kensington Protocol descends like a velvet curtain.`, severity:"danger" };
+      }
+      return { ok:true, costTokens:0, reason:"Kensington cleared", flavour:"Kensington Protocol does not apply. The curtains remain open, ominously.", severity:"good" };
+    },
+    zone1Austerity: (move, pid, st) => {
+      // A pretend "Zone 1 austerity": if you are within 3 moves of MC, some moves cost a token.
+      const d = bfsDistance(st.pos[pid]);
+      if(d <= 3 && st.ruleset !== "gentle"){
+        const cost = (move.includes("&") || move.includes("'")) ? 0 : 1;
+        if(cost){
+          return { ok:true, costTokens:1, reason:"Austerity surcharge", flavour:"Zone 1 austerity surcharge: 1 token. The policy is unpopular and therefore permanent.", severity:"info" };
+        }
+      }
+      return { ok:true, costTokens:0, reason:"No surcharge", flavour:"No surcharge applied. The minister for nonsense is briefly off-duty.", severity:"good" };
+    },
+    mcMoratorium: (move, pid, st) => {
+      if(move !== MC) return { ok:true, costTokens:0, reason:"Not MC", flavour:"No Crescent-specific restrictions apply. The Crescent watches anyway.", severity:"info" };
+
+      const rs = RULESETS[st.ruleset];
+      const df = DIFF[st.difficulty] || DIFF.casual;
+      const vetoChance = clamp(df.vetoMean + (rs.chaos * 0.10) + (st.round * 0.01), 0.06, 0.48);
+      const wantsFee = (Math.random() < rs.mcFeeBias);
+
+      if(wantsFee){
+        if(st.tokens[pid] > 0){
+          return { ok:true, costTokens:1, reason:"Crescent toll", flavour:"Mornington Crescent toll accepted. A tiny barrier lifts in somebody’s imagination.", severity:"good" };
+        }
+        if(Math.random() < vetoChance){
+          return { ok:false, costTokens:0, reason:"Crescent moratorium", flavour:"Mornington Crescent is under moratorium due to ceremonial signal fog. The fog has a committee chair.", severity:"danger" };
+        }
+        return { ok:true, costTokens:0, reason:"Crescent exception", flavour:"A rare exception is granted. This will be cited as precedent until the end of civilisation.", severity:"info" };
+      }
+
+      if(Math.random() < vetoChance * 0.35){
+        return { ok:false, costTokens:0, reason:"Crescent etiquette veto", flavour:"Entry denied for insufficient etiquette. Etiquette is not defined, but your posture is being judged.", severity:"danger" };
+      }
+      return { ok:true, costTokens:0, reason:"Crescent allowed", flavour:"Mornington Crescent accepted. The studio exhales, then immediately regrets it.", severity:"good" };
+    }
+  };
+
+  function activeRules(st){
+    const rules = ["mcMoratorium"];
+    const chaos = RULESETS[st.ruleset].chaos;
+
+    if(Math.random() < (0.72 + chaos*0.20)) rules.push("parityBans");
+    if(Math.random() < (0.58 + chaos*0.25)) rules.push("lastLetterBan");
+    if(Math.random() < (0.50 + chaos*0.35)) rules.push("vowelsTax");
+    if(Math.random() < (0.44 + chaos*0.30)) rules.push("zone1Austerity");
+
+    return [...new Set(rules)];
+  }
+
+  function prettyRule(k){
+    const map = {
+      parityBans: "Odd/Even Station Provisions",
+      vowelsTax: "Vowel Levy",
+      mcMoratorium: "Mornington Crescent Moratorium",
+      lastLetterBan: "Kensington Terminal Protocol",
+      zone1Austerity: "Zone 1 Austerity Measures"
+    };
+    return map[k] || k;
+  }
+
+  function legalFrom(pos){
+    return (EDGES[pos] || []).slice();
+  }
+
+  function canMoveTo(pid, target){
+    const from = state.pos[pid];
+    const baseLegal = legalFrom(from);
+    if(!baseLegal.includes(target)){
+      return {
+        ok:false, cost:0,
+        why:`Not connected to ${from}`,
+        flavour:`You cannot reach ${target} directly from ${from} without invoking the Emergency Metaphor Clause.`,
+        severity:"danger"
+      };
+    }
+
+    let cost = 0;
+    const flavours = [];
+    for(const r of state.rules){
+      const out = RULEBOOK[r](target, pid, state);
+      if(out.flavour) flavours.push(out.flavour);
+      if(!out.ok){
+        return { ok:false, cost:0, why: out.reason, flavour: flavours.join(" "), severity: out.severity || "danger" };
+      }
+      cost += out.costTokens || 0;
+    }
+
+    if(cost > 0 && state.tokens[pid] < cost){
+      return {
+        ok:false, cost:0, why:"Insufficient tokens",
+        flavour:`You require ${cost} token${cost===1?"":"s"}, but possess ${state.tokens[pid]}. The Treasury smiles like a trap.`,
+        severity:"danger"
+      };
+    }
+
+    return { ok:true, cost, why:"Allowed", flavour: flavours.join(" "), severity:"good" };
+  }
+
+  function applyMove(pid, target){
+    const player = state.players[pid];
+    const verdict = canMoveTo(pid, target);
+
+    if(!verdict.ok){
+      sayAnnouncer("rejection", `${player.name} attempts ${target}. Rejected: ${verdict.why}. ${verdict.flavour}`, "danger");
+      return false;
+    }
+
+    const from = state.pos[pid];
+    state.pos[pid] = target;
+    state.lastMove[pid] = target;
+    if(verdict.cost > 0) state.tokens[pid] -= verdict.cost;
+
+    const paid = verdict.cost ? ` (paid ${verdict.cost} token${verdict.cost===1?"":"s"})` : "";
+    log(player.name, `Move: ${from} → ${target}${paid}.`, verdict.cost ? "info" : "good");
+
+    // Extra narration, more likely when close to MC
+    const dist = bfsDistance(target);
+    const drama = (state.gameMode === "solo") ? (DIFF[state.difficulty].drama) : 0.40;
+    if(target === MC){
+      sayAnnouncer("mcTease", "The forbidden syllables land with a thunk on the desk of destiny.", "danger");
+    } else if(Math.random() < (drama + (dist <= 3 ? 0.18 : 0.0))){
+      sayAnnouncer("compliance", verdict.flavour || "The move is entered into the register using ink that smells faintly of authority.", "info");
+    } else if(verdict.flavour){
+      log("Announcer", verdict.flavour, verdict.severity === "danger" ? "danger" : "info");
+    }
+
+    if(target === MC){
+      state.winnerId = pid;
+      sayAnnouncer("endersWin", `${player.name} declares: MORNINGTON CRESCENT. The committee pretends this was always the plan.`, "good");
+      endGame();
+    }
+    return true;
+  }
+
+  function endGame(){
+    els.playBtn.disabled = true;
+    els.passBtn.disabled = true;
+    els.stationPick.disabled = true;
+    els.currentPlayerPick.disabled = true;
+
+    const w = state.players[state.winnerId];
+    showToast(`${w.name} wins: Mornington Crescent`);
+    render();
+  }
+
+  function nextTurn(){
+    if(state.winnerId != null) return;
+
+    state.prevPlayerId = state.turnId;
+    state.turnId = (state.turnId + 1) % state.players.length;
+
+    if(state.turnId === 0){
+      state.round += 1;
+      state.rules = activeRules(state);
+      sayAnnouncer("openers", `Round ${state.round}. Regulations refreshed: ${state.rules.map(prettyRule).join(", ")}.`, "info");
+
+      // Occasional token handouts to keep the economy absurd
+      if(Math.random() < 0.18 && state.ruleset !== "gentle"){
+        const pid = choice(state.players.map(p=>p.id));
+        state.tokens[pid] += 1;
+        sayAnnouncer("compliance", `${state.players[pid].name} receives a token for ‘good form’. Good form is not measurable but is audited quarterly.`, "good");
+      }
+    }
+
+    syncCurrentPlayerPick();
+    populateStationPick();
+    render();
+
+    // AI move if solo mode and it's AI's turn
+    const p = state.players[state.turnId];
+    if(state.gameMode === "solo" && p.isAI){
+      setTimeout(aiMove, 520);
     }
   }
-  return Infinity;
-}
 
-function newGame(){
-  players=[];
-  log.innerHTML="";
-  round=1;
-  current=0;
+  function aiMove(){
+    if(state.winnerId != null) return;
 
-  const pCount=+playersSel.value;
-  const aiCount=+aiSel.value;
+    const df = DIFF[state.difficulty];
+    const pid = state.turnId;
+    const from = state.pos[pid];
+    const options = legalFrom(from);
 
-  const starts=STATIONS.filter(s=>s!==MC && distance(s)>2);
+    const scored = options.map(t => {
+      const v = canMoveTo(pid, t);
+      if(!v.ok) return { t, score: -999, ok:false, v };
+      const dist = bfsDistance(t);
+      const base = 120 - (dist * 18);
+      const tokenPenalty = (v.cost || 0) * (10 + df.tokenHunger * 10);
 
-  for(let i=0;i<pCount;i++){
-    players.push({
-      name: i<aiCount ? "AI "+(i+1) : "Player "+(i+1-aiCount),
-      ai: i<aiCount,
-      pos: starts.splice(Math.floor(Math.random()*starts.length),1)[0]
-    });
-  }
+      // Slight preference to moves that reduce distance
+      const improve = (bfsDistance(from) - dist) * 7;
 
-  say("Announcer",COMMENTARY.start[Math.floor(Math.random()*COMMENTARY.start.length)]);
-  render();
-}
+      // Occasional “theatrical misdirection”
+      const misdirect = (Math.random() < 0.10) ? (dist >= bfsDistance(from) ? 8 : -3) : 0;
 
-function render(){
-  board.innerHTML="";
-  players.forEach((p,i)=>{
-    const d=document.createElement("div");
-    d.className="tag";
-    d.style.borderColor=i===current?"var(--accent)":"rgba(255,255,255,.2)";
-    d.innerHTML="<b>"+p.name+"</b> at "+p.pos+" (MC "+distance(p.pos)+")";
-    board.appendChild(d);
-  });
+      // Greed bias
+      const greed = (Math.random() < df.aiGreed) ? 10 : -2;
 
-  turnEl.textContent=players[current].name;
-  roundEl.textContent=round;
-}
+      return { t, score: base - tokenPenalty + improve + misdirect + greed, ok:true, v };
+    }).filter(x => x.ok);
 
-function playMove(){
-  const p=players[current];
-  const opts=EDGES[p.pos];
-  let choice;
-
-  if(p.ai){
-    opts.sort((a,b)=>distance(a)-distance(b));
-    choice=opts[0];
-    say("AI",COMMENTARY.ai[Math.floor(Math.random()*COMMENTARY.ai.length)]);
-  }else{
-    choice=prompt("Choose next station:\n"+opts.join(", "));
-    if(!opts.includes(choice)){
-      say("Announcer",COMMENTARY.reject[Math.floor(Math.random()*COMMENTARY.reject.length)],"bad");
+    if(scored.length === 0){
+      log("AI", "Passes (claims the interchanges are ‘procedurally occupied’).", "info");
+      sayAnnouncer("compliance", "A pass by the AI. This is either strategic restraint or an unannounced audit.", "info");
+      nextTurn();
       return;
     }
+
+    scored.sort((a,b)=>b.score-a.score);
+    const pick = scored[0];
+
+    // Announcer wind-up
+    if(pick.t === MC){
+      sayAnnouncer("mcTease", "The AI reaches towards the Crescent with the calm of an entity that has never queued at Euston.", "danger");
+    } else if(bfsDistance(pick.t) < bfsDistance(from)){
+      sayAnnouncer("compliance", `The AI advances via ${pick.t}. The committee pretends it predicted this.`, "info");
+    } else {
+      sayAnnouncer("compliance", `The AI selects ${pick.t}. This is either genius or an interpretive reading of the platform signage.`, "info");
+    }
+
+    applyMove(pid, pick.t);
+    if(state.winnerId == null) nextTurn();
   }
 
-  p.pos=choice;
-  say(p.name,COMMENTARY.move[Math.floor(Math.random()*COMMENTARY.move.length)]+" ("+choice+")");
+  function populateStationPick(){
+    const pid = state.turnId;
+    const from = state.pos[pid];
+    const opts = legalFrom(from);
 
-  if(distance(choice)<=2){
-    say("Announcer",COMMENTARY.approach[Math.floor(Math.random()*COMMENTARY.approach.length)]);
+    els.stationPick.innerHTML = "";
+    // Put MC at top if reachable, for maximum temptation
+    const sorted = opts.slice().sort((a,b) => (a===MC?-1:0) - (b===MC?-1:0) || a.localeCompare(b));
+    for(const s of sorted){
+      const o = document.createElement('option');
+      o.value = s;
+      o.textContent = s;
+      els.stationPick.appendChild(o);
+    }
   }
 
-  if(choice===MC){
-    say("Announcer",COMMENTARY.win[Math.floor(Math.random()*COMMENTARY.win.length)],"good");
-    playBtn.disabled=passBtn.disabled=true;
-    return;
+  function render(){
+    // Positions tags
+    els.positions.innerHTML = "";
+    for(const p of state.players){
+      els.positions.appendChild(tag(p, state.pos[p.id], state.tokens[p.id]));
+    }
+
+    // Legal moves preview for current player
+    els.legalMoves.innerHTML = "";
+    const pid = state.turnId;
+    const p = state.players[pid];
+    const from = state.pos[pid];
+    const moves = legalFrom(from);
+
+    const head = document.createElement('div');
+    head.className = "moveTag";
+    head.innerHTML = `<b>${escapeHtml(p.name)}</b> from ${escapeHtml(from)} <span style="opacity:.8">→</span> <b>Options</b>`;
+    els.legalMoves.appendChild(head);
+
+    for(const m of moves){
+      const v = canMoveTo(pid, m);
+      const item = document.createElement('div');
+      item.className = "moveTag";
+      let note = "OK";
+      if(!v.ok) note = "BLOCKED";
+      else if(v.cost) note = `COST ${v.cost}`;
+      item.style.borderColor = !v.ok ? "rgba(255,107,136,.45)" : v.cost ? "rgba(122,167,255,.40)" : "rgba(125,255,178,.35)";
+      item.innerHTML = `<b>${escapeHtml(m)}</b> <span style="opacity:.85">${escapeHtml(note)}</span>`;
+      els.legalMoves.appendChild(item);
+    }
+
+    // Status
+    els.turnWho.textContent = p.name;
+    els.roundN.textContent = String(state.round);
+    els.ruleN.textContent = String(state.rules.length);
+    const dist = bfsDistance(from);
+    els.prox.textContent = (dist === Infinity) ? "∞" : String(dist);
+
+    // Buttons
+    const isAITurn = (state.gameMode === "solo" && p.isAI);
+    const gameOver = state.winnerId != null;
+
+    els.playBtn.disabled = gameOver || isAITurn;
+    els.passBtn.disabled = gameOver || isAITurn;
+    els.stationPick.disabled = gameOver || isAITurn;
+
+    // In pass-and-play, allow manual selection of current player only as a “jump” for usability
+    els.currentPlayerPick.disabled = gameOver;
+
+    // Hint text
+    const rules = state.rules.map(prettyRule).join(", ");
+    const rs = RULESETS[state.ruleset];
+    const msgA = `Active regulations: ${rules}.`;
+    const msgB = `Underlying reality: you may move only to connected stations. The regulations can veto or charge tokens, and they will insist this is your fault.`;
+    const msgC = (state.gameMode === "pnp")
+      ? `Pass-and-play: choose the current player if you need to recover from someone taking a sip of tea mid-turn.`
+      : `Solo mode: the AI will act when it is its turn, and will deny everything in an authoritative tone.`;
+    els.hint.innerHTML = `<b>${escapeHtml(msgA)}</b><br>${escapeHtml(msgB)}<br>${escapeHtml(msgC)}`;
+
+    // Mode label
+    els.modeLabel.textContent = (state.gameMode === "pnp")
+      ? `Mode: Pass-and-Play (${state.players.length} players)`
+      : `Mode: Solo vs AI (${state.difficulty})`;
   }
 
-  nextTurn();
-}
+  function tag(player, station, tokens){
+    const d = document.createElement('div');
+    d.className = "moveTag";
+    const dist = bfsDistance(station);
+    const distTxt = dist === Infinity ? "∞" : String(dist);
+    const ai = player.isAI ? "AI" : "Human";
+    d.innerHTML = `<b>${escapeHtml(player.name)}</b> (${ai}) at ${escapeHtml(station)} <span style="opacity:.9">|</span> tokens <b>${tokens}</b> <span style="opacity:.9">|</span> dist <b>${distTxt}</b>`;
+    d.style.borderColor = player.isAI ? "rgba(255,107,136,.34)" : "rgba(122,167,255,.42)";
+    return d;
+  }
 
-function passTurn(){
-  say(players[current].name,COMMENTARY.pass[Math.floor(Math.random()*COMMENTARY.pass.length)]);
-  nextTurn();
-}
+  function syncCurrentPlayerPick(){
+    els.currentPlayerPick.innerHTML = "";
+    for(const p of state.players){
+      const o = document.createElement('option');
+      o.value = String(p.id);
+      o.textContent = `${p.name}${p.isAI ? " (AI)" : ""}`;
+      els.currentPlayerPick.appendChild(o);
+    }
+    els.currentPlayerPick.value = String(state.turnId);
+  }
 
-function nextTurn(){
-  current=(current+1)%players.length;
-  if(current===0) round++;
-  render();
-  if(players[current].ai) setTimeout(playMove,600);
-}
+  function pickStartingStations(playerCount){
+    // Pick starts away from MC to avoid trivial wins, but keep them in the connected component.
+    const candidates = STATIONS.filter(s => s !== MC && bfsDistance(s) >= 6 && bfsDistance(s) !== Infinity);
+    const starts = [];
+    const used = new Set();
+    while(starts.length < playerCount){
+      const s = choice(candidates);
+      if(used.has(s)) continue;
+      used.add(s);
+      starts.push(s);
+    }
+    return starts;
+  }
 
-/* ------------------------------
-   Wire up
---------------------------------*/
+  function newGame(){
+    const gameMode = els.gameMode.value;
+    const count = (gameMode === "solo") ? 2 : parseInt(els.playerCount.value, 10);
+    const rsKey = els.ruleset.value;
+    const dfKey = els.difficulty.value;
 
-const playersSel=document.getElementById("players");
-const aiSel=document.getElementById("aiCount");
-const playBtn=document.getElementById("play");
-const passBtn=document.getElementById("pass");
-const newBtn=document.getElementById("new");
-const turnEl=document.getElementById("turn");
-const roundEl=document.getElementById("round");
+    // Players
+    const players = [];
+    if(gameMode === "solo"){
+      players.push({ id:0, name:"You", isAI:false });
+      players.push({ id:1, name:"AI", isAI:true });
+    } else {
+      for(let i=0;i<count;i++){
+        players.push({ id:i, name:`Player ${i+1}`, isAI:false });
+      }
+    }
 
-playBtn.onclick=playMove;
-passBtn.onclick=passTurn;
-newBtn.onclick=()=>{playBtn.disabled=passBtn.disabled=false;newGame();};
+    const starts = pickStartingStations(count);
 
-newGame();
+    state = {
+      gameMode,
+      ruleset: rsKey,
+      difficulty: dfKey, // only meaningful in solo
+      round: 1,
+      turnId: 0,
+      prevPlayerId: 0,
+      winnerId: null,
+      players,
+      pos: {},
+      lastMove: {},
+      tokens: {},
+      rules: []
+    };
+
+    for(let i=0;i<players.length;i++){
+      const pid = players[i].id;
+      state.pos[pid] = starts[i];
+      state.lastMove[pid] = "";
+      state.tokens[pid] = RULESETS[rsKey].tokenStart;
+    }
+
+    state.rules = activeRules(state);
+
+    // UI resets
+    els.log.innerHTML = "";
+    els.difficultyWrap.style.display = (gameMode === "solo") ? "" : "none";
+
+    syncCurrentPlayerPick();
+    populateStationPick();
+    render();
+
+    // Commentary opening
+    sayAnnouncer("openers", `New game. Ruleset: ${RULESETS[rsKey].name}.`, "info");
+    const startMsg = players.map(p => `${p.name} at ${state.pos[p.id]}`).join(" | ");
+    log("Announcer", `Starting positions allocated by ceremonial shuffle: ${startMsg}.`, "info");
+    log("Announcer", `Objective filed in triplicate: land on ${MC}. Saying it early is not winning. Saying it early is paperwork.`, "info");
+    log("Announcer", `Regulations for Round 1: ${state.rules.map(prettyRule).join(", ")}.`, "info");
+
+    showToast("New game started");
+
+    // If solo and AI starts (it does not), you could handle here. Currently player 0 starts.
+  }
+
+  // Actions
+  els.playBtn.addEventListener('click', () => {
+    if(state.winnerId != null) return;
+
+    const pid = state.turnId;
+    const p = state.players[pid];
+    if(state.gameMode === "solo" && p.isAI) return;
+
+    const target = els.stationPick.value;
+
+    if(target === MC){
+      sayAnnouncer("mcTease", `${p.name} approaches the Crescent with intent. The committee checks your shoes for etiquette.`, "danger");
+    }
+
+    const ok = applyMove(pid, target);
+    if(ok && state.winnerId == null) nextTurn();
+    else render();
+  });
+
+  els.passBtn.addEventListener('click', () => {
+    if(state.winnerId != null) return;
+
+    const pid = state.turnId;
+    const p = state.players[pid];
+    if(state.gameMode === "solo" && p.isAI) return;
+
+    log(p.name, "Pass.", "info");
+
+    // Passing earns occasional token, because nonsense loves incentives
+    const rs = state.ruleset;
+    const chance = (rs === "full") ? 0.35 : (rs === "standard") ? 0.22 : 0.12;
+    if(Math.random() < chance){
+      state.tokens[pid] += 1;
+      sayAnnouncer("compliance", `${p.name} receives a token for Strategic Restraint. The token is non-transferable but also somehow tradable.`, "good");
+    } else {
+      sayAnnouncer("compliance", `A pass is recorded. The minutes note: ‘bold’. No definition is provided.`, "info");
+    }
+
+    nextTurn();
+  });
+
+  els.newBtn.addEventListener('click', () => newGame());
+
+  els.ruleset.addEventListener('change', () => newGame());
+  els.difficulty.addEventListener('change', () => newGame());
+
+  els.gameMode.addEventListener('change', () => {
+    // In solo mode, force playerCount display semantics but keep it for PnP
+    els.playerCount.disabled = (els.gameMode.value === "solo");
+    newGame();
+  });
+
+  els.playerCount.addEventListener('change', () => {
+    if(els.gameMode.value === "pnp") newGame();
+  });
+
+  els.currentPlayerPick.addEventListener('change', () => {
+    // Allow manual correction in pass-and-play, and in solo as a debug escape hatch.
+    const newId = parseInt(els.currentPlayerPick.value, 10);
+    state.turnId = newId;
+    populateStationPick();
+    render();
+    sayAnnouncer("compliance", `Turn control adjusted to ${state.players[newId].name}. This is not a rewind. This is ‘procedural clarification’.`, "info");
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if(e.key === "Enter"){
+      if(!els.playBtn.disabled) els.playBtn.click();
+    } else if(e.key.toLowerCase() === "p"){
+      if(!els.passBtn.disabled) els.passBtn.click();
+    } else if(e.key.toLowerCase() === "n"){
+      els.newBtn.click();
+    }
+  });
+
+  // Start
+  els.playerCount.disabled = false;
+  newGame();
+})();
 </script>
 </body>
 </html>

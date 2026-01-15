@@ -1,909 +1,459 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mornington Crescent: Procedural Nonsense Edition</title>
-  <style>
-    :root{
-      --bg0:#05060a;
-      --bg1:#070a12;
-      --card:#0e1426cc;
-      --card2:#0b1020cc;
-      --ink:#e9eefc;
-      --muted:#aeb8da;
-      --accent:#7aa7ff;
-      --accent2:#7dffb2;
-      --danger:#ff6b88;
-      --shadow: 0 14px 40px rgba(0,0,0,.45);
-      --ring: 0 0 0 3px rgba(122,167,255,.25);
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color:var(--ink);
-      background:
-        radial-gradient(1100px 700px at 20% 10%, rgba(122,167,255,.12), transparent 55%),
-        radial-gradient(900px 600px at 90% 20%, rgba(125,255,178,.10), transparent 55%),
-        radial-gradient(900px 800px at 50% 100%, rgba(255,107,136,.08), transparent 60%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
-      min-height:100vh;
-    }
-    header{
-      padding:18px 16px 10px;
-      max-width:1100px;
-      margin:0 auto;
-      display:flex;
-      gap:12px;
-      align-items:flex-start;
-      justify-content:space-between;
-      flex-wrap:wrap;
-    }
-    .title{
-      display:flex;
-      gap:12px;
-      align-items:center;
-      min-width:260px;
-    }
-    .badge{
-      width:44px;height:44px;
-      border-radius:14px;
-      background: linear-gradient(135deg, rgba(122,167,255,.9), rgba(125,255,178,.75));
-      box-shadow: var(--shadow);
-      display:grid;
-      place-items:center;
-      color:#0a1020;
-      font-weight:900;
-      letter-spacing:.5px;
-    }
-    h1{
-      margin:0;
-      font-size:18px;
-      line-height:1.2;
-    }
-    .sub{
-      margin:4px 0 0;
-      color:var(--muted);
-      font-size:13px;
-      max-width:620px;
-    }
-    .wrap{
-      max-width:1100px;
-      margin:0 auto;
-      padding:0 16px 18px;
-      display:grid;
-      grid-template-columns: 1.35fr .65fr;
-      gap:14px;
-    }
-    @media (max-width: 980px){
-      .wrap{grid-template-columns:1fr}
-    }
-    .card{
-      background: linear-gradient(180deg, var(--card), var(--card2));
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:18px;
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card h2{
-      margin:0;
-      font-size:14px;
-      letter-spacing:.2px;
-      padding:12px 14px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .card h2 .mini{
-      color:var(--muted);
-      font-weight:600;
-      font-size:12px;
-    }
-    .controls{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      padding:12px 14px 14px;
-      align-items:flex-end;
-    }
-    label{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      color:var(--muted);
-      font-size:12px;
-      min-width:180px;
-      flex:1;
-    }
-    select, input[type="text"]{
-      width:100%;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(4,7,14,.6);
-      color:var(--ink);
-      padding:10px 10px;
-      outline:none;
-    }
-    select:focus, input[type="text"]:focus{ box-shadow: var(--ring); border-color: rgba(122,167,255,.45); }
-    .btnrow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      margin-left:auto;
-    }
-    button{
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(6,10,20,.65);
-      color:var(--ink);
-      padding:10px 12px;
-      border-radius:12px;
-      cursor:pointer;
-      font-weight:700;
-      letter-spacing:.2px;
-    }
-    button:hover{ border-color: rgba(122,167,255,.55); }
-    button.primary{
-      background: linear-gradient(135deg, rgba(122,167,255,.95), rgba(122,167,255,.65));
-      color:#071022;
-      border-color: rgba(122,167,255,.55);
-    }
-    button.good{
-      background: linear-gradient(135deg, rgba(125,255,178,.95), rgba(125,255,178,.60));
-      color:#06161a;
-      border-color: rgba(125,255,178,.55);
-    }
-    button.danger{
-      background: linear-gradient(135deg, rgba(255,107,136,.95), rgba(255,107,136,.62));
-      color:#1a060b;
-      border-color: rgba(255,107,136,.55);
-    }
-    button:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-    }
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:10px;
-      padding:0 14px 14px;
-    }
-    .statusbar{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      padding:12px 14px 14px;
-      border-top:1px solid rgba(255,255,255,.08);
-      align-items:center;
-      justify-content:space-between;
-    }
-    .pill{
-      display:inline-flex;
-      gap:8px;
-      align-items:center;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(2,4,10,.35);
-      color:var(--muted);
-      font-size:12px;
-      white-space:nowrap;
-    }
-    .pill strong{ color: var(--ink); font-weight:800; }
-    .board{
-      padding:14px;
-      display:grid;
-      gap:10px;
-    }
-    .line{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .moveTag{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(3,6,14,.45);
-      font-size:12px;
-      color:var(--muted);
-    }
-    .moveTag b{ color: var(--ink); }
-    .mc{
-      padding:12px 14px 14px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    .log{
-      padding:12px 14px 14px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      max-height: 520px;
-      overflow:auto;
-    }
-    .log .entry{
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(2,4,10,.32);
-      border-radius:14px;
-      padding:10px 10px;
-      font-size:12px;
-      color:var(--muted);
-    }
-    .log .entry .who{
-      color:var(--ink);
-      font-weight:900;
-      letter-spacing:.2px;
-      margin-bottom:6px;
-      display:flex;
-      justify-content:space-between;
-      gap:8px;
-      align-items:baseline;
-    }
-    .log .entry .who span{
-      color:var(--muted);
-      font-weight:700;
-      font-size:11px;
-    }
-    .hint{
-      border-top:1px solid rgba(255,255,255,.08);
-      padding:12px 14px 14px;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.5;
-    }
-    .small{
-      font-size:11px;
-      color:var(--muted);
-      margin:0;
-    }
-    .toast{
-      position:fixed;
-      left:50%;
-      transform:translateX(-50%);
-      bottom:14px;
-      background: rgba(2,4,10,.86);
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow: var(--shadow);
-      color: var(--ink);
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:12px;
-      display:none;
-      max-width:min(780px, calc(100vw - 24px));
-      z-index:9999;
-    }
-    .toast.show{display:block}
-    .kbd{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      border-radius:8px;
-      padding:1px 6px;
-      color:var(--ink);
-      font-size:11px;
-    }
-  </style>
+<meta charset="utf-8">
+<title>Mornington Crescent — Pass & Play Edition</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root{
+  --bg:#070a12;
+  --panel:#0e1426;
+  --ink:#e9eefc;
+  --muted:#aeb8da;
+  --accent:#7aa7ff;
+  --good:#7dffb2;
+  --bad:#ff6b88;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: radial-gradient(1200px 800px at 20% 10%, rgba(122,167,255,.15), transparent 60%),
+              linear-gradient(180deg,#05060a,var(--bg));
+  color:var(--ink);
+}
+
+header{
+  max-width:1200px;
+  margin:auto;
+  padding:18px 16px 10px;
+}
+
+h1{
+  margin:0;
+  font-size:20px;
+}
+
+.sub{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+main{
+  max-width:1200px;
+  margin:auto;
+  padding:0 16px 20px;
+  display:grid;
+  grid-template-columns: 1.4fr .6fr;
+  gap:14px;
+}
+
+@media(max-width:900px){
+  main{grid-template-columns:1fr}
+}
+
+.panel{
+  background:linear-gradient(180deg,rgba(14,20,38,.95),rgba(10,14,28,.95));
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  box-shadow:0 14px 40px rgba(0,0,0,.45);
+  overflow:hidden;
+}
+
+.panel h2{
+  margin:0;
+  padding:12px 14px;
+  font-size:14px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.controls{
+  padding:12px 14px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+label{
+  font-size:12px;
+  color:var(--muted);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:160px;
+}
+
+select,button{
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(4,7,14,.7);
+  color:var(--ink);
+  padding:10px;
+}
+
+button{
+  cursor:pointer;
+  font-weight:700;
+}
+
+button.primary{
+  background:linear-gradient(135deg,var(--accent),#5c7dff);
+  color:#061026;
+}
+
+button.good{
+  background:linear-gradient(135deg,var(--good),#4ddfa0);
+  color:#042018;
+}
+
+button.bad{
+  background:linear-gradient(135deg,var(--bad),#ff4f6f);
+  color:#2a050b;
+}
+
+button:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+.status{
+  padding:12px 14px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.pill{
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  font-size:12px;
+  color:var(--muted);
+}
+
+.board{
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.tag{
+  padding:8px 10px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.14);
+  font-size:12px;
+  display:inline-flex;
+  gap:6px;
+  align-items:center;
+}
+
+.log{
+  padding:12px 14px;
+  max-height:520px;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.entry{
+  padding:10px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(2,4,10,.35);
+  font-size:12px;
+  color:var(--muted);
+}
+
+.entry b{color:var(--ink)}
+
+.entry.good{border-color:rgba(125,255,178,.45)}
+.entry.bad{border-color:rgba(255,107,136,.45)}
+.entry.info{border-color:rgba(122,167,255,.45)}
+
+.footer{
+  padding:10px 14px;
+  border-top:1px solid rgba(255,255,255,.08);
+  font-size:11px;
+  color:var(--muted);
+}
+</style>
 </head>
+
 <body>
+
 <header>
-  <div class="title">
-    <div class="badge">MC</div>
-    <div>
-      <h1>Mornington Crescent: Procedural Nonsense Edition</h1>
-      <p class="sub">A playable rules-light parody: you try to reach <b>Mornington Crescent</b> while the announcer claims the rules are ancient, binding, and very much in force.</p>
-    </div>
+  <h1>Mornington Crescent</h1>
+  <div class="sub">
+    Pass-and-play for humans and AIs.  
+    The rules are ancient, binding, frequently revised, and mostly invented.
   </div>
-  <p class="small">Tip: choose a station, click <span class="kbd">Play Move</span>. First to land on Mornington Crescent wins. If you select Mornington Crescent directly, the game will decide whether that is “allowed.”</p>
 </header>
 
-<div class="wrap">
-  <section class="card" aria-label="Game">
-    <h2>
-      <span>Board</span>
-      <span class="mini" id="modeLabel">Mode: Standard</span>
-    </h2>
+<main>
 
-    <div class="controls">
-      <label>
-        Ruleset
-        <select id="ruleset">
-          <option value="standard">Standard (sensible nonsense)</option>
-          <option value="full">Full Rules (utterly binding)</option>
-          <option value="gentle">Gentleperson’s Variant (polite chaos)</option>
-        </select>
-      </label>
+<section class="panel">
+<h2>Game</h2>
 
-      <label>
-        Difficulty
-        <select id="difficulty">
-          <option value="casual">Casual</option>
-          <option value="sharp">Sharp</option>
-          <option value="vindictive">Vindictive</option>
-        </select>
-      </label>
+<div class="controls">
+  <label>
+    Players
+    <select id="players">
+      <option value="2">2 players</option>
+      <option value="3">3 players</option>
+      <option value="4">4 players</option>
+    </select>
+  </label>
 
-      <label>
-        Your next station
-        <select id="stationPick"></select>
-      </label>
+  <label>
+    AI seats
+    <select id="aiCount">
+      <option value="0">All human</option>
+      <option value="1">1 AI</option>
+      <option value="2">2 AI</option>
+    </select>
+  </label>
 
-      <div class="btnrow">
-        <button class="primary" id="playBtn">Play Move</button>
-        <button class="good" id="passBtn">Pass</button>
-        <button id="newBtn">New Game</button>
-      </div>
-    </div>
-
-    <div class="board">
-      <div class="grid">
-        <div class="line" id="positions"></div>
-        <div class="line" id="legalMoves"></div>
-      </div>
-      <div class="statusbar">
-        <div class="pill"><strong id="turnWho">Your</strong> turn</div>
-        <div class="pill">Round <strong id="roundN">1</strong></div>
-        <div class="pill">Token count <strong id="tokenN">0</strong></div>
-        <div class="pill">MC proximity <strong id="prox">?</strong></div>
-      </div>
-    </div>
-
-    <div class="hint" id="hint">
-      The “rules” here are intentionally fake. The game has a real underlying graph of stations, plus a rotating set of whimsical constraints. The humour comes from the commentary pretending it is all law.
-    </div>
-  </section>
-
-  <aside class="card" aria-label="Commentary">
-    <h2>
-      <span>Commentary</span>
-      <span class="mini">Announcer’s desk</span>
-    </h2>
-    <div class="log" id="log"></div>
-    <div class="hint">
-      Controls: <span class="kbd">Enter</span> to play move, <span class="kbd">P</span> to pass, <span class="kbd">N</span> for new game.
-    </div>
-  </aside>
+  <div style="align-self:flex-end;display:flex;gap:8px">
+    <button id="play" class="primary">Play move</button>
+    <button id="pass">Pass</button>
+    <button id="new" class="good">New game</button>
+  </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="board" id="board"></div>
+
+<div class="status">
+  <div class="pill">Turn: <b id="turn"></b></div>
+  <div class="pill">Round <b id="round"></b></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>Commentary</h2>
+<div class="log" id="log"></div>
+<div class="footer">
+  Win only by landing exactly on <b>Mornington Crescent</b>.  
+  Saying it loudly does not help. It never has.
+</div>
+</section>
+
+</main>
 
 <script>
-(() => {
-  // Tiny, playable “tube-ish” graph. Not accurate, just evocative.
-  // Mornington Crescent is the target. The fun is in the faux-rules.
-  const STATIONS = [
-    "Baker Street","Bond Street","Charing Cross","Euston","Camden Town",
-    "King's Cross St Pancras","Leicester Square","Oxford Circus","Piccadilly Circus","Tottenham Court Road",
-    "Waterloo","Westminster","Green Park","Holborn","Angel",
-    "Warren Street","Goodge Street","Russell Square","Finsbury Park","Highbury & Islington",
-    "Mornington Crescent"
-  ];
-  const MC = "Mornington Crescent";
+/* ------------------------------
+   Network (expanded but curated)
+--------------------------------*/
 
-  // Adjacency list (handmade for flow, not correctness).
-  const EDGES = {
-    "Baker Street": ["Oxford Circus","Euston","Bond Street"],
-    "Bond Street": ["Oxford Circus","Green Park","Baker Street"],
-    "Oxford Circus": ["Bond Street","Tottenham Court Road","Green Park","Baker Street"],
-    "Tottenham Court Road": ["Oxford Circus","Leicester Square","Goodge Street","Holborn"],
-    "Green Park": ["Bond Street","Oxford Circus","Piccadilly Circus","Westminster"],
-    "Piccadilly Circus": ["Green Park","Leicester Square","Charing Cross"],
-    "Leicester Square": ["Tottenham Court Road","Piccadilly Circus","Charing Cross","Holborn"],
-    "Charing Cross": ["Leicester Square","Piccadilly Circus","Waterloo","Westminster"],
-    "Waterloo": ["Charing Cross","Westminster"],
-    "Westminster": ["Waterloo","Charing Cross","Green Park"],
-    "Euston": ["Baker Street","Warren Street","King's Cross St Pancras","Camden Town"],
-    "Warren Street": ["Euston","Goodge Street","King's Cross St Pancras"],
-    "Goodge Street": ["Warren Street","Tottenham Court Road"],
-    "Holborn": ["Tottenham Court Road","Leicester Square","Russell Square"],
-    "Russell Square": ["Holborn","King's Cross St Pancras"],
-    "King's Cross St Pancras": ["Euston","Warren Street","Russell Square","Angel","Finsbury Park"],
-    "Angel": ["King's Cross St Pancras","Highbury & Islington"],
-    "Highbury & Islington": ["Angel","Finsbury Park"],
-    "Finsbury Park": ["King's Cross St Pancras","Highbury & Islington"],
-    "Camden Town": ["Euston","Mornington Crescent"],
-    "Mornington Crescent": ["Camden Town"]
-  };
+const MC = "Mornington Crescent";
 
-  const RULESETS = {
-    standard: { name:"Standard", tokenStart: 0, chaos: 0.35 },
-    full:     { name:"Full Rules", tokenStart: 1, chaos: 0.55 },
-    gentle:   { name:"Gentleperson’s", tokenStart: 0, chaos: 0.25 }
-  };
+const EDGES = {
+  "Paddington":["Baker Street","Edgware Road"],
+  "Edgware Road":["Paddington","Baker Street"],
+  "Baker Street":["Edgware Road","Paddington","Bond Street","Euston"],
+  "Bond Street":["Baker Street","Oxford Circus","Green Park"],
+  "Oxford Circus":["Bond Street","Tottenham Court Road","Green Park"],
+  "Tottenham Court Road":["Oxford Circus","Leicester Square","Goodge Street"],
+  "Goodge Street":["Tottenham Court Road","Warren Street"],
+  "Warren Street":["Goodge Street","Euston"],
+  "Euston":["Warren Street","King's Cross","Camden Town","Baker Street"],
+  "King's Cross":["Euston","Angel","Russell Square"],
+  "Russell Square":["King's Cross","Holborn"],
+  "Holborn":["Russell Square","Leicester Square"],
+  "Leicester Square":["Holborn","Tottenham Court Road","Charing Cross"],
+  "Charing Cross":["Leicester Square","Embankment"],
+  "Embankment":["Charing Cross","Westminster"],
+  "Westminster":["Embankment","Green Park"],
+  "Green Park":["Westminster","Bond Street","Oxford Circus","Piccadilly Circus"],
+  "Piccadilly Circus":["Green Park","Leicester Square"],
+  "Angel":["King's Cross","Highbury & Islington"],
+  "Highbury & Islington":["Angel","Finsbury Park"],
+  "Finsbury Park":["Highbury & Islington"],
+  "Camden Town":["Euston",MC],
+  "Mornington Crescent":["Camden Town"]
+};
 
-  const DIFF = {
-    casual: { aiGreed: 0.55, vetoMean: 0.10, tokenHunger: 0.20 },
-    sharp: { aiGreed: 0.75, vetoMean: 0.18, tokenHunger: 0.35 },
-    vindictive: { aiGreed: 0.90, vetoMean: 0.28, tokenHunger: 0.50 }
-  };
+const STATIONS = Object.keys(EDGES);
 
-  // UI
-  const els = {
-    ruleset: document.getElementById('ruleset'),
-    difficulty: document.getElementById('difficulty'),
-    stationPick: document.getElementById('stationPick'),
-    playBtn: document.getElementById('playBtn'),
-    passBtn: document.getElementById('passBtn'),
-    newBtn: document.getElementById('newBtn'),
-    positions: document.getElementById('positions'),
-    legalMoves: document.getElementById('legalMoves'),
-    log: document.getElementById('log'),
-    toast: document.getElementById('toast'),
-    turnWho: document.getElementById('turnWho'),
-    roundN: document.getElementById('roundN'),
-    tokenN: document.getElementById('tokenN'),
-    prox: document.getElementById('prox'),
-    hint: document.getElementById('hint'),
-    modeLabel: document.getElementById('modeLabel')
-  };
+/* ------------------------------
+   Commentary engine
+--------------------------------*/
 
-  // Game state
-  let state;
+const COMMENTARY = {
+  start:[
+    "The board is laid out. No one agrees who laid it out.",
+    "Officials shuffle papers they definitely wrote themselves.",
+    "The signal lamp flickers. This is taken as consent."
+  ],
+  move:[
+    "A confident choice, immediately questioned.",
+    "A move is made. Somewhere, a precedent is misquoted.",
+    "Textbook play, from a textbook no one can locate.",
+    "An inspired decision, according to the wrong handbook."
+  ],
+  reject:[
+    "Rejected. The reason is waved vaguely at the ceiling.",
+    "Illegal. Someone coughs 'sub-clause'.",
+    "Denied on grounds that will be clear later."
+  ],
+  pass:[
+    "A pass. The room murmurs.",
+    "Passing is permitted, but frowned upon by history.",
+    "A tactical pause, or a cry for help."
+  ],
+  approach:[
+    "This is beginning to look deliberate.",
+    "The Crescent grows nearer. No one says how near.",
+    "There is a sense of gathering inevitability."
+  ],
+  win:[
+    "Mornington Crescent. The ruling stands.",
+    "There it is. No appeal will be heard.",
+    "Victory is declared. The rulebook snaps shut."
+  ],
+  ai:[
+    "The AI nods, having simulated regret.",
+    "The AI claims this was always the plan.",
+    "The AI moves with unsettling confidence."
+  ]
+};
 
-  function rand(n){ return Math.floor(Math.random()*n); }
-  function choice(arr){ return arr[rand(arr.length)]; }
-  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+function say(type,text,className="info"){
+  const e=document.createElement("div");
+  e.className="entry "+className;
+  e.innerHTML="<b>"+type+":</b> "+text;
+  log.prepend(e);
+}
 
-  function showToast(msg){
-    els.toast.textContent = msg;
-    els.toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => els.toast.classList.remove('show'), 1800);
-  }
+/* ------------------------------
+   Game state
+--------------------------------*/
 
-  function log(who, text, tone=""){
-    const e = document.createElement('div');
-    e.className = 'entry';
-    const now = new Date();
-    const t = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    e.innerHTML = `
-      <div class="who">${escapeHtml(who)} <span>${t}</span></div>
-      <div>${escapeHtml(text)}</div>
-    `;
-    if(tone === "danger"){
-      e.style.borderColor = "rgba(255,107,136,.45)";
-    } else if(tone === "good"){
-      e.style.borderColor = "rgba(125,255,178,.40)";
-    } else if(tone === "info"){
-      e.style.borderColor = "rgba(122,167,255,.40)";
+let players=[], current=0, round=1;
+
+const board=document.getElementById("board");
+const log=document.getElementById("log");
+
+function distance(a){
+  const q=[a], d={[a]:0};
+  while(q.length){
+    const u=q.shift();
+    if(u===MC) return d[u];
+    for(const v of EDGES[u]){
+      if(d[v]==null){d[v]=d[u]+1;q.push(v);}
     }
-    els.log.prepend(e);
+  }
+  return Infinity;
+}
+
+function newGame(){
+  players=[];
+  log.innerHTML="";
+  round=1;
+  current=0;
+
+  const pCount=+playersSel.value;
+  const aiCount=+aiSel.value;
+
+  const starts=STATIONS.filter(s=>s!==MC && distance(s)>2);
+
+  for(let i=0;i<pCount;i++){
+    players.push({
+      name: i<aiCount ? "AI "+(i+1) : "Player "+(i+1-aiCount),
+      ai: i<aiCount,
+      pos: starts.splice(Math.floor(Math.random()*starts.length),1)[0]
+    });
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, m => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[m]));
-  }
+  say("Announcer",COMMENTARY.start[Math.floor(Math.random()*COMMENTARY.start.length)]);
+  render();
+}
 
-  // Distance-to-MC for AI and UI
-  function bfsDistance(from){
-    const q = [from];
-    const dist = {[from]:0};
-    while(q.length){
-      const u = q.shift();
-      if(u === MC) return dist[u];
-      for(const v of (EDGES[u]||[])){
-        if(dist[v] == null){
-          dist[v] = dist[u] + 1;
-          q.push(v);
-        }
-      }
-    }
-    return Infinity;
-  }
+function render(){
+  board.innerHTML="";
+  players.forEach((p,i)=>{
+    const d=document.createElement("div");
+    d.className="tag";
+    d.style.borderColor=i===current?"var(--accent)":"rgba(255,255,255,.2)";
+    d.innerHTML="<b>"+p.name+"</b> at "+p.pos+" (MC "+distance(p.pos)+")";
+    board.appendChild(d);
+  });
 
-  // Faux rules: a rotating set of constraints that *pretend* to be canonical.
-  // Underneath: you may move to adjacent nodes, but constraints can veto or add cost.
-  const RULEBOOK = {
-    // Rule returns {ok:boolean, costTokens:int, reason:string, flavour:string, severity:'info'|'danger'|'good'}
-    parityBans: (move, player, st) => {
-      // Ban stations with odd letter count this round (or even), toggles by round.
-      const oddBanned = (st.round % 2 === 1);
-      const letters = move.replace(/[^A-Za-z]/g,'').length;
-      const isOdd = (letters % 2 === 1);
-      if(oddBanned && isOdd){
-        return { ok:false, costTokens:0, reason:"Parliamentary parity clause invoked", flavour:`"${move}" has an odd letter count. It is therefore illegal under the Odd Station Prohibition (revised).`, severity:"danger" };
-      }
-      if(!oddBanned && !isOdd){
-        return { ok:false, costTokens:0, reason:"Parity inversion clause invoked", flavour:`"${move}" has an even letter count. Evenness is not permitted on even rounds, obviously.`, severity:"danger" };
-      }
-      return { ok:true, costTokens:0, reason:"Parity cleared", flavour:"Parity provisions satisfied, reluctantly.", severity:"info" };
-    },
-    vowelsTax: (move, player, st) => {
-      // Token cost based on vowel count if ruleset is full or difficulty high.
-      const vowels = (move.match(/[aeiou]/ig) || []).length;
-      const base = st.ruleset === "full" ? 1 : 0;
-      const extra = vowels >= 10 ? 2 : vowels >= 8 ? 1 : 0;
-      const cost = base + extra;
-      if(cost > 0){
-        return { ok:true, costTokens:cost, reason:"Vowel levy", flavour:`Vowel levy assessed: ${cost} token${cost===1?"":"s"} (station contains an unreasonable number of vowels).`, severity:"info" };
-      }
-      return { ok:true, costTokens:0, reason:"No vowel levy", flavour:"Vowel levy waived on compassionate grounds.", severity:"good" };
-    },
-    mcMoratorium: (move, player, st) => {
-      // Directly choosing MC sometimes requires a token or is vetoed.
-      if(move !== MC) return { ok:true, costTokens:0, reason:"Not MC", flavour:"No Crescent-specific restrictions apply.", severity:"info" };
+  turnEl.textContent=players[current].name;
+  roundEl.textContent=round;
+}
 
-      const d = DIFF[st.difficulty];
-      const mustPay = (st.ruleset !== "gentle");
-      const vetoChance = d.vetoMean + (st.ruleset === "full" ? 0.08 : 0);
+function playMove(){
+  const p=players[current];
+  const opts=EDGES[p.pos];
+  let choice;
 
-      // If player has a token, allow with cost; else might be vetoed.
-      if(mustPay){
-        if(st.tokens[player] > 0){
-          return { ok:true, costTokens:1, reason:"Crescent toll", flavour:"Mornington Crescent toll accepted. The toll collector nods once and vanishes.", severity:"good" };
-        }
-        // no token, see if veto
-        if(Math.random() < vetoChance){
-          return { ok:false, costTokens:0, reason:"Crescent moratorium", flavour:"Mornington Crescent is under moratorium due to a ceremonial signal failure in the vicinity of Camden Town.", severity:"danger" };
-        }
-        // allow but grant a debt token (negative) for comedy
-        return { ok:true, costTokens:0, reason:"Crescent exception", flavour:"A rare exception is granted. A committee will write stern minutes about it later.", severity:"info" };
-      }
-
-      // Gentle ruleset: mostly allowed
-      if(Math.random() < (vetoChance * 0.35)){
-        return { ok:false, costTokens:0, reason:"Gentle veto", flavour:"Even under the Gentleperson’s Variant, one cannot simply saunter into Mornington Crescent without proper posture.", severity:"danger" };
-      }
-      return { ok:true, costTokens:0, reason:"Gentle allow", flavour:"Mornington Crescent accepted with a courteous bow.", severity:"good" };
-    },
-    lastLetterBan: (move, player, st) => {
-      // Ban repeating last letter of opponent's last move (fake "Kensington protocol")
-      const opp = player === "You" ? "AI" : "You";
-      const last = st.lastMove[opp];
-      if(!last) return { ok:true, costTokens:0, reason:"No prior move", flavour:"No previous-letter entanglement detected.", severity:"info" };
-      const a = last.trim().slice(-1).toLowerCase();
-      const b = move.trim().slice(-1).toLowerCase();
-      if(a && b && a === b && st.ruleset !== "gentle"){
-        return { ok:false, costTokens:0, reason:"Kensington protocol", flavour:`Kensington protocol triggers: your station ends with "${b}", matching the opponent’s last terminus. Entirely forbidden.`, severity:"danger" };
-      }
-      return { ok:true, costTokens:0, reason:"Kensington cleared", flavour:"Kensington protocol not applicable. This time.", severity:"good" };
-    }
-  };
-
-  function activeRules(st){
-    // Rotating subset makes each game feel different.
-    // Always include the MC rule, then optionally others.
-    const rules = ["mcMoratorium"];
-    const chaos = RULESETS[st.ruleset].chaos;
-
-    if(Math.random() < (0.70 + chaos*0.2)) rules.push("parityBans");
-    if(Math.random() < (0.55 + chaos*0.25)) rules.push("lastLetterBan");
-    if(Math.random() < (0.45 + chaos*0.35)) rules.push("vowelsTax");
-
-    // Ensure uniqueness
-    return [...new Set(rules)];
-  }
-
-  function newGame(){
-    const rs = els.ruleset.value;
-    const df = els.difficulty.value;
-
-    // Choose starts away from MC.
-    const starts = STATIONS.filter(s => s !== MC && bfsDistance(s) >= 3);
-    const youStart = choice(starts);
-    const aiStart = choice(starts.filter(s => s !== youStart));
-
-    state = {
-      ruleset: rs,
-      difficulty: df,
-      round: 1,
-      turn: "You",
-      pos: { You: youStart, AI: aiStart },
-      lastMove: { You: "", AI: "" },
-      tokens: { You: RULESETS[rs].tokenStart, AI: RULESETS[rs].tokenStart },
-      rules: [],
-      winner: null
-    };
-    state.rules = activeRules(state);
-
-    els.log.innerHTML = "";
-    els.modeLabel.textContent = `Mode: ${RULESETS[rs].name}`;
-    log("Announcer", `New game. Ruleset: ${RULESETS[rs].name}. Difficulty: ${df}. The officials are already arguing with themselves.`, "info");
-    log("Announcer", `Starting positions drawn from the sacred bag: You at ${state.pos.You}. AI at ${state.pos.AI}.`, "info");
-    log("Announcer", `Active regulations for Round 1: ${state.rules.map(prettyRule).join(", ")}. They are, regrettably, enforceable.`, "info");
-
-    populateStationPick();
-    render();
-    showToast("New game started");
-  }
-
-  function prettyRule(k){
-    const map = {
-      parityBans: "Odd/Even Station Provisions",
-      vowelsTax: "Vowel Levy",
-      mcMoratorium: "Mornington Crescent Moratorium",
-      lastLetterBan: "Kensington Terminal Protocol"
-    };
-    return map[k] || k;
-  }
-
-  function legalFrom(pos){
-    // Base legal: adjacent stations
-    return (EDGES[pos] || []).slice();
-  }
-
-  function canMoveTo(player, target){
-    const from = state.pos[player];
-    const baseLegal = legalFrom(from);
-    if(!baseLegal.includes(target)){
-      return { ok:false, cost:0, why:`Not adjacent to ${from}`, flavour:`You cannot reach ${target} directly from ${from} unless you are travelling by metaphor.`, severity:"danger" };
-    }
-
-    let cost = 0;
-    let flavours = [];
-    for(const r of state.rules){
-      const out = RULEBOOK[r](target, player, state);
-      if(out.flavour) flavours.push(out.flavour);
-      if(!out.ok){
-        return { ok:false, cost:0, why: out.reason, flavour: flavours.join(" "), severity: out.severity || "danger" };
-      }
-      cost += out.costTokens || 0;
-    }
-
-    // Token constraint
-    if(cost > 0 && state.tokens[player] < cost){
-      return {
-        ok:false, cost:0,
-        why:"Insufficient tokens",
-        flavour:`You require ${cost} token${cost===1?"":"s"} for this move, but you possess ${state.tokens[player]}. The Treasury issues a disappointed sigh.`,
-        severity:"danger"
-      };
-    }
-
-    return { ok:true, cost, why:"Allowed", flavour: flavours.join(" "), severity:"good" };
-  }
-
-  function applyMove(player, target){
-    const verdict = canMoveTo(player, target);
-    if(!verdict.ok){
-      log("Announcer", `${player} attempts ${target}. Rejected: ${verdict.why}. ${verdict.flavour}`, "danger");
-      return false;
-    }
-
-    const from = state.pos[player];
-    state.pos[player] = target;
-    state.lastMove[player] = target;
-    if(verdict.cost > 0) state.tokens[player] -= verdict.cost;
-
-    log(player, `Move: ${from} → ${target}${verdict.cost ? ` (paid ${verdict.cost} token${verdict.cost===1?"":"s"})` : ""}.`, verdict.cost ? "info" : "good");
-    if(verdict.flavour) log("Announcer", verdict.flavour, verdict.severity === "danger" ? "danger" : "info");
-
-    // Win check
-    if(target === MC){
-      state.winner = player;
-      log("Announcer", `${player} declares: MORNINGTON CRESCENT. The studio audience gasps in legally mandated disbelief.`, "good");
-      endGame();
-    }
-    return true;
-  }
-
-  function endGame(){
-    els.playBtn.disabled = true;
-    els.passBtn.disabled = true;
-    els.stationPick.disabled = true;
-
-    const w = state.winner;
-    if(w === "You"){
-      showToast("You win: Mornington Crescent");
-      log("Announcer", "Victory certified. The adjudicator stamps the form, then eats the stamp. This is normal.", "good");
-    } else {
-      showToast("AI wins: Mornington Crescent");
-      log("Announcer", "Defeat recorded in the official ledger under ‘avoidable tragedies’. The AI apologises in a perfectly unhelpful way.", "danger");
-    }
-    render();
-  }
-
-  function nextTurn(){
-    if(state.winner) return;
-
-    state.turn = (state.turn === "You") ? "AI" : "You";
-    if(state.turn === "You"){
-      state.round += 1;
-      // Rotate rules each round for escalating nonsense
-      state.rules = activeRules(state);
-      log("Announcer", `Round ${state.round}. Regulations refreshed: ${state.rules.map(prettyRule).join(", ")}. The committee looks pleased with itself.`, "info");
-
-      // Occasionally award a token for “good form”
-      if(Math.random() < 0.22 && state.ruleset !== "gentle"){
-        state.tokens.You += 1;
-        log("Announcer", "A token is awarded to You for Proper Station Etiquette. No one can define it, but everyone agrees you displayed it.", "good");
-      }
-      if(Math.random() < 0.18 && state.ruleset === "full"){
-        state.tokens.AI += 1;
-        log("Announcer", "A token is quietly slid to the AI. This is not nepotism. It is ‘operational necessity.’", "danger");
-      }
-
-      populateStationPick();
-      render();
+  if(p.ai){
+    opts.sort((a,b)=>distance(a)-distance(b));
+    choice=opts[0];
+    say("AI",COMMENTARY.ai[Math.floor(Math.random()*COMMENTARY.ai.length)]);
+  }else{
+    choice=prompt("Choose next station:\n"+opts.join(", "));
+    if(!opts.includes(choice)){
+      say("Announcer",COMMENTARY.reject[Math.floor(Math.random()*COMMENTARY.reject.length)],"bad");
       return;
     }
-
-    render();
-    setTimeout(aiMove, 520);
   }
 
-  function aiMove(){
-    if(state.winner) return;
+  p.pos=choice;
+  say(p.name,COMMENTARY.move[Math.floor(Math.random()*COMMENTARY.move.length)]+" ("+choice+")");
 
-    const d = DIFF[state.difficulty];
-    const from = state.pos.AI;
-    const options = legalFrom(from);
-
-    // Evaluate options: prefer closer to MC, sometimes be petty, sometimes hoard tokens.
-    let scored = options.map(t => {
-      const v = canMoveTo("AI", t);
-      if(!v.ok) return { t, score: -999, ok:false, v };
-      const dist = bfsDistance(t);
-      const base = 100 - (dist * 18);
-      const tokenPenalty = (v.cost || 0) * (8 + d.tokenHunger * 10);
-      // Vindictive behaviour: slightly prefer blocking parity/terminal patterns by forcing awkward last letters (nonsense)
-      const petty = (Math.random() < 0.25) ? (t.slice(-1).toLowerCase() === (state.pos.You||"").slice(-1).toLowerCase() ? 6 : 0) : 0;
-      const greed = (Math.random() < d.aiGreed) ? 8 : -2;
-      return { t, score: base - tokenPenalty + petty + greed, ok:true, v };
-    }).filter(x => x.ok);
-
-    if(scored.length === 0){
-      log("AI", `Passes (claims the routes are “non-compliant”).`, "info");
-      log("Announcer", "The AI has passed. This is either strategic restraint or an existential crisis.", "info");
-      nextTurn();
-      return;
-    }
-
-    scored.sort((a,b) => b.score - a.score);
-    const pick = scored[0];
-
-    // Commentary spice
-    if(pick.t === MC){
-      log("Announcer", "The AI reaches for Mornington Crescent. A hush falls. A clipboard trembles.", "danger");
-    } else if(bfsDistance(pick.t) < bfsDistance(from)){
-      log("Announcer", `The AI advances towards inevitability via ${pick.t}. This is how the ancients intended.`, "info");
-    } else {
-      log("Announcer", `The AI selects ${pick.t}. This is either genius or a misread of the Northern Line runes.`, "info");
-    }
-
-    applyMove("AI", pick.t);
-    if(!state.winner) nextTurn();
+  if(distance(choice)<=2){
+    say("Announcer",COMMENTARY.approach[Math.floor(Math.random()*COMMENTARY.approach.length)]);
   }
 
-  function populateStationPick(){
-    const from = state.pos.You;
-    const opts = legalFrom(from);
-
-    els.stationPick.innerHTML = "";
-    // Put MC at top if reachable to make the temptation obvious.
-    const sorted = opts.slice().sort((a,b) => (a===MC?-1:0) - (b===MC?-1:0) || a.localeCompare(b));
-    for(const s of sorted){
-      const o = document.createElement('option');
-      o.value = s; o.textContent = s;
-      els.stationPick.appendChild(o);
-    }
+  if(choice===MC){
+    say("Announcer",COMMENTARY.win[Math.floor(Math.random()*COMMENTARY.win.length)],"good");
+    playBtn.disabled=passBtn.disabled=true;
+    return;
   }
 
-  function render(){
-    // Positions
-    els.positions.innerHTML = "";
-    const youTag = tag(`You`, state.pos.You, state.tokens.You);
-    const aiTag = tag(`AI`, state.pos.AI, state.tokens.AI);
-    els.positions.appendChild(youTag);
-    els.positions.appendChild(aiTag);
+  nextTurn();
+}
 
-    // Legal moves preview (for you)
-    els.legalMoves.innerHTML = "";
-    const from = state.pos.You;
-    const moves = legalFrom(from);
+function passTurn(){
+  say(players[current].name,COMMENTARY.pass[Math.floor(Math.random()*COMMENTARY.pass.length)]);
+  nextTurn();
+}
 
-    const head = document.createElement('div');
-    head.className = "moveTag";
-    head.innerHTML = `<b>From</b> ${escapeHtml(from)} <span style="opacity:.8">→</span> <b>Options</b>`;
-    els.legalMoves.appendChild(head);
+function nextTurn(){
+  current=(current+1)%players.length;
+  if(current===0) round++;
+  render();
+  if(players[current].ai) setTimeout(playMove,600);
+}
 
-    for(const m of moves){
-      const v = canMoveTo("You", m);
-      const item = document.createElement('div');
-      item.className = "moveTag";
-      let note = "OK";
-      if(!v.ok) note = "BLOCKED";
-      else if(v.cost) note = `COST ${v.cost}`;
-      item.style.borderColor = !v.ok ? "rgba(255,107,136,.45)" : v.cost ? "rgba(122,167,255,.40)" : "rgba(125,255,178,.35)";
-      item.innerHTML = `<b>${escapeHtml(m)}</b> <span style="opacity:.85">${escapeHtml(note)}</span>`;
-      els.legalMoves.appendChild(item);
-    }
+/* ------------------------------
+   Wire up
+--------------------------------*/
 
-    // Turn + round + tokens
-    els.turnWho.textContent = state.turn === "You" ? "Your" : "AI";
-    els.roundN.textContent = String(state.round);
-    els.tokenN.textContent = String(state.tokens.You);
+const playersSel=document.getElementById("players");
+const aiSel=document.getElementById("aiCount");
+const playBtn=document.getElementById("play");
+const passBtn=document.getElementById("pass");
+const newBtn=document.getElementById("new");
+const turnEl=document.getElementById("turn");
+const roundEl=document.getElementById("round");
 
-    // proximity (your distance to MC)
-    const dist = bfsDistance(state.pos.You);
-    els.prox.textContent = (dist === Infinity) ? "∞" : String(dist);
+playBtn.onclick=playMove;
+passBtn.onclick=passTurn;
+newBtn.onclick=()=>{playBtn.disabled=passBtn.disabled=false;newGame();};
 
-    // Buttons enabled
-    const yourTurn = state.turn === "You" && !state.winner;
-    els.playBtn.disabled = !yourTurn;
-    els.passBtn.disabled = !yourTurn;
-    els.stationPick.disabled = !yourTurn;
-
-    // Hint panel changes with ruleset
-    const ruleText = state.rules.map(prettyRule).join(", ");
-    els.hint.innerHTML = `
-      <b>Round ${state.round} regulations:</b> ${escapeHtml(ruleText)}.<br>
-      Underneath the theatre: you can move only along the shown connections, but regulations can veto or charge tokens.
-      ${state.ruleset === "full" ? "<br><b>Full Rules note:</b> Mornington Crescent often requires a token and is sometimes under moratorium." : ""}
-    `;
-  }
-
-  function tag(who, station, tokens){
-    const d = document.createElement('div');
-    d.className = "moveTag";
-    const dist = bfsDistance(station);
-    const distTxt = dist === Infinity ? "∞" : String(dist);
-    d.innerHTML = `<b>${escapeHtml(who)}</b> at ${escapeHtml(station)} <span style="opacity:.9">|</span> tokens <b>${tokens}</b> <span style="opacity:.9">|</span> dist-to-MC <b>${distTxt}</b>`;
-    d.style.borderColor = who === "You" ? "rgba(122,167,255,.42)" : "rgba(255,107,136,.34)";
-    return d;
-  }
-
-  // Handlers
-  els.playBtn.addEventListener('click', () => {
-    if(state.turn !== "You" || state.winner) return;
-    const target = els.stationPick.value;
-
-    // Extra announcer flourish for MC attempts
-    if(target === MC){
-      log("Announcer", "You clear your throat. You look at the camera. You say the words you are not meant to say lightly.", "danger");
-    }
-
-    const ok = applyMove("You", target);
-    if(ok && !state.winner) nextTurn();
-    else render();
-  });
-
-  els.passBtn.addEventListener('click', () => {
-    if(state.turn !== "You" || state.winner) return;
-    log("You", "Pass.", "info");
-    log("Announcer", "A pass. Bold. Like offering a biscuit in the middle of a duel.", "info");
-
-    // Occasionally award token for passing in Full Rules
-    if(state.ruleset === "full" && Math.random() < 0.35){
-      state.tokens.You += 1;
-      log("Announcer", "A token is issued for Strategic Restraint. The official stamp is slightly damp.", "good");
-    }
-
-    nextTurn();
-  });
-
-  els.newBtn.addEventListener('click', () => newGame());
-
-  els.ruleset.addEventListener('change', () => newGame());
-  els.difficulty.addEventListener('change', () => newGame());
-
-  document.addEventListener('keydown', (e) => {
-    if(e.key === "Enter"){
-      if(!els.playBtn.disabled) els.playBtn.click();
-    } else if(e.key.toLowerCase() === "p"){
-      if(!els.passBtn.disabled) els.passBtn.click();
-    } else if(e.key.toLowerCase() === "n"){
-      els.newBtn.click();
-    }
-  });
-
-  // Start
-  // Populate select to avoid empty UI before newGame
-  for(const s of STATIONS){
-    // no-op, stationPick is per-position
-  }
-  newGame();
-})();
+newGame();
 </script>
 </body>
 </html>

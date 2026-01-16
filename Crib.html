@@ -1124,7 +1124,9 @@ state.turn = state.lastPegger;
     if(checkWin()) return;
 
     // Enable next round
-    state.waitingNext = true;
+state.waitingNext = true;
+setPhase("show");
+
     $("pegHelp").textContent = "Round complete. Continue to deal next round.";
     renderAll();
   }
@@ -1402,20 +1404,24 @@ state.turn = state.lastPegger;
   });
 
   // --------- Phase gating ----------
-  function updateContinueButton(){
-    if(state.phase==="show" && state.waitingNext){
-      $("nextPhaseBtn").disabled = false;
-      $("nextPhaseBtn").textContent = "Deal next round";
-      return;
-    }
-    if(state.phase==="over"){
-      $("nextPhaseBtn").disabled = false;
-      $("nextPhaseBtn").textContent = "New Game";
-      return;
-    }
-    $("nextPhaseBtn").textContent = "Continue";
-    $("nextPhaseBtn").disabled = true;
+function updateContinueButton(){
+  if (state.phase === "show") {
+    $("nextPhaseBtn").disabled = !state.waitingNext;
+    $("nextPhaseBtn").textContent = "Deal next round";
+    return;
   }
+
+  if (state.phase === "over") {
+    $("nextPhaseBtn").disabled = false;
+    $("nextPhaseBtn").textContent = "New Game";
+    return;
+  }
+
+  // Any other phase (including Pegging): Continue is invalid
+  $("nextPhaseBtn").disabled = true;
+  $("nextPhaseBtn").textContent = "Continue";
+}
+
 
   // Patch into renderAll
   const _renderAll = renderAll;

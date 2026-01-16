@@ -692,7 +692,12 @@
     }
 
     // Buttons
-    $("goBtn").disabled = !(state.phase==="pegging" && state.turn===0 && !playerHasLegalPeg());
+$("goBtn").disabled = !(
+  state.phase === "pegging" &&
+  state.turn === 0 &&
+  !playerHasLegalPeg() &&
+  state.playedHands[0].length > 0
+);
     $("playPegBtn").disabled = !(state.phase==="pegging" && state.turn===0 && selectionIsSinglePlayablePeg());
     $("nextPhaseBtn").disabled = !state.waitingNext;
   }

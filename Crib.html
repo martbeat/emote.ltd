@@ -1080,37 +1080,7 @@ function finalizeGoIfNeeded(forceEnd=false) {
 
   return didReset;
 }
-    // If someone said GO and the other cannot play (or force end), the last pegger gets 1 (or 2 if ended on 31 already counted separately).
-    // Also if count hits 31, reset automatically without go point (31 already scored as 2 in peggingPoints).
-    if(state.pegCount===31){
-      // reset for new go
-      state.pegCount=0;
-      state.pegSeq=[];
-      state.goCalled=[false,false];
-// IMPORTANT: last pegger leads the new go
-state.turn = state.lastPegger;
-      addLog(`<span class="t">Count reset to 0.</span>`);
-      // Next lead is the player who played last card, already state.turn toggled in advancePegTurn.
-      return;
-    }
-
-    const bothCantPlay = (!hasPlayable(0) && !hasPlayable(1));
-    const anyGo = state.goCalled[0] || state.goCalled[1];
-
-    if(forceEnd || (anyGo && bothCantPlay)){
-      // award "last card" point if count not 31
-      if(state.lastPegger!==null && state.pegCount>0){
-        awardPoints(state.lastPegger, 1, `Last card / Go`);
-        addLog(`<span class="t">Go ends. Last card point to</span> <b>${state.lastPegger===0?"You":"AI"}</b> <span class="g">+1</span>.`);
-      }
-      // reset
-      state.pegCount=0;
-      state.pegSeq=[];
-      state.goCalled=[false,false];
-      addLog(`<span class="t">New go begins (count reset to 0).</span>`);
-    }
-  }
-
+  
   function scoreShow(){
     setPhase("show");
     // Scoring order: non-dealer hand, dealer hand, then dealer crib

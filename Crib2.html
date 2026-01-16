@@ -1,0 +1,1447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Cribbage 121 (Mobile) vs AI</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --ink:#eaf0ff;
+      --muted:#b7c4ff;
+      --accent:#7aa7ff;
+      --good:#7dffb2;
+      --bad:#ff6b88;
+      --warn:#ffd56b;
+      --line:#223059;
+      --shadow: 0 10px 28px rgba(0,0,0,.35);
+      --r:16px;
+      --tap:48px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background: radial-gradient(1200px 700px at 40% 10%, #162251 0%, var(--bg) 55%, #060912 100%);
+      color:var(--ink);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      min-height:100%;
+    }
+    header{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      border-radius: var(--r);
+      padding: 12px;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 240px;
+      flex: 1;
+    }
+    .title h1{
+      font-size: 18px;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .title .sub{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+      min-width: 260px;
+    }
+    button, .toggle{
+      height: var(--tap);
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--ink);
+      padding: 0 14px;
+      font-weight: 650;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      user-select:none;
+    }
+    button:hover{background: rgba(255,255,255,.09)}
+    button:active{transform: translateY(1px)}
+    button.primary{
+      background: rgba(122,167,255,.18);
+      border-color: rgba(122,167,255,.35);
+    }
+    button.primary:hover{background: rgba(122,167,255,.24)}
+    button.danger{
+      background: rgba(255,107,136,.14);
+      border-color: rgba(255,107,136,.35);
+    }
+    button.good{
+      background: rgba(125,255,178,.12);
+      border-color: rgba(125,255,178,.32);
+    }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+    }
+    .toggle{
+      padding: 0 10px;
+      gap:10px;
+    }
+    .toggle input{width:20px; height:20px}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 920px){
+      .grid{grid-template-columns: 1.2fr .8fr}
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:stretch;
+    }
+    .col{
+      flex:1;
+      min-width: 260px;
+    }
+
+    .sectionTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .sectionTitle h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:.3px;
+      color: var(--muted);
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+    .pill{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    .cards{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .playingCard{
+      width: 56px;
+      height: 76px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:
+        radial-gradient(160px 100px at 30% 20%, rgba(255,255,255,.14), rgba(255,255,255,.05) 45%, rgba(0,0,0,.10) 100%);
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      justify-content:space-between;
+      padding: 8px;
+      cursor:pointer;
+      user-select:none;
+      position:relative;
+      overflow:hidden;
+    }
+    .playingCard.small{width:48px; height:66px}
+    .playingCard.disabled{opacity:.4; cursor:not-allowed}
+    .playingCard.sel{
+      outline: 2px solid rgba(122,167,255,.9);
+      box-shadow: 0 0 0 6px rgba(122,167,255,.16), 0 10px 20px rgba(0,0,0,.26);
+      transform: translateY(-2px);
+    }
+    .rank{font-size: 16px; font-weight: 850}
+    .suit{font-size: 14px; opacity:.9}
+    .pip{
+      position:absolute;
+      right:8px;
+      bottom:8px;
+      font-size: 12px;
+      color: rgba(255,255,255,.55);
+      font-weight:700;
+    }
+    .red{color:#ff8aa0}
+    .black{color:#eaf0ff}
+
+    .log{
+      max-height: 320px;
+      overflow:auto;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.16);
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .log .t{color: var(--muted)}
+    .log .g{color: var(--good); font-weight:700}
+    .log .r{color: var(--bad); font-weight:700}
+    .log .w{color: var(--warn); font-weight:700}
+
+    .scoreRow{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      flex-wrap:wrap;
+    }
+    .scoreBox{
+      flex:1;
+      min-width: 220px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.14);
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .scoreTop{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
+    .who{font-weight:850}
+    .pts{
+      font-weight:900;
+      font-size: 18px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
+      min-width: 70px;
+      text-align:center;
+    }
+    .meter{
+      height: 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
+      overflow:hidden;
+    }
+    .bar{
+      height:100%;
+      background: linear-gradient(90deg, rgba(122,167,255,.95), rgba(125,255,178,.75));
+      width:0%;
+    }
+    .help{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      margin-top: 6px;
+    }
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .kv b{color: var(--ink)}
+    .divider{
+      height:1px;
+      background: rgba(255,255,255,.10);
+      margin: 10px 0;
+    }
+    .badge{
+      font-size: 12px;
+      font-weight:800;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+    }
+    .badge.good{border-color: rgba(125,255,178,.35); background: rgba(125,255,178,.10)}
+    .badge.bad{border-color: rgba(255,107,136,.35); background: rgba(255,107,136,.10)}
+    .badge.warn{border-color: rgba(255,213,107,.35); background: rgba(255,213,107,.10)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="card title">
+        <h1>Cribbage to 121 (Full Rules) vs AI</h1>
+        <div class="sub">
+          Phases: deal → discard to crib → cut starter → pegging → show hands → score crib. Dealer alternates. First to <b>121</b> wins.
+        </div>
+      </div>
+      <div class="card controls">
+        <label class="toggle" title="Stronger AI uses deeper sampling for discards and better pegging choices (slower).">
+          <input id="strongAI" type="checkbox">
+          Stronger AI
+        </label>
+        <button id="newGame" class="primary">New Game</button>
+        <button id="rulesBtn">Quick Rules</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="sectionTitle">
+          <h2>Table</h2>
+          <div class="pill" id="phasePill">Phase: —</div>
+        </div>
+
+        <div class="scoreRow">
+          <div class="scoreBox">
+            <div class="scoreTop">
+              <div class="who">You</div>
+              <div class="pts" id="pScore">0</div>
+            </div>
+            <div class="meter"><div class="bar" id="pBar"></div></div>
+            <div class="help" id="pHint"></div>
+          </div>
+          <div class="scoreBox">
+            <div class="scoreTop">
+              <div class="who">AI</div>
+              <div class="pts" id="aScore">0</div>
+            </div>
+            <div class="meter"><div class="bar" id="aBar"></div></div>
+            <div class="help" id="aHint"></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div class="col card" style="padding:12px; background: rgba(0,0,0,.12); border-color: rgba(255,255,255,.10)">
+            <div class="sectionTitle">
+              <h2>Starter</h2>
+              <span class="badge" id="starterBadge">Not cut</span>
+            </div>
+            <div class="cards" id="starterArea"></div>
+            <div class="help" id="starterHelp"></div>
+          </div>
+
+          <div class="col card" style="padding:12px; background: rgba(0,0,0,.12); border-color: rgba(255,255,255,.10)">
+            <div class="sectionTitle">
+              <h2>Pegging</h2>
+              <span class="badge" id="pegBadge">Count: 0</span>
+            </div>
+            <div class="kv">
+              <div>Current count</div><div><b id="pegCount">0</b></div>
+              <div>In run (this go)</div><div><b id="pegRun">—</b></div>
+              <div>Turn</div><div><b id="turnWho">—</b></div>
+            </div>
+            <div class="divider"></div>
+            <div class="cards" id="pegPile"></div>
+            <div class="actions">
+              <button id="goBtn" class="warn" disabled>Go</button>
+              <button id="nextPhaseBtn" class="primary" disabled>Continue</button>
+            </div>
+            <div class="help" id="pegHelp"></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="sectionTitle">
+          <h2>Your Hand</h2>
+          <span class="pill" id="handPill">Select cards as prompted</span>
+        </div>
+        <div class="cards" id="playerHand"></div>
+
+        <div class="actions">
+          <button id="discardBtn" class="primary" disabled>Discard selected to crib</button>
+          <button id="playPegBtn" class="good" disabled>Play selected (pegging)</button>
+        </div>
+        <div class="help" id="handHelp"></div>
+      </div>
+
+      <div class="card">
+        <div class="sectionTitle">
+          <h2>Round Log</h2>
+          <span class="pill" id="dealerPill">Dealer: —</span>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // --------- Utilities ----------
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log");
+  function addLog(html){
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+  function shuffle(a){
+    for(let i=a.length-1;i>0;i--){
+      const j = (Math.random()*(i+1))|0;
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  // --------- Cards ----------
+  const SUITS = ["♣","♦","♥","♠"];
+  const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+  function cardValueFor15(rankIndex){
+    // For 15-counting: A=1, 2..10=face, J/Q/K=10
+    const r = rankIndex+1;
+    return r>=10 ? 10 : r;
+  }
+  function cardRankNum(rankIndex){
+    // For runs: A=1 .. K=13
+    return rankIndex+1;
+  }
+  function makeDeck(){
+    const d=[];
+    for(let s=0;s<4;s++){
+      for(let r=0;r<13;r++){
+        d.push({suit:s, rank:r, id:`${r}-${s}-${Math.random().toString(16).slice(2)}`});
+      }
+    }
+    return d;
+  }
+  function cardLabel(c){
+    return `${RANKS[c.rank]}${SUITS[c.suit]}`;
+  }
+  function suitClass(c){
+    return (c.suit===1 || c.suit===2) ? "red" : "black";
+  }
+  function pegValue(c){
+    const r = c.rank+1;
+    return r>=10 ? 10 : r;
+  }
+
+  // --------- Scoring (Show) ----------
+  // Returns detailed breakdown too.
+  function scoreHand(hand4, starter, isCrib=false){
+    const cards = hand4.concat([starter]);
+    let pts = 0;
+    const breakdown = [];
+
+    // 15s: count subsets summing to 15
+    const vals = cards.map(c => cardValueFor15(c.rank));
+    let fif = 0;
+    for(let mask=1; mask < (1<<5); mask++){
+      let sum=0;
+      for(let i=0;i<5;i++) if(mask & (1<<i)) sum += vals[i];
+      if(sum===15) fif++;
+    }
+    if(fif>0){ pts += fif*2; breakdown.push(`15s: ${fif}×2 = <span class="g">${fif*2}</span>`); }
+
+    // pairs: all pairs among 5
+    let pairPts=0, pairs=0;
+    for(let i=0;i<5;i++){
+      for(let j=i+1;j<5;j++){
+        if(cards[i].rank===cards[j].rank){ pairs++; pairPts += 2; }
+      }
+    }
+    if(pairPts>0){ pts += pairPts; breakdown.push(`Pairs: ${pairs}×2 = <span class="g">${pairPts}</span>`); }
+
+    // runs: handle duplicates properly by counting combinations
+    const runInfo = scoreRuns5(cards);
+    if(runInfo.pts>0){
+      pts += runInfo.pts;
+      breakdown.push(`Runs: ${runInfo.desc} = <span class="g">${runInfo.pts}</span>`);
+    }
+
+    // flush: in hand (4 cards) and starter, with crib special rule
+    const suit0 = hand4[0].suit;
+    const handFlush = hand4.every(c => c.suit===suit0);
+    if(handFlush){
+      if(starter.suit===suit0){
+        pts += 5;
+        breakdown.push(`Flush: 5 = <span class="g">5</span>`);
+      } else {
+        if(!isCrib){
+          pts += 4;
+          breakdown.push(`Flush: 4 = <span class="g">4</span>`);
+        }
+      }
+    }
+
+    // nobs: jack in hand same suit as starter
+    const nob = hand4.some(c => c.rank===10 && c.suit===starter.suit);
+    if(nob){
+      pts += 1;
+      breakdown.push(`Nobs: 1 = <span class="g">1</span>`);
+    }
+
+    return {pts, breakdown};
+  }
+
+  function scoreRuns5(cards5){
+    // Count runs length 5..3 using multiset approach.
+    // For cribbage: find longest run length L>=3; points = L * multiplicity.
+    const ranks = cards5.map(c => cardRankNum(c.rank)).sort((a,b)=>a-b);
+
+    // Build counts per rank
+    const counts = new Map();
+    for(const r of ranks) counts.set(r, (counts.get(r)||0)+1);
+
+    // Unique ranks sorted
+    const uniq = Array.from(counts.keys()).sort((a,b)=>a-b);
+
+    // Find all consecutive segments
+    let bestLen = 0;
+    let bestMult = 0;
+    let bestSeg = null;
+
+    for(let i=0;i<uniq.length;i++){
+      let j=i;
+      while(j+1<uniq.length && uniq[j+1]===uniq[j]+1) j++;
+      const len = j-i+1;
+      if(len>=3){
+        // multiplicity is product of counts in segment
+        let mult=1;
+        for(let k=i;k<=j;k++) mult *= counts.get(uniq[k]);
+        if(len>bestLen){
+          bestLen=len; bestMult=mult; bestSeg=[uniq[i], uniq[j]];
+        } else if(len===bestLen){
+          // If multiple segments same len, add multiplicities (rare for 5 cards but keep correct)
+          bestMult += mult;
+        }
+      }
+      i=j;
+    }
+
+    if(bestLen>=3){
+      const pts = bestLen * bestMult;
+      const desc = `${bestMult}×${bestLen}-run (${bestSeg[0]}–${bestSeg[1]})`;
+      return {pts, desc};
+    }
+    return {pts:0, desc:""};
+  }
+
+  // --------- Scoring (Pegging) ----------
+  function peggingPoints(playedSoFarThisGo, newCard, newCount){
+    // playedSoFarThisGo is array of cards in the current "go" sequence (since last reset to 0)
+    // newCount is after playing newCard
+    let pts=0;
+    const reasons=[];
+
+    if(newCount===15){ pts+=2; reasons.push("15 for 2"); }
+    if(newCount===31){ pts+=2; reasons.push("31 for 2"); }
+
+    // pairs/triples/quads: count consecutive same ranks ending at new card
+    let same=1;
+    for(let i=playedSoFarThisGo.length-1;i>=0;i--){
+      if(playedSoFarThisGo[i].rank===newCard.rank) same++;
+      else break;
+    }
+    if(same===2){ pts+=2; reasons.push("pair for 2"); }
+    else if(same===3){ pts+=6; reasons.push("three of a kind for 6"); }
+    else if(same===4){ pts+=12; reasons.push("four of a kind for 12"); }
+
+    // runs: check last up to 7 cards (practically up to 7) including new card.
+    // In pegging, only the most recent cards count, and you score the longest run that ends at the new card.
+    const seq = playedSoFarThisGo.concat([newCard]);
+    const maxCheck = Math.min(7, seq.length);
+    let runPts=0, runLen=0;
+
+    for(let L=3; L<=maxCheck; L++){
+      const slice = seq.slice(seq.length - L);
+      const ranks = slice.map(c => cardRankNum(c.rank));
+      const uniq = new Set(ranks);
+      if(uniq.size!==L) continue;
+      const sorted = Array.from(uniq).sort((a,b)=>a-b);
+      let ok=true;
+      for(let i=1;i<sorted.length;i++){
+        if(sorted[i]!==sorted[i-1]+1){ ok=false; break; }
+      }
+      if(ok){
+        runLen = Math.max(runLen, L);
+      }
+    }
+    if(runLen>=3){
+      runPts = runLen;
+      pts += runPts;
+      reasons.push(`run of ${runLen} for ${runPts}`);
+    }
+
+    return {pts, reasons};
+  }
+
+  // --------- Game State ----------
+  const state = {
+    deck: [],
+    dealer: 0, // 0=player, 1=AI
+    scores: [0,0],
+    hands: [[],[]],     // 6 then 4 after discards
+    playedHands: [[],[]], // for pegging remaining cards
+    crib: [],
+    starter: null,
+    phase: "idle",
+    // pegging
+    pegCount: 0,
+    pegSeq: [], // cards in current go sequence
+    pegPileAll: [], // full pegging pile for display
+    canPlay: [true,true],
+    turn: 0, // whose turn in pegging (non-dealer starts)
+    lastPegger: null,
+    goCalled: [false,false],
+    roundNumber: 1,
+    selection: new Set(),
+    strongAI: false,
+    waitingNext: false,
+  };
+
+  // --------- UI rendering ----------
+  function setPhase(phase){
+    state.phase = phase;
+    $("phasePill").textContent = `Phase: ${phaseLabel(phase)}`;
+    renderAll();
+  }
+  function phaseLabel(p){
+    switch(p){
+      case "deal": return "Deal";
+      case "discard": return "Discard to crib";
+      case "cut": return "Cut starter";
+      case "pegging": return "Pegging";
+      case "show": return "Show";
+      case "over": return "Game Over";
+      default: return "—";
+    }
+  }
+
+  function renderScores(){
+    $("pScore").textContent = state.scores[0];
+    $("aScore").textContent = state.scores[1];
+    $("pBar").style.width = `${clamp((state.scores[0]/121)*100,0,100)}%`;
+    $("aBar").style.width = `${clamp((state.scores[1]/121)*100,0,100)}%`;
+
+    const dealerTxt = state.dealer===0 ? "You" : "AI";
+    $("dealerPill").textContent = `Dealer: ${dealerTxt} | Round ${state.roundNumber}`;
+
+    $("pHint").textContent = state.dealer===0 ? "Dealer this round: you" : "Non-dealer this round: you";
+    $("aHint").textContent = state.dealer===1 ? "Dealer this round: AI" : "Non-dealer this round: AI";
+  }
+
+  function renderStarter(){
+    const area = $("starterArea");
+    area.innerHTML = "";
+    if(state.starter){
+      area.appendChild(cardNode(state.starter, {clickable:false, small:false}));
+      $("starterBadge").textContent = "Cut";
+      $("starterBadge").className = "badge good";
+      $("starterHelp").textContent = "Starter counts in both hands and the crib.";
+    } else {
+      $("starterBadge").textContent = "Not cut";
+      $("starterBadge").className = "badge warn";
+      $("starterHelp").textContent = "After discards, cut the starter. If it is a Jack, dealer scores 2 (“his heels”).";
+    }
+  }
+
+  function renderPegging(){
+    $("pegCount").textContent = state.pegCount;
+    $("pegBadge").textContent = `Count: ${state.pegCount}`;
+    $("pegRun").textContent = state.pegSeq.length ? state.pegSeq.map(cardLabel).join(" ") : "—";
+    $("turnWho").textContent = state.phase==="pegging" ? (state.turn===0 ? "You" : "AI") : "—";
+
+    const pile = $("pegPile");
+    pile.innerHTML = "";
+    for(const c of state.pegPileAll.slice(-10)){
+      pile.appendChild(cardNode(c, {clickable:false, small:true}));
+    }
+
+    // Buttons
+$("goBtn").disabled = !(
+  state.phase === "pegging" &&
+  state.turn === 0 &&
+  !playerHasLegalPeg() &&
+  state.playedHands[0].length > 0
+);
+    $("playPegBtn").disabled = !(state.phase==="pegging" && state.turn===0 && selectionIsSinglePlayablePeg());
+    $("nextPhaseBtn").disabled = !state.waitingNext;
+  }
+
+  function renderHand(){
+    const area = $("playerHand");
+    area.innerHTML = "";
+    const hand = (state.phase==="pegging") ? state.playedHands[0] : state.hands[0];
+
+    for(const c of hand){
+      const sel = state.selection.has(c.id);
+      const clickable = (state.phase==="discard" || state.phase==="pegging");
+      const disabled = clickable ? false : true;
+      area.appendChild(cardNode(c, {clickable, selected: sel, disabled}));
+    }
+
+    if(state.phase==="discard"){
+      $("handPill").textContent = "Select exactly 2 cards to discard to the crib";
+      $("discardBtn").disabled = !(state.selection.size===2);
+      $("playPegBtn").disabled = true;
+      $("goBtn").disabled = true;
+      $("handHelp").textContent = "Tip: Discarding strategy changes depending on whether you are dealer (your crib) or not.";
+    } else if(state.phase==="pegging"){
+      $("handPill").textContent = "Select 1 card to play for pegging";
+      $("discardBtn").disabled = true;
+      $("handHelp").textContent = "Pegging scores: 15, 31, pairs, runs, go, last card.";
+    } else if(state.phase==="show"){
+      $("handPill").textContent = "Scoring round complete";
+      $("discardBtn").disabled = true;
+      $("playPegBtn").disabled = true;
+      $("goBtn").disabled = true;
+      $("handHelp").textContent = "Tap Continue to deal next round (dealer alternates).";
+    } else {
+      $("handPill").textContent = "Waiting";
+      $("discardBtn").disabled = true;
+      $("playPegBtn").disabled = true;
+      $("goBtn").disabled = true;
+      $("handHelp").textContent = "";
+    }
+  }
+
+  function renderAll(){
+    renderScores();
+    renderStarter();
+    renderPegging();
+    renderHand();
+  }
+
+  function cardNode(c, opts){
+    const div = document.createElement("div");
+    div.className = `playingCard ${opts.small ? "small":""} ${opts.selected?"sel":""} ${opts.disabled?"disabled":""}`;
+    div.dataset.id = c.id;
+
+    const top = document.createElement("div");
+    top.className = `rank ${suitClass(c)}`;
+    top.textContent = RANKS[c.rank];
+    const bottom = document.createElement("div");
+    bottom.className = `suit ${suitClass(c)}`;
+    bottom.textContent = SUITS[c.suit];
+
+    const pip = document.createElement("div");
+    pip.className = "pip";
+    pip.textContent = (c.rank+1>=10) ? "10" : String(c.rank+1);
+
+    div.appendChild(top);
+    div.appendChild(bottom);
+    div.appendChild(pip);
+
+    if(opts.clickable && !opts.disabled){
+      div.addEventListener("click", () => onCardClick(c));
+    }
+    return div;
+  }
+
+  function onCardClick(card){
+    if(state.phase==="discard"){
+      // select up to 2
+      if(state.selection.has(card.id)) state.selection.delete(card.id);
+      else {
+        if(state.selection.size>=2) return;
+        state.selection.add(card.id);
+      }
+      renderAll();
+    } else if(state.phase==="pegging" && state.turn===0){
+      // select one
+      if(state.selection.has(card.id)) state.selection.clear();
+      else {
+        state.selection.clear();
+        state.selection.add(card.id);
+      }
+      renderAll();
+    }
+  }
+
+  function clearSelection(){
+    state.selection.clear();
+  }
+
+  // --------- Flow ----------
+  function resetGame(){
+    logEl.innerHTML = "";
+    state.deck = [];
+    state.scores = [0,0];
+    state.hands = [[],[]];
+    state.playedHands = [[],[]];
+    state.crib = [];
+    state.starter = null;
+    state.pegCount = 0;
+    state.pegSeq = [];
+    state.pegPileAll = [];
+    state.canPlay = [true,true];
+    state.turn = 0;
+    state.lastPegger = null;
+    state.goCalled = [false,false];
+    state.roundNumber = 1;
+    clearSelection();
+    state.waitingNext = false;
+
+    // Random dealer to start
+    state.dealer = Math.random()<0.5 ? 0 : 1;
+    addLog(`<span class="t">New game. Dealer to start:</span> <b>${state.dealer===0?"You":"AI"}</b>.`);
+    startRound();
+  }
+
+  function startRound(){
+    if(checkWin()) return;
+    state.deck = shuffle(makeDeck());
+    state.hands = [[],[]];
+    state.playedHands = [[],[]];
+    state.crib = [];
+    state.starter = null;
+    state.pegCount = 0;
+    state.pegSeq = [];
+    state.pegPileAll = [];
+    state.canPlay = [true,true];
+    state.goCalled = [false,false];
+    state.lastPegger = null;
+    state.waitingNext = false;
+    clearSelection();
+
+    // Deal 6 each, alternating starting from non-dealer (common practice)
+    const first = 1 - state.dealer;
+    for(let i=0;i<12;i++){
+      const who = (i%2===0) ? first : (1-first);
+      state.hands[who].push(state.deck.pop());
+    }
+    // Copy for pegging later
+    state.playedHands[0] = deepClone(state.hands[0]);
+    state.playedHands[1] = deepClone(state.hands[1]);
+
+    addLog(`<span class="t">Round ${state.roundNumber}:</span> dealt 6 cards each. <b>${state.dealer===0?"You":"AI"}</b> is dealer.`);
+    setPhase("discard");
+
+    // AI discards immediately (but keep hidden)
+    aiChooseDiscards();
+    renderAll();
+  }
+
+  function aiChooseDiscards(){
+    const aiHand = state.hands[1].slice();
+    const dealerIsAI = (state.dealer===1);
+    const strong = state.strongAI;
+
+    const {keep, toss} = chooseBestDiscard(aiHand, dealerIsAI, strong);
+    // apply to state
+    state.hands[1] = keep;
+    // remove from playedHands too
+    const tossIds = new Set(toss.map(c=>c.id));
+    state.playedHands[1] = state.playedHands[1].filter(c => !tossIds.has(c.id));
+    // add to crib
+    state.crib.push(...toss);
+
+    addLog(`<span class="t">AI discards to the crib.</span>`);
+  }
+
+  function playerConfirmDiscards(){
+    const ids = Array.from(state.selection);
+    const hand = state.hands[0];
+    const toss = hand.filter(c => ids.includes(c.id));
+    if(toss.length!==2) return;
+
+    // remove from player hand and playedHand
+    const tossIds = new Set(toss.map(c=>c.id));
+    state.hands[0] = hand.filter(c => !tossIds.has(c.id));
+    state.playedHands[0] = state.playedHands[0].filter(c => !tossIds.has(c.id));
+
+    state.crib.push(...toss);
+    addLog(`<span class="t">You discard:</span> <b>${toss.map(cardLabel).join(" ")}</b>.`);
+    clearSelection();
+
+    // Now cut starter
+    cutStarter();
+  }
+
+  function cutStarter(){
+    setPhase("cut");
+    // Cut top card
+    state.starter = state.deck.pop();
+    addLog(`<span class="t">Starter cut:</span> <b>${cardLabel(state.starter)}</b>.`);
+
+    // His heels: if starter is Jack, dealer gets 2
+    if(state.starter.rank===10){
+      awardPoints(state.dealer, 2, `His heels (starter Jack)`);
+    }
+
+    // Start pegging: non-dealer leads
+    startPegging();
+  }
+
+  function startPegging(){
+    setPhase("pegging");
+    state.pegCount = 0;
+    state.pegSeq = [];
+    state.pegPileAll = [];
+    state.canPlay = [true,true];
+    state.goCalled = [false,false];
+    state.lastPegger = null;
+    state.turn = 1 - state.dealer;
+    addLog(`<span class="t">Pegging begins. Lead:</span> <b>${state.turn===0?"You":"AI"}</b>.`);
+    renderAll();
+    // If AI to lead, let it play
+    maybeAIMove();
+  }
+
+  function playerHasLegalPeg(){
+    const hand = state.playedHands[0];
+    return hand.some(c => state.pegCount + pegValue(c) <= 31);
+  }
+
+  function selectionIsSinglePlayablePeg(){
+    if(state.selection.size!==1) return false;
+    const id = Array.from(state.selection)[0];
+    const c = state.playedHands[0].find(x => x.id===id);
+    if(!c) return false;
+    return state.pegCount + pegValue(c) <= 31;
+  }
+
+  function playerPlayPeg(){
+    if(!selectionIsSinglePlayablePeg()) return;
+    const id = Array.from(state.selection)[0];
+    const idx = state.playedHands[0].findIndex(c => c.id===id);
+    const card = state.playedHands[0][idx];
+
+    playPegCard(0, card);
+    state.playedHands[0].splice(idx,1);
+    clearSelection();
+
+    // next turn
+    advancePegTurn();
+  }
+
+function playerGo(){
+  // Cannot say GO if you have no cards
+if (state.playedHands[0].length === 0) return;
+
+  if(state.phase !== "pegging") return;
+  if(state.turn !== 0) return;
+
+  // NEW: prevent repeated GO
+  if(state.goCalled[0]) return;
+
+  // If player actually has a legal move, GO is illegal
+  if(playerHasLegalPeg()) return;
+
+  state.goCalled[0] = true;
+  addLog(`<span class="t">You say</span> <b>GO</b>.`);
+
+  // Immediately pass turn
+  state.turn = 1;
+
+  // Resolve if needed
+  finalizeGoIfNeeded(false);
+  renderAll();
+  maybeAIMove();
+}
+
+
+  function playPegCard(who, card){
+    const newCount = state.pegCount + pegValue(card);
+    const {pts, reasons} = peggingPoints(state.pegSeq, card, newCount);
+
+    state.pegCount = newCount;
+    state.pegSeq.push(card);
+    state.pegPileAll.push(card);
+    state.lastPegger = who;
+
+    addLog(`<span class="t">${who===0?"You":"AI"} play</span> <b>${cardLabel(card)}</b> <span class="t">(count ${newCount})</span>${pts?` <span class="g">+${pts}</span> <span class="t">${reasons.join(", ")}</span>`:""}`);
+    if(pts) awardPoints(who, pts, `Pegging: ${reasons.join(", ")}`);
+
+    // Reset GO flags for opponent? In cribbage, after a card play, GO status persists unless someone can play.
+    // We'll manage via canPlay checks per turn.
+  }
+
+  function advancePegTurn(){
+    // HARD RULE: if current player has no cards, skip them
+if (state.playedHands[state.turn].length === 0) {
+  state.turn = 1 - state.turn;
+  finalizeGoIfNeeded(false);
+  renderAll();
+  maybeAIMove();
+  return;
+}
+
+  // If pegging is truly finished, move to show
+if (
+  state.playedHands[0].length === 0 &&
+  state.playedHands[1].length === 0 &&
+  state.pegCount === 0
+){
+  scoreShow();
+  return;
+}
+    
+    if(checkWin()) return;
+    // Determine if round pegging ends (both hands empty)
+    if(state.playedHands[0].length===0 && state.playedHands[1].length===0){
+      // last card already handled via "go/last" logic in finalizeGoIfNeeded
+      finalizeGoIfNeeded(true);
+      // move to show
+      scoreShow();
+      return;
+    }
+
+    // Determine current player can play
+    const who = state.turn;
+    const other = 1-who;
+
+    // If current player has no playable cards, auto-go for AI, prompt GO for player
+    if(!hasPlayable(who)){
+      if(who===1){
+        state.goCalled[1] = true;
+        addLog(`<span class="t">AI says</span> <b>GO</b>.`);
+        state.turn = other;
+        finalizeGoIfNeeded(false);
+        renderAll();
+        maybeAIMove();
+        return;
+      } else {
+        // player needs to press Go
+        finalizeGoIfNeeded(false);
+        renderAll();
+        return;
+      }
+    }
+
+    // Switch turn normally
+    state.turn = other;
+    finalizeGoIfNeeded(false);
+    renderAll();
+    maybeAIMove();
+  }
+
+  function hasPlayable(who){
+    const hand = state.playedHands[who];
+    return hand.some(c => state.pegCount + pegValue(c) <= 31);
+  }
+
+  function finalizeGoIfNeeded(forceEnd=false){
+      // NEW: if count is 0 and no one can play, end pegging
+  if (
+    state.pegCount === 0 &&
+    !hasPlayable(0) &&
+    !hasPlayable(1)
+  ){
+    scoreShow();
+    return;
+  }
+    // If someone said GO and the other cannot play (or force end), the last pegger gets 1 (or 2 if ended on 31 already counted separately).
+    // Also if count hits 31, reset automatically without go point (31 already scored as 2 in peggingPoints).
+    if(state.pegCount===31){
+      // reset for new go
+      state.pegCount=0;
+      state.pegSeq=[];
+      state.goCalled=[false,false];
+// IMPORTANT: last pegger leads the new go
+state.turn = state.lastPegger;
+      addLog(`<span class="t">Count reset to 0.</span>`);
+      // Next lead is the player who played last card, already state.turn toggled in advancePegTurn.
+      return;
+    }
+
+    const bothCantPlay = (!hasPlayable(0) && !hasPlayable(1));
+    const anyGo = state.goCalled[0] || state.goCalled[1];
+
+    if(forceEnd || (anyGo && bothCantPlay)){
+      // award "last card" point if count not 31
+      if(state.lastPegger!==null && state.pegCount>0){
+        awardPoints(state.lastPegger, 1, `Last card / Go`);
+        addLog(`<span class="t">Go ends. Last card point to</span> <b>${state.lastPegger===0?"You":"AI"}</b> <span class="g">+1</span>.`);
+      }
+      // reset
+      state.pegCount=0;
+      state.pegSeq=[];
+      state.goCalled=[false,false];
+      addLog(`<span class="t">New go begins (count reset to 0).</span>`);
+    }
+  }
+
+  function scoreShow(){
+    setPhase("show");
+    // Scoring order: non-dealer hand, dealer hand, then dealer crib
+    const nonDealer = 1 - state.dealer;
+    const dealer = state.dealer;
+
+    const ndScore = scoreHand(state.hands[nonDealer], state.starter, false);
+    awardPoints(nonDealer, ndScore.pts, `Show (non-dealer hand)`);
+    addLog(`<span class="t">Show:</span> <b>${nonDealer===0?"Your":"AI"} hand</b> scores <span class="g">${ndScore.pts}</span>.`);
+    if(ndScore.breakdown.length) addLog(`<span class="t">•</span> ${ndScore.breakdown.join(" <span class='t'>|</span> ")}`);
+
+    if(checkWin()) return;
+
+    const dScore = scoreHand(state.hands[dealer], state.starter, false);
+    awardPoints(dealer, dScore.pts, `Show (dealer hand)`);
+    addLog(`<span class="t">Show:</span> <b>${dealer===0?"Your":"AI"} dealer hand</b> scores <span class="g">${dScore.pts}</span>.`);
+    if(dScore.breakdown.length) addLog(`<span class="t">•</span> ${dScore.breakdown.join(" <span class='t'>|</span> ")}`);
+
+    if(checkWin()) return;
+
+    const cribScore = scoreHand(state.crib, state.starter, true);
+    awardPoints(dealer, cribScore.pts, `Crib (dealer)`);
+    addLog(`<span class="t">Crib:</span> <b>${dealer===0?"Your":"AI"} crib</b> scores <span class="g">${cribScore.pts}</span>.`);
+    if(cribScore.breakdown.length) addLog(`<span class="t">•</span> ${cribScore.breakdown.join(" <span class='t'>|</span> ")}`);
+
+    if(checkWin()) return;
+
+    // Enable next round
+state.waitingNext = true;
+setPhase("show");
+
+    $("pegHelp").textContent = "Round complete. Continue to deal next round.";
+    renderAll();
+  }
+
+  function nextRound(){
+    if(!state.waitingNext) return;
+    state.roundNumber++;
+    state.dealer = 1 - state.dealer; // alternate
+    state.waitingNext = false;
+    addLog(`<span class="t">Dealer switches. Next dealer:</span> <b>${state.dealer===0?"You":"AI"}</b>.`);
+    startRound();
+  }
+
+  function awardPoints(who, pts, reason){
+    if(pts<=0) return;
+    state.scores[who] += pts;
+    state.scores[who] = Math.min(121, state.scores[who]); // cap display
+    renderScores();
+  }
+
+  function checkWin(){
+    if(state.scores[0] >= 121 || state.scores[1] >= 121){
+      setPhase("over");
+      const winner = (state.scores[0] >= 121) ? 0 : 1;
+      addLog(`<div style="margin-top:8px"><span class="t">Game over.</span> <span class="${winner===0?'g':'r'}"><b>${winner===0?"You win":"AI wins"}</b></span> <span class="t">(${state.scores[0]}–${state.scores[1]})</span></div>`);
+      state.waitingNext = false;
+      $("discardBtn").disabled = true;
+      $("playPegBtn").disabled = true;
+      $("goBtn").disabled = true;
+      $("nextPhaseBtn").disabled = true;
+      return true;
+    }
+    return false;
+  }
+
+  // --------- AI ----------
+  function maybeAIMove(){
+    if(state.phase!=="pegging") return;
+    if(state.turn!==1) return;
+    // AI turn
+    // If cannot play, AI says go (handled in advancePegTurn when it becomes AI with no playable)
+    if(!hasPlayable(1)){
+      state.goCalled[1] = true;
+      addLog(`<span class="t">AI says</span> <b>GO</b>.`);
+      state.turn = 0;
+      finalizeGoIfNeeded(false);
+      renderAll();
+      return;
+    }
+
+    const strong = state.strongAI;
+    const choice = choosePegCardAI(state.playedHands[1], state.pegCount, state.pegSeq, strong);
+    if(!choice){
+      // should not happen if playable exists
+      state.goCalled[1] = true;
+      addLog(`<span class="t">AI says</span> <b>GO</b>.`);
+      state.turn = 0;
+      finalizeGoIfNeeded(false);
+      renderAll();
+      return;
+    }
+    // play it
+    const idx = state.playedHands[1].findIndex(c=>c.id===choice.id);
+    const card = state.playedHands[1][idx];
+    playPegCard(1, card);
+    state.playedHands[1].splice(idx,1);
+
+    // continue
+    advancePegTurn();
+  }
+
+  function choosePegCardAI(hand, pegCount, pegSeq, strong){
+    // Evaluate legal moves by immediate points, plus a small lookahead heuristic
+    const legal = hand.filter(c => pegCount + pegValue(c) <= 31);
+    if(!legal.length) return null;
+
+    let best = null;
+    let bestScore = -1e9;
+
+    const sampleN = strong ? 64 : 18;
+
+    for(const c of legal){
+      const newCount = pegCount + pegValue(c);
+      const imm = peggingPoints(pegSeq, c, newCount).pts;
+
+      // Heuristics:
+      // - Avoid setting opponent up for 15/31
+      // - Prefer leaving awkward counts
+      // - Prefer keeping low cards if near end
+      // - If strong, do a tiny rollout: sample opponent response and estimate net
+      let h = 0;
+
+      // discourage leaving count that allows opponent to hit 15 or 31 easily
+      const after = newCount;
+      const oppHand = state.playedHands[0]; // player's remaining, visible in this single-file game for AI;
+      // To keep it fair-ish, AI should not read player's exact cards.
+      // So we do NOT use oppHand here. We keep it "blind" with generic probabilities.
+
+      // Generic danger zones
+      if(after===5 || after===10 || after===20 || after===25) h -= 0.3; // tends to allow 15/31 setups
+      if(after===14 || after===16) h += 0.15;
+
+      // avoid landing on 21-24 which can allow easy 31
+      if(after>=21 && after<=24) h -= 0.2;
+
+      // keep 5s are valuable in show; playing a 5 in pegging can be dangerous too
+      if(c.rank===4) h -= 0.15;
+
+      let rollout = 0;
+      if(strong){
+        // Blind rollout: simulate random unseen opponent and future deck is irrelevant in pegging.
+        // We'll approximate by sampling random opponent "value availability" for 15/31 with small penalty.
+        for(let i=0;i<sampleN;i++){
+          // probability-like penalty if after allows a common value to reach 15 or 31
+          // common values: 1..10 with weight toward 10
+          const v = weightedRandomValue();
+          let p = 0;
+          if(after + v === 15) p += 2;
+          if(after + v === 31) p += 2;
+          rollout -= p * 0.08;
+        }
+      }
+
+      const score = imm + h + rollout;
+      if(score > bestScore){
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    // Tie-break: prefer smaller card to keep options
+    if(best){
+      const tied = legal.filter(c => {
+        const newCount = pegCount + pegValue(c);
+        const imm = peggingPoints(pegSeq, c, newCount).pts;
+        let h = 0;
+        const after = newCount;
+        if(after===5 || after===10 || after===20 || after===25) h -= 0.3;
+        if(after===14 || after===16) h += 0.15;
+        if(after>=21 && after<=24) h -= 0.2;
+        if(c.rank===4) h -= 0.15;
+        return Math.abs((imm+h) - bestScore) < 0.05;
+      });
+      if(tied.length>1){
+        tied.sort((a,b)=>pegValue(a)-pegValue(b));
+        best = tied[0];
+      }
+    }
+    return best;
+  }
+
+  function weightedRandomValue(){
+    // values 1..10 with more weight to 10 (faces)
+    const r = Math.random();
+    if(r < 0.28) return 10;
+    if(r < 0.40) return 9;
+    if(r < 0.52) return 8;
+    if(r < 0.62) return 7;
+    if(r < 0.70) return 6;
+    if(r < 0.77) return 5;
+    if(r < 0.83) return 4;
+    if(r < 0.89) return 3;
+    if(r < 0.95) return 2;
+    return 1;
+  }
+
+  function chooseBestDiscard(hand6, dealerIsAI, strong){
+    // Choose 2 to toss. Objective:
+    // EV = expected hand score (with random starter) + expected crib contribution (if dealer: add, else subtract).
+    // Use sampling of starters from remaining deck.
+    const allPairs = [];
+    for(let i=0;i<hand6.length;i++){
+      for(let j=i+1;j<hand6.length;j++){
+        allPairs.push([hand6[i], hand6[j]]);
+      }
+    }
+    // Remaining cards to sample starters from: all 52 minus these 6 (unknown in actual play, but that's correct)
+    // We'll simulate using a fresh deck and remove the 6.
+    const full = makeDeck();
+    const ids6 = new Set(hand6.map(c=>c.id));
+    // ids differ due to random id, so remove by rank+suit instead
+    const key = (c)=>`${c.rank}-${c.suit}`;
+    const keys6 = new Set(hand6.map(key));
+    const remaining = full.filter(c => !keys6.has(key(c)));
+
+    const sampleN = strong ? 220 : 70;
+    const cribSampleN = strong ? 120 : 40;
+
+    let bestKeep=null, bestToss=null, bestEV=-1e9;
+
+    for(const [a,b] of allPairs){
+      const toss = [a,b];
+      const keep = hand6.filter(c => c!==a && c!==b);
+
+      // expected hand score over starters
+      let handEV=0;
+      for(let s=0;s<sampleN;s++){
+        const starter = remaining[(Math.random()*remaining.length)|0];
+        handEV += scoreHand(keep, starter, false).pts;
+      }
+      handEV /= sampleN;
+
+      // expected crib value contribution: approximate by sampling 2 unknown cards to join toss
+      // If dealerIsAI: AI benefits from high crib
+      // If not: AI wants to avoid giving you crib points, so penalize high crib
+      let cribEV=0;
+      for(let s=0;s<cribSampleN;s++){
+        const starter = remaining[(Math.random()*remaining.length)|0];
+
+        // sample two random "other" discards from remaining excluding starter and keep and toss
+        // This approximates opponent discards distribution, not perfect but decent.
+        const pool = remaining.filter(c => key(c)!==key(starter));
+        const o1 = pool[(Math.random()*pool.length)|0];
+        let o2 = pool[(Math.random()*pool.length)|0];
+        // avoid same exact card by key
+        let guard=0;
+        while(key(o2)===key(o1) && guard++<10){
+          o2 = pool[(Math.random()*pool.length)|0];
+        }
+        const crib4 = [toss[0], toss[1], o1, o2];
+        cribEV += scoreHand(crib4, starter, true).pts;
+      }
+      cribEV /= cribSampleN;
+
+      // Combine
+      const ev = dealerIsAI ? (handEV + 0.55*cribEV) : (handEV - 0.55*cribEV);
+
+      // minor bias: keep high potential pegging mix (avoid all big cards)
+      const pegMix = keep.reduce((acc,c)=>acc + (pegValue(c)<=5?0.18:0), 0);
+      const ev2 = ev + pegMix;
+
+      if(ev2 > bestEV){
+        bestEV = ev2;
+        bestKeep = keep;
+        bestToss = toss;
+      }
+    }
+    return {keep: bestKeep, toss: bestToss, ev: bestEV};
+  }
+
+  // --------- UI Events ----------
+  $("discardBtn").addEventListener("click", () => {
+    if(state.phase!=="discard") return;
+    playerConfirmDiscards();
+  });
+
+  $("playPegBtn").addEventListener("click", () => {
+    if(state.phase!=="pegging") return;
+    if(state.turn!==0) return;
+    playerPlayPeg();
+  });
+
+  $("goBtn").addEventListener("click", () => {
+    playerGo();
+  });
+
+  $("nextPhaseBtn").addEventListener("click", () => {
+    if(state.phase==="show") nextRound();
+    else if(state.phase==="over") resetGame();
+    else if(state.waitingNext) nextRound();
+  });
+
+  $("newGame").addEventListener("click", resetGame);
+
+  $("strongAI").addEventListener("change", (e) => {
+    state.strongAI = !!e.target.checked;
+    addLog(`<span class="t">AI strength set to:</span> <b>${state.strongAI ? "Stronger" : "Standard"}</b>.`);
+  });
+
+  $("rulesBtn").addEventListener("click", () => {
+    addLog(`<div class="divider"></div>`);
+    addLog(`<div><b>Quick rules</b></div>`);
+    addLog(`<div class="t">1) Deal 6 each. Each discards 2 to the crib (dealer owns the crib). 2) Cut starter; if Jack, dealer +2. 3) Pegging: alternately play cards without exceeding 31, scoring 15/31, pairs, runs, go, last card. Reset count after 31 or go. 4) Show: score non-dealer hand, dealer hand, then dealer crib using starter.</div>`);
+    addLog(`<div class="divider"></div>`);
+  });
+
+  // --------- Phase gating ----------
+function updateContinueButton(){
+  if (state.phase === "show") {
+    $("nextPhaseBtn").disabled = !state.waitingNext;
+    $("nextPhaseBtn").textContent = "Deal next round";
+    return;
+  }
+
+  if (state.phase === "over") {
+    $("nextPhaseBtn").disabled = false;
+    $("nextPhaseBtn").textContent = "New Game";
+    return;
+  }
+
+  // Any other phase (including Pegging): Continue is invalid
+  $("nextPhaseBtn").disabled = true;
+  $("nextPhaseBtn").textContent = "Continue";
+}
+
+
+  // Patch into renderAll
+  const _renderAll = renderAll;
+  renderAll = function(){
+    _renderAll();
+    updateContinueButton();
+  };
+
+  // --------- Start ----------
+  // Default: Stronger AI off. User asked "allow stronger", so keep toggle available.
+  resetGame();
+
+  // Keep continue button state consistent for show/over
+  setInterval(() => {
+    if(state.phase==="show" && state.waitingNext){
+      $("nextPhaseBtn").disabled = false;
+    }
+  }, 250);
+
+})();
+</script>
+</body>
+</html>

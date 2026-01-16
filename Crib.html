@@ -945,6 +945,9 @@
   }
 
 function playerGo(){
+  // Cannot say GO if you have no cards
+if (state.playedHands[0].length === 0) return;
+
   if(state.phase !== "pegging") return;
   if(state.turn !== 0) return;
 
@@ -984,6 +987,15 @@ function playerGo(){
   }
 
   function advancePegTurn(){
+    // HARD RULE: if current player has no cards, skip them
+if (state.playedHands[state.turn].length === 0) {
+  state.turn = 1 - state.turn;
+  finalizeGoIfNeeded(false);
+  renderAll();
+  maybeAIMove();
+  return;
+}
+
   // If pegging is truly finished, move to show
 if (
   state.playedHands[0].length === 0 &&

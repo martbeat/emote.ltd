@@ -695,9 +695,9 @@
 $("goBtn").disabled = !(
   state.phase === "pegging" &&
   state.turn === 0 &&
-  !playerHasLegalPeg() &&
-  state.playedHands[0].length > 0
+  !playerHasLegalPeg()
 );
+
     $("playPegBtn").disabled = !(state.phase==="pegging" && state.turn===0 && selectionIsSinglePlayablePeg());
     $("nextPhaseBtn").disabled = !state.waitingNext;
   }
@@ -1056,15 +1056,6 @@ if (
   }
 
   function finalizeGoIfNeeded(forceEnd=false){
-      // NEW: if count is 0 and no one can play, end pegging
-  if (
-    state.pegCount === 0 &&
-    !hasPlayable(0) &&
-    !hasPlayable(1)
-  ){
-    scoreShow();
-    return;
-  }
     // If someone said GO and the other cannot play (or force end), the last pegger gets 1 (or 2 if ended on 31 already counted separately).
     // Also if count hits 31, reset automatically without go point (31 already scored as 2 in peggingPoints).
     if(state.pegCount===31){
@@ -1092,6 +1083,7 @@ state.turn = state.lastPegger;
       state.pegCount=0;
       state.pegSeq=[];
       state.goCalled=[false,false];
+      state.turn = 1 - state.lastPegger;
       addLog(`<span class="t">New go begins (count reset to 0).</span>`);
     }
   }

@@ -950,25 +950,25 @@ $("goBtn").disabled = !(
   }
 
 function playerGo(){
-  // Cannot say GO if you have no cards
-if (state.playedHands[0].length === 0) return;
-
   if(state.phase !== "pegging") return;
   if(state.turn !== 0) return;
 
-  // NEW: prevent repeated GO
-  if(state.goCalled[0]) return;
+  // implicit GO if player has no cards
+  if(state.playedHands[0].length === 0){
+    state.goCalled[0] = true;
+    state.turn = 1;
+    finalizeGoIfNeeded(false);
+    renderAll();
+    maybeAIMove();
+    return;
+  }
 
-  // If player actually has a legal move, GO is illegal
+  if(state.goCalled[0]) return;
   if(playerHasLegalPeg()) return;
 
   state.goCalled[0] = true;
   addLog(`<span class="t">You say</span> <b>GO</b>.`);
-
-  // Immediately pass turn
   state.turn = 1;
-
-  // Resolve if needed
   finalizeGoIfNeeded(false);
   renderAll();
   maybeAIMove();
@@ -1064,7 +1064,7 @@ if (
       state.pegSeq=[];
       state.goCalled=[false,false];
 // IMPORTANT: last pegger leads the new go
-state.turn = state.lastPegger;
+state.turn = 1 - state.lastPegger;
       addLog(`<span class="t">Count reset to 0.</span>`);
       // Next lead is the player who played last card, already state.turn toggled in advancePegTurn.
       return;

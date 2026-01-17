@@ -772,6 +772,10 @@ $("goBtn").disabled = !(
     return div;
   }
 
+function setPegHelp(msg=""){
+  $("pegHelp").textContent = msg;
+}
+  
   function onCardClick(card){
     if(state.phase==="discard"){
       // select up to 2
@@ -837,7 +841,8 @@ $("goBtn").disabled = !(
     state.lastPegger = null;
     state.waitingNext = false;
     clearSelection();
-
+setPegHelp("");
+    
     // Deal 6 each, alternating starting from non-dealer (common practice)
     const first = 1 - state.dealer;
     for(let i=0;i<12;i++){
@@ -909,6 +914,7 @@ $("goBtn").disabled = !(
 
   function startPegging(){
     setPhase("pegging");
+    setPegHelp("Pegging in progress.");
     state.pegCount = 0;
     state.pegSeq = [];
     state.pegPileAll = [];
@@ -989,17 +995,20 @@ function playerGo(){
 
     // Reset GO flags for opponent? In cribbage, after a card play, GO status persists unless someone can play.
     // We'll manage via canPlay checks per turn.
+if(maybeFinishPegging()) return;
   }
 
   function advancePegTurn(){
-    // HARD RULE: if current player has no cards, skip them
-if (state.playedHands[state.turn].length === 0) {
-  state.turn = 1 - state.turn;
-  finalizeGoIfNeeded(false);
-  renderAll();
-  maybeAIMove();
-  return;
-}
+const justPlayed = state.turn;
+const next = 1 - justPlayed;
+
+// next player is who should act now
+state.turn = next;
+
+// if pegging finished, end now
+if(maybeFinishPegging()) return;
+
+// now do can-play logic based on the player whose turn it is
 
   // If pegging is truly finished, move to show
 if (
@@ -1055,6 +1064,20 @@ if (
     return hand.some(c => state.pegCount + pegValue(c) <= 31);
   }
 
+function maybeFinishPegging(){
+  if(state.phase !== "pegging") return false;
+
+  const pEmpty = state.playedHands[0].length === 0;
+  const aEmpty = state.playedHands[1].length === 0;
+
+  if(pEmpty && aEmpty){
+    scoreShow();
+    return true;
+  }
+  return false;
+}
+
+  
   function finalizeGoIfNeeded(forceEnd=false){
     // If someone said GO and the other cannot play (or force end), the last pegger gets 1 (or 2 if ended on 31 already counted separately).
     // Also if count hits 31, reset automatically without go point (31 already scored as 2 in peggingPoints).
@@ -1067,6 +1090,7 @@ if (
 state.turn = 1 - state.lastPegger;
       addLog(`<span class="t">Count reset to 0.</span>`);
       // Next lead is the player who played last card, already state.turn toggled in advancePegTurn.
+      if(maybeFinishPegging()) return;
       return;
     }
 
@@ -1094,11 +1118,13 @@ if (
   scoreShow();
   return;
 }
-
+if(maybeFinishPegging()) return;
   }
 
   function scoreShow(){
     setPhase("show");
+    setPegHelp("Round complete. Continue to deal next round.");
+
     // Scoring order: non-dealer hand, dealer hand, then dealer crib
     const nonDealer = 1 - state.dealer;
     const dealer = state.dealer;

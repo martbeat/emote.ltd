@@ -1086,6 +1086,15 @@ state.turn = 1 - state.lastPegger;
       state.turn = 1 - state.lastPegger;
       addLog(`<span class="t">New go begins (count reset to 0).</span>`);
     }
+    // If both hands are empty after resolving a go, pegging is complete
+if (
+  state.playedHands[0].length === 0 &&
+  state.playedHands[1].length === 0
+) {
+  scoreShow();
+  return;
+}
+
   }
 
   function scoreShow(){

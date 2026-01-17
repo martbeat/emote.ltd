@@ -991,6 +991,7 @@
       state.turn = state.lastPegger; // correct rule
       addLog(`<span class="t">Count reset to 0.</span>`);
       if(maybeEndPegging()) return;
+      resetGo(state.lastPegger);
       renderAll();
       maybeAIMove();
       return;

@@ -1,290 +1,176 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Cribbage 121 vs AI</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Cribbage 121 (Mobile) vs AI</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --ink:#eaf0ff;
+      --muted:#b7c4ff;
+      --accent:#7aa7ff;
+      --good:#7dffb2;
+      --bad:#ff6b88;
+      --warn:#ffd56b;
+      --line:#223059;
+      --shadow: 0 10px 28px rgba(0,0,0,.35);
+      --r:16px;
+      --tap:48px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background: radial-gradient(1200px 700px at 40% 10%, #162251 0%, var(--bg) 55%, #060912 100%);
+      color:var(--ink);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      min-height:100%;
+    }
+    header{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      border-radius: var(--r);
+      padding: 12px;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 240px;
+      flex: 1;
+    }
+    .title h1{
+      font-size: 18px;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .title .sub{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+      min-width: 260px;
+    }
+    button, .toggle{
+      height: var(--tap);
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--ink);
+      padding: 0 14px;
+      font-weight: 650;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      user-select:none;
+    }
+    button:hover{background: rgba(255,255,255,.09)}
+    button:active{transform: translateY(1px)}
+    button.primary{
+      background: rgba(122,167,255,.18);
+      border-color: rgba(122,167,255,.35);
+    }
+    button.primary:hover{background: rgba(122,167,255,.24)}
+    button.danger{
+      background: rgba(255,107,136,.14);
+      border-color: rgba(255,107,136,.35);
+    }
+    button.good{
+      background: rgba(125,255,178,.12);
+      border-color: rgba(125,255,178,.32);
+    }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+    }
+    .toggle{
+      padding: 0 10px;
+      gap:10px;
+    }
+    .toggle input{width:20px; height:20px}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 920px){
+      .grid{grid-template-columns: 1.2fr .8fr}
+    }
 
-<style>
-/* === YOUR ORIGINAL CSS, UNCHANGED === */
-:root{
-  --bg:#0b1020; --panel:#111a33; --ink:#eaf0ff; --muted:#b7c4ff;
-  --accent:#7aa7ff; --good:#7dffb2; --bad:#ff6b88; --warn:#ffd56b;
-  --shadow:0 10px 28px rgba(0,0,0,.35); --r:16px; --tap:48px;
-}
-*{box-sizing:border-box}
-body{margin:0;background:#0b1020;color:var(--ink);font-family:system-ui}
-.wrap{max-width:1100px;margin:auto;padding:12px}
-.card{background:#111a33;border-radius:16px;padding:12px;box-shadow:var(--shadow)}
-.cards{display:flex;gap:8px;flex-wrap:wrap}
-.playingCard{width:56px;height:76px;border-radius:12px;border:1px solid #445;
-  padding:6px;cursor:pointer;background:#1a244a}
-.playingCard.small{width:44px;height:60px}
-.playingCard.disabled{opacity:.4;cursor:not-allowed}
-.playingCard.sel{outline:2px solid var(--accent)}
-.rank{font-weight:800}
-.suit{opacity:.8}
-.red{color:#ff8aa0}
-.black{color:#eaf0ff}
-button{height:48px;border-radius:14px;border:1px solid #556;background:#223;
-  color:#fff;font-weight:700;padding:0 14px}
-button:disabled{opacity:.4}
-.log{max-height:300px;overflow:auto;font-size:13px}
-.t{color:var(--muted)} .g{color:var(--good)} .r{color:var(--bad)}
-</style>
-</head>
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:stretch;
+    }
+    .col{
+      flex:1;
+      min-width: 260px;
+    }
 
-<body>
-<div class="wrap">
+    .sectionTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .sectionTitle h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:.3px;
+      color: var(--muted);
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+    .pill{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+      white-space:nowrap;
+    }
 
-<div class="card">
-  <h2>Cribbage to 121 (Full Rules) vs AI</h2>
-  <div id="phasePill"></div>
-  <div>
-    You: <span id="pScore">0</span> |
-    AI: <span id="aScore">0</span> |
-    <span id="dealerPill"></span>
-  </div>
-</div>
-
-<div class="card">
-  <h3>Starter</h3>
-  <div class="cards" id="starterArea"></div>
-</div>
-
-<div class="card">
-  <h3>Pegging</h3>
-  Count: <span id="pegCount">0</span> |
-  Turn: <span id="turnWho"></span>
-  <div class="cards" id="pegPile"></div>
-  <button id="goBtn">Go</button>
-</div>
-
-<div class="card">
-  <h3>Your hand</h3>
-  <div class="cards" id="playerHand"></div>
-  <button id="discardBtn">Discard to crib</button>
-  <button id="playPegBtn">Play</button>
-  <button id="nextPhaseBtn">Continue</button>
-</div>
-
-<div class="card">
-  <h3>Log</h3>
-  <div class="log" id="log"></div>
-</div>
-
-</div>
-
-<script>
-(() => {
-
-/* ================= UTILITIES ================= */
-const $ = id => document.getElementById(id);
-const logEl = $("log");
-const addLog = h => { const d=document.createElement("div"); d.innerHTML=h; logEl.appendChild(d); logEl.scrollTop=1e9; };
-const shuffle = a => { for(let i=a.length-1;i;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
-const deepClone = o => JSON.parse(JSON.stringify(o));
-
-/* ================= CARDS ================= */
-const SUITS=["♣","♦","♥","♠"], RANKS=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-const pegValue = c => c.rank>=9?10:c.rank+1;
-const cardLabel = c => RANKS[c.rank]+SUITS[c.suit];
-const suitClass = c => (c.suit===1||c.suit===2)?"red":"black";
-const makeDeck = () => {
-  const d=[]; for(let s=0;s<4;s++)for(let r=0;r<13;r++)d.push({suit:s,rank:r,id:Math.random()+""});
-  return d;
-};
-
-/* ================= PEG SCORING ================= */
-function peggingPoints(seq, card, count){
-  let pts=0;
-  if(count===15||count===31) pts+=2;
-
-  let same=1;
-  for(let i=seq.length-1;i>=0;i--){
-    if(seq[i].rank===card.rank) same++; else break;
-  }
-  if(same===2) pts+=2;
-  if(same===3) pts+=6;
-  if(same===4) pts+=12;
-
-  for(let L=3;L<=Math.min(7,seq.length+1);L++){
-    const slice=seq.slice(seq.length-(L-1)).concat(card);
-    const ranks=[...new Set(slice.map(c=>c.rank))];
-    if(ranks.length!==L) continue;
-    ranks.sort((a,b)=>a-b);
-    let ok=true;
-    for(let i=1;i<ranks.length;i++) if(ranks[i]!==ranks[i-1]+1) ok=false;
-    if(ok){ pts+=L; break; }
-  }
-  return pts;
-}
-
-/* ================= STATE ================= */
-const state={
-  deck:[], hands:[[],[]], playedHands:[[],[]], crib:[], starter:null,
-  scores:[0,0], dealer:0, phase:"idle", round:1,
-  pegCount:0, pegSeq:[], pegPile:[], turn:0, lastPegger:null,
-  goCalled:[false,false], waitingNext:false, selection:new Set()
-};
-
-/* ================= UI ================= */
-function render(){
-  $("pScore").textContent=state.scores[0];
-  $("aScore").textContent=state.scores[1];
-  $("dealerPill").textContent="Dealer: "+(state.dealer? "AI":"You")+" | Round "+state.round;
-  $("pegCount").textContent=state.pegCount;
-  $("turnWho").textContent=state.turn? "AI":"You";
-  $("starterArea").innerHTML=state.starter?cardNode(state.starter):"";
-
-  $("pegPile").innerHTML="";
-  state.pegPile.slice(-8).forEach(c=>$("pegPile").appendChild(cardNode(c,true)));
-
-  $("playerHand").innerHTML="";
-  const hand = state.phase==="pegging"?state.playedHands[0]:state.hands[0];
-  hand.forEach(c=>{
-    const el=cardNode(c,false,true);
-    if(state.selection.has(c.id)) el.classList.add("sel");
-    el.onclick=()=>onCardClick(c);
-    $("playerHand").appendChild(el);
-  });
-
-  $("discardBtn").disabled=!(state.phase==="discard"&&state.selection.size===2);
-  $("playPegBtn").disabled=!(state.phase==="pegging"&&state.turn===0&&state.selection.size===1);
-  $("goBtn").disabled=!(state.phase==="pegging"&&state.turn===0&&!hasPlayable(0));
-  $("nextPhaseBtn").disabled=!state.waitingNext;
-}
-
-function cardNode(c,small,clickable){
-  const d=document.createElement("div");
-  d.className="playingCard"+(small?" small":"");
-  d.innerHTML=`<div class="rank ${suitClass(c)}">${RANKS[c.rank]}</div>
-               <div class="suit ${suitClass(c)}">${SUITS[c.suit]}</div>`;
-  return d;
-}
-
-/* ================= PEGGING (REWRITTEN) ================= */
-function hasPlayable(who){
-  return state.playedHands[who].some(c=>state.pegCount+pegValue(c)<=31);
-}
-
-function playPegCard(who,card){
-  state.pegCount+=pegValue(card);
-  state.pegSeq.push(card);
-  state.pegPile.push(card);
-  state.lastPegger=who;
-
-  const pts=peggingPoints(state.pegSeq.slice(0,-1),card,state.pegCount);
-  if(pts){ state.scores[who]+=pts; addLog(`<span class="g">+${pts}</span>`); }
-
-  state.playedHands[who]=state.playedHands[who].filter(c=>c.id!==card.id);
-  addLog(`${who?"AI":"You"} play <b>${cardLabel(card)}</b> (${state.pegCount})`);
-  advancePegging();
-}
-
-function advancePegging(){
-  if(state.pegCount===31){
-    state.pegCount=0; state.pegSeq=[]; state.goCalled=[false,false];
-    state.turn=state.lastPegger;
-    render(); return maybeAI();
-  }
-
-  state.turn=1-state.turn;
-
-  if(hasPlayable(state.turn)){
-    render(); return maybeAI();
-  }
-
-  state.goCalled[state.turn]=true;
-
-  if(hasPlayable(1-state.turn)){
-    addLog(`${state.turn?"AI":"You"} say <b>GO</b>`);
-    state.turn=1-state.turn;
-    render(); return maybeAI();
-  }
-
-  if(state.lastPegger!==null){
-    state.scores[state.lastPegger]+=1;
-    addLog(`Last card to <b>${state.lastPegger?"AI":"You"}</b>`);
-  }
-
-  state.pegCount=0; state.pegSeq=[]; state.goCalled=[false,false];
-  state.turn=state.lastPegger;
-
-  if(!state.playedHands[0].length&&!state.playedHands[1].length){
-    return scoreShow();
-  }
-
-  render(); maybeAI();
-}
-
-function maybeAI(){
-  if(state.turn!==1||state.phase!=="pegging") return;
-  if(!hasPlayable(1)){ state.goCalled[1]=true; advancePegging(); return; }
-  playPegCard(1,state.playedHands[1].find(c=>state.pegCount+pegValue(c)<=31));
-}
-
-/* ================= FLOW ================= */
-function resetGame(){
-  Object.assign(state,{
-    deck:shuffle(makeDeck()),
-    scores:[0,0], crib:[], starter:null, round:1,
-    dealer:Math.random()<.5?0:1
-  });
-  startRound();
-}
-
-function startRound(){
-  state.hands=[[],[]];
-  for(let i=0;i<12;i++) state.hands[i%2].push(state.deck.pop());
-  state.playedHands=deepClone(state.hands);
-  state.phase="discard";
-  render();
-}
-
-function scoreShow(){
-  state.phase="show";
-  state.waitingNext=true;
-  addLog("<b>Show</b>");
-  render();
-}
-
-/* ================= EVENTS ================= */
-$("discardBtn").onclick=()=>{
-  const ids=[...state.selection];
-  state.hands[0]=state.hands[0].filter(c=>!ids.includes(c.id));
-  state.playedHands[0]=deepClone(state.hands[0]);
-  state.phase="pegging";
-  state.turn=1-state.dealer;
-  state.selection.clear();
-  render(); maybeAI();
-};
-
-$("playPegBtn").onclick=()=>{
-  const id=[...state.selection][0];
-  const c=state.playedHands[0].find(c=>c.id===id);
-  state.selection.clear();
-  playPegCard(0,c);
-};
-
-$("goBtn").onclick=()=>advancePegging();
-$("nextPhaseBtn").onclick=()=>{ state.round++; state.waitingNext=false; startRound(); };
-
-function onCardClick(c){
-  if(state.phase==="discard"){
-    if(state.selection.has(c.id)) state.selection.delete(c.id);
-    else if(state.selection.size<2) state.selection.add(c.id);
-  }
-  if(state.phase==="pegging"){
-    state.selection.clear(); state.selection.add(c.id);
-  }
-  render();
-}
-
-/* ================= START ================= */
-resetGame();
-
-})();
-</script>
-</body>
-</html>
+    .cards{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .playingCard{
+      width: 56px;
+      height: 76px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:
+        radial-gradient(160px 100px at 30% 20%, rgba(255,255,255,.14), rgba(2

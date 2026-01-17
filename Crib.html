@@ -998,66 +998,45 @@ function playerGo(){
 if(maybeFinishPegging()) return;
   }
 
-  function advancePegTurn(){
-const justPlayed = state.turn;
-const next = 1 - justPlayed;
+function advancePegTurn(){
+  if(state.phase !== "pegging") return;
 
-// next player is who should act now
-state.turn = next;
+  // If both hands empty, finish pegging
+  if(
+    state.playedHands[0].length === 0 &&
+    state.playedHands[1].length === 0
+  ){
+    finalizeGoIfNeeded(true);
+    scoreShow();
+    return;
+  }
 
-// if pegging finished, end now
-if(maybeFinishPegging()) return;
+  const next = 1 - state.turn;
 
-// now do can-play logic based on the player whose turn it is
+  // Can the next player play?
+  if(hasPlayable(next)){
+    state.turn = next;
+    renderAll();
+    maybeAIMove();
+    return;
+  }
 
-  // If pegging is truly finished, move to show
-if (
-  state.playedHands[0].length === 0 &&
-  state.playedHands[1].length === 0 &&
-  state.pegCount === 0
-){
-  scoreShow();
-  return;
-}
-    
-    if(checkWin()) return;
-    // Determine if round pegging ends (both hands empty)
-    if(state.playedHands[0].length===0 && state.playedHands[1].length===0){
-      // last card already handled via "go/last" logic in finalizeGoIfNeeded
-      finalizeGoIfNeeded(true);
-      // move to show
-      scoreShow();
-      return;
-    }
-
-    // Determine current player can play
-    const who = state.turn;
-    const other = 1-who;
-
-    // If current player has no playable cards, auto-go for AI, prompt GO for player
-    if(!hasPlayable(who)){
-      if(who===1){
-        state.goCalled[1] = true;
-        addLog(`<span class="t">AI says</span> <b>GO</b>.`);
-        state.turn = other;
-        finalizeGoIfNeeded(false);
-        renderAll();
-        maybeAIMove();
-        return;
-      } else {
-        // player needs to press Go
-        finalizeGoIfNeeded(false);
-        renderAll();
-        return;
-      }
-    }
-
-    // Switch turn normally
-    state.turn = other;
+  // Next player cannot play
+  if(next === 1){
+    // AI auto-go
+    state.goCalled[1] = true;
+    addLog(`<span class="t">AI says</span> <b>GO</b>.`);
     finalizeGoIfNeeded(false);
     renderAll();
     maybeAIMove();
+  } else {
+    // Player must press GO
+    state.turn = 0;
+    finalizeGoIfNeeded(false);
+    renderAll();
   }
+}
+
 
   function hasPlayable(who){
     const hand = state.playedHands[who];

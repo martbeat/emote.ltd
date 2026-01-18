@@ -200,7 +200,7 @@
     /* floating cards */
     .card{
       position:absolute;
-      width: min(320px, 78vw);
+    //  width: min(320px, 78vw);
       border-radius: var(--radius);
       background: linear-gradient(180deg, var(--card), var(--card2));
       border: 1px solid rgba(255,255,255,.12);
@@ -554,15 +554,26 @@ const GAMES = [
 
       // initial position and velocity
       const rect = stage.getBoundingClientRect();
-      const w = Math.min(320, rect.width * 0.78);
-      el.style.width = w + "px";
+const cols =
+  rect.width < 600 ? 1 :
+  rect.width < 900 ? 2 :
+  rect.width < 1200 ? 3 : 4;
+
+const targetWidth = clamp(
+  rect.width / cols - 24,
+  220,
+  320
+);
+      el.style.width = targetWidth + "px";
+      
 
       // place roughly in a circle around centre
       const cx = rect.width / 2;
       const cy = (rect.height / 2) + 30;
       const angle = (idx / Math.max(1, GAMES.length)) * Math.PI * 2;
-      const r = Math.min(rect.width, rect.height) * 0.22;
-
+const density = Math.sqrt(GAMES.length);
+const r = Math.min(rect.width, rect.height) * (0.22 + density * 0.02);
+      
 const state = {
   el,
   x: cx + Math.cos(angle) * r + rand(-40, 40),
@@ -668,9 +679,12 @@ function separationForce(self, all){
     const dy = self.y - other.y;
     const d2 = dx*dx + dy*dy;
 
-    if (d2 < 80000 && d2 > 1){ // ~280px radius
+const rect = stage.getBoundingClientRect();
+const sepRadius = Math.min(rect.width, rect.height) * 0.35;
+
+if (d2 < sepRadius * sepRadius && d2 > 1){
       const d = Math.sqrt(d2);
-      const strength = (280 - d) / 280; // 0 → 1
+const strength = (sepRadius - d) / sepRadius;
       const push = strength * strength * 120; // quadratic ramp
 
       fx += (dx / d) * push;
@@ -774,13 +788,16 @@ if (autopilot){
     const driftY = Math.sin(driftAngle) * 22;
 
     // wide swooping forces
+const scale = Math.min(stage.clientWidth, stage.clientHeight) / 900;
+
 const swoopX =
-  Math.sin(s.curvePhase) * 55 +
-  Math.sin(s.curvePhase * 0.27 + s.curveBiasX) * 28;
+  Math.sin(s.curvePhase) * 55 * scale +
+  Math.sin(s.curvePhase * 0.27 + s.curveBiasX) * 28 * scale;
+
 
 const swoopY =
-  Math.cos(s.curvePhase * 0.85) * 50 +
-  Math.cos(s.curvePhase * 0.31 + s.curveBiasY) * 26;
+  Math.sin(s.curvePhase) * 55 * scale +
+  Math.sin(s.curvePhase * 0.27 + s.curveBiasY) * 28 * scale;
 
 // separation from other cards
 const sep = separationForce(s, cards);

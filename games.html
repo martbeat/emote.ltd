@@ -363,6 +363,56 @@
   .card .title span{
     display:none;
   }
+      @media (max-width: 520px){
+  .card .inner{
+    padding: 10px 10px 8px;
+    gap: 6px;
+  }
+
+  .toprow{
+    gap: 6px;
+  }
+}
+@media (max-width: 520px){
+  a.play{
+    padding: 8px 10px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+}
+@media (max-width: 520px){
+  .mini{
+    display:none;
+  }
+}
+@media (max-width: 520px){
+  .title strong{
+    font-size: 15px;
+  }
+
+  .tag{
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+.card .desc{
+  transition: max-height .2s ease, opacity .2s ease;
+}
+
+@media (max-width: 520px){
+  .card .desc{
+    display:block;
+    max-height: 0;
+    opacity: 0;
+    overflow:hidden;
+  }
+
+  .card.is-focused .desc{
+    max-height: 200px;
+    opacity: 1;
+  }
+}
+
 }
 
   </style>

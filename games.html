@@ -900,6 +900,14 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
       }
     }
 
+function shuffleArray(arr){
+  for (let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+    
     function escapeHtml(str){
       return String(str ?? "")
         .replaceAll("&", "&amp;")
@@ -910,6 +918,7 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
     }
 
     // create all cards
+shuffleArray(GAMES);
     GAMES.forEach(makeCard);
 
     // buttons

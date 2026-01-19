@@ -520,6 +520,28 @@ let lastLeaderboardPlayer = null;
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+function resetGameState(){
+  // Core game state
+  gridRows = Array.from({ length: MAX_ROWS }, () => "");
+  row = 0;
+  col = 0;
+  done = false;
+  won = false;
+  active = false;
+
+  // Timing
+  elapsedSec = 0;
+  startTs = 0;
+  stopTimer();
+
+  // Visuals
+  clearGridColours();
+  clearKeyboardColours();
+  buildGrid();       // ensures DOM matches state
+  renderGrid();
+}
+
+    
 function clearKeyboardColours(){
   keyState.clear();
   document.querySelectorAll(".key").forEach(k => {
@@ -927,7 +949,7 @@ function canType(){
         return;
       }
       if(!isValidWord(guess)){
-        setStatus("Not a valid 5-letter word.");
+setStatus("That word is not in the dictionary.");
         return;
       }
 
@@ -953,10 +975,9 @@ function canType(){
 setStatus(`Solved in ${attempts}/6.`);
 setHint("Game complete. Next player: enter your name and press Start.");
 
-clearGridColours();
-active = false;
-
 finishGameUI();
+resetGameState();
+
 
         return;
       }
@@ -969,10 +990,9 @@ finishGameUI();
 setStatus("No more guesses today.");
 setHint("Game complete. Next player: enter your name and press Start.");
 
-clearGridColours();
-active = false;
-
 finishGameUI();
+resetGameState();
+
 
 
         return;
@@ -999,10 +1019,9 @@ finishGameUI();
 setStatus("Gave up.");
 setHint("Game complete. Next player: enter your name and press Start.");
 
-clearGridColours();
-active = false;
-
 finishGameUI();
+resetGameState();
+
 
       setStatus("Gave up. Result saved as X/6.");
       renderGrid();
@@ -1028,6 +1047,8 @@ finishGameUI();
 
       player = name;
       elPlayerName.value = player;
+      resetGameState();
+
 active = true;
 done = false;
 
@@ -1057,21 +1078,13 @@ done = false;
       renderLeaderboard();
     }
 
-    function switchPlayer(){
-      stopTimer();
-      active = false;
-      setStatus("Enter a name then press Start.");
-      elTimer.textContent = "00:00";
-      player = "";
-      elPlayerName.value = "";
+function switchPlayer(){
+  finishGameUI();
+  resetGameState();
 
-      gridRows = Array.from({length: MAX_ROWS}, () => "");
-      row = 0; col = 0; done = false; won = false;
-      elapsedSec = 0;
-      resetKeyState();
-      renderGrid();
-      renderLeaderboard();
-    }
+  setStatus("Enter a name then press Start.");
+  setHint("Next player: enter your name and press Start.");
+}
 
     function resetToday(){
       // Clears today's leaderboard and saves for ALL players (today only).

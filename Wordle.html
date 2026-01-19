@@ -1042,8 +1042,11 @@ done = false;
     // Physical keyboard support
     // ---------------------------
 document.addEventListener("keydown", (e) => {
-  // Allow typing normally inside inputs
+  // Always allow normal typing inside inputs
   if (e.target && e.target.tagName === "INPUT") return;
+
+  // Only intercept keys if the game is actually playable
+  if (!canType()) return;
 
   if (e.key === "Enter") {
     e.preventDefault();
@@ -1063,6 +1066,7 @@ document.addEventListener("keydown", (e) => {
     onLetter(k);
   }
 });
+
 
 
     // Buttons

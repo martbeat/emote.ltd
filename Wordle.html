@@ -345,7 +345,6 @@
           <h1 style="font-size:16px;margin:0;">Leaderboard</h1>
           <div class="sub">Today’s best results on this browser</div>
         </div>
-        <button id="btnResetBoard" class="ghost" title="Clears today's leaderboard and all saved games for today">Reset Today</button>
       </header>
       <div class="main">
         <h2 id="lbTitle"></h2>
@@ -525,6 +524,11 @@ let lastLeaderboardPlayer = null;
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+function hasPlayedToday(name){
+  return store.leaderboard.some(r => r.name === name);
+}
+
+    
 function lockPlayerName(){
   elPlayerName.classList.add("locked");
 }
@@ -1044,6 +1048,11 @@ resetGameState();
         setStatus("Enter a player name first.");
         return;
       }
+      if (hasPlayedToday(name)) {
+  setStatus(`${name} has already played today. Choose a different name.`);
+  return;
+}
+
 lockPlayerName();
 setStatus(`Playing as ${player}. Enter a 5-letter word.`);
 
@@ -1175,7 +1184,6 @@ document.addEventListener("keydown", (e) => {
     btnStart.addEventListener("click", startOrResume);
     btnNewPlayer.addEventListener("click", switchPlayer);
     btnGiveUp.addEventListener("click", giveUp);
-    btnResetBoard.addEventListener("click", resetToday);
 
     // Save progress when leaving
     window.addEventListener("beforeunload", () => {

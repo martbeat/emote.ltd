@@ -435,6 +435,8 @@
     //
     const STORAGE_PREFIX = "dwl:v1:day:";
 
+let lastLeaderboardPlayer = null;
+    
     function loadDayStore(dateId){
       const k = STORAGE_PREFIX + dateId;
       const raw = localStorage.getItem(k);
@@ -518,6 +520,18 @@
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+function finishGameUI(){
+  renderLeaderboard();
+
+  // Clear player identity for next person
+  player = "";
+  elPlayerName.value = "";
+  lastLeaderboardPlayer = null;
+
+  stopTimer();
+}
+
+    
 function clearGridColours(){
   document.querySelectorAll(".tile").forEach(t => {
     t.classList.remove("g","y","x","reveal");
@@ -651,7 +665,10 @@ function clearGridColours(){
 
       items.slice(0, 50).forEach((it, idx) => {
         const tr = document.createElement("tr");
-
+if (it.name === lastLeaderboardPlayer) {
+  tr.style.background = "rgba(122,167,255,.18)";
+  tr.style.boxShadow = "inset 0 0 0 1px rgba(122,167,255,.45)";
+}
         const tdRank = document.createElement("td");
         tdRank.textContent = String(idx + 1);
         tdRank.style.color = "var(--muted)";
@@ -846,6 +863,7 @@ function clearGridColours(){
 
       store.leaderboard = lb;
       saveDayStore(store);
+lastLeaderboardPlayer = name;
     }
 
     // ---------------------------
@@ -924,10 +942,12 @@ function canType(){
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
 setStatus(`Solved in ${attempts}/6.`);
-setHint("Game complete. Switch player or come back tomorrow.");
+setHint("Game complete. Next player: enter your name and press Start.");
 
 clearGridColours();
 active = false;
+
+finishGameUI();
 
         return;
       }
@@ -938,10 +958,13 @@ active = false;
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
 setStatus("No more guesses today.");
-setHint("Game complete. Switch player or come back tomorrow.");
+setHint("Game complete. Next player: enter your name and press Start.");
 
 clearGridColours();
 active = false;
+
+finishGameUI();
+
 
         return;
       }
@@ -965,10 +988,12 @@ active = false;
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
 setStatus("Gave up.");
-setHint("Game complete. Switch player or come back tomorrow.");
+setHint("Game complete. Next player: enter your name and press Start.");
 
 clearGridColours();
 active = false;
+
+finishGameUI();
 
       setStatus("Gave up. Result saved as X/6.");
       renderGrid();

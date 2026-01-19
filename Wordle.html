@@ -905,7 +905,7 @@ function canType(){
     function isValidWord(w){
       // Keep it simple: allow any 5-letter alphabetic word, but prefer list membership for "valid".
       // You can switch to stricter mode by requiring WORDS.includes(w).
-      return /^[a-z]{5}$/.test(w);
+      return WORDS.includes(w);
     }
 
     async function revealRow(r, ev){

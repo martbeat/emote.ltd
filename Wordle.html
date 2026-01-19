@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daily Wordle League (Local Leaderboard)</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --ink:#eaf0ff;
+      --muted:#b7c4ff;
+      --line:#223059;
+      --accent:#7aa7ff;
+
+      --g:#57c46a;   /* correct */
+      --y:#d6b84b;   /* present */
+      --x:#2a355e;   /* absent */
+      --tile:#1a2446;
+      --tile2:#0e1631;
+
+      --r:16px;
+      --shadow: 0 10px 28px rgba(0,0,0,.35);
+      --tap:44px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 15% 10%, #15224c 0%, var(--bg) 55%, #070b16 100%);
+      color:var(--ink);
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:16px;
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:16px;
+    }
+
+    @media (max-width: 980px){
+      .wrap{grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    header.card-h{
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .title h1{
+      margin:0;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .title .sub{
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.35;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      font-size:12px;
+      color:var(--muted);
+      user-select:none;
+      white-space:nowrap;
+    }
+
+    .main{
+      padding:14px 16px 16px;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-bottom:10px;
+    }
+
+    label{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    input[type="text"]{
+      width: min(360px, 100%);
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      color:var(--ink);
+      outline:none;
+    }
+    input[type="text"]::placeholder{ color: rgba(234,240,255,.45); }
+
+    button{
+      min-height: var(--tap);
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(122,167,255,.16);
+      color: var(--ink);
+      cursor:pointer;
+      font-weight:700;
+    }
+    button:hover{ background: rgba(122,167,255,.22); }
+    button.ghost{
+      background: rgba(0,0,0,.18);
+    }
+    button.bad{
+      background: rgba(255,107,136,.14);
+    }
+    button:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .status{
+      margin-top:8px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+      font-size:13px;
+      line-height:1.35;
+      min-height: 44px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .grid{
+      display:grid;
+      gap:8px;
+      margin-top:12px;
+      justify-content:center;
+    }
+
+    .grid-row{
+      display:grid;
+      grid-template-columns: repeat(5, 54px);
+      gap:8px;
+    }
+
+    @media (max-width: 420px){
+      .grid-row{ grid-template-columns: repeat(5, 48px); }
+    }
+
+    .tile{
+      width:54px;
+      height:54px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.22);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:22px;
+      font-weight:900;
+      text-transform:uppercase;
+      user-select:none;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .tile.filled{
+      background: rgba(0,0,0,.28);
+      border-color: rgba(255,255,255,.18);
+    }
+    .tile.reveal{
+      transform: scale(1.02);
+    }
+    .tile.g{ background: rgba(87,196,106,.28); border-color: rgba(87,196,106,.65); }
+    .tile.y{ background: rgba(214,184,75,.26); border-color: rgba(214,184,75,.60); }
+    .tile.x{ background: rgba(42,53,94,.35); border-color: rgba(255,255,255,.10); }
+
+    .kbd{
+      margin-top:14px;
+      display:grid;
+      gap:8px;
+      justify-content:center;
+    }
+    .kbd-row{
+      display:flex;
+      gap:6px;
+      justify-content:center;
+      flex-wrap:wrap;
+    }
+    .key{
+      min-width: 34px;
+      height: 44px;
+      padding:0 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: var(--ink);
+      font-weight:900;
+      text-transform:uppercase;
+      cursor:pointer;
+      user-select:none;
+    }
+    .key.wide{ min-width: 72px; font-weight:800; font-size:12px; }
+    .key.g{ background: rgba(87,196,106,.28); border-color: rgba(87,196,106,.65); }
+    .key.y{ background: rgba(214,184,75,.26); border-color: rgba(214,184,75,.60); }
+    .key.x{ background: rgba(42,53,94,.35); border-color: rgba(255,255,255,.10); }
+
+    .side .main{ padding:12px 12px 14px; }
+    .side h2{
+      margin:0 0 8px 0;
+      font-size:14px;
+      color:var(--ink);
+      letter-spacing:.2px;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-size:13px;
+    }
+    th, td{
+      padding:10px 8px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      text-align:left;
+      vertical-align:middle;
+    }
+    th{
+      color:var(--muted);
+      font-weight:800;
+      font-size:12px;
+    }
+    td small{ color: var(--muted); }
+
+    .note{
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.35;
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px dashed rgba(255,255,255,.14);
+      background: rgba(0,0,0,.14);
+    }
+
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <header class="card-h">
+        <div class="title">
+          <h1>Daily Wordle League</h1>
+          <div class="sub">
+            Same word for everyone each day on this browser. Players take turns by entering their name.
+          </div>
+        </div>
+        <div class="pill">
+          <span id="dayLabel" class="mono"></span>
+          <span class="mono" id="wordId"></span>
+        </div>
+      </header>
+
+      <div class="main">
+        <div class="row">
+          <div style="flex:1 1 260px">
+            <label for="playerName">Player name</label><br />
+            <input id="playerName" type="text" placeholder="e.g., Martin" autocomplete="off" />
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+            <button id="btnStart">Start / Resume</button>
+            <button id="btnNewPlayer" class="ghost">Switch Player</button>
+            <button id="btnGiveUp" class="bad">Give Up</button>
+          </div>
+        </div>
+
+        <div class="status" id="status">
+          <div id="statusText">Enter a player name then press Start.</div>
+          <div class="mono" id="timer">00:00</div>
+        </div>
+
+        <div class="grid" id="grid" aria-label="word grid"></div>
+
+        <div class="kbd" aria-label="keyboard">
+          <div class="kbd-row" id="kbd1"></div>
+          <div class="kbd-row" id="kbd2"></div>
+          <div class="kbd-row" id="kbd3"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card side">
+      <header class="card-h">
+        <div class="title">
+          <h1 style="font-size:16px;margin:0;">Leaderboard</h1>
+          <div class="sub">Today’s best results on this browser</div>
+        </div>
+        <button id="btnResetBoard" class="ghost" title="Clears today's leaderboard and all saved games for today">Reset Today</button>
+      </header>
+      <div class="main">
+        <h2 id="lbTitle"></h2>
+        <table aria-label="leaderboard">
+          <thead>
+            <tr>
+              <th style="width:44px;">#</th>
+              <th>Player</th>
+              <th style="width:72px;">Result</th>
+              <th style="width:86px;">Time</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+
+        <div class="note">
+          Scoring: lower attempts is better. Ties broken by faster time. Loss is shown as <span class="mono">X/6</span>.
+          <br />All data is stored locally in <span class="mono">localStorage</span> on this browser.
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // ---------------------------
+    // Daily word selection (deterministic per local date)
+    // ---------------------------
+
+    // A compact list of common 5-letter words. Add more if you like.
+    const WORDS = [
+      "about","above","actor","acute","admit","adopt","adult","after","again","agent","agree","ahead","alarm","album","alert",
+      "alike","alive","allow","alone","along","alter","among","angel","angry","apart","apple","apply","arena","argue","arise",
+      "array","aside","asset","audio","audit","avoid","award","aware","badly","baker","basic","beach","begin","being","below",
+      "bench","birth","black","blame","blind","block","blood","board","boost","booth","bound","brain","brand","brave","bread",
+      "break","brick","brief","bring","broad","brown","build","cable","calmly","carry","catch","cause","chain","chair","chalk",
+      "chart","chase","cheap","check","chess","chief","child","chill","china","claim","class","clean","clear","clerk","clock",
+      "close","coach","coast","could","count","court","cover","craft","crash","cream","crime","cross","crowd","crown","cycle",
+      "daily","dance","dated","debug","delay","depth","diary","digit","dirty","doubt","dozen","draft","drama","drawn","dream",
+      "dress","drill","drink","drive","drown","eager","early","earth","eight","elite","empty","enemy","enjoy","enter","entry",
+      "equal","error","event","every","exact","exist","extra","faith","false","fault","fiber","field","final","first","fixed",
+      "flame","flash","fleet","floor","focus","force","fresh","front","fruit","giant","given","glass","glove","grant","grass",
+      "great","green","group","guard","guess","guest","guide","habit","happy","harsh","heart","heavy","hello","honey","horse",
+      "hotel","house","human","ideal","image","index","inner","input","issue","joint","judge","known","label","large","later",
+      "laugh","layer","learn","leave","legal","level","light","limit","local","logic","loose","lucky","lunch","major","maker",
+      "march","match","maybe","medal","media","merit","metal","meter","might","minor","model","money","month","moral","motor",
+      "mount","mouse","movie","music","needs","never","newly","night","noise","north","novel","nurse","occur","ocean","offer",
+      "often","order","other","ought","paint","panel","paper","party","peace","phase","phone","photo","pilot","place","plain",
+      "plane","plant","plate","point","power","press","price","pride","prime","print","proof","proud","prove","queen","quick",
+      "quiet","radio","raise","range","ratio","reach","react","ready","reply","right","risky","river","roast","robot","rough",
+      "round","route","royal","rural","scale","scene","scope","score","sense","serve","sharp","sheet","shelf","shift","shirt",
+      "shock","shoot","short","shown","sight","since","skill","sleep","small","smart","smile","solid","solve","sorry","sound",
+      "south","space","spare","speak","spend","spent","spice","split","sport","staff","stage","stand","start","state","steam",
+      "steel","stick","still","stock","stone","store","storm","story","strip","study","style","sugar","suite","sunny","super",
+      "table","taken","taste","teach","teeth","tempo","thank","their","theme","there","thick","thing","think","those","three",
+      "throw","tight","timer","today","topic","total","touch","tower","track","trade","train","treat","trend","trial","truck",
+      "truly","trust","truth","under","union","unity","upper","usage","usual","valid","value","video","visit","voice","waste",
+      "watch","water","wheel","where","which","while","white","whole","woman","world","worry","worth","would","write","wrong",
+      "yield","young"
+    ].filter(w => /^[a-z]{5}$/.test(w));
+
+    function pad2(n){ return String(n).padStart(2,"0"); }
+
+    function localDateId(d = new Date()){
+      // Uses the browser's local time zone
+      const y = d.getFullYear();
+      const m = pad2(d.getMonth()+1);
+      const day = pad2(d.getDate());
+      return `${y}-${m}-${day}`;
+    }
+
+    function fnv1a32(str){
+      let h = 0x811c9dc5;
+      for(let i=0;i<str.length;i++){
+        h ^= str.charCodeAt(i);
+        h = (h + ((h<<1) + (h<<4) + (h<<7) + (h<<8) + (h<<24))) >>> 0;
+      }
+      return h >>> 0;
+    }
+
+    function pickDailyWord(dateId){
+      const seed = fnv1a32("daily-wordle|" + dateId);
+      const idx = seed % WORDS.length;
+      return WORDS[idx];
+    }
+
+    // ---------------------------
+    // Storage schema
+    // ---------------------------
+    // Key space per day:
+    //   dwl:v1:day:<YYYY-MM-DD> => { dateId, wordHash, leaderboard: [{name, attempts, seconds, result}], saves: { [name]: saveState } }
+    // saveState: { gridRows: string[], row: number, col: number, done: boolean, won: boolean, startTs: number, elapsed: number }
+    //
+    const STORAGE_PREFIX = "dwl:v1:day:";
+
+    function loadDayStore(dateId){
+      const k = STORAGE_PREFIX + dateId;
+      const raw = localStorage.getItem(k);
+      if(raw){
+        try{
+          const obj = JSON.parse(raw);
+          if(obj && obj.dateId === dateId) return obj;
+        }catch(e){}
+      }
+      const word = pickDailyWord(dateId);
+      const fresh = {
+        dateId,
+        wordHash: fnv1a32(word).toString(16),
+        leaderboard: [],
+        saves: {}
+      };
+      localStorage.setItem(k, JSON.stringify(fresh));
+      return fresh;
+    }
+
+    function saveDayStore(store){
+      localStorage.setItem(STORAGE_PREFIX + store.dateId, JSON.stringify(store));
+    }
+
+    function sanitizeName(name){
+      return (name || "").trim().replace(/\s+/g," ").slice(0, 32);
+    }
+
+    // ---------------------------
+    // Game state
+    // ---------------------------
+    const MAX_ROWS = 6;
+    const WORD_LEN = 5;
+
+    let dateId = localDateId();
+    let solution = pickDailyWord(dateId);
+    let store = loadDayStore(dateId);
+
+    let player = "";
+    let active = false;
+
+    let gridRows = Array.from({length: MAX_ROWS}, () => "");
+    let row = 0;
+    let col = 0;
+    let done = false;
+    let won = false;
+
+    let startTs = 0;       // ms epoch for current attempt
+    let elapsedSec = 0;    // accumulated seconds (for resume)
+    let timerHandle = null;
+
+    // Keyboard coloring state per letter: "", "x", "y", "g"
+    const keyState = new Map();
+
+    // ---------------------------
+    // UI elements
+    // ---------------------------
+    const elDayLabel = document.getElementById("dayLabel");
+    const elWordId = document.getElementById("wordId");
+    const elPlayerName = document.getElementById("playerName");
+    const btnStart = document.getElementById("btnStart");
+    const btnNewPlayer = document.getElementById("btnNewPlayer");
+    const btnGiveUp = document.getElementById("btnGiveUp");
+    const btnResetBoard = document.getElementById("btnResetBoard");
+    const elStatusText = document.getElementById("statusText");
+    const elTimer = document.getElementById("timer");
+    const elGrid = document.getElementById("grid");
+    const elLBTitle = document.getElementById("lbTitle");
+    const elLBBody = document.getElementById("lbBody");
+
+    const kbd1 = document.getElementById("kbd1");
+    const kbd2 = document.getElementById("kbd2");
+    const kbd3 = document.getElementById("kbd3");
+
+    // ---------------------------
+    // Render helpers
+    // ---------------------------
+    function formatTime(sec){
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${pad2(m)}:${pad2(s)}`;
+    }
+
+    function setStatus(msg){
+      elStatusText.textContent = msg;
+    }
+
+    function updateHeader(){
+      elDayLabel.textContent = dateId;
+      // Don't reveal the word, show a short id
+      elWordId.textContent = `· ID ${store.wordHash.slice(0,6).toUpperCase()}`;
+      elLBTitle.textContent = `Results for ${dateId}`;
+    }
+
+    function buildGrid(){
+      elGrid.innerHTML = "";
+      for(let r=0;r<MAX_ROWS;r++){
+        const rowEl = document.createElement("div");
+        rowEl.className = "grid-row";
+        rowEl.setAttribute("data-row", String(r));
+        for(let c=0;c<WORD_LEN;c++){
+          const t = document.createElement("div");
+          t.className = "tile";
+          t.setAttribute("data-col", String(c));
+          t.textContent = "";
+          rowEl.appendChild(t);
+        }
+        elGrid.appendChild(rowEl);
+      }
+    }
+
+    function renderGrid(){
+      for(let r=0;r<MAX_ROWS;r++){
+        const rowEl = elGrid.children[r];
+        const guess = gridRows[r] || "";
+        for(let c=0;c<WORD_LEN;c++){
+          const tile = rowEl.children[c];
+          const ch = guess[c] || "";
+          tile.textContent = ch.toUpperCase();
+          tile.classList.toggle("filled", !!ch);
+
+          // Clear evaluation classes before reveal for current row editing
+          if(!done && r === row){
+            tile.classList.remove("g","y","x","reveal");
+          }
+        }
+      }
+    }
+
+    function buildKeyboard(){
+      const rows = ["qwertyuiop","asdfghjkl","zxcvbnm"];
+      function addRow(container, letters, includeEnterBack){
+        container.innerHTML = "";
+        if(includeEnterBack){
+          const enter = document.createElement("button");
+          enter.className = "key wide";
+          enter.textContent = "Enter";
+          enter.addEventListener("click", () => onEnter());
+          container.appendChild(enter);
+        }
+        for(const ch of letters){
+          const b = document.createElement("button");
+          b.className = "key";
+          b.textContent = ch;
+          b.setAttribute("data-key", ch);
+          b.addEventListener("click", () => onLetter(ch));
+          container.appendChild(b);
+        }
+        if(includeEnterBack){
+          const back = document.createElement("button");
+          back.className = "key wide";
+          back.textContent = "Back";
+          back.addEventListener("click", () => onBackspace());
+          container.appendChild(back);
+        }
+      }
+      addRow(kbd1, rows[0], false);
+      addRow(kbd2, rows[1], false);
+      addRow(kbd3, rows[2], true);
+    }
+
+    function applyKeyColors(){
+      document.querySelectorAll(".key[data-key]").forEach(btn => {
+        const k = btn.getAttribute("data-key");
+        btn.classList.remove("g","y","x");
+        const st = keyState.get(k) || "";
+        if(st) btn.classList.add(st);
+      });
+    }
+
+    function renderLeaderboard(){
+      const items = (store.leaderboard || []).slice();
+
+      // Sort: wins first, then attempts, then time, then name
+      items.sort((a,b) => {
+        const aw = a.result === "W" ? 0 : 1;
+        const bw = b.result === "W" ? 0 : 1;
+        if(aw !== bw) return aw - bw;
+
+        const aa = a.attempts ?? 99;
+        const ba = b.attempts ?? 99;
+        if(aa !== ba) return aa - ba;
+
+        const as = a.seconds ?? 999999;
+        const bs = b.seconds ?? 999999;
+        if(as !== bs) return as - bs;
+
+        return String(a.name).localeCompare(String(b.name));
+      });
+
+      elLBBody.innerHTML = "";
+      if(items.length === 0){
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.style.color = "var(--muted)";
+        td.style.padding = "12px 8px";
+        td.textContent = "No results yet today.";
+        tr.appendChild(td);
+        elLBBody.appendChild(tr);
+        return;
+      }
+
+      items.slice(0, 50).forEach((it, idx) => {
+        const tr = document.createElement("tr");
+
+        const tdRank = document.createElement("td");
+        tdRank.textContent = String(idx + 1);
+        tdRank.style.color = "var(--muted)";
+        tr.appendChild(tdRank);
+
+        const tdName = document.createElement("td");
+        tdName.textContent = it.name;
+        if(player && it.name === player){
+          tdName.innerHTML = `${it.name} <small>(you)</small>`;
+        }
+        tr.appendChild(tdName);
+
+        const tdRes = document.createElement("td");
+        tdRes.className = "mono";
+        tdRes.textContent = it.result === "W" ? `${it.attempts}/6` : "X/6";
+        tr.appendChild(tdRes);
+
+        const tdTime = document.createElement("td");
+        tdTime.className = "mono";
+        tdTime.textContent = it.result === "W" ? formatTime(it.seconds || 0) : "—";
+        tr.appendChild(tdTime);
+
+        elLBBody.appendChild(tr);
+      });
+    }
+
+    function resetKeyState(){
+      keyState.clear();
+      applyKeyColors();
+    }
+
+    // ---------------------------
+    // Word evaluation (Wordle rules)
+    // ---------------------------
+    function evaluateGuess(guess, answer){
+      // returns array of "g","y","x"
+      const res = Array(WORD_LEN).fill("x");
+      const ans = answer.split("");
+      const g = guess.split("");
+
+      // Greens first
+      for(let i=0;i<WORD_LEN;i++){
+        if(g[i] === ans[i]){
+          res[i] = "g";
+          ans[i] = null;
+          g[i] = null;
+        }
+      }
+
+      // Yellows
+      for(let i=0;i<WORD_LEN;i++){
+        if(g[i] == null) continue;
+        const j = ans.indexOf(g[i]);
+        if(j !== -1){
+          res[i] = "y";
+          ans[j] = null;
+        }
+      }
+      return res;
+    }
+
+    function upgradeKeyColor(letter, state){
+      // Priority: g > y > x > ""
+      const cur = keyState.get(letter) || "";
+      const rank = { "":0, "x":1, "y":2, "g":3 };
+      if(rank[state] > rank[cur]){
+        keyState.set(letter, state);
+      }
+    }
+
+    // ---------------------------
+    // Timer
+    // ---------------------------
+    function stopTimer(){
+      if(timerHandle) clearInterval(timerHandle);
+      timerHandle = null;
+    }
+
+    function startTimer(){
+      stopTimer();
+      startTs = Date.now();
+      timerHandle = setInterval(() => {
+        const now = Date.now();
+        const sec = elapsedSec + Math.floor((now - startTs) / 1000);
+        elTimer.textContent = formatTime(sec);
+      }, 250);
+    }
+
+    function currentElapsed(){
+      if(!active) return elapsedSec;
+      const now = Date.now();
+      return elapsedSec + Math.floor((now - startTs) / 1000);
+    }
+
+    // ---------------------------
+    // Save/load per player
+    // ---------------------------
+    function saveProgress(){
+      if(!player) return;
+      const s = {
+        gridRows,
+        row,
+        col,
+        done,
+        won,
+        startTs: startTs || 0,
+        elapsed: currentElapsed(),
+      };
+      store.saves[player] = s;
+      saveDayStore(store);
+    }
+
+    function loadProgressFor(name){
+      const s = store.saves?.[name];
+      if(!s) return false;
+
+      gridRows = Array.isArray(s.gridRows) ? s.gridRows.slice(0, MAX_ROWS) : Array.from({length:MAX_ROWS},()=> "");
+      while(gridRows.length < MAX_ROWS) gridRows.push("");
+      row = Math.max(0, Math.min(MAX_ROWS-1, s.row|0));
+      col = Math.max(0, Math.min(WORD_LEN, s.col|0));
+      done = !!s.done;
+      won = !!s.won;
+      elapsedSec = Math.max(0, s.elapsed|0);
+
+      // Rebuild key colors from existing guesses
+      resetKeyState();
+      for(let r=0;r<MAX_ROWS;r++){
+        const guess = (gridRows[r] || "");
+        if(guess.length === WORD_LEN){
+          const ev = evaluateGuess(guess, solution);
+          for(let i=0;i<WORD_LEN;i++){
+            upgradeKeyColor(guess[i], ev[i]);
+          }
+        }
+      }
+      applyKeyColors();
+
+      return true;
+    }
+
+    function clearProgressFor(name){
+      if(store.saves && store.saves[name]){
+        delete store.saves[name];
+        saveDayStore(store);
+      }
+    }
+
+    // ---------------------------
+    // Leaderboard update (best attempt per player per day)
+    // ---------------------------
+    function upsertResult(name, result, attempts, seconds){
+      const lb = store.leaderboard || [];
+      const idx = lb.findIndex(x => x.name === name);
+
+      const rec = {
+        name,
+        result,          // "W" or "L"
+        attempts: result === "W" ? attempts : null,
+        seconds: result === "W" ? seconds : null
+      };
+
+      if(idx === -1){
+        lb.push(rec);
+      } else {
+        const cur = lb[idx];
+
+        // Keep best: any win beats loss. For wins, fewer attempts wins, then faster time
+        const curWin = cur.result === "W";
+        const newWin = rec.result === "W";
+
+        let replace = false;
+        if(newWin && !curWin) replace = true;
+        else if(newWin && curWin){
+          const ca = cur.attempts ?? 99;
+          const na = rec.attempts ?? 99;
+          if(na < ca) replace = true;
+          else if(na === ca){
+            const cs = cur.seconds ?? 999999;
+            const ns = rec.seconds ?? 999999;
+            if(ns < cs) replace = true;
+          }
+        } else if(!newWin && !curWin){
+          // both losses: keep as-is
+          replace = false;
+        } else {
+          // new loss but current win: do not replace
+          replace = false;
+        }
+
+        if(replace) lb[idx] = rec;
+      }
+
+      store.leaderboard = lb;
+      saveDayStore(store);
+    }
+
+    // ---------------------------
+    // Gameplay controls
+    // ---------------------------
+    function canType(){
+      return active && player && !done;
+    }
+
+    function onLetter(ch){
+      if(!canType()) return;
+      const cur = gridRows[row] || "";
+      if(cur.length >= WORD_LEN) return;
+      gridRows[row] = cur + ch;
+      col = gridRows[row].length;
+      renderGrid();
+      saveProgress();
+    }
+
+    function onBackspace(){
+      if(!canType()) return;
+      const cur = gridRows[row] || "";
+      if(cur.length === 0) return;
+      gridRows[row] = cur.slice(0, -1);
+      col = gridRows[row].length;
+      renderGrid();
+      saveProgress();
+    }
+
+    function isValidWord(w){
+      // Keep it simple: allow any 5-letter alphabetic word, but prefer list membership for "valid".
+      // You can switch to stricter mode by requiring WORDS.includes(w).
+      return /^[a-z]{5}$/.test(w);
+    }
+
+    async function revealRow(r, ev){
+      const rowEl = elGrid.children[r];
+      for(let i=0;i<WORD_LEN;i++){
+        const tile = rowEl.children[i];
+        tile.classList.add("reveal");
+        tile.classList.add(ev[i]);
+        await new Promise(res => setTimeout(res, 140));
+        tile.classList.remove("reveal");
+      }
+    }
+
+    async function onEnter(){
+      if(!canType()) return;
+      const guess = (gridRows[row] || "");
+      if(guess.length !== WORD_LEN){
+        setStatus("Enter a 5-letter word.");
+        return;
+      }
+      if(!isValidWord(guess)){
+        setStatus("Not a valid 5-letter word.");
+        return;
+      }
+
+      const ev = evaluateGuess(guess, solution);
+
+      // Apply keyboard colors
+      for(let i=0;i<WORD_LEN;i++){
+        upgradeKeyColor(guess[i], ev[i]);
+      }
+      applyKeyColors();
+
+      // Reveal tiles with a small animation
+      await revealRow(row, ev);
+
+      const isWin = (guess === solution);
+      if(isWin){
+        done = true; won = true;
+        stopTimer();
+        const totalSec = currentElapsed();
+        const attempts = row + 1;
+        upsertResult(player, "W", attempts, totalSec);
+        clearProgressFor(player); // completed
+        setStatus(`Solved in ${attempts}/6. Saved to leaderboard.`);
+        active = false;
+        return;
+      }
+
+      if(row === MAX_ROWS - 1){
+        done = true; won = false;
+        stopTimer();
+        upsertResult(player, "L", null, null);
+        clearProgressFor(player); // completed
+        setStatus(`Unlucky. Result saved as X/6. (Answer hidden by design)`);
+        active = false;
+        return;
+      }
+
+      row++;
+      col = 0;
+      setStatus("Keep going.");
+      renderGrid();
+      saveProgress();
+    }
+
+    function giveUp(){
+      if(!player) return;
+      if(done){
+        setStatus("Game already finished.");
+        return;
+      }
+      done = true;
+      won = false;
+      stopTimer();
+      upsertResult(player, "L", null, null);
+      clearProgressFor(player);
+      active = false;
+      setStatus("Gave up. Result saved as X/6.");
+      renderGrid();
+      renderLeaderboard();
+    }
+
+    function startOrResume(){
+      const name = sanitizeName(elPlayerName.value);
+      if(!name){
+        setStatus("Enter a player name first.");
+        return;
+      }
+
+      // Day rollover safety (if page left open overnight)
+      const nowDate = localDateId();
+      if(nowDate !== dateId){
+        dateId = nowDate;
+        solution = pickDailyWord(dateId);
+        store = loadDayStore(dateId);
+        updateHeader();
+        resetAllUIForDay();
+      }
+
+      player = name;
+      elPlayerName.value = player;
+
+      // If there is a saved game, load it, else fresh
+      const loaded = loadProgressFor(player);
+      if(!loaded){
+        gridRows = Array.from({length: MAX_ROWS}, () => "");
+        row = 0; col = 0; done = false; won = false;
+        elapsedSec = 0;
+        resetKeyState();
+        saveProgress();
+      }
+
+      active = !done;
+      renderGrid();
+
+      if(done){
+        active = false;
+        stopTimer();
+        setStatus("This player has already finished today. Switch player to play again.");
+        elTimer.textContent = formatTime(elapsedSec);
+      } else {
+        startTimer();
+        setStatus(loaded ? "Resumed saved game." : "New game started.");
+      }
+
+      renderLeaderboard();
+    }
+
+    function switchPlayer(){
+      stopTimer();
+      active = false;
+      setStatus("Enter a name then press Start.");
+      elTimer.textContent = "00:00";
+      player = "";
+      elPlayerName.value = "";
+
+      gridRows = Array.from({length: MAX_ROWS}, () => "");
+      row = 0; col = 0; done = false; won = false;
+      elapsedSec = 0;
+      resetKeyState();
+      renderGrid();
+      renderLeaderboard();
+    }
+
+    function resetToday(){
+      // Clears today's leaderboard and saves for ALL players (today only).
+      const k = STORAGE_PREFIX + dateId;
+      localStorage.removeItem(k);
+      store = loadDayStore(dateId);
+
+      stopTimer();
+      active = false;
+      player = "";
+      elPlayerName.value = "";
+
+      gridRows = Array.from({length: MAX_ROWS}, () => "");
+      row = 0; col = 0; done = false; won = false;
+      elapsedSec = 0;
+      resetKeyState();
+      renderGrid();
+      renderLeaderboard();
+      setStatus("Today reset. Enter a player name then press Start.");
+      elTimer.textContent = "00:00";
+      updateHeader();
+    }
+
+    function resetAllUIForDay(){
+      // Called on day rollover
+      stopTimer();
+      active = false;
+      player = "";
+      elPlayerName.value = "";
+
+      gridRows = Array.from({length: MAX_ROWS}, () => "");
+      row = 0; col = 0; done = false; won = false;
+      elapsedSec = 0;
+      resetKeyState();
+      renderGrid();
+      renderLeaderboard();
+      setStatus("New day detected. Enter a player name then press Start.");
+      elTimer.textContent = "00:00";
+    }
+
+    // ---------------------------
+    // Physical keyboard support
+    // ---------------------------
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); onEnter(); return; }
+      if(e.key === "Backspace"){ e.preventDefault(); onBackspace(); return; }
+      const k = e.key.toLowerCase();
+      if(/^[a-z]$/.test(k)){ e.preventDefault(); onLetter(k); }
+    });
+
+    // Buttons
+    btnStart.addEventListener("click", startOrResume);
+    btnNewPlayer.addEventListener("click", switchPlayer);
+    btnGiveUp.addEventListener("click", giveUp);
+    btnResetBoard.addEventListener("click", resetToday);
+
+    // Save progress when leaving
+    window.addEventListener("beforeunload", () => {
+      saveProgress();
+    });
+
+    // ---------------------------
+    // Init
+    // ---------------------------
+    updateHeader();
+    buildGrid();
+    buildKeyboard();
+    renderGrid();
+    renderLeaderboard();
+    setStatus("Enter a player name then press Start.");
+    elTimer.textContent = "00:00";
+  </script>
+</body>
+</html>

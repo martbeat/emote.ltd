@@ -1041,12 +1041,29 @@ done = false;
     // ---------------------------
     // Physical keyboard support
     // ---------------------------
-    document.addEventListener("keydown", (e) => {
-      if(e.key === "Enter"){ e.preventDefault(); onEnter(); return; }
-      if(e.key === "Backspace"){ e.preventDefault(); onBackspace(); return; }
-      const k = e.key.toLowerCase();
-      if(/^[a-z]$/.test(k)){ e.preventDefault(); onLetter(k); }
-    });
+document.addEventListener("keydown", (e) => {
+  // Allow typing normally inside inputs
+  if (e.target && e.target.tagName === "INPUT") return;
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+    onEnter();
+    return;
+  }
+
+  if (e.key === "Backspace") {
+    e.preventDefault();
+    onBackspace();
+    return;
+  }
+
+  const k = e.key.toLowerCase();
+  if (/^[a-z]$/.test(k)) {
+    e.preventDefault();
+    onLetter(k);
+  }
+});
+
 
     // Buttons
     btnStart.addEventListener("click", startOrResume);

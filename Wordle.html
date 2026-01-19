@@ -284,6 +284,13 @@
     }
 
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  input.locked {
+  opacity: 0.6;
+  pointer-events: none;
+  background: rgba(0,0,0,.35);
+}
+
   </style>
 </head>
 <body>
@@ -317,9 +324,7 @@
 
         <div class="status" id="status">
           <div id="statusText">Enter a player name then press Start.</div>
-          <div id="hint" class="note">
-  Enter your name, press <b>Start</b>, then type a 5-letter word and press <b>Enter</b>.
-</div>
+
 
           <div class="mono" id="timer">00:00</div>
         </div>
@@ -520,6 +525,15 @@ let lastLeaderboardPlayer = null;
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+function lockPlayerName(){
+  elPlayerName.classList.add("locked");
+}
+
+function unlockPlayerName(){
+  elPlayerName.classList.remove("locked");
+}
+
+    
 function resetGameState(){
   // Core game state
   gridRows = Array.from({ length: MAX_ROWS }, () => "");
@@ -554,13 +568,15 @@ function finishGameUI(){
   renderLeaderboard();
   clearKeyboardColours();
 
-  // Clear player identity for next person
+  unlockPlayerName();
+
   player = "";
   elPlayerName.value = "";
   lastLeaderboardPlayer = null;
 
   stopTimer();
 }
+
 
     
 function clearGridColours(){
@@ -574,9 +590,6 @@ function clearGridColours(){
       elStatusText.textContent = msg;
     }
 
-    function setHint(text){
-      document.getElementById("hint").innerHTML = text;
-    }
 
     function updateHeader(){
       elDayLabel.textContent = dateId;
@@ -973,7 +986,6 @@ setStatus("That word is not in the dictionary.");
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
 setStatus(`Solved in ${attempts}/6.`);
-setHint("Game complete. Next player: enter your name and press Start.");
 
 finishGameUI();
 resetGameState();
@@ -988,7 +1000,6 @@ resetGameState();
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
 setStatus("No more guesses today.");
-setHint("Game complete. Next player: enter your name and press Start.");
 
 finishGameUI();
 resetGameState();
@@ -1017,7 +1028,6 @@ resetGameState();
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
 setStatus("Gave up.");
-setHint("Game complete. Next player: enter your name and press Start.");
 
 finishGameUI();
 resetGameState();
@@ -1034,6 +1044,8 @@ resetGameState();
         setStatus("Enter a player name first.");
         return;
       }
+lockPlayerName();
+setStatus(`Playing as ${player}. Enter a 5-letter word.`);
 
       // Day rollover safety (if page left open overnight)
       const nowDate = localDateId();
@@ -1082,8 +1094,8 @@ function switchPlayer(){
   finishGameUI();
   resetGameState();
 
-  setStatus("Enter a name then press Start.");
-  setHint("Next player: enter your name and press Start.");
+  setStatus("Next player: enter your name and press Start.");
+
 }
 
     function resetToday(){

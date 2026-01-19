@@ -520,8 +520,17 @@ let lastLeaderboardPlayer = null;
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+function clearKeyboardColours(){
+  keyState.clear();
+  document.querySelectorAll(".key").forEach(k => {
+    k.classList.remove("g","y","x");
+  });
+}
+
+    
 function finishGameUI(){
   renderLeaderboard();
+  clearKeyboardColours();
 
   // Clear player identity for next person
   player = "";

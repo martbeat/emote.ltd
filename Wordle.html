@@ -954,6 +954,8 @@ function canType(){
 
       player = name;
       elPlayerName.value = player;
+active = true;
+done = false;
 
       // If there is a saved game, load it, else fresh
       const loaded = loadProgressFor(player);

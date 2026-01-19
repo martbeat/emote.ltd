@@ -230,10 +230,22 @@
       user-select:none;
     }
     .key.wide{ min-width: 72px; font-weight:800; font-size:12px; }
-    .key.g{ background: rgba(87,196,106,.28); border-color: rgba(87,196,106,.65); }
-    .key.y{ background: rgba(214,184,75,.26); border-color: rgba(214,184,75,.60); }
-    .key.x{ background: rgba(42,53,94,.35); border-color: rgba(255,255,255,.10); }
+.key.g{
+  background:#57c46a;
+  color:#06130a;
+  border-color:#57c46a;
+}
 
+.key.y{
+  background:#d6b84b;
+  color:#1b1604;
+  border-color:#d6b84b;
+}
+
+.key.x{
+  background:#2a355e;
+  color:#b7c4ff;
+}
     .side .main{ padding:12px 12px 14px; }
     .side h2{
       margin:0 0 8px 0;
@@ -305,6 +317,10 @@
 
         <div class="status" id="status">
           <div id="statusText">Enter a player name then press Start.</div>
+          <div id="hint" class="note">
+  Enter your name, press <b>Start</b>, then type a 5-letter word and press <b>Enter</b>.
+</div>
+
           <div class="mono" id="timer">00:00</div>
         </div>
 
@@ -502,8 +518,19 @@
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+function clearGridColours(){
+  document.querySelectorAll(".tile").forEach(t => {
+    t.classList.remove("g","y","x","reveal");
+  });
+}
+
+    
     function setStatus(msg){
       elStatusText.textContent = msg;
+    }
+
+    function setHint(text){
+      document.getElementById("hint").innerHTML = text;
     }
 
     function updateHeader(){
@@ -896,8 +923,12 @@ function canType(){
         const attempts = row + 1;
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
-        setStatus(`Solved in ${attempts}/6. Saved to leaderboard.`);
-        active = false;
+setStatus(`Solved in ${attempts}/6.`);
+setHint("Game complete. Switch player or come back tomorrow.");
+
+clearGridColours();
+active = false;
+
         return;
       }
 
@@ -906,8 +937,12 @@ function canType(){
         stopTimer();
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
-        setStatus(`Unlucky. Result saved as X/6. (Answer hidden by design)`);
-        active = false;
+setStatus("No more guesses today.");
+setHint("Game complete. Switch player or come back tomorrow.");
+
+clearGridColours();
+active = false;
+
         return;
       }
 
@@ -929,7 +964,12 @@ function canType(){
       stopTimer();
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
-      active = false;
+setStatus("Gave up.");
+setHint("Game complete. Switch player or come back tomorrow.");
+
+clearGridColours();
+active = false;
+
       setStatus("Gave up. Result saved as X/6.");
       renderGrid();
       renderLeaderboard();

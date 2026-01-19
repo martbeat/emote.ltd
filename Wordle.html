@@ -961,10 +961,11 @@ function canType(){
         setStatus("Enter a 5-letter word.");
         return;
       }
-      if(!isValidWord(guess)){
-setStatus("That word is not in the dictionary.");
-        return;
-      }
+if (!isValidWord(guess)) {
+  setStatus("That word is not in the dictionary.");
+  return;
+}
+
 
       const ev = evaluateGuess(guess, solution);
 
@@ -985,8 +986,7 @@ setStatus("That word is not in the dictionary.");
         const attempts = row + 1;
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
-setStatus(`Solved in ${attempts}/6.`);
-
+setStatus(`Solved in ${attempts}/6. Next player: enter your name.`);
 finishGameUI();
 resetGameState();
 
@@ -999,9 +999,9 @@ resetGameState();
         stopTimer();
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
-setStatus("No more guesses today.");
-
+setStatus("No more guesses. Next player: enter your name.");
 finishGameUI();
+
 resetGameState();
 
 
@@ -1011,7 +1011,8 @@ resetGameState();
 
       row++;
       col = 0;
-      setStatus("Keep going.");
+setStatus(`Playing as ${player}. ${MAX_ROWS - row} guesses remaining.`);
+
       renderGrid();
       saveProgress();
     }
@@ -1027,8 +1028,7 @@ resetGameState();
       stopTimer();
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
-setStatus("Gave up.");
-
+setStatus("Gave up. Next player: enter your name.");
 finishGameUI();
 resetGameState();
 
@@ -1063,6 +1063,8 @@ setStatus(`Playing as ${player}. Enter a 5-letter word.`);
 
 active = true;
 done = false;
+setStatus(`Playing as ${player}. Enter a 5-letter word.`);
+lockPlayerName();
 
       // If there is a saved game, load it, else fresh
       const loaded = loadProgressFor(player);
@@ -1077,15 +1079,15 @@ done = false;
       active = !done;
       renderGrid();
 
-      if(done){
-        active = false;
-        stopTimer();
-        setStatus("This player has already finished today. Switch player to play again.");
-        elTimer.textContent = formatTime(elapsedSec);
-      } else {
-        startTimer();
-        setStatus(loaded ? "Resumed saved game." : "New game started.");
-      }
+if (done) {
+  active = false;
+  stopTimer();
+  setStatus(`${player} has already finished today. Switch player.`);
+  elTimer.textContent = formatTime(elapsedSec);
+} else {
+  startTimer();
+  setStatus(`Playing as ${player}. Enter a 5-letter word.`);
+}
 
       renderLeaderboard();
     }
@@ -1094,7 +1096,8 @@ function switchPlayer(){
   finishGameUI();
   resetGameState();
 
-  setStatus("Next player: enter your name and press Start.");
+setStatus("Next player: enter your name and press Start.");
+
 
 }
 
@@ -1115,7 +1118,7 @@ function switchPlayer(){
       resetKeyState();
       renderGrid();
       renderLeaderboard();
-      setStatus("Today reset. Enter a player name then press Start.");
+setStatus("Today reset. Enter a player name and press Start.");
       elTimer.textContent = "00:00";
       updateHeader();
     }

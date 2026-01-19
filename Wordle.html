@@ -824,9 +824,9 @@
     // ---------------------------
     // Gameplay controls
     // ---------------------------
-    function canType(){
-      return active && player && !done;
-    }
+function canType(){
+  return !!player && !done;
+}
 
     function onLetter(ch){
       if(!canType()) return;

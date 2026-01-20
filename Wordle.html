@@ -373,37 +373,6 @@
     // Daily word selection (deterministic per local date)
     // ---------------------------
 
-    // A compact list of common 5-letter words. Add more if you like.
-    const WORDS2 = [
-      "about","above","actor","acute","admit","adopt","adult","after","again","agent","agree","ahead","alarm","album","alert",
-      "alike","alive","allow","alone","along","alter","among","angel","angry","apart","apple","apply","arena","argue","arise",
-      "array","aside","asset","audio","audit","avoid","award","aware","badly","baker","basic","beach","begin","being","below",
-      "bench","birth","black","blame","blind","block","blood","board","boost","booth","bound","brain","brand","brave","bread",
-      "break","brick","brief","bring","broad","brown","build","cable","calmly","carry","catch","cause","chain","chair","chalk",
-      "chart","chase","cheap","check","chess","chief","child","chill","china","claim","class","clean","clear","clerk","clock",
-      "close","coach","coast","could","count","court","cover","craft","crash","cream","crime","cross","crowd","crown","cycle",
-      "daily","dance","dated","debug","delay","depth","diary","digit","dirty","doubt","dozen","draft","drama","drawn","dream",
-      "dress","drill","drink","drive","drown","eager","early","earth","eight","elite","empty","enemy","enjoy","enter","entry",
-      "equal","error","event","every","exact","exist","extra","faith","false","fault","fiber","field","final","first","fixed",
-      "flame","flash","fleet","floor","focus","force","fresh","front","fruit","giant","given","glass","glove","grant","grass",
-      "great","green","group","guard","guess","guest","guide","habit","happy","harsh","heart","heavy","hello","honey","horse",
-      "hotel","house","human","ideal","image","index","inner","input","issue","joint","judge","known","label","large","later",
-      "laugh","layer","learn","leave","legal","level","light","limit","local","logic","loose","lucky","lunch","major","maker",
-      "march","match","maybe","medal","media","merit","metal","meter","might","minor","model","money","month","moral","motor",
-      "mount","mouse","movie","music","needs","never","newly","night","noise","north","novel","nurse","occur","ocean","offer",
-      "often","order","other","ought","paint","panel","paper","party","peace","phase","phone","photo","pilot","place","plain",
-      "plane","plant","plate","point","power","press","price","pride","prime","print","proof","proud","prove","queen","quick",
-      "quiet","radio","raise","range","ratio","reach","react","ready","reply","right","risky","river","roast","robot","rough",
-      "round","route","royal","rural","scale","scene","scope","score","sense","serve","sharp","sheet","shelf","shift","shirt",
-      "shock","shoot","short","shown","sight","since","skill","sleep","small","smart","smile","solid","solve","sorry","sound",
-      "south","space","spare","speak","spend","spent","spice","split","sport","staff","stage","stand","start","state","steam",
-      "steel","stick","still","stock","stone","store","storm","story","strip","study","style","sugar","suite","sunny","super",
-      "table","taken","taste","teach","teeth","tempo","thank","their","theme","there","thick","thing","think","those","three",
-      "throw","tight","timer","today","topic","total","touch","tower","track","trade","train","treat","trend","trial","truck",
-      "truly","trust","truth","under","union","unity","upper","usage","usual","valid","value","video","visit","voice","waste",
-      "watch","water","wheel","where","which","while","white","whole","woman","world","worry","worth","would","write","wrong",
-      "yield","young"
-    ].filter(w => /^[a-z]{5}$/.test(w));
 
 const WORD_SOURCE_URL =
   "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words";
@@ -432,11 +401,6 @@ let WORDS = [];
       return h >>> 0;
     }
 
-    function pickDailyWord(dateId){
-      const seed = fnv1a32("daily-wordle|" + dateId);
-      const idx = seed % WORDS.length;
-      return WORDS[idx];
-    }
 
     // ---------------------------
     // Storage schema
@@ -545,8 +509,8 @@ function loadDayStore(dateId){
     const MAX_ROWS = 6;
     const WORD_LEN = 5;
 
-//    let dateId = localDateId(); XXXX
-    let solution = pickDailyWord(dateId);
+
+    let solution = "";
     let store = loadDayStore(dateId);
 
     let player = "";
@@ -665,12 +629,16 @@ function clearGridColours(){
     }
 
 
-    function updateHeader(){
-      elDayLabel.textContent = dateId;
-      // Don't reveal the word, show a short id
-      elWordId.textContent = `· ID ${store.wordHash.slice(0,6).toUpperCase()}`;
-      elLBTitle.textContent = `Results for ${dateId}`;
-    }
+function updateHeader(){
+  elDayLabel.textContent = dateId;
+  elWordId.textContent = `· ID ${currentWordId()}`;
+  elLBTitle.textContent = `Results for ${dateId}`;
+}
+
+function currentWordId(){
+  return fnv1a32(solution).toString(16).slice(0,6).toUpperCase();
+}
+
 
     function buildGrid(){
       elGrid.innerHTML = "";
@@ -1121,10 +1089,7 @@ resetGameState();
       if (hasPlayedToday(name)) {
   setStatus(`${name} has already played today. Choose a different name.`);
   return;
-}
-
-lockPlayerName();
-setStatus(`Playing as ${player}. Enter a 5-letter word.`);
+    }
 
       // Day rollover safety (if page left open overnight)
       const nowDate = localDateId();
@@ -1180,27 +1145,6 @@ setStatus("Next player: enter your name and press Start.");
 
 }
 
-    function resetToday(){
-      // Clears today's leaderboard and saves for ALL players (today only).
-      const k = STORAGE_PREFIX + dateId;
-      localStorage.removeItem(k);
-      store = loadDayStore(dateId);
-
-      stopTimer();
-      active = false;
-      player = "";
-      elPlayerName.value = "";
-
-      gridRows = Array.from({length: MAX_ROWS}, () => "");
-      row = 0; col = 0; done = false; won = false;
-      elapsedSec = 0;
-      resetKeyState();
-      renderGrid();
-      renderLeaderboard();
-setStatus("Today reset. Enter a player name and press Start.");
-      elTimer.textContent = "00:00";
-      updateHeader();
-    }
 
     function resetAllUIForDay(){
       // Called on day rollover

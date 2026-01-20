@@ -509,26 +509,27 @@ function pickDailyWord(){
     
     
 let lastLeaderboardPlayer = null;
-    
-    function loadDayStore(dateId){
-      const k = STORAGE_PREFIX + dateId;
-      const raw = localStorage.getItem(k);
-      if(raw){
-        try{
-          const obj = JSON.parse(raw);
-          if(obj && obj.dateId === dateId) return obj;
-        }catch(e){}
-      }
-      const word = pickDailyWord(dateId);
-      const fresh = {
-        dateId,
-        wordHash: fnv1a32(word).toString(16),
-        leaderboard: [],
-        saves: {}
-      };
-      localStorage.setItem(k, JSON.stringify(fresh));
-      return fresh;
-    }
+
+function loadDayStore(dateId){
+  const k = STORAGE_PREFIX + dateId;
+  const raw = localStorage.getItem(k);
+
+  if (raw) {
+    try {
+      const obj = JSON.parse(raw);
+      if (obj && obj.dateId === dateId) return obj;
+    } catch {}
+  }
+
+  const fresh = {
+    dateId,
+    leaderboard: [],
+    saves: {}
+  };
+
+  localStorage.setItem(k, JSON.stringify(fresh));
+  return fresh;
+}
 
     function saveDayStore(store){
       localStorage.setItem(STORAGE_PREFIX + store.dateId, JSON.stringify(store));

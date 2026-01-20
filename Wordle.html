@@ -405,6 +405,14 @@
       "yield","young"
     ].filter(w => /^[a-z]{5}$/.test(w));
 
+const WORD_SOURCE_URL =
+  "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words";
+
+const WORD_CACHE_KEY = "dwl:words:v1"; // bump v1 → v2 if you ever change lists
+
+let WORDS = [];
+
+    
     function pad2(n){ return String(n).padStart(2,"0"); }
 
     function localDateId(d = new Date()){
@@ -433,12 +441,73 @@
     // ---------------------------
     // Storage schema
     // ---------------------------
+
+    async function loadWordsOnce(){
+  const cached = localStorage.getItem(WORD_CACHE_KEY);
+
+  if (cached) {
+    try {
+      WORDS = JSON.parse(cached);
+      if (Array.isArray(WORDS) && WORDS.length > 1000) {
+        return;
+      }
+    } catch {}
+  }
+
+  // Fetch once if not cached or invalid
+  const res = await fetch(WORD_SOURCE_URL, { cache: "force-cache" });
+  if (!res.ok) throw new Error("Word list download failed");
+
+  const text = await res.text();
+  WORDS = text
+    .split("\n")
+    .map(w => w.trim().toLowerCase())
+    .filter(w => /^[a-z]{5}$/.test(w));
+
+  if (WORDS.length < 1000) {
+    throw new Error("Downloaded word list too small");
+  }
+
+  localStorage.setItem(WORD_CACHE_KEY, JSON.stringify(WORDS));
+}
+
+    
+    
+    
     // Key space per day:
     //   dwl:v1:day:<YYYY-MM-DD> => { dateId, wordHash, leaderboard: [{name, attempts, seconds, result}], saves: { [name]: saveState } }
     // saveState: { gridRows: string[], row: number, col: number, done: boolean, won: boolean, startTs: number, elapsed: number }
     //
     const STORAGE_PREFIX = "dwl:v1:day:";
 
+function utcDayNumber(){
+  return Math.floor(Date.now() / 86400000);
+}
+
+function utcDateId(){
+  return new Date().toISOString().slice(0, 10);
+}
+
+    let dateId = utcDateId();
+
+    
+    function seededIndex(seed, length){
+  // Simple deterministic PRNG
+  let x = seed ^ 0xdeadbeef;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return Math.abs(x) % length;
+}
+
+function pickDailyWord(){
+  const day = utcDayNumber();
+  const index = seededIndex(day, WORDS.length);
+  return WORDS[index];
+}
+
+    
+    
 let lastLeaderboardPlayer = null;
     
     function loadDayStore(dateId){
@@ -1193,13 +1262,23 @@ document.addEventListener("keydown", (e) => {
     // ---------------------------
     // Init
     // ---------------------------
-    updateHeader();
-    buildGrid();
-    buildKeyboard();
-    renderGrid();
-    renderLeaderboard();
-    setStatus("Enter a player name then press Start.");
-    elTimer.textContent = "00:00";
+(async function init(){
+  await loadWordsOnce();
+
+  dateId = utcDateId();
+  solution = pickDailyWord();
+  store = loadDayStore(dateId);
+
+  updateHeader();
+  buildGrid();
+  buildKeyboard();
+  renderGrid();
+  renderLeaderboard();
+
+  setStatus("Enter a player name and press Start.");
+  elTimer.textContent = "00:00";
+})();
+
   </script>
 </body>
 </html>

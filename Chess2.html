@@ -1201,7 +1201,7 @@ function pickBestMove(state){
     return coordToIdx(7-r, f);
   }
 
-  function evalPosition(state, style="balanced"){
+  function evalPositionXXX(state, style="balanced"){
     const b = state.board;
     let score = 0;
 
@@ -1279,7 +1279,7 @@ function pickBestMove(state){
       .map(x=>x.m);
   }
 
-  function negamax(state, depth, alpha, beta, povSide, style, nodesRef){
+  function negamaxXXX(state, depth, alpha, beta, povSide, style, nodesRef){
     nodesRef.count++;
 
     const moves = generateLegalMoves(state);
@@ -1310,7 +1310,7 @@ function pickBestMove(state){
     return best;
   }
 
-  function pickBestMove(state, side, depth, style){
+  function pickBestMoveXXX(state, side, depth, style){
     const rootTurn = state.turn;
     if(rootTurn !== side) state.turn = side;
 

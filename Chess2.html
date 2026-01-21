@@ -509,6 +509,46 @@ const BOOK = {
   "e2e4 e7e5": ["g1f3","f1c4"]
 };
 
+  function parseMove(coordStr, state){
+  // Accepts: "e2e4" or "e7e8q" (promo optional, case-insensitive)
+  const s = coordStr.trim();
+  if(s.length < 4) return null;
+
+  const fFile = FILES.indexOf(s[0]);
+  const fRank = parseInt(s[1], 10);
+  const tFile = FILES.indexOf(s[2]);
+  const tRank = parseInt(s[3], 10);
+  if(fFile < 0 || tFile < 0 || !fRank || !tRank) return null;
+
+  const from = coordToIdx(8 - fRank, fFile);
+  const to   = coordToIdx(8 - tRank, tFile);
+
+  let promo = null;
+  if(s.length >= 5){
+    const p = s[4].toUpperCase();
+    if("QRBN".includes(p)) promo = p;
+  }
+
+  // Match against current legal moves
+  const legal = generateLegalMoves(state);
+  const matches = legal.filter(m =>
+    m.from === from &&
+    m.to === to &&
+    ((promo === null) || (m.promo === promo))
+  );
+
+  if(matches.length === 0) return null;
+
+  // Prefer queen promo if coordStr omitted promo but multiple promos exist
+  if(promo === null){
+    const q = matches.find(m => m.promo === "Q");
+    if(q) return q;
+  }
+  return matches[0];
+}
+
+
+  
 function bookMove(state){
   if(state.history.length > 4) return null;
   const key = state.history.map(m=>m.fromAlg+m.toAlg).join(" ");

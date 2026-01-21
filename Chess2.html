@@ -424,7 +424,7 @@ const TT_SIZE     = 1 << 20; // ~1M entries
 
 /* ============================================================
    BASIC DEFINITIONS (unchanged from working version)
-============================================================ */
+
 
 const PIECE_UNI = {
   P:"♙", N:"♘", B:"♗", R:"♖", Q:"♕", K:"♔",
@@ -446,7 +446,8 @@ const DIRS_KING   = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
 function idxToCoord(i){ return {r:(i/8)|0,f:i%8}; }
 function coordToIdx(r,f){ return r*8+f; }
 function inBounds(r,f){ return r>=0&&r<8&&f>=0&&f<8; }
-
+============================================================ */
+  
 /* ============================================================
    ZOBRIST HASHING (new)
 ============================================================ */
@@ -648,16 +649,16 @@ function pickBestMove(state){
   };
   const FILES = "abcdefgh";
 
-//  const pieceColor = (p) => (p === "." ? null : (p === p.toUpperCase() ? "w" : "b"));
-//  const opp = (c) => (c === "w" ? "b" : "w");
-//  const inBounds = (r,f) => r>=0 && r<8 && f>=0 && f<8;
+  const pieceColor = (p) => (p === "." ? null : (p === p.toUpperCase() ? "w" : "b"));
+  const opp = (c) => (c === "w" ? "b" : "w");
+  const inBounds = (r,f) => r>=0 && r<8 && f>=0 && f<8;
 
-//  function idxToCoord(i){ return { r: Math.floor(i/8), f: i%8 }; }
-//  function coordToIdx(r,f){ return r*8 + f; }
-//  function idxToAlg(i){
-//    const {r,f} = idxToCoord(i);
-//    return FILES[f] + (8 - r);
-//  }
+  function idxToCoord(i){ return { r: Math.floor(i/8), f: i%8 }; }
+  function coordToIdx(r,f){ return r*8 + f; }
+  function idxToAlg(i){
+    const {r,f} = idxToCoord(i);
+    return FILES[f] + (8 - r);
+  }
 
   function initialPosition(){
     return [

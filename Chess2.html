@@ -412,7 +412,7 @@
 
 <script>
 (() => {
-"use strict";
+  "use strict";
 
 /* ============================================================
    CONFIG
@@ -640,15 +640,7 @@ function pickBestMove(state){
   }
   return bestMove;
 }
-
-/* ============================================================
-   EVERYTHING ELSE
-============================================================ */
-
-   //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-(() => {
-  "use strict";
-
+  //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   const PIECE_UNI = {
     P:"♙", N:"♘", B:"♗", R:"♖", Q:"♕", K:"♔",
     p:"♟", n:"♞", b:"♝", r:"♜", q:"♛", k:"♚",
@@ -656,16 +648,16 @@ function pickBestMove(state){
   };
   const FILES = "abcdefgh";
 
-  const pieceColor = (p) => (p === "." ? null : (p === p.toUpperCase() ? "w" : "b"));
-  const opp = (c) => (c === "w" ? "b" : "w");
-  const inBounds = (r,f) => r>=0 && r<8 && f>=0 && f<8;
+//  const pieceColor = (p) => (p === "." ? null : (p === p.toUpperCase() ? "w" : "b"));
+//  const opp = (c) => (c === "w" ? "b" : "w");
+//  const inBounds = (r,f) => r>=0 && r<8 && f>=0 && f<8;
 
-  function idxToCoord(i){ return { r: Math.floor(i/8), f: i%8 }; }
-  function coordToIdx(r,f){ return r*8 + f; }
-  function idxToAlg(i){
-    const {r,f} = idxToCoord(i);
-    return FILES[f] + (8 - r);
-  }
+//  function idxToCoord(i){ return { r: Math.floor(i/8), f: i%8 }; }
+//  function coordToIdx(r,f){ return r*8 + f; }
+//  function idxToAlg(i){
+//    const {r,f} = idxToCoord(i);
+//    return FILES[f] + (8 - r);
+//  }
 
   function initialPosition(){
     return [
@@ -1617,7 +1609,6 @@ function pickBestMove(state){
   render();
 console.log("Advanced AI enabled: TT + Iterative Deepening + Book");
 })();
-   
 </script>
 </body>
 </html>

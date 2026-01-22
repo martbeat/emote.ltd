@@ -1580,42 +1580,62 @@ if(S.lastMove){
     }
   });
 
-  function queueAIMove(){
-  const depth = getAIDepth();
-  const style = getAIStyle(); // or however you already read style
+function queueAIMove(){
+  if(S.gameOver) return;
+  if(S.turn !== S.ai) return;
+
+  clearSelection();
+  render();
+
+  setStatus("AI thinking…");
+  elThink.textContent = "AI: thinking…";
+
+  setTimeout(() => {
+    const depth = getAIDepth();      // from difficulty dropdown
+    const style = elStyle.value;     // from style dropdown
 
     let best = null;
-let score = 0;
-let nodes = 0;
+    let score = 0;
+    let nodes = 0;
 
-    if(S.gameOver) return;
-    if(S.turn !== S.ai) return;
+    // --- Opening book ---
+    let usedBook = false;
+    const key = openingKey(S);
+    if(OPENING_BOOK[key]){
+      const san = pickWeighted(OPENING_BOOK[key]);
+      const m = findMoveBySAN(S, san);
+      if(m){
+        best = m;
+        usedBook = true;
+        elThink.textContent = "AI: book move";
+      }
+    }
 
-    clearSelection();
+    // --- Fallback to search ---
+    if(!usedBook){
+      const r = pickBestMove(S, depth, style);
+      best = r.best;
+      score = r.score;
+      nodes = r.nodes;
+      elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
+    }
+
+    if(!best){
+      console.error("AI failed to select a move");
+      setStatus("No legal moves", "bad");
+      render();
+      return;
+    }
+
+    elEval.textContent = `Eval: ${formatEval(score)}`;
+
+    // AI always auto-queens
+    if(best.promo) best.promo = "Q";
+
+    makeMove(S, best, false);
+    setStatus("Ready");
     render();
-    setStatus("AI thinking…");
-    elThink.textContent = "AI: thinking…";
-
-    setTimeout(() => {
-      const depth = depthFromUI();
-      const style = elStyle.value;
-let best = null;
-let score = 0;
-let nodes = 0;
-
-const key = openingKey(S);
-let usedBook = false;
-
-if(OPENING_BOOK[key]){
-  const san = pickWeighted(OPENING_BOOK[key]);
-  const m = findMoveBySAN(S, san);
-  if(m){
-    best = m;
-    score = 0;
-    nodes = 0;
-    usedBook = true;
-    elThink.textContent = "AI: book move";
-  }
+  }, 30);
 }
 
 

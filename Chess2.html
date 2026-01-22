@@ -554,6 +554,20 @@ const OPENING_BOOK = {
   ]
 };
 
+function getAITimeBudget(){
+  const v = parseInt(document.getElementById("difficulty").value, 10);
+
+  // milliseconds
+  switch(v){
+    case 1: return 150;   // Easy
+    case 2: return 400;   // Normal
+    case 3: return 900;   // Hard
+    default: return 400;
+  }
+}
+
+
+  
 function getAIDepth(){
   const v = parseInt(document.getElementById("difficulty").value, 10);
   // value 1 → depth 2, 2 → depth 3, 3 → depth 4
@@ -1347,8 +1361,19 @@ if(depth === 0){
   return best;
 }
 
-function pickBestMove(state, maxDepth, style){
-  const start = nowMs();
+function pickBestMove(state, timeBudgetMs, style){
+  const start = performance.now();
+  SEARCH_STOP = start + timeBudgetMs;
+  SEARCH_ABORT = false;
+
+  let bestMove = null;
+  let bestScore = 0;
+  let completedDepth = 0;
+  let nodesTotal = 0;
+
+  const MAX_DEPTH = 99; // practical infinity
+  
+/*  const start = nowMs();
   const TIME_BUDGET = 700; // ms – safe for UI
   SEARCH_STOP = start + TIME_BUDGET;
   SEARCH_ABORT = false;
@@ -1357,8 +1382,9 @@ function pickBestMove(state, maxDepth, style){
   let bestScore = 0;
   let completedDepth = 0;
   let nodesTotal = 0;
-
-  for(let depth = 1; depth <= maxDepth; depth++){
+*/
+  
+for(let depth = 1; depth <= MAX_DEPTH; depth++){
     if(SEARCH_ABORT) break;
 
     let localBest = null;
@@ -1584,8 +1610,8 @@ function queueAIMove(){
   if(S.gameOver) return;
   if(S.turn !== S.ai) return;
 
-  const depth = getAIDepth();
-  const style = elStyle.value;
+const timeBudget = getAITimeBudget();
+const style = elStyle.value;
 
   clearSelection();
   render();
@@ -1611,7 +1637,7 @@ function queueAIMove(){
     }
 
     if(!usedBook){
-      const r = pickBestMove(S, depth, style);
+const r = pickBestMove(S, timeBudget, style);
       best = r.best;
       score = r.score;
       nodes = r.nodes;
@@ -1624,7 +1650,7 @@ function queueAIMove(){
     }
 
     elEval.textContent = `Eval: ${formatEval(score)}`;
-    elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
+elThink.textContent = `AI: ${timeBudget}ms, depth ${r.depth}, nodes ${nodes}`;
 
     if(best.promo) best.promo = "Q"; // AI auto-queen
 

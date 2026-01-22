@@ -1573,6 +1573,8 @@ if(S.lastMove){
   });
 
   function queueAIMove(){
+  const depth = AI_DEPTH;
+  const style = AI_STYLE;
     let best = null;
 let score = 0;
 let nodes = 0;

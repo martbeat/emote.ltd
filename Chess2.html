@@ -210,6 +210,15 @@
     .kv .k{ color:var(--muted); font-size:12px; }
     .kv .v{ font-weight:800; letter-spacing:.2px; }
 
+.sq.lastFrom {
+  box-shadow: inset 0 0 0 3px rgba(255, 215, 100, 0.85);
+}
+
+.sq.lastTo {
+  box-shadow: inset 0 0 0 3px rgba(255, 170, 60, 0.85);
+}
+
+    
     .pill{
       display:inline-flex;
       align-items:center;
@@ -1411,6 +1420,12 @@ function pickBestMove(state, maxDepth, style){
 
       const d = document.createElement("div");
       d.className = "sq " + (light ? "light":"dark");
+      // highlight last move
+if(S.lastMove){
+  if(i === S.lastMove.from) d.classList.add("lastFrom");
+  if(i === S.lastMove.to)   d.classList.add("lastTo");
+}
+
       d.dataset.idx = String(i);
 
       if(i === selected) d.classList.add("sel");
@@ -1613,6 +1628,13 @@ elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
       setStatus("Ready");
       render();
     }, 30);
+
+    if(!best){
+  console.warn("AI had no move — forcing search fallback");
+  const r = pickBestMove(S, depth, style);
+  best = r.best;
+   }
+
   }
 
   // Buttons
@@ -1625,6 +1647,7 @@ elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
     elThink.textContent = "AI: idle";
     render();
     if(S.turn === S.ai) queueAIMove();
+    S.lastMove = null;
   });
 
   btnFlip.addEventListener("click", () => {

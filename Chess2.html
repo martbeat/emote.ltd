@@ -1610,8 +1610,13 @@ function queueAIMove(){
   if(S.gameOver) return;
   if(S.turn !== S.ai) return;
 
-const timeBudget = getAITimeBudget();
-const style = elStyle.value;
+  const timeBudget = getAITimeBudget();
+  const style = elStyle.value;
+
+  let best = null;
+  let score = 0;
+  let nodes = 0;
+  let searchResult = null;
 
   clearSelection();
   render();
@@ -1619,9 +1624,6 @@ const style = elStyle.value;
   elThink.textContent = "AI: thinking…";
 
   setTimeout(() => {
-    let best = null;
-    let score = 0;
-    let nodes = 0;
 
     const key = openingKey(S);
     let usedBook = false;
@@ -1631,16 +1633,24 @@ const style = elStyle.value;
       const m = findMoveBySAN(S, san);
       if(m){
         best = m;
+        score = 0;
+        nodes = 0;
         usedBook = true;
         elThink.textContent = "AI: book move";
       }
     }
 
     if(!usedBook){
-const r = pickBestMove(S, timeBudget, style);
-      best = r.best;
-      score = r.score;
-      nodes = r.nodes;
+      searchResult = pickBestMove(S, timeBudget, style);
+      best = searchResult.best;
+      score = searchResult.score;
+      nodes = searchResult.nodes;
+    }
+
+    elEval.textContent = `Eval: ${formatEval(score)}`;
+    if(searchResult){
+      elThink.textContent =
+        `AI: ${timeBudget}ms, depth ${searchResult.depth}, nodes ${nodes}`;
     }
 
     if(!best){
@@ -1649,14 +1659,12 @@ const r = pickBestMove(S, timeBudget, style);
       return;
     }
 
-    elEval.textContent = `Eval: ${formatEval(score)}`;
-elThink.textContent = `AI: ${timeBudget}ms, depth ${r.depth}, nodes ${nodes}`;
-
-    if(best.promo) best.promo = "Q"; // AI auto-queen
+    if(best.promo) best.promo = "Q";
 
     makeMove(S, best, false);
     setStatus("Ready");
     render();
+
   }, 30);
 }
 

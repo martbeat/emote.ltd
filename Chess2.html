@@ -1574,6 +1574,8 @@ let score = 0;
 let nodes = 0;
 
 const key = openingKey(S);
+let usedBook = false;
+
 if(OPENING_BOOK[key]){
   const san = pickWeighted(OPENING_BOOK[key]);
   const m = findMoveBySAN(S, san);
@@ -1581,11 +1583,13 @@ if(OPENING_BOOK[key]){
     best = m;
     score = 0;
     nodes = 0;
+    usedBook = true;
     elThink.textContent = "AI: book move";
   }
 }
 
-if(!best){
+
+if(!usedBook){
   const r = pickBestMove(S, depth, style);
   best = r.best;
   score = r.score;

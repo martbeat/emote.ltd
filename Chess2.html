@@ -1150,6 +1150,33 @@ function nowMs(){
       .map(x=>x.m);
   }
 
+function quiescence(state, alpha, beta, style, nodesRef){
+  nodesRef.count++;
+
+  const standPat = evalForSideToMove(state, style);
+
+  if(standPat >= beta) return beta;
+  if(standPat > alpha) alpha = standPat;
+
+  const moves = generateLegalMoves(state);
+
+  // Only consider captures (including en passant)
+  for(const m of moves){
+    const isCapture = (m.captured && m.captured !== ".") || m.ep;
+    if(!isCapture) continue;
+
+    const u = makeMove(state, m, true);
+    const score = -quiescence(state, -beta, -alpha, style, nodesRef);
+    undoMove(state, u);
+
+    if(score >= beta) return beta;
+    if(score > alpha) alpha = score;
+  }
+
+  return alpha;
+}
+
+  
 function negamax(state, depth, alpha, beta, style, nodesRef){
   if(SEARCH_ABORT) return 0;
   nodesRef.count++;
@@ -1178,10 +1205,10 @@ function negamax(state, depth, alpha, beta, style, nodesRef){
     return 0;
   }
 
-  if(depth === 0){
-    return evalForSideToMove(state, style);
-  }
-
+if(depth === 0){
+  return quiescence(state, alpha, beta, style, nodesRef);
+}
+  
   const ttBestKey = tt && tt.bestMove ? tt.bestMove : null;
   const ordered = orderMoves(state, moves, style, ttBestKey);
 

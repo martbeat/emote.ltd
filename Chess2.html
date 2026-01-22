@@ -650,37 +650,56 @@ function negamax(state, depth, alpha, beta){
 /* ============================================================
    ITERATIVE DEEPENING (new)
 ============================================================ */
-
 function pickBestMove(state){
+  // Opening book
   const book = bookMove(state);
   if(book){
-    return parseMove(book,state);
+    const m = parseMove(book, state);
+    if(m) return { best: m, score: 0, nodes: 0 };
   }
 
-  stopTime = Date.now()+MAX_TIME_MS;
-  let bestMove=null;
-  let bestScore=0;
+  stopTime = Date.now() + MAX_TIME_MS;
 
-  for(let d=1;d<=MAX_DEPTH;d++){
-    let alpha=-Infinity,beta=Infinity;
-    let localBest=null;
-    for(const m of generateLegalMoves(state)){
-      const u=makeMove(state,m,true);
-      const v=negamax(state,d-1,-beta,-alpha);
-      undoMove(state,u);
-      if(v===null) return bestMove;
-      const score=-v;
-      if(score>alpha){
-        alpha=score;
-        localBest=m;
+  let bestMove = null;
+  let bestScore = -Infinity;
+  let nodes = 0;
+
+  const moves = generateLegalMoves(state);
+  if(moves.length === 0){
+    return { best: null, score: 0, nodes: 0 };
+  }
+
+  for(let depth = 1; depth <= MAX_DEPTH; depth++){
+    let alpha = -Infinity;
+    let beta  = Infinity;
+
+    for(const m of moves){
+      const u = makeMove(state, m, true);
+      const v = negamax(state, depth - 1, -beta, -alpha);
+      undoMove(state, u);
+
+      if(v === null) break; // time cutoff
+
+      nodes++;
+      const score = -v;
+
+      if(score > alpha){
+        alpha = score;
+        bestMove = m;
+        bestScore = score;
       }
     }
-    if(Date.now()>stopTime) break;
-    bestMove=localBest;
-    bestScore=alpha;
+
+    if(Date.now() > stopTime) break;
   }
-  return bestMove;
+
+  return {
+    best: bestMove,
+    score: bestScore,
+    nodes
+  };
 }
+
   //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   const PIECE_UNI = {
     P:"♙", N:"♘", B:"♗", R:"♖", Q:"♕", K:"♔",
@@ -1085,7 +1104,19 @@ function pickBestMove(state){
 
     if(!silent){
       const san = toSAN(state, { ...move, piece, captured: undo.captured });
-      state.history.push({ ...move, piece, captured: undo.captured, san, undo });
+      const fromAlg = idxToAlg(from);
+const toAlg   = idxToAlg(to);
+
+state.history.push({
+  ...move,
+  piece,
+  captured: undo.captured,
+  san,
+  fromAlg,
+  toAlg,
+  undo
+});
+
       state.lastMove = { from, to };
     }
 
@@ -1564,9 +1595,8 @@ function pickBestMove(state){
     elThink.textContent = "AI: thinking…";
 
     setTimeout(() => {
-      const depth = depthFromUI();
-      const style = elStyle.value;
-      const { best, score, nodes } = pickBestMove(S, S.ai, depth, style);
+const { best, score, nodes } = pickBestMove(S);
+
 
       elEval.textContent = `Eval: ${formatEval(score)}`;
       elThink.textContent = `AI: moved (nodes ${nodes})`;

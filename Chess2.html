@@ -1573,6 +1573,10 @@ if(S.lastMove){
   });
 
   function queueAIMove(){
+    let best = null;
+let score = 0;
+let nodes = 0;
+
     if(S.gameOver) return;
     if(S.turn !== S.ai) return;
 

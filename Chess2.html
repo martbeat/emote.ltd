@@ -1304,10 +1304,10 @@ function negamax(state, depth, alpha, beta, style, nodesRef){
   if(SEARCH_ABORT) return 0;
   nodesRef.count++;
 
-  if(nowMs() > SEARCH_STOP){
-    SEARCH_ABORT = true;
-    return 0;
-  }
+if(nowMs() > SEARCH_STOP){
+  SEARCH_ABORT = true;
+  return evalForSideToMove(state, style);
+}
 
   const key = state.hash;
   const alphaOrig = alpha;
@@ -1367,36 +1367,31 @@ function pickBestMove(state, timeBudgetMs, style){
   SEARCH_STOP = start + timeBudgetMs;
   SEARCH_ABORT = false;
 
-  let bestMove = null;
-  let bestScore = 0;
+  const rootMoves = generateLegalMoves(state);
+  if(rootMoves.length === 0){
+    return { best: null, score: 0, depth: 0, nodes: 0 };
+  }
+
+  // ✅ fallback so we always return something
+  let bestMove = rootMoves[0];
+  let bestScore = -Infinity;
   let completedDepth = 0;
   let nodesTotal = 0;
 
-  const MAX_DEPTH = 99; // practical infinity
-  
-/*  const start = nowMs();
-  const TIME_BUDGET = 700; // ms – safe for UI
-  SEARCH_STOP = start + TIME_BUDGET;
-  SEARCH_ABORT = false;
+  const MAX_DEPTH = 99;
 
-  let bestMove = null;
-  let bestScore = 0;
-  let completedDepth = 0;
-  let nodesTotal = 0;
-*/
-  
-for(let depth = 1; depth <= MAX_DEPTH; depth++){
+  for(let depth = 1; depth <= MAX_DEPTH; depth++){
     if(SEARCH_ABORT) break;
 
     let localBest = null;
     let localBestScore = -Infinity;
+
     let alpha = -Infinity, beta = Infinity;
     const nodesRef = { count: 0 };
 
-    const moves = generateLegalMoves(state);
     const tt = ttGet(state.hash);
     const ttBestKey = tt && tt.bestMove ? tt.bestMove : null;
-    const ordered = orderMoves(state, moves, style, ttBestKey);
+    const ordered = orderMoves(state, rootMoves.slice(), style, ttBestKey);
 
     for(const m of ordered){
       const u = makeMove(state, m, true);
@@ -1412,20 +1407,17 @@ for(let depth = 1; depth <= MAX_DEPTH; depth++){
       if(s > alpha) alpha = s;
     }
 
-    if(!SEARCH_ABORT && localBest){
+    nodesTotal += nodesRef.count;
+
+    // ✅ commit even if we aborted during this depth, if we found something
+    if(localBest){
       bestMove = localBest;
       bestScore = localBestScore;
       completedDepth = depth;
-      nodesTotal += nodesRef.count;
     }
   }
 
-  return {
-    best: bestMove,
-    score: bestScore,
-    depth: completedDepth,
-    nodes: nodesTotal
-  };
+  return { best: bestMove, score: bestScore, depth: completedDepth, nodes: nodesTotal };
 }
 
   function formatEval(score){
@@ -1669,11 +1661,13 @@ function queueAIMove(){
         `AI: ${timeBudget}ms, depth ${searchResult.depth}, nodes ${nodes}`;
     }
 
-    if(!best){
-      setStatus("No legal moves", "bad");
-      render();
-      return;
-    }
+if(!best){
+  // instead of "No legal moves" (which is misleading),
+  // ask the rules engine what the position actually is:
+  updateGameStatus();
+  render();
+  return;
+}
 
     if(best.promo) best.promo = "Q";
 

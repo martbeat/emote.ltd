@@ -595,6 +595,7 @@ function openingKey(state){
   const moves = generateLegalMoves(state);
   for(const m of moves){
     const u = makeMove(state, m, true);
+    updateGameStatus();
     const s = toSAN(state, { ...m, piece: m.piece, captured: m.captured });
     undoMove(state, u);
     if(s.replace(/[+#]/g, "") === clean) return m;
@@ -1507,20 +1508,27 @@ if(S.lastMove){
     }
     elMoveList.parentElement.scrollTop = elMoveList.parentElement.scrollHeight;
 
-    // game status
-    if(S.gameOver) return;
-    const chk = inCheck(S, S.turn);
-    const moves = generateLegalMoves(S);
-    if(moves.length === 0){
-      S.gameOver = true;
-      if(chk) setStatus(`Checkmate: ${(S.turn==="w")?"White":"Black"} loses`, "bad");
-      else setStatus("Stalemate", "bad");
-    }else{
-      if(chk) setStatus(`${(S.turn==="w")?"White":"Black"} in check`, "bad");
-      else setStatus("Ready");
-    }
+
   }
 
+function updateGameStatus(){
+  const chk = inCheck(S, S.turn);
+  const moves = generateLegalMoves(S);
+
+  if(moves.length === 0){
+    S.gameOver = true;
+    if(chk) setStatus(`Checkmate: ${(S.turn==="w")?"White":"Black"} loses`, "bad");
+    else setStatus("Stalemate", "bad");
+    return;
+  }
+
+  S.gameOver = false;
+  if(chk) setStatus(`${(S.turn==="w")?"White":"Black"} in check`, "bad");
+  else setStatus("Ready");
+}
+
+
+  
   function onSquareClick(e){
     if(S.gameOver) return;
     if(S.turn !== S.you) return;
@@ -1559,6 +1567,7 @@ if(S.lastMove){
     }
 
     makeMove(S, candidate, false);
+    updateGameStatus();
     clearSelection();
     render();
     if(!S.gameOver) queueAIMove();
@@ -1582,6 +1591,7 @@ if(S.lastMove){
         pendingPromotion = null;
         hidePromotion();
         makeMove(S, m2, false);
+        updateGameStatus();
         clearSelection();
         render();
         if(!S.gameOver) queueAIMove();
@@ -1607,8 +1617,14 @@ if(S.lastMove){
   });
 
 function queueAIMove(){
-  if(S.gameOver) return;
-  if(S.turn !== S.ai) return;
+  if(S.gameOver){
+    console.warn("AI move blocked: game over");
+    return;
+  }
+  if(S.turn !== S.ai){
+    console.warn("AI move blocked: wrong turn", S.turn);
+    return;
+  }
 
   const timeBudget = getAITimeBudget();
   const style = elStyle.value;
@@ -1662,6 +1678,7 @@ function queueAIMove(){
     if(best.promo) best.promo = "Q";
 
     makeMove(S, best, false);
+    updateGameStatus();
     setStatus("Ready");
     render();
 

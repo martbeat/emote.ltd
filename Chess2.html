@@ -480,7 +480,98 @@ function nowMs(){
   const Z_SIDE = rand64();                   // xor if black to move
   const Z_CASTLE = Array.from({length:16}, rand64); // 4-bit castling mask
   const Z_EPFILE = Array.from({length:8}, rand64);  // en-passant file (only when ep exists)
+// -------------------------
+// Opening book (SAN-based)
+// -------------------------
+const OPENING_BOOK = {
+  "": [
+    { move: "e4", w: 40 },
+    { move: "d4", w: 35 },
+    { move: "c4", w: 15 },
+    { move: "Nf3", w: 10 }
+  ],
 
+  "e4": [
+    { move: "e5", w: 50 },
+    { move: "c5", w: 30 },
+    { move: "e6", w: 20 }
+  ],
+
+  "d4": [
+    { move: "d5", w: 50 },
+    { move: "Nf6", w: 50 }
+  ],
+
+  "c4": [
+    { move: "e5", w: 50 },
+    { move: "Nf6", w: 50 }
+  ],
+
+  "Nf3": [
+    { move: "d5", w: 40 },
+    { move: "Nf6", w: 60 }
+  ],
+
+  "e4 e5": [
+    { move: "Nf3", w: 60 },
+    { move: "Bc4", w: 40 }
+  ],
+
+  "e4 c5": [
+    { move: "Nf3", w: 70 },
+    { move: "c3", w: 30 }
+  ],
+
+  "e4 e6": [
+    { move: "d4", w: 100 }
+  ],
+
+  "d4 d5": [
+    { move: "c4", w: 100 }
+  ],
+
+  "d4 Nf6": [
+    { move: "c4", w: 100 }
+  ],
+
+  "e4 e5 Nf3": [
+    { move: "Nc6", w: 70 },
+    { move: "Nf6", w: 30 }
+  ],
+
+  "e4 e5 Bc4": [
+    { move: "Nc6", w: 60 },
+    { move: "Nf6", w: 40 }
+  ]
+};
+
+function openingKey(state){
+  return state.history.map(m => m.san.replace(/[+#]/g, "")).join(" ");
+}
+
+  function pickWeighted(list){
+  const total = list.reduce((s,x)=>s+x.w,0);
+  let r = Math.random() * total;
+  for(const x of list){
+    r -= x.w;
+    if(r <= 0) return x.move;
+  }
+  return list[list.length-1].move;
+}
+
+  function findMoveBySAN(state, san){
+  const clean = san.replace(/[+#]/g, "");
+  const moves = generateLegalMoves(state);
+  for(const m of moves){
+    const u = makeMove(state, m, true);
+    const s = toSAN(state, { ...m, piece: m.piece, captured: m.captured });
+    undoMove(state, u);
+    if(s.replace(/[+#]/g, "") === clean) return m;
+  }
+  return null;
+}
+
+  
   function castleMask(cr){
     // bit0: K, bit1: Q, bit2: k, bit3: q
     return (cr.K?1:0) | (cr.Q?2:0) | (cr.k?4:0) | (cr.q?8:0);
@@ -1478,7 +1569,28 @@ function pickBestMove(state, maxDepth, style){
     setTimeout(() => {
       const depth = depthFromUI();
       const style = elStyle.value;
-      const { best, score, nodes } = pickBestMove(S, depth, style);
+let best = null;
+let score = 0;
+let nodes = 0;
+
+const key = openingKey(S);
+if(OPENING_BOOK[key]){
+  const san = pickWeighted(OPENING_BOOK[key]);
+  const m = findMoveBySAN(S, san);
+  if(m){
+    best = m;
+    score = 0;
+    nodes = 0;
+    elThink.textContent = "AI: book move";
+  }
+}
+
+if(!best){
+  const r = pickBestMove(S, depth, style);
+  best = r.best;
+  score = r.score;
+  nodes = r.nodes;
+}
 
       elEval.textContent = `Eval: ${formatEval(score)}`;
 elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;

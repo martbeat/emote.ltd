@@ -1584,23 +1584,22 @@ function queueAIMove(){
   if(S.gameOver) return;
   if(S.turn !== S.ai) return;
 
+  const depth = getAIDepth();
+  const style = elStyle.value;
+
   clearSelection();
   render();
-
   setStatus("AI thinking…");
   elThink.textContent = "AI: thinking…";
 
   setTimeout(() => {
-    const depth = getAIDepth();      // from difficulty dropdown
-    const style = elStyle.value;     // from style dropdown
-
     let best = null;
     let score = 0;
     let nodes = 0;
 
-    // --- Opening book ---
-    let usedBook = false;
     const key = openingKey(S);
+    let usedBook = false;
+
     if(OPENING_BOOK[key]){
       const san = pickWeighted(OPENING_BOOK[key]);
       const m = findMoveBySAN(S, san);
@@ -1611,64 +1610,28 @@ function queueAIMove(){
       }
     }
 
-    // --- Fallback to search ---
     if(!usedBook){
       const r = pickBestMove(S, depth, style);
       best = r.best;
       score = r.score;
       nodes = r.nodes;
-      elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
     }
 
     if(!best){
-      console.error("AI failed to select a move");
       setStatus("No legal moves", "bad");
       render();
       return;
     }
 
     elEval.textContent = `Eval: ${formatEval(score)}`;
+    elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
 
-    // AI always auto-queens
-    if(best.promo) best.promo = "Q";
+    if(best.promo) best.promo = "Q"; // AI auto-queen
 
     makeMove(S, best, false);
     setStatus("Ready");
     render();
   }, 30);
-}
-
-if(!usedBook){
-  const r = pickBestMove(S, depth, style);
-  best = r.best;
-  score = r.score;
-  nodes = r.nodes;
-}
-
-      elEval.textContent = `Eval: ${formatEval(score)}`;
-elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
-
-
-      if(!best){
-        setStatus("No legal moves", "bad");
-        render();
-        return;
-      }
-
-      // AI auto-queens
-      if(best.promo) best.promo = "Q";
-
-      makeMove(S, best, false);
-      setStatus("Ready");
-      render();
-    }, 30);
-
-    if(!best){
-  console.warn("AI had no move — forcing search fallback");
-  const r = pickBestMove(S, depth, style);
-  best = r.best;
-   }
-
 }
 
   // Buttons

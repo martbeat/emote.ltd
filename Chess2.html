@@ -554,6 +554,14 @@ const OPENING_BOOK = {
   ]
 };
 
+function getAIDepth(){
+  const v = parseInt(document.getElementById("difficulty").value, 10);
+  // value 1 → depth 2, 2 → depth 3, 3 → depth 4
+  return v + 1;
+}
+
+
+  
 function openingKey(state){
   return state.history.map(m => m.san.replace(/[+#]/g, "")).join(" ");
 }
@@ -1573,8 +1581,9 @@ if(S.lastMove){
   });
 
   function queueAIMove(){
-  const depth = AI_DEPTH;
-  const style = AI_STYLE;
+  const depth = getAIDepth();
+  const style = getAIStyle(); // or however you already read style
+
     let best = null;
 let score = 0;
 let nodes = 0;

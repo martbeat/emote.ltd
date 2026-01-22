@@ -420,6 +420,12 @@
     ".":""
   };
   const FILES = "abcdefgh";
+let SEARCH_STOP = 0;
+let SEARCH_ABORT = false;
+
+function nowMs(){
+  return performance.now();
+}
 
   const pieceColor = (p) => (p === "." ? null : (p === p.toUpperCase() ? "w" : "b"));
   const opp = (c) => (c === "w" ? "b" : "w");
@@ -1144,90 +1150,121 @@
       .map(x=>x.m);
   }
 
-  function negamax(state, depth, alpha, beta, style, nodesRef){
-    nodesRef.count++;
+function negamax(state, depth, alpha, beta, style, nodesRef){
+  if(SEARCH_ABORT) return 0;
+  nodesRef.count++;
 
-    const key = state.hash;
-    const alphaOrig = alpha;
-
-    const tt = ttGet(key);
-    if(tt && tt.depth >= depth){
-      if(tt.flag === 0) return tt.value;
-      if(tt.flag === 1) alpha = Math.max(alpha, tt.value);
-      else if(tt.flag === 2) beta = Math.min(beta, tt.value);
-      if(alpha >= beta) return tt.value;
-    }
-
-    const moves = generateLegalMoves(state);
-    const inChk = inCheck(state, state.turn);
-
-    if(moves.length === 0){
-      // checkmate or stalemate for side to move
-      if(inChk) return -100000 + (4 - depth);
-      return 0;
-    }
-
-    if(depth === 0){
-      return evalForSideToMove(state, style);
-    }
-
-    const ttBestKey = (tt && tt.bestMove) ? tt.bestMove : null;
-    const ordered = orderMoves(state, moves, style, ttBestKey);
-
-    let best = -Infinity;
-    let bestM = null;
-
-    for(const m of ordered){
-      const u = makeMove(state, m, true);
-      const s = -negamax(state, depth-1, -beta, -alpha, style, nodesRef);
-      undoMove(state, u);
-
-      if(s > best){
-        best = s;
-        bestM = m;
-      }
-      if(s > alpha) alpha = s;
-      if(alpha >= beta) break;
-    }
-
-    // store TT
-    let flag = 0;
-    if(best <= alphaOrig) flag = 2;        // upperbound
-    else if(best >= beta) flag = 1;        // lowerbound
-    else flag = 0;                         // exact
-
-    ttPut(key, { depth, value: best, flag, bestMove: bestM ? moveKey(bestM) : null });
-
-    return best;
+  if(nowMs() > SEARCH_STOP){
+    SEARCH_ABORT = true;
+    return 0;
   }
 
-  function pickBestMove(state, depth, style){
-    const moves = generateLegalMoves(state);
-    if(moves.length === 0) return { best:null, score:0, nodes:0 };
+  const key = state.hash;
+  const alphaOrig = alpha;
 
-    const tt = ttGet(state.hash);
-    const ttBestKey = (tt && tt.bestMove) ? tt.bestMove : null;
-    const ordered = orderMoves(state, moves, style, ttBestKey);
+  const tt = ttGet(key);
+  if(tt && tt.depth >= depth){
+    if(tt.flag === 0) return tt.value;
+    if(tt.flag === 1) alpha = Math.max(alpha, tt.value);
+    else if(tt.flag === 2) beta = Math.min(beta, tt.value);
+    if(alpha >= beta) return tt.value;
+  }
 
-    let best = null;
-    let bestScore = -Infinity;
+  const moves = generateLegalMoves(state);
+  const inChk = inCheck(state, state.turn);
+
+  if(moves.length === 0){
+    if(inChk) return -100000 + (6 - depth);
+    return 0;
+  }
+
+  if(depth === 0){
+    return evalForSideToMove(state, style);
+  }
+
+  const ttBestKey = tt && tt.bestMove ? tt.bestMove : null;
+  const ordered = orderMoves(state, moves, style, ttBestKey);
+
+  let best = -Infinity;
+  let bestM = null;
+
+  for(const m of ordered){
+    const u = makeMove(state, m, true);
+    const s = -negamax(state, depth-1, -beta, -alpha, style, nodesRef);
+    undoMove(state, u);
+
+    if(SEARCH_ABORT) break;
+
+    if(s > best){
+      best = s;
+      bestM = m;
+    }
+    if(s > alpha) alpha = s;
+    if(alpha >= beta) break;
+  }
+
+  let flag = 0;
+  if(best <= alphaOrig) flag = 2;
+  else if(best >= beta) flag = 1;
+
+  ttPut(key, { depth, value: best, flag, bestMove: bestM ? moveKey(bestM) : null });
+
+  return best;
+}
+
+function pickBestMove(state, maxDepth, style){
+  const start = nowMs();
+  const TIME_BUDGET = 700; // ms – safe for UI
+  SEARCH_STOP = start + TIME_BUDGET;
+  SEARCH_ABORT = false;
+
+  let bestMove = null;
+  let bestScore = 0;
+  let completedDepth = 0;
+  let nodesTotal = 0;
+
+  for(let depth = 1; depth <= maxDepth; depth++){
+    if(SEARCH_ABORT) break;
+
+    let localBest = null;
+    let localBestScore = -Infinity;
     let alpha = -Infinity, beta = Infinity;
     const nodesRef = { count: 0 };
 
+    const moves = generateLegalMoves(state);
+    const tt = ttGet(state.hash);
+    const ttBestKey = tt && tt.bestMove ? tt.bestMove : null;
+    const ordered = orderMoves(state, moves, style, ttBestKey);
+
     for(const m of ordered){
       const u = makeMove(state, m, true);
       const s = -negamax(state, depth-1, -beta, -alpha, style, nodesRef);
       undoMove(state, u);
 
-      if(s > bestScore){
-        bestScore = s;
-        best = m;
+      if(SEARCH_ABORT) break;
+
+      if(s > localBestScore){
+        localBestScore = s;
+        localBest = m;
       }
-      if(bestScore > alpha) alpha = bestScore;
+      if(s > alpha) alpha = s;
     }
 
-    return { best, score: bestScore, nodes: nodesRef.count };
+    if(!SEARCH_ABORT && localBest){
+      bestMove = localBest;
+      bestScore = localBestScore;
+      completedDepth = depth;
+      nodesTotal += nodesRef.count;
+    }
   }
+
+  return {
+    best: bestMove,
+    score: bestScore,
+    depth: completedDepth,
+    nodes: nodesTotal
+  };
+}
 
   function formatEval(score){
     const v = score / 100;
@@ -1417,7 +1454,8 @@
       const { best, score, nodes } = pickBestMove(S, depth, style);
 
       elEval.textContent = `Eval: ${formatEval(score)}`;
-      elThink.textContent = `AI: moved (nodes ${nodes})`;
+elThink.textContent = `AI: depth ${depth}, nodes ${nodes}`;
+
 
       if(!best){
         setStatus("No legal moves", "bad");

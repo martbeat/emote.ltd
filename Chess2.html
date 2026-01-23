@@ -795,12 +795,47 @@ function openingKey(state){
     return false;
   }
 
+function kingActivityBonus(state, color){
+  const kingSq = state.board.findIndex(
+    p => p === (color === "w" ? "K" : "k")
+  );
+  if(kingSq < 0) return 0;
+
+  const r = Math.floor(kingSq / 8);
+  const f = kingSq % 8;
+
+  // distance from board center (d4/e4/d5/e5)
+  const dr = Math.min(Math.abs(r - 3.5), Math.abs(r - 4.5));
+  const df = Math.min(Math.abs(f - 3.5), Math.abs(f - 4.5));
+
+  return 4 - (dr + df); // higher = better
+}
+
+  
   function inCheck(state, side){
     const ksq = findKing(state, side);
     if(ksq === -1) return false;
     return isSquareAttacked(state, ksq, opp(side));
   }
 
+function gamePhase(state){
+  // 24 = opening, 0 = pure endgame
+  let phase = 24;
+
+  for(const p of state.board){
+    if(!p) continue;
+    switch(p.toLowerCase()){
+      case "q": phase -= 4; break;
+      case "r": phase -= 2; break;
+      case "b":
+      case "n": phase -= 1; break;
+    }
+  }
+  if(phase < 0) phase = 0;
+  return phase;
+}
+
+  
   function generatePseudoMoves(state){
     const b = state.board;
     const side = state.turn;
@@ -1221,6 +1256,16 @@ function openingKey(state){
       score += (inCheck(state,"b") ? 18 : 0);
     }
 
+  const phase = gamePhase(state);
+  const endW = 1 - phase / 24;   // 0 opening → 1 endgame
+
+  // King activity only matters in endgame
+  const kActW = kingActivityBonus(state, "w");
+  const kActB = kingActivityBonus(state, "b");
+
+  score += endW * 8 * (kActW - kActB);
+
+    
     return score; // centipawns, white-positive
   }
 

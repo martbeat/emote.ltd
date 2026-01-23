@@ -835,6 +835,15 @@ function gamePhase(state){
   return phase;
 }
 
+function queensOnBoard(state){
+  let q = 0;
+  for(const p of state.board){
+    if(p === "Q" || p === "q") q++;
+  }
+  return q;
+}
+
+
   
   function generatePseudoMoves(state){
     const b = state.board;
@@ -1263,7 +1272,13 @@ function gamePhase(state){
   const kActW = kingActivityBonus(state, "w");
   const kActB = kingActivityBonus(state, "b");
 
-  score += endW * 8 * (kActW - kActB);
+const qCount = queensOnBoard(state);
+
+// if queens are on, king activity is dangerous
+const queenDamp = (qCount >= 2) ? 0.25 : 1.0;
+
+score += endW * queenDamp * 8 * (kActW - kActB);
+
 
     
     return score; // centipawns, white-positive

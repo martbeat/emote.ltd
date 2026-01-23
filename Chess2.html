@@ -1233,6 +1233,42 @@ function queensOnBoard(state){
     return coordToIdx(7-r, f);
   }
 
+function isPassedPawn(state, sq){
+  const b = state.board;
+  const p = b[sq];
+  if(p !== "P" && p !== "p") return false;
+
+  const side = (p === "P") ? "w" : "b";
+  const {r,f} = idxToCoord(sq);
+  const dir = (side === "w") ? -1 : 1;
+
+  for(let rr = r + dir; rr >= 0 && rr < 8; rr += dir){
+    for(let df = -1; df <= 1; df++){
+      const ff = f + df;
+      if(ff < 0 || ff > 7) continue;
+      const t = b[coordToIdx(rr, ff)];
+      if(side === "w" && t === "p") return false;
+      if(side === "b" && t === "P") return false;
+    }
+  }
+  return true;
+}
+
+  function pawnAdvanceBonus(p, sq){
+  const {r} = idxToCoord(sq);
+  if(p === "P") return (6 - r); // closer to rank 8
+  return (r - 1);               // closer to rank 1
+}
+
+  function kingDistance(state, sq, side){
+  const ksq = findKing(state, side);
+  const a = idxToCoord(ksq);
+  const b = idxToCoord(sq);
+  return Math.abs(a.r - b.r) + Math.abs(a.f - b.f);
+}
+
+
+  
   function evalWhiteAdv(state, style="balanced"){
     const b = state.board;
     let score = 0;
@@ -1279,6 +1315,29 @@ const queenDamp = (qCount >= 2) ? 0.25 : 1.0;
 
 score += endW * queenDamp * 8 * (kActW - kActB);
 
+let passedScore = 0;
+
+for(let i = 0; i < 64; i++){
+  const p = b[i];
+  if(p !== "P" && p !== "p") continue;
+
+  if(isPassedPawn(state, i)){
+    const adv = pawnAdvanceBonus(p, i);
+    const sign = (p === "P") ? 1 : -1;
+
+    // base bonus
+    passedScore += sign * adv * 14;
+
+    // king support (endgame only)
+    if(endW > 0.5){
+      const side = (p === "P") ? "w" : "b";
+      const d = kingDistance(state, i, side);
+      passedScore += sign * Math.max(0, 6 - d) * 6;
+    }
+  }
+}
+
+score += passedScore * endW;
 
     
     return score; // centipawns, white-positive

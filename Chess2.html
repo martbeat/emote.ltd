@@ -1604,6 +1604,10 @@ kingScore += Math.max(-6, Math.min(6, (6 - d))) * 3;
 // scale strongly by endgame
 score += kingScore * endW;
 
+// Clamp evaluation to avoid runaway scores
+if(score > 900) score = 900;
+if(score < -900) score = -900;
+
     
     return score; // centipawns, white-positive
   }

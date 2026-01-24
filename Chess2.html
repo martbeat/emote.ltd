@@ -1352,8 +1352,37 @@ function fileHasPawn(state, file, side){
       score += sign * VAL[up];
       const idx = (p === up) ? i : mirrorIdx(i);
       if(PST[up]) score += sign * PST[up][idx];
+    
+      // --- Rook activity: open & semi-open files
+  if(up === "R"){
+    const file = idxToCoord(i).f;
+
+    const ownPawn = fileHasPawn(state, file, sign === 1 ? "w" : "b");
+    const oppPawn = fileHasPawn(state, file, sign === 1 ? "b" : "w");
+
+    if(!ownPawn && !oppPawn) score += sign * 25;
+    else if(!ownPawn && oppPawn) score += sign * 12;
+
+    // 7th-rank rook
+    const rank = idxToCoord(i).r;
+    if((sign === 1 && rank === 1) || (sign === -1 && rank === 6)){
+      score += sign * 20;
+    }
+  }
+
+  // --- Discourage useless edge pawn pushes
+  if(up === "P"){
+    const file = idxToCoord(i).f;
+    if(file === 0 || file === 7){
+      score -= sign * 5;
+    }
+  }
+
     }
 
+
+
+    
     // mobility (small)
     const savedTurn = state.turn;
     state.turn = "w";

@@ -372,10 +372,10 @@
         <div class="section">
           <label for="difficulty">AI difficulty</label>
           <select id="difficulty">
-            <option value="1">Easy (depth 2)</option>
-            <option value="2" selected>Normal (depth 3)</option>
-            <option value="3">Hard (depth 4)</option>
-            <option value="4">Extreme (depth 5)</option>
+            <option value="1">Easy</option>
+            <option value="2" selected>Normal</option>
+            <option value="3">Hard</option>
+            <option value="4">Extreme</option>
           </select>
           <div style="height:10px"></div>
           <label for="style">AI style</label>
@@ -561,9 +561,9 @@ function getAITimeBudget(){
   // milliseconds
   switch(v){
     case 1: return 150;   // Easy
-    case 2: return 400;   // Normal
-    case 3: return 900;   // Hard
-    case 4: return 2000;   // Extreme
+    case 2: return 600;   // Normal
+    case 3: return 1500;   // Hard
+    case 4: return 3000;   // Extreme
     default: return 400;
   }
 }
@@ -1428,6 +1428,27 @@ function isHanging(state, sq){
     const b = state.board;
     let score = 0;
 
+let materialWhite = 0;
+let materialBlack = 0;
+
+for(let i=0;i<64;i++){
+  const p = b[i];
+  if(p === ".") continue;
+  const v = VAL[p.toUpperCase()] || 0;
+  if(p === p.toUpperCase()) materialWhite += v;
+  else materialBlack += v;
+}
+
+const materialDiff = materialWhite - materialBlack;
+// Attack decay: reduce king-safety bonuses when down material
+let attackDecayWhite = 1.0;
+let attackDecayBlack = 1.0;
+
+// down a minor piece or more
+if(materialDiff <= -300) attackDecayWhite = 0.35;
+if(materialDiff >=  300) attackDecayBlack = 0.35;
+
+    
     for(let i=0;i<64;i++){
       const p = b[i];
       if(p === ".") continue;
@@ -1475,12 +1496,13 @@ if(up === "P"){
     state.turn = savedTurn;
     score += 2 * (mw - mb);
 
-    if(style === "aggressive"){
-      score += (inCheck(state,"b") ? 12 : 0);
-      score -= (inCheck(state,"w") ? 12 : 0);
+if(style === "aggressive"){
+  score += attackDecayWhite * (inCheck(state,"b") ? 12 : 0);
+  score -= attackDecayBlack * (inCheck(state,"w") ? 12 : 0);
+}
     }else if(style === "solid"){
-      score -= (inCheck(state,"w") ? 18 : 0);
-      score += (inCheck(state,"b") ? 18 : 0);
+  score -= attackDecayWhite * (inCheck(state,"b") ? 18 : 0);
+  score += attackDecayBlack * (inCheck(state,"w") ? 18 : 0);
     }
 
   const phase = gamePhase(state);

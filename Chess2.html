@@ -1321,6 +1321,10 @@ function kingDistance(aSq, bSq){
   return Math.max(Math.abs(a.r - b.r), Math.abs(a.f - b.f));
 }
 
+function safeEval(v){
+  if(!Number.isFinite(v)) return 0;
+  return Math.max(-99999, Math.min(99999, v));
+}
 
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1541,7 +1545,7 @@ function quiescence(state, alpha, beta, style, nodesRef){
 
   
 function negamax(state, depth, alpha, beta, style, nodesRef){
-  if(SEARCH_ABORT) return 0;
+if(SEARCH_ABORT) return evalForSideToMove(state, style);
   nodesRef.count++;
 
 if(nowMs() > SEARCH_STOP){
@@ -1895,7 +1899,7 @@ function queueAIMove(){
       nodes = searchResult.nodes;
     }
 
-    elEval.textContent = `Eval: ${formatEval(score)}`;
+elEval.textContent = `Eval: ${formatEval(safeEval(score))}`;
     if(searchResult){
       elThink.textContent =
         `AI: ${timeBudget}ms, depth ${searchResult.depth}, nodes ${nodes}`;

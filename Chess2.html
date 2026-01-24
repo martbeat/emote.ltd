@@ -796,6 +796,38 @@ function openingKey(state){
     return false;
   }
 
+function filePawnCounts(state){
+  const counts = Array.from({length:8}, () => ({w:0, b:0}));
+  for(let i=0;i<64;i++){
+    const p = state.board[i];
+    if(p === "P") counts[idxToCoord(i).f].w++;
+    else if(p === "p") counts[idxToCoord(i).f].b++;
+  }
+  return counts;
+}
+function rookOn7th(p, sq){
+  const r = idxToCoord(sq).r;
+  return (p === "R" && r === 1) || (p === "r" && r === 6);
+}
+function rookBehindPassedPawn(state, rookSq, pawnSq){
+  const {f:rf, r:rr} = idxToCoord(rookSq);
+  const {f:pf, r:pr} = idxToCoord(pawnSq);
+
+  if(rf !== pf) return false;
+
+  const pawn = state.board[pawnSq];
+  if(pawn === "P") return rr > pr; // rook behind white pawn
+  if(pawn === "p") return rr < pr; // rook behind black pawn
+  return false;
+}
+
+
+
+
+
+
+
+  
 function kingActivityBonus(state, color){
   const kingSq = state.board.findIndex(
     p => p === (color === "w" ? "K" : "k")
@@ -1268,7 +1300,7 @@ function isPassedPawn(state, sq){
   return Math.abs(a.r - b.r) + Math.abs(a.f - b.f);
 }
 
-
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
   function evalWhiteAdv(state, style="balanced"){
     const b = state.board;
@@ -1339,6 +1371,42 @@ for(let i = 0; i < 64; i++){
 }
 
 score += passedScore * endW;
+
+    const fileInfo = filePawnCounts(state);
+let rookScore = 0;
+
+for(let i=0;i<64;i++){
+  const p = b[i];
+  if(p !== "R" && p !== "r") continue;
+
+  const sign = (p === "R") ? 1 : -1;
+  const {f} = idxToCoord(i);
+
+  // open / semi-open file
+  if(fileInfo[f].w === 0 && fileInfo[f].b === 0){
+    rookScore += sign * 18;
+  }else if((p === "R" && fileInfo[f].w === 0) ||
+           (p === "r" && fileInfo[f].b === 0)){
+    rookScore += sign * 10;
+  }
+
+  // 7th rank
+  if(rookOn7th(p, i)){
+    rookScore += sign * 22;
+  }
+
+  // behind passed pawn
+  for(let j=0;j<64;j++){
+    if(isPassedPawn(state, j)){
+      if(rookBehindPassedPawn(state, i, j)){
+        rookScore += sign * 16;
+      }
+    }
+  }
+}
+
+// scale with endgame weight
+score += rookScore * endW;
 
     
     return score; // centipawns, white-positive

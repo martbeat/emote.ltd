@@ -1380,7 +1380,47 @@ function seeLite(state, move){
   return gain - Math.min(loss, minAttacker);
 }
 
-    
+ function pawnIsLoose(state, sq){
+  const b = state.board;
+  const p = b[sq];
+  if(p !== "P" && p !== "p") return false;
+
+  const side = (p === "P") ? "w" : "b";
+  const {r,f} = idxToCoord(sq);
+
+  // check pawn support from adjacent files
+  for(const df of [-1,1]){
+    const ff = f + df;
+    if(ff < 0 || ff > 7) continue;
+    for(let rr=0; rr<8; rr++){
+      const t = b[coordToIdx(rr, ff)];
+      if(t !== "." && pieceColor(t) === side && t.toUpperCase()==="P"){
+        return false; // supported somewhere on adjacent file
+      }
+    }
+  }
+
+  return true;
+}
+   
+function isHanging(state, sq){
+  const p = state.board[sq];
+  if(p === ".") return false;
+
+  const side = pieceColor(p);
+  const attackers = isSquareAttacked(state, sq, opp(side));
+  if(!attackers) return false;
+
+  // check defenders
+  const savedTurn = state.turn;
+  state.turn = side;
+  const defended = generateLegalMoves(state).some(m => m.to === sq);
+  state.turn = savedTurn;
+
+  return !defended;
+}
+
+
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
@@ -1546,13 +1586,31 @@ kingScore += Math.max(-6, Math.min(6, (6 - d))) * 3;
 // scale strongly by endgame
 score += kingScore * endW;
 
+// Penalise loose advanced pawns near own king
+if(up === "P"){
+  const side = (p === "P") ? "w" : "b";
+  const kSq = findKing(state, side);
+  if(kSq !== -1){
+    const d = kingDistance(kSq, i);
+    const {r} = idxToCoord(i);
 
+    // advanced pawn + near king + unsupported
+    if(d <= 3 && pawnIsLoose(state, i)){
+      score -= sign * 18;
+    }
+  }
+}
+
+    
     
     
     
     return score; // centipawns, white-positive
   }
+//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX END EVAL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+
+  
   function evalForSideToMove(state, style){
     const raw = evalWhiteAdv(state, style);
     return (state.turn === "w") ? raw : -raw;
@@ -1603,6 +1661,24 @@ if(t !== "."){
       const {r,f} = idxToCoord(m.to);
       const dist = Math.abs(3.5 - r) + Math.abs(3.5 - f);
       s += (8 - dist) * 3;
+
+// Hanging piece penalty (post-move)
+const u = makeMove(state, m, true);
+
+for(let i=0;i<64;i++){
+  const p = state.board[i];
+  if(p === ".") continue;
+  if(pieceColor(p) !== state.turn){ // side that just moved
+    const up = p.toUpperCase();
+    const v = VAL[up] || 0;
+
+    if(v >= 320 && isHanging(state, i)){ // knight or higher
+      s -= v * 2; // strong discouragement
+    }
+  }
+}
+
+undoMove(state, u);
 
       return s;
     }

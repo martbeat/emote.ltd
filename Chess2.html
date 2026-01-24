@@ -1326,6 +1326,16 @@ function safeEval(v){
   return Math.max(-99999, Math.min(99999, v));
 }
 
+function fileHasPawn(state, file, side){
+  for(let r=0;r<8;r++){
+    const p = state.board[coordToIdx(r,file)];
+    if(p !== "." && pieceColor(p) === side && p.toUpperCase()==="P"){
+      return true;
+    }
+  }
+  return false;
+}
+
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
@@ -1461,6 +1471,32 @@ if(wKing !== -1 && bKing !== -1){
 // scale strongly by endgame
 score += kingScore * endW;
 
+    if(up === "R"){
+  const file = idxToCoord(i).f;
+
+  const ownPawn = fileHasPawn(state, file, sign === 1 ? "w" : "b");
+  const oppPawn = fileHasPawn(state, file, sign === 1 ? "b" : "w");
+
+  if(!ownPawn && !oppPawn) score += sign * 25;     // open file
+  else if(!ownPawn && oppPawn) score += sign * 12; // semi-open
+}
+
+if(up === "P"){
+  const f = idxToCoord(i).f;
+  if(f === 0 || f === 7){
+    score -= sign * 5;
+  }
+}
+
+if(up === "R"){
+  const r = idxToCoord(i).r;
+  if((sign === 1 && r === 1) || (sign === -1 && r === 6)){
+    score += sign * 20;
+  }
+}
+
+
+    
     
     
     return score; // centipawns, white-positive

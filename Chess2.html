@@ -1663,22 +1663,22 @@ if(t !== "."){
       s += (8 - dist) * 3;
 
 // Hanging piece penalty (post-move)
-const u = makeMove(state, m, true);
+const u2 = makeMove(state, m, true);
 
 for(let i=0;i<64;i++){
   const p = state.board[i];
   if(p === ".") continue;
-  if(pieceColor(p) !== state.turn){ // side that just moved
-    const up = p.toUpperCase();
-    const v = VAL[up] || 0;
+  if(pieceColor(p) !== state.turn){
+    const v = VAL[p.toUpperCase()] || 0;
 
-    if(v >= 320 && isHanging(state, i)){ // knight or higher
-      s -= v * 2; // strong discouragement
+    if(v >= 320 && isHanging(state, i)){
+      s -= v * 2;
     }
   }
 }
 
-undoMove(state, u);
+undoMove(state, u2);
+
 
       return s;
     }

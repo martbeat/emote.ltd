@@ -1640,6 +1640,27 @@ if(score < -900) score = -900;
       const up = piece.toUpperCase();
       const tp = t === "." ? "." : t.toUpperCase();
 
+      const movingPiece = state.board[m.from];
+      const captured = state.board[m.to];
+
+const isCapture = captured !== ".";
+      // Discourage suicidal captures by major pieces
+if(isCapture){
+  const p = movingPiece.toUpperCase();
+  const v = VAL[p] || 0;
+
+  if(v >= 900){ // queen
+    const u = makeMove(state, m, true);
+
+    if(isHanging(state, m.to)){
+      s -= 1200; // stronger than queen value
+    }
+
+    undoMove(state, u);
+  }
+}
+
+
 if(t !== "."){
   const see = seeLite(state, m);
 

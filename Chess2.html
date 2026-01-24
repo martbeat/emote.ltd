@@ -1300,6 +1300,29 @@ function isPassedPawn(state, sq){
   return Math.abs(a.r - b.r) + Math.abs(a.f - b.f);
 }
 
+function kingCentralityBonus(sq){
+  const {r,f} = idxToCoord(sq);
+  const dr = Math.abs(3.5 - r);
+  const df = Math.abs(3.5 - f);
+  return 14 - (dr + df) * 2; // max ~14, min ~0
+}
+function kingsInOpposition(wSq, bSq){
+  const a = idxToCoord(wSq);
+  const b = idxToCoord(bSq);
+
+  const sameFile = a.f === b.f && Math.abs(a.r - b.r) === 2;
+  const sameRank = a.r === b.r && Math.abs(a.f - b.f) === 2;
+
+  return sameFile || sameRank;
+}
+function kingDistance(aSq, bSq){
+  const a = idxToCoord(aSq);
+  const b = idxToCoord(bSq);
+  return Math.max(Math.abs(a.r - b.r), Math.abs(a.f - b.f));
+}
+
+
+  
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
   function evalWhiteAdv(state, style="balanced"){
@@ -1408,6 +1431,33 @@ for(let i=0;i<64;i++){
 // scale with endgame weight
 score += rookScore * endW;
 
+// ---- King activity & opposition ----
+let kingScore = 0;
+
+const wKing = findKing(state, "w");
+const bKing = findKing(state, "b");
+
+if(wKing !== -1 && bKing !== -1){
+
+  // centralisation
+  kingScore += kingCentralityBonus(wKing);
+  kingScore -= kingCentralityBonus(bKing);
+
+  // opposition
+  if(kingsInOpposition(wKing, bKing)){
+    // side to move is disadvantaged in opposition
+    kingScore += (state.turn === "w" ? -18 : 18);
+  }
+
+  // king proximity in endgames
+  const d = kingDistance(wKing, bKing);
+  kingScore += (6 - d) * 3;
+}
+
+// scale strongly by endgame
+score += kingScore * endW;
+
+    
     
     return score; // centipawns, white-positive
   }

@@ -1335,6 +1335,52 @@ function fileHasPawn(state, file, side){
   return false;
 }
 
+// --- SEE-lite: Static Exchange Evaluation (simplified) ---
+function seeLite(state, move){
+  const VALS = { P:100, N:320, B:330, R:500, Q:900, K:10000 };
+
+  const b = state.board;
+  const from = move.from;
+  const to   = move.to;
+
+  const mover = b[from];
+  const target = move.ep
+    ? (state.turn === "w" ? "p" : "P")
+    : b[to];
+
+  if(target === ".") return 0;
+
+  const gain = VALS[target.toUpperCase()] || 0;
+  const loss = VALS[mover.toUpperCase()] || 0;
+
+  // find opponent attackers of destination square
+  const oppSide = opp(state.turn);
+  let minAttacker = Infinity;
+
+  for(let i=0;i<64;i++){
+    const p = b[i];
+    if(p === "." || pieceColor(p) !== oppSide) continue;
+
+    // can this piece attack `to`?
+    const pseudo = generatePseudoMoves({
+      ...state,
+      turn: oppSide
+    }).filter(m => m.from === i && m.to === to);
+
+    if(pseudo.length){
+      const v = VALS[p.toUpperCase()] || 0;
+      if(v < minAttacker) minAttacker = v;
+    }
+  }
+
+  // if no recapture, capture is safe
+  if(minAttacker === Infinity) return gain;
+
+  // simple material balance
+  return gain - Math.min(loss, minAttacker);
+}
+
+    
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
@@ -1532,10 +1578,19 @@ score += kingScore * endW;
       const up = piece.toUpperCase();
       const tp = t === "." ? "." : t.toUpperCase();
 
-      if(t !== "."){
-        s += 10000 + (VAL[tp] - VAL[up]);
-        if(style === "aggressive") s += 80;
-      }
+if(t !== "."){
+  const see = seeLite(state, m);
+
+  // strongly discourage losing captures
+  if(see < 0){
+    s -= 5000;
+  }else{
+    s += 10000 + see;
+  }
+
+  if(style === "aggressive") s += 80;
+}
+
       if(m.promo) s += 9000 + (m.promo === "Q" ? 400 : 0);
       if(m.castle) s += 1200;
 

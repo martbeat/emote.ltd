@@ -1437,24 +1437,6 @@ function isHanging(state, sq){
       score += sign * VAL[up];
       const idx = (p === up) ? i : mirrorIdx(i);
       if(PST[up]) score += sign * PST[up][idx];
-    
-/*    REMOVED AS DUPLICATE  // --- Rook activity: open & semi-open files
-  if(up === "R"){
-    const file = idxToCoord(i).f;
-
-    const ownPawn = fileHasPawn(state, file, sign === 1 ? "w" : "b");
-    const oppPawn = fileHasPawn(state, file, sign === 1 ? "b" : "w");
-
-    if(!ownPawn && !oppPawn) score += sign * 25;
-    else if(!ownPawn && oppPawn) score += sign * 12;
-
-    // 7th-rank rook
-    const rank = idxToCoord(i).r;
-    if((sign === 1 && rank === 1) || (sign === -1 && rank === 6)){
-      score += sign * 20;
-    }
-  }
-*/
       
   // --- Discourage useless edge pawn pushes
   if(up === "P"){
@@ -1463,6 +1445,21 @@ function isHanging(state, sq){
       score -= sign * 5;
     }
   }
+
+      // Penalise loose advanced pawns near own king
+if(up === "P"){
+  const side = (p === "P") ? "w" : "b";
+  const kSq = findKing(state, side);
+  if(kSq !== -1){
+    const d = kingDistance(kSq, i);
+
+    // advanced pawn + near king + unsupported
+    if(d <= 3 && pawnIsLoose(state, i)){
+      score -= sign * 18;
+    }
+  }
+}
+
 
     }
 
@@ -1586,24 +1583,6 @@ kingScore += Math.max(-6, Math.min(6, (6 - d))) * 3;
 // scale strongly by endgame
 score += kingScore * endW;
 
-// Penalise loose advanced pawns near own king
-if(up === "P"){
-  const side = (p === "P") ? "w" : "b";
-  const kSq = findKing(state, side);
-  if(kSq !== -1){
-    const d = kingDistance(kSq, i);
-    const {r} = idxToCoord(i);
-
-    // advanced pawn + near king + unsupported
-    if(d <= 3 && pawnIsLoose(state, i)){
-      score -= sign * 18;
-    }
-  }
-}
-
-    
-    
-    
     
     return score; // centipawns, white-positive
   }

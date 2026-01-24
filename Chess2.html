@@ -1499,7 +1499,6 @@ if(up === "P"){
 if(style === "aggressive"){
   score += attackDecayWhite * (inCheck(state,"b") ? 12 : 0);
   score -= attackDecayBlack * (inCheck(state,"w") ? 12 : 0);
-}
     }else if(style === "solid"){
   score -= attackDecayWhite * (inCheck(state,"b") ? 18 : 0);
   score += attackDecayBlack * (inCheck(state,"w") ? 18 : 0);

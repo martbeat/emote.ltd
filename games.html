@@ -634,11 +634,17 @@ const cols =
   rect.width < 900 ? 2 :
   rect.width < 1200 ? 3 : 4;
 
+const minWidth = rect.width < 520 ? 180 : 220;
+const maxWidth = rect.width < 520 ? 240 : 320;
+
 const targetWidth = clamp(
   rect.width / cols - 24,
-  220,
-  320
+  minWidth,
+  maxWidth
 );
+
+el.style.width = targetWidth + "px";
+
       el.style.width = targetWidth + "px";
       
 

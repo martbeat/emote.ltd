@@ -1460,6 +1460,52 @@ function isCapturedNextMove(state, sq, pieceValue){
   return minors === 0;
 }
 
+function undevelopedMinors(state, side){
+  // Count knights/bishops still on their home squares.
+  // Home squares: White N b1 g1, B c1 f1. Black n b8 g8, b c8 f8.
+  const b = state.board;
+  if(side === "w"){
+    let u = 0;
+    if(b[57] === "N") u++; // b1
+    if(b[62] === "N") u++; // g1
+    if(b[58] === "B") u++; // c1
+    if(b[61] === "B") u++; // f1
+    return u;
+  }else{
+    let u = 0;
+    if(b[1] === "n") u++;  // b8
+    if(b[6] === "n") u++;  // g8
+    if(b[2] === "b") u++;  // c8
+    if(b[5] === "b") u++;  // f8
+    return u;
+  }
+}
+
+function queenSafetyPenaltyForSquare(sq){
+  // Penalise being far from the centre and on the rim.
+  const {r,f} = idxToCoord(sq);
+
+  // Chebyshev distance to nearest centre square among d4,e4,d5,e5 (0-indexed r,f: (3,3)(3,4)(4,3)(4,4))
+  const dc = Math.min(
+    Math.max(Math.abs(r-3), Math.abs(f-3)),
+    Math.max(Math.abs(r-3), Math.abs(f-4)),
+    Math.max(Math.abs(r-4), Math.abs(f-3)),
+    Math.max(Math.abs(r-4), Math.abs(f-4))
+  );
+
+  // Rim: outer ring squares
+  const onRim = (r === 0 || r === 7 || f === 0 || f === 7);
+
+  // File a/h are especially “trap-prone” in opening
+  const onEdgeFile = (f === 0 || f === 7);
+
+  let pen = 0;
+  pen += dc * 6;           // drifting away from centre
+  if(onRim) pen += 16;     // rim penalty
+  if(onEdgeFile) pen += 10; // a/h file extra
+
+  return pen; // centipawns
+}
 
 
   
@@ -1548,6 +1594,35 @@ if(style === "aggressive"){
   const phase = gamePhase(state);
   const endW = 1 - phase / 24;   // 0 opening → 1 endgame
 
+// --------------------
+// Queen safety (opening bias)
+// --------------------
+const openingW = 1 - endW; // 1 in opening, 0 in endgame
+
+let qPenalty = 0;
+
+for(let i=0;i<64;i++){
+  const p = state.board[i];
+  if(p !== "Q" && p !== "q") continue;
+
+  const side = (p === "Q") ? "w" : "b";
+  const sign = (side === "w") ? 1 : -1;
+
+  // Base penalty for queen drifting to rim and away from centre in the opening
+  const base = queenSafetyPenaltyForSquare(i);
+
+  // If you have lots of minors undeveloped, punish early queen adventures harder
+  const undev = undevelopedMinors(state, side); // 0..4
+  const undevFactor = 1 + undev * 0.35;
+
+  qPenalty += sign * base * undevFactor;
+}
+
+// Apply mainly in the opening
+score -= qPenalty * openingW;
+
+
+    
   // King activity only matters in endgame
   const kActW = kingActivityBonus(state, "w");
   const kActB = kingActivityBonus(state, "b");

@@ -1644,16 +1644,24 @@ if(score < -900) score = -900;
       const captured = state.board[m.to];
 
 const isCapture = captured !== ".";
-      // Discourage suicidal captures by major pieces
+// Discourage suicidal captures by major pieces (queen & rook)
 if(isCapture){
   const p = movingPiece.toUpperCase();
   const v = VAL[p] || 0;
 
-  if(v >= 900){ // queen
+  // only queen or rook
+  if(v >= 500){
     const u = makeMove(state, m, true);
 
+    // if the capturing piece is hanging on the target square
     if(isHanging(state, m.to)){
-      s -= 1200; // stronger than queen value
+      if(v >= 900){
+        // queen: almost never acceptable
+        s -= 1200;
+      } else {
+        // rook: sometimes acceptable, but strongly discouraged
+        s -= 650;
+      }
     }
 
     undoMove(state, u);

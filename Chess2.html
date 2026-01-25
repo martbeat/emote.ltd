@@ -1444,6 +1444,47 @@ function isCapturedNextMove(state, sq, pieceValue){
   return false;
 }
 
+
+  function isPawnKingEndgame(state){
+  let minors = 0;
+  for(let i=0;i<64;i++){
+    const p = state.board[i];
+    if(p === ".") continue;
+    const up = p.toUpperCase();
+    if(up !== "P" && up !== "K"){
+      minors++;
+    }
+  }
+  return minors === 0;
+}
+
+function isPassedPawn(state, sq){
+  const p = state.board[sq];
+  if(p === ".") return false;
+
+  const side = (p === p.toUpperCase()) ? "w" : "b";
+  const {r,f} = idxToCoord(sq);
+
+  for(let df=-1;df<=1;df++){
+    const nf = f + df;
+    if(nf < 0 || nf > 7) continue;
+
+    for(let rr = r + (side==="w"?1:-1);
+        rr >=0 && rr <=7;
+        rr += (side==="w"?1:-1)){
+
+      const i = coordToIdx(rr,nf);
+      const q = state.board[i];
+      if(q !== "." && q.toUpperCase()==="P" &&
+         ((side==="w") !== (q===q.toUpperCase()))){
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
@@ -1541,6 +1582,26 @@ const queenDamp = (qCount >= 2) ? 0.25 : 1.0;
 
 score += endW * queenDamp * 8 * (kActW - kActB);
 
+if(isPawnKingEndgame(state)){
+  for(let i=0;i<64;i++){
+    const p = state.board[i];
+    if(p === ".") continue;
+    if(p.toUpperCase() !== "P") continue;
+
+    const side = (p === p.toUpperCase()) ? "w" : "b";
+    const {r} = idxToCoord(i);
+    const rank = side==="w" ? r : (7 - r);
+
+    if(isPassedPawn(state, i)){
+      const bonus = 40 + rank * 25;
+      score += (side==="w" ? bonus : -bonus);
+    }
+  }
+}
+
+
+
+    
 let passedScore = 0;
 
 for(let i = 0; i < 64; i++){
@@ -1548,9 +1609,9 @@ for(let i = 0; i < 64; i++){
   if(p !== "P" && p !== "p") continue;
 
   if(isPassedPawn(state, i) && endW > 0.4){
+    
     const adv = pawnAdvanceBonus(p, i);
     const sign = (p === "P") ? 1 : -1;
-
     // base bonus
     passedScore += sign * adv * 14;
 
@@ -1564,7 +1625,7 @@ for(let i = 0; i < 64; i++){
 }
 
 score += passedScore * endW;
-
+    
     const fileInfo = filePawnCounts(state);
 let rookScore = 0;
 
@@ -1630,6 +1691,23 @@ score += kingScore * endW;
 // Clamp evaluation to avoid runaway scores
 if(score > 900) score = 900;
 if(score < -900) score = -900;
+
+    if(isPawnKingEndgame(state)){
+  const wk = findKing(state, "w");
+  const bk = findKing(state, "b");
+
+  if(wk !== -1){
+    const {r:wr,f:wf} = idxToCoord(wk);
+    const dist = Math.abs(wr - 3.5) + Math.abs(wf - 3.5);
+    score += (7 - dist) * 12;
+  }
+
+  if(bk !== -1){
+    const {r:br,f:bf} = idxToCoord(bk);
+    const dist = Math.abs(br - 3.5) + Math.abs(bf - 3.5);
+    score -= (7 - dist) * 12;
+  }
+}
 
     
     return score; // centipawns, white-positive

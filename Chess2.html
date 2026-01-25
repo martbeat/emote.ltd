@@ -1838,116 +1838,106 @@ if(score < -900) score = -900;
     return 4;
   }
 
-  function orderMoves(state, moves, style, ttBestKey=null){
-    const b = state.board;
+function orderMoves(state, moves, style, ttBestKey=null){
+  const b = state.board;
 
-    function moveScore(m){
-      let s = 0;
+  function moveScore(m){
+    let s = 0;
 
-      if(ttBestKey && moveKey(m) === ttBestKey) s += 500000;
+    if(ttBestKey && moveKey(m) === ttBestKey) s += 500000;
 
-      const piece = b[m.from];
-      const t = (m.ep ? (state.turn==="w" ? "p":"P") : b[m.to]);
-      const up = piece.toUpperCase();
-      const tp = t === "." ? "." : t.toUpperCase();
+    const movingPiece = b[m.from];
+    const captured = m.ep ? (state.turn==="w" ? "p" : "P") : b[m.to];
+    const isCapture = captured !== ".";
 
-      const movingPiece = state.board[m.from];
-      const captured = state.board[m.to];
+    // --------------------
+    // Capture safety logic
+    // --------------------
+    if(isCapture){
+      const p = movingPiece.toUpperCase();
+      const v = VAL[p] || 0;
 
-const isCapture = captured !== ".";
-// Discourage suicidal captures by major pieces (queen & rook)
-if(isCapture){
-  const p = movingPiece.toUpperCase();
-  const v = VAL[p] || 0;
-
-  const u = makeMove(state, m, true);
-
-  // --- Major-piece suicide detection ---
-  if(v >= 500){
-if(isCapture){
-  const p = movingPiece.toUpperCase();
-  const v = VAL[p] || 0;
-
-  const u = makeMove(state, m, true);
-
-  // Major-piece suicide detection
-  if(v >= 500){
-    if(isCapturedNextMove(state, m.to, v)){
-      s -= (v >= 900 ? 1200 : 650);
-    }
-  }
-
-  // Queen exposure penalty
-  if(p === "Q"){
-    if(isSquareAttacked(state, m.to, state.turn)){
-      s -= 600;
-    }
-
-    // queen escape squares
-    let escape = 0;
-    for(const dm of generateLegalMoves(state)){
-      if(dm.from === m.to) escape++;
-    }
-    if(escape <= 2){
-      s -= 800;
-    }
-  }
-
-  undoMove(state, u);
-}
-
-if(t !== "."){
-  const see = seeLite(state, m);
-
-  // strongly discourage losing captures
-  if(see < 0){
-    s -= 5000;
-  }else{
-    s += 10000 + see;
-  }
-
-  if(style === "aggressive") s += 80;
-}
-
-      if(m.promo) s += 9000 + (m.promo === "Q" ? 400 : 0);
-      if(m.castle) s += 1200;
-
-      // check ordering
       const u = makeMove(state, m, true);
-      const givesCheck = inCheck(state, state.turn);
+
+      // Major-piece suicide detection
+      if(v >= 500){
+        if(isCapturedNextMove(state, m.to, v)){
+          s -= (v >= 900 ? 1200 : 650); // queen / rook
+        }
+      }
+
+      // Queen exposure penalty
+      if(p === "Q"){
+        if(isSquareAttacked(state, m.to, state.turn)){
+          s -= 600;
+        }
+
+        let escape = 0;
+        for(const dm of generateLegalMoves(state)){
+          if(dm.from === m.to) escape++;
+        }
+        if(escape <= 2){
+          s -= 800;
+        }
+      }
+
       undoMove(state, u);
-      if(givesCheck) s += 2000;
-
-      const {r,f} = idxToCoord(m.to);
-      const dist = Math.abs(3.5 - r) + Math.abs(3.5 - f);
-      s += (8 - dist) * 3;
-
-// Hanging piece penalty (post-move)
-const u2 = makeMove(state, m, true);
-
-for(let i=0;i<64;i++){
-  const p = state.board[i];
-  if(p === ".") continue;
-  if(pieceColor(p) !== state.turn){
-    const v = VAL[p.toUpperCase()] || 0;
-
-    if(v >= 320 && isHanging(state, i)){
-      s -= v * 2;
     }
+
+    // --------------------
+    // SEE-lite ordering
+    // --------------------
+    if(isCapture){
+      const see = seeLite(state, m);
+      if(see < 0){
+        s -= 5000;
+      }else{
+        s += 10000 + see;
+      }
+      if(style === "aggressive") s += 80;
+    }
+
+    // --------------------
+    // Bonuses
+    // --------------------
+    if(m.promo) s += 9000 + (m.promo === "Q" ? 400 : 0);
+    if(m.castle) s += 1200;
+
+    // Check bonus
+    const u = makeMove(state, m, true);
+    if(inCheck(state, state.turn)) s += 2000;
+    undoMove(state, u);
+
+    // Centralisation
+    const {r,f} = idxToCoord(m.to);
+    const dist = Math.abs(3.5 - r) + Math.abs(3.5 - f);
+    s += (8 - dist) * 3;
+
+    // --------------------
+    // Hanging-piece penalty
+    // --------------------
+    const u2 = makeMove(state, m, true);
+    for(let i=0;i<64;i++){
+      const pp = state.board[i];
+      if(pp === ".") continue;
+      if(pieceColor(pp) !== state.turn){
+        const vv = VAL[pp.toUpperCase()] || 0;
+        if(vv >= 320 && isHanging(state, i)){
+          s -= vv * 2;
+        }
+      }
+    }
+    undoMove(state, u2);
+
+    return s;
   }
+
+  return moves
+    .map(m => ({m, s: moveScore(m)}))
+    .sort((a,b)=>b.s-a.s)
+    .map(x=>x.m);
 }
 
-undoMove(state, u2);
-
-
-      return s;
-    }
-
-    return moves
-      .map(m => ({m, s: moveScore(m)}))
-      .sort((a,b)=>b.s-a.s)
-      .map(x=>x.m);
-  }
 
 function quiescence(state, alpha, beta, style, nodesRef){
   nodesRef.count++;

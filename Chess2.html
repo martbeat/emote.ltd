@@ -84,7 +84,7 @@
       color:var(--muted);
       max-width: 560px;
     }
-
+    
     .btnRow{
       display:flex;
       gap:8px;
@@ -119,6 +119,7 @@
       aspect-ratio: 1 / 1;
       display:grid;
       grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       border-radius: 18px;
       overflow:hidden;
       border: 1px solid rgba(255,255,255,.10);
@@ -127,15 +128,18 @@
       user-select:none;
       touch-action: manipulation;
     }
-
+    
     .sq{
       display:flex;
       align-items:center;
       justify-content:center;
       font-size: clamp(22px, 5.4vw, 46px);
+      aspect-ratio: 1 / 1;
       line-height:1;
       cursor:pointer;
       position:relative;
+      min-height: 0;
+      min-width: 0;
     }
     .sq.light{ background: linear-gradient(180deg, var(--light), var(--light2)); }
     .sq.dark{ background: linear-gradient(180deg, var(--dark), var(--dark2)); }

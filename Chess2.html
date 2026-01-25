@@ -1104,11 +1104,23 @@ function queensOnBoard(state){
     // update hash for new position
     state.hash = computeHash(state);
 
-    if(!silent){
-      const san = toSAN(state, { ...move, piece, captured: undo.captured });
-      state.history.push({ ...move, piece, captured: undo.captured, san, undo });
-      state.lastMove = { from, to };
-    }
+if(!silent){
+  const san = toSAN(state, { ...move, piece, captured: undo.captured });
+
+  const evalCp = evalWhiteAdv(state, elStyle.value);
+
+  state.history.push({
+    ...move,
+    piece,
+    captured: undo.captured,
+    san,
+    eval: evalCp,
+    undo
+  });
+
+  state.lastMove = { from, to };
+}
+
 
     return undo;
   }
@@ -1523,6 +1535,31 @@ function isMinorPawnSuicide(state, move){
   return pawnCanRecapture;
 }
 
+  function minorJustHung(state){
+  // side that just moved is the opposite of state.turn
+  const side = opp(state.turn);
+
+  for(let i=0;i<64;i++){
+    const p = state.board[i];
+    if(p === ".") continue;
+    if(pieceColor(p) !== side) continue;
+
+    const up = p.toUpperCase();
+    if(up !== "B" && up !== "N") continue;
+
+    if(isHanging(state, i)){
+      return VAL[up] || 0;
+    }
+  }
+  return 0;
+}
+
+function updateEvalDisplay(){
+  const v = evalWhiteAdv(S, elStyle.value);
+  elEval.textContent = `Eval: ${formatEval(v)}`;
+}
+
+
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
@@ -1763,7 +1800,12 @@ if(score < -900) score = -900;
   }
 }
 
-    
+  // --- Post-move tactical sanity: punish hanging minor pieces ---
+const hungMinor = minorJustHung(state);
+if(hungMinor){
+  score -= (state.turn === "w" ? -1 : 1) * hungMinor * 2;
+}
+  
     return score; // centipawns, white-positive
   }
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX END EVAL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2097,15 +2139,26 @@ if(S.lastMove){
 
     // move list
     elMoveList.innerHTML = "";
-    const plies = S.history.map(m => m.san);
-    for(let mi=0; mi<plies.length; mi+=2){
-      const li = document.createElement("li");
-      const n = 1 + (mi/2);
-      const w = plies[mi] || "";
-      const b = plies[mi+1] || "";
-      li.innerHTML = `<b>${n}.</b> ${escapeHtml(w)} ${b ? "&nbsp;&nbsp;" + escapeHtml(b) : ""}`;
-      elMoveList.appendChild(li);
-    }
+    
+for(let mi=0; mi<S.history.length; mi+=2){
+  const li = document.createElement("li");
+  const n = 1 + (mi/2);
+
+  const wMove = S.history[mi];
+  const bMove = S.history[mi+1];
+
+  function fmt(m){
+    if(!m) return "";
+    const v = formatEval(m.eval);
+    return `${escapeHtml(m.san)} <span class="small">(${v})</span>`;
+  }
+
+  li.innerHTML =
+    `<b>${n}.</b> ${fmt(wMove)} ${bMove ? "&nbsp;&nbsp;" + fmt(bMove) : ""}`;
+
+  elMoveList.appendChild(li);
+}
+
     elMoveList.parentElement.scrollTop = elMoveList.parentElement.scrollHeight;
 
 
@@ -2167,6 +2220,7 @@ function updateGameStatus(){
     }
 
     makeMove(S, candidate, false);
+    updateEvalDisplay();
     updateGameStatus();
     clearSelection();
     render();
@@ -2280,6 +2334,7 @@ if(!best){
     if(best.promo) best.promo = "Q";
 
     makeMove(S, best, false);
+    updateEvalDisplay();
     updateGameStatus();
     setStatus("Ready");
     render();

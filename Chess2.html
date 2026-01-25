@@ -84,7 +84,38 @@
       color:var(--muted);
       max-width: 560px;
     }
-    
+    .evalWrap{
+  margin-top:8px;
+}
+
+.evalBar{
+  position:relative;
+  height:10px;
+  border-radius:999px;
+  background: linear-gradient(
+    to right,
+    rgba(255,107,136,.35),
+    rgba(255,255,255,.15),
+    rgba(125,255,178,.35)
+  );
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.18);
+}
+
+#evalFill{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:50%;
+  left:50%;
+  background: linear-gradient(
+    to right,
+    rgba(255,255,255,.0),
+    rgba(255,255,255,.45)
+  );
+  transition: left .25s ease, width .25s ease;
+}
+
     .btnRow{
       display:flex;
       gap:8px;
@@ -392,6 +423,12 @@
           <div class="small" id="aiThink">AI: idle</div>
           <div class="small" id="ttInfo">TT: 0 entries</div>
                       <div class="small" id="evalLabel">Eval: +0.00</div>
+          <div class="evalWrap">
+  <div class="evalBar">
+    <div id="evalFill"></div>
+  </div>
+</div>
+
         </div>
 
         <div class="section moves">
@@ -1552,6 +1589,24 @@ function queenOpeningRisk(sq){
 
   return pen; // centipawns
 }
+function updateEvalBar(score){
+  // score is centipawns from White's perspective
+  // clamp to ±600cp for display
+  const cp = Math.max(-600, Math.min(600, score));
+
+  // map -600..+600 → 0..100
+  const pct = 50 + (cp / 1200) * 100;
+
+  const fill = document.getElementById("evalFill");
+
+  if(cp >= 0){
+    fill.style.left = "50%";
+    fill.style.width = `${pct - 50}%`;
+  }else{
+    fill.style.left = `${pct}%`;
+    fill.style.width = `${50 - pct}%`;
+  }
+}
 
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2330,6 +2385,8 @@ function queueAIMove(){
     }
 
 elEval.textContent = `Eval: ${formatEval(safeEval(score))}`;
+updateEvalBar(score);
+
     if(searchResult){
       elThink.textContent =
         `AI: ${timeBudget}ms, depth ${searchResult.depth}, nodes ${nodes}`;
@@ -2356,6 +2413,7 @@ if(!best){
   // Buttons
   btnNew.addEventListener("click", () => {
     TT.clear();
+    updateEvalBar(0);
     S = newState();
     clearSelection();
     setStatus("Ready");
@@ -2402,6 +2460,7 @@ if(!best){
     setTimeout(() => {
 const { best, score } = pickBestMove(S, Math.min(600, getAITimeBudget()), style);
       elEval.textContent = `Eval: ${formatEval(score)}`;
+      updateEvalBar(score);
       elThink.textContent = "AI: idle";
       setStatus("Ready");
       if(best){

@@ -1599,6 +1599,22 @@ if(isPawnKingEndgame(state)){
   }
 }
 
+if(isPawnKingEndgame(state)){
+  for(let i=0;i<64;i++){
+    const p = state.board[i];
+    if(p === ".") continue;
+    if(p.toUpperCase() !== "P") continue;
+
+    if(!isPassedPawn(state, i)) continue;
+
+    const side = (p === p.toUpperCase()) ? "w" : "b";
+    const enemyKing = findKing(state, side==="w"?"b":"w");
+    if(enemyKing === -1) continue;
+
+    const d = kingDistance(enemyKing, i);
+    score += (side==="w" ? -d*6 : d*6);
+  }
+}
 
 
     

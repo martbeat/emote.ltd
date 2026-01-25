@@ -1484,6 +1484,44 @@ function isPassedPawn(state, sq){
   return true;
 }
 
+function isMinorPawnSuicide(state, move){
+  const p = state.board[move.from];
+  if(!p) return false;
+
+  const up = p.toUpperCase();
+  if(up !== "B" && up !== "N") return false;
+
+  // must be a capture
+  const captured = move.ep
+    ? (state.turn === "w" ? "p" : "P")
+    : state.board[move.to];
+
+  if(captured.toUpperCase() !== "P") return false;
+
+  const u = makeMove(state, move, true);
+
+  // can a pawn recapture?
+  const enemy = opp(state.turn);
+  let pawnCanRecapture = false;
+
+  for(let i=0;i<64;i++){
+    const q = state.board[i];
+    if(q === "." || pieceColor(q) !== enemy) continue;
+    if(q.toUpperCase() !== "P") continue;
+
+    const caps = generateLegalMoves(state).filter(
+      m => m.from === i && m.to === move.to
+    );
+
+    if(caps.length){
+      pawnCanRecapture = true;
+      break;
+    }
+  }
+
+  undoMove(state, u);
+  return pawnCanRecapture;
+}
 
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1776,9 +1814,17 @@ if(v >= 500){
       s -= 650;  // rook
     }
   }
-
+  
   undoMove(state, u);
 }
+}
+//////End of MoveScore - back to orderMoves
+
+      // Absolute veto: minor-piece pawn suicide
+if(isCapture){
+  if(isMinorPawnSuicide(state, m)){
+    s -= 8000;
+  }
 }
 
 

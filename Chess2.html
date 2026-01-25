@@ -592,18 +592,20 @@ function openingKey(state){
   return list[list.length-1].move;
 }
 
-  function findMoveBySAN(state, san){
+function findMoveBySAN(state, san){
   const clean = san.replace(/[+#]/g, "");
   const moves = generateLegalMoves(state);
+
   for(const m of moves){
     const u = makeMove(state, m, true);
-    updateGameStatus();
     const s = toSAN(state, { ...m, piece: m.piece, captured: m.captured });
     undoMove(state, u);
+
     if(s.replace(/[+#]/g, "") === clean) return m;
   }
   return null;
 }
+
 
   
   function castleMask(cr){
@@ -1292,7 +1294,7 @@ function isPassedPawn(state, sq){
   return (r - 1);               // closer to rank 1
 }
 
-  function kingDistance(state, sq, side){
+  function kingDistance2(state, sq, side){
   const ksq = findKing(state, side);
   const a = idxToCoord(ksq);
   const b = idxToCoord(sq);
@@ -1458,31 +1460,6 @@ function isCapturedNextMove(state, sq, pieceValue){
   return minors === 0;
 }
 
-function isPassedPawn(state, sq){
-  const p = state.board[sq];
-  if(p === ".") return false;
-
-  const side = (p === p.toUpperCase()) ? "w" : "b";
-  const {r,f} = idxToCoord(sq);
-
-  for(let df=-1;df<=1;df++){
-    const nf = f + df;
-    if(nf < 0 || nf > 7) continue;
-
-    for(let rr = r + (side==="w"?1:-1);
-        rr >=0 && rr <=7;
-        rr += (side==="w"?1:-1)){
-
-      const i = coordToIdx(rr,nf);
-      const q = state.board[i];
-      if(q !== "." && q.toUpperCase()==="P" &&
-         ((side==="w") !== (q===q.toUpperCase()))){
-        return false;
-      }
-    }
-  }
-  return true;
-}
 
 
   
@@ -1634,7 +1611,7 @@ for(let i = 0; i < 64; i++){
     // king support (endgame only)
     if(endW > 0.5){
       const side = (p === "P") ? "w" : "b";
-      const d = kingDistance(state, i, side);
+      const d = kingDistance2(state, i, side);
       passedScore += sign * Math.max(0, 6 - d) * 6;
     }
   }
@@ -2115,10 +2092,14 @@ function updateGameStatus(){
     }
 
     // promotion modal for human (always show choices if promotion)
-    if(candidate.promo && candidate.promo !== "Q"){
-      showPromotion(candidate);
-      return;
-    }
+if(candidate.piece.toUpperCase() === "P"){
+  const {r} = idxToCoord(candidate.to);
+  if(r === 0 || r === 7){
+    showPromotion({ ...candidate, promo: null });
+    return;
+  }
+}
+
 
     makeMove(S, candidate, false);
     updateGameStatus();
@@ -2288,7 +2269,7 @@ if(!best){
     setStatus("Calculating…");
 
     setTimeout(() => {
-      const { best, score } = pickBestMove(S, depth, style);
+const { best, score } = pickBestMove(S, Math.min(600, getAITimeBudget()), style);
       elEval.textContent = `Eval: ${formatEval(score)}`;
       elThink.textContent = "AI: idle";
       setStatus("Ready");

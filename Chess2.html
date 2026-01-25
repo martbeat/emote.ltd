@@ -1420,6 +1420,29 @@ function isHanging(state, sq){
   return !defended;
 }
 
+function isCapturedNextMove(state, sq, pieceValue){
+  const side = state.turn;           // side that just moved
+  const enemy = opp(side);
+
+  // generate opponent captures on this square
+  const savedTurn = state.turn;
+  state.turn = enemy;
+
+  const captures = generateLegalMoves(state).filter(m => m.to === sq);
+
+  state.turn = savedTurn;
+
+  for(const m of captures){
+    const attacker = state.board[m.from];
+    const av = VAL[attacker.toUpperCase()] || 0;
+
+    // opponent can capture with equal or cheaper piece
+    if(av <= pieceValue){
+      return true;
+    }
+  }
+  return false;
+}
 
   
 //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX EVAL WHITE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1649,23 +1672,19 @@ if(isCapture){
   const p = movingPiece.toUpperCase();
   const v = VAL[p] || 0;
 
-  // only queen or rook
-  if(v >= 500){
-    const u = makeMove(state, m, true);
+if(v >= 500){
+  const u = makeMove(state, m, true);
 
-    // if the capturing piece is hanging on the target square
-    if(isHanging(state, m.to)){
-      if(v >= 900){
-        // queen: almost never acceptable
-        s -= 1200;
-      } else {
-        // rook: sometimes acceptable, but strongly discouraged
-        s -= 650;
-      }
+  if(isCapturedNextMove(state, m.to, v)){
+    if(v >= 900){
+      s -= 1200; // queen
+    }else{
+      s -= 650;  // rook
     }
-
-    undoMove(state, u);
   }
+
+  undoMove(state, u);
+}
 }
 
 

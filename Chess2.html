@@ -1864,14 +1864,21 @@ if(isCapture){
 
   // --- Major-piece suicide detection ---
   if(v >= 500){
+if(isCapture){
+  const p = movingPiece.toUpperCase();
+  const v = VAL[p] || 0;
+
+  const u = makeMove(state, m, true);
+
+  // Major-piece suicide detection
+  if(v >= 500){
     if(isCapturedNextMove(state, m.to, v)){
-      s -= (v >= 900 ? 1200 : 650); // queen / rook
+      s -= (v >= 900 ? 1200 : 650);
     }
   }
 
-  // --- Queen exposure penalty ---
+  // Queen exposure penalty
   if(p === "Q"){
-    // queen immediately attackable
     if(isSquareAttacked(state, m.to, state.turn)){
       s -= 600;
     }
@@ -1883,13 +1890,11 @@ if(isCapture){
     }
     if(escape <= 2){
       s -= 800;
-    }// Or delete these?
-  }    //dunno
+    }
+  }
 
   undoMove(state, u);
-//} DELETE THESE?
-//}
-
+}
 
 if(t !== "."){
   const see = seeLite(state, m);

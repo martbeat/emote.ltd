@@ -1860,37 +1860,35 @@ if(isCapture){
   const p = movingPiece.toUpperCase();
   const v = VAL[p] || 0;
 
-if(v >= 500){
   const u = makeMove(state, m, true);
 
-  if(isCapturedNextMove(state, m.to, v)){
-    if(v >= 900){
-      s -= 1200; // queen
-    }else{
-      s -= 650;  // rook
+  // --- Major-piece suicide detection ---
+  if(v >= 500){
+    if(isCapturedNextMove(state, m.to, v)){
+      s -= (v >= 900 ? 1200 : 650); // queen / rook
     }
   }
 
-// --- Queen exposure penalty (post-move) ---
-if(movingPiece.toUpperCase() === "Q"){
-  const u = makeMove(state, m, true);
+  // --- Queen exposure penalty ---
+  if(p === "Q"){
+    // queen immediately attackable
+    if(isSquareAttacked(state, m.to, state.turn)){
+      s -= 600;
+    }
 
-  // Is queen immediately attackable?
-  if(isSquareAttacked(state, m.to, state.turn)){
-    s -= 600; // very strong discouragement in opening
-  }
-
-  // Is queen limited in escape squares?
-  let escape = 0;
-  for(const dm of generateLegalMoves(state)){
-    if(dm.from === m.to) escape++;
-  }
-  if(escape <= 2){
-    s -= 800; // near-trap
+    // queen escape squares
+    let escape = 0;
+    for(const dm of generateLegalMoves(state)){
+      if(dm.from === m.to) escape++;
+    }
+    if(escape <= 2){
+      s -= 800;
+    }
   }
 
   undoMove(state, u);
 }
+
 
 }
 

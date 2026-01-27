@@ -374,6 +374,9 @@
   .entity{
   transition: transform 140ms ease-out;
 }
+.camera{
+  transform: rotate(var(--dir));
+}
   
   
   
@@ -1431,11 +1434,15 @@ function simulateHazards(turnOffset = 1){
     const seenAfter = computeSeenTiles();
     state.lastDangerTiles = Array.from(seenAfter);
 
-    if(seenAfter.has(k(state.player.x, state.player.y))){
-      endGame(false, "A camera swung onto you.");
-      render(); updateHUD();
-      return;
-    }
+if(seenAfter.has(k(state.player.x, state.player.y))){
+  if(state.spotted){
+    endGame(false, "You were caught.");
+    return;
+  } else {
+    state.spotted = 1;
+    state.lastDangerTiles = Array.from(seenAfter);
+  }
+}
 
     // Laser check after hazards
     if(isPlayerOnActiveLaser()){

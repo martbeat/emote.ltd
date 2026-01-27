@@ -1066,6 +1066,7 @@ function simulateHazards(turnOffset = 1){
       levelId: level.id,
       w, h,
       grid,
+      spotted: 0,
       player,
       exit,
       keysRequired,
@@ -1099,6 +1100,10 @@ function simulateHazards(turnOffset = 1){
     render();
     updateButtons();
     persist();
+    if(!seenAfter.has(k(state.player.x, state.player.y))){
+  state.spotted = 0;
+}
+
   }
 
   // ---------- Persistence ----------
@@ -1518,7 +1523,36 @@ if(seenAfter.has(k(state.player.x, state.player.y))){
     elBoard.innerHTML = "";
 
     const seen = new Set(state.lastDangerTiles || []);
-const preview = simulateHazards(1)
+const preview = simulateHazards(1);
+
+    const previewSeen = new Set();
+for(const cam of preview.cams){
+  const {dx,dy} = dirVec(cam.dir);
+  let x = cam.x + dx, y = cam.y + dy;
+  while(isInside(x,y)){
+    if(isWall(x,y)) break;
+    const t = tileAt(x,y);
+    if(t === "door"){
+      const d = doorAt(x,y);
+      if(d && !d.open) break;
+    }
+    if(blockAt(x,y)) break;
+    previewSeen.add(k(x,y));
+    x += dx; y += dy;
+  }
+}
+
+    const entityLayer = document.createElement("div");
+entityLayer.style.position = "absolute";
+entityLayer.style.inset = "0";
+entityLayer.style.pointerEvents = "none";
+elBoard.appendChild(entityLayer);
+
+    
+    if(preview.lasers[k(x,y)] && !activeLasers.has(k(x,y))){
+  cell.style.boxShadow = "inset 0 0 0 2px rgba(125,211,252,.25)";
+}
+    
     const activeLasers = new Set();
     for(const keyStr of Object.keys(state.lasers)){
       if(state.lasers[keyStr].active) activeLasers.add(keyStr);
@@ -1549,16 +1583,22 @@ const preview = simulateHazards(1)
           if(d && d.open) cell.classList.add("open");
         }
 
+        if(previewSeen.has(k(x,y)) && !seen.has(k(x,y))){
+  cell.style.outline = "2px dashed rgba(125,211,252,.35)";
+}
+
         if(seen.has(k(x,y)) && t !== "wall") cell.classList.add("seen");
         if(activeLasers.has(k(x,y))) cell.classList.add("laserActive");
 
+
+        
         // Tile icons
         let tileIcon = "";
-        if(t === "exit") tileIcon = "⬛";
+if(t === "exit") tileIcon = "🏁";
         if(t === "door") tileIcon = "🚪";
         if(t === "switch") tileIcon = "🔘";
         if(t === "key") tileIcon = "🔑";
-        if(t === "laser") tileIcon = "🟥";
+//        if(t === "laser") tileIcon = "🟥";
         if(t === "noise") tileIcon = "🔔";
         if(t === "oneway"){
           const ow = oneWayCharAt(x,y);
@@ -1570,6 +1610,9 @@ const preview = simulateHazards(1)
           e.textContent = tileIcon;
           cell.appendChild(e);
         }
+if(t === "exit" && state.keysHave < state.keysRequired){
+  cell.style.filter = "grayscale(1)";
+}
 
         // Block
         if(blockAt(x,y)){
@@ -1620,6 +1663,7 @@ const preview = simulateHazards(1)
     const doneCount = Object.keys(progress.completed).length;
     progressLine.textContent = `Completed: ${doneCount}/${LEVELS.length}. Unlocked: ${progress.unlockedUpTo + 1}/${LEVELS.length}.`;
 
+    
     LEVELS.forEach((def, idx) => {
       const unlocked = isLevelUnlocked(idx);
       const done = !!progress.completed[def.id];

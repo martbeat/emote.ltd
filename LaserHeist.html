@@ -370,6 +370,13 @@
     }
     .tag.done{ border-color: rgba(134,239,172,.35); background: rgba(134,239,172,.10); }
     .tag.locked{ border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.10); }
+
+  .entity{
+  transition: transform 140ms ease-out;
+}
+  
+  
+  
   </style>
 </head>
 <body>
@@ -891,6 +898,26 @@
     updateButtons();
   }
 
+function simulateHazards(turnOffset = 1){
+  const cams = state.cameras.map(c => {
+    const pattern = c.pattern?.length ? c.pattern : dirs;
+    const idx = (state.turn + turnOffset) % pattern.length;
+    return { x:c.x, y:c.y, dir:pattern[idx] };
+  });
+
+  const lasers = {};
+  for(const keyStr in state.lasers){
+    const l = state.lasers[keyStr];
+    if(l.mode === "toggle"){
+      lasers[keyStr] = ((state.turn + turnOffset) % 2 === 0);
+    }else if(l.mode === "pattern"){
+      lasers[keyStr] = !!l.pattern[(state.turn + turnOffset) % l.pattern.length];
+    }
+  }
+  return { cams, lasers };
+}
+
+  
   function hideModal(){
     overlay.classList.remove("show");
     timer.paused = false;
@@ -1484,7 +1511,7 @@
     elBoard.innerHTML = "";
 
     const seen = new Set(state.lastDangerTiles || []);
-
+const preview = simulateHazards(1)
     const activeLasers = new Set();
     for(const keyStr of Object.keys(state.lasers)){
       if(state.lasers[keyStr].active) activeLasers.add(keyStr);

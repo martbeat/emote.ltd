@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sample Keyboard</title>
+  <title>Sample Keyboard (Pitch ≠ Speed, Polyphonic, Auto-Onset)</title>
   <style>
     :root{
       --bg:#0b1020;
@@ -51,31 +51,10 @@
       border-bottom:1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
     }
-    .title{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      min-width: 240px;
-    }
-    .title h1{
-      margin:0;
-      font-size:16px;
-      letter-spacing:.2px;
-      font-weight:700;
-    }
-    .title p{
-      margin:0;
-      font-size:12.5px;
-      color: var(--muted);
-      line-height:1.25;
-    }
-    .controls{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      align-items:center;
-      justify-content:flex-end;
-    }
+    .title{display:flex;flex-direction:column;gap:2px;min-width: 240px;}
+    .title h1{margin:0;font-size:16px;letter-spacing:.2px;font-weight:700;}
+    .title p{margin:0;font-size:12.5px;color: var(--muted);line-height:1.25;}
+    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;}
     .btn{
       min-height: var(--tap);
       padding:10px 12px;
@@ -91,18 +70,9 @@
       box-shadow: 0 8px 18px rgba(0,0,0,.18);
     }
     .btn:hover{ border-color:#2f4480 }
-    .btn:disabled{
-      opacity:.5;
-      cursor:not-allowed;
-    }
-    .btn.primary{
-      border-color: rgba(122,167,255,.55);
-      background: rgba(122,167,255,.12);
-    }
-    .btn.danger{
-      border-color: rgba(255,107,136,.55);
-      background: rgba(255,107,136,.12);
-    }
+    .btn:disabled{ opacity:.5; cursor:not-allowed; }
+    .btn.primary{ border-color: rgba(122,167,255,.55); background: rgba(122,167,255,.12); }
+    .btn.danger{ border-color: rgba(255,107,136,.55); background: rgba(255,107,136,.12); }
     .pill{
       font-size:12px;
       padding:8px 10px;
@@ -115,26 +85,12 @@
       gap:8px;
       min-height: var(--tap);
     }
-    .dot{
-      width:8px;height:8px;border-radius:999px;background: var(--muted);display:inline-block;
-      box-shadow: 0 0 0 3px rgba(183,196,255,.15);
-    }
-    .dot.rec{
-      background: var(--danger);
-      box-shadow: 0 0 0 3px rgba(255,107,136,.15);
-      animation: pulse 1.1s infinite;
-    }
+    .dot{width:8px;height:8px;border-radius:999px;background: var(--muted);display:inline-block;box-shadow: 0 0 0 3px rgba(183,196,255,.15);}
+    .dot.rec{background: var(--danger);box-shadow: 0 0 0 3px rgba(255,107,136,.15);animation: pulse 1.1s infinite;}
     @keyframes pulse{ 0%{transform:scale(1)} 50%{transform:scale(1.22)} 100%{transform:scale(1)} }
 
-    main{
-      padding:16px 18px 18px;
-      display:grid;
-      grid-template-columns: 1.15fr .85fr;
-      gap:14px;
-    }
-    @media (max-width: 860px){
-      main{ grid-template-columns: 1fr; }
-    }
+    main{padding:16px 18px 18px;display:grid;grid-template-columns: 1.15fr .85fr;gap:14px;}
+    @media (max-width: 860px){ main{ grid-template-columns: 1fr; } }
     .card{
       border:1px solid var(--line);
       border-radius:18px;
@@ -155,14 +111,8 @@
       justify-content:space-between;
       gap:12px;
     }
-    .card h2 small{
-      font-weight:600;
-      color: var(--muted);
-      font-size:12px;
-    }
-    .card .content{
-      padding:12px 14px 14px;
-    }
+    .card h2 small{font-weight:600;color: var(--muted);font-size:12px;}
+    .card .content{padding:12px 14px 14px;}
 
     .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
     .row + .row{ margin-top:10px; }
@@ -175,9 +125,7 @@
       align-items:center;
       user-select:none;
     }
-    select, input[type="range"]{
-      accent-color: var(--accent);
-    }
+    select, input[type="range"]{ accent-color: var(--accent); }
     select{
       min-height: var(--tap);
       padding:10px 10px;
@@ -187,15 +135,9 @@
       color: var(--ink);
       outline:none;
     }
-    input[type="range"]{
-      width: min(320px, 100%);
-    }
+    input[type="range"]{ width: min(320px, 100%); }
 
-    .kbd-hint{
-      font-size:12px;
-      color: var(--muted);
-      line-height:1.35;
-    }
+    .kbd-hint{font-size:12px;color: var(--muted);line-height:1.35;}
     .kbd-hint b{ color: var(--ink); font-weight:750 }
 
     .keyboard{
@@ -230,50 +172,23 @@
       border-color: rgba(122,167,255,.8);
       background: linear-gradient(180deg, rgba(122,167,255,.18), rgba(0,0,0,.22));
     }
-    .key .cap{
-      width:100%;
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-      align-items:center;
-      text-align:center;
-    }
+    .key .cap{width:100%;display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;}
     .key .cap .k{
-      font-size:12px;
-      font-weight:800;
-      letter-spacing:.3px;
-      padding:6px 8px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.06);
-      background: rgba(0,0,0,.16);
-      min-width:36px;
+      font-size:12px;font-weight:800;letter-spacing:.3px;padding:6px 8px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.06);background: rgba(0,0,0,.16);min-width:36px;
     }
-    .key .cap .n{
-      font-size:11.5px;
-      color: var(--muted);
-      font-weight:650;
-    }
+    .key .cap .n{font-size:11.5px;color: var(--muted);font-weight:650;}
 
     .meter{
-      height:10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      overflow:hidden;
-      background: rgba(0,0,0,.22);
-      width: 220px;
+      height:10px;border-radius:999px;border:1px solid var(--line);overflow:hidden;background: rgba(0,0,0,.22);width: 220px;
     }
     .meter > div{
-      height:100%;
-      width:0%;
+      height:100%;width:0%;
       background: linear-gradient(90deg, rgba(122,167,255,.9), rgba(125,255,178,.85));
       transition: width .12s linear;
     }
 
-    .note{
-      font-size:12px;
-      color: var(--muted);
-      line-height:1.35;
-    }
+    .note{font-size:12px;color: var(--muted);line-height:1.35;}
     .mono{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-size: 11.5px;
@@ -294,7 +209,7 @@
     <header>
       <div class="title">
         <h1>Sample Keyboard</h1>
-        <p>Record a sound, then play it across a keyboard by pitch-shifting the sample.</p>
+        <p>Record a sound. Play chords. Pitch changes without changing speed. Key up stops the note.</p>
       </div>
       <div class="controls">
         <button class="btn primary" id="btnEnable">Enable Audio</button>
@@ -315,7 +230,7 @@
           <div class="keyboard" id="keyboard"></div>
           <div class="kbd-hint">
             QWERTY mapping: <b>A W S E D F T G Y H U J K</b> (one octave + root on A).<br/>
-            If you choose a scale, notes outside it will be skipped.
+            Hold a key to sustain. Release stops the note.
           </div>
         </div>
       </section>
@@ -335,9 +250,9 @@
           </div>
 
           <div class="row">
-            <label title="Shorten the start to reduce clicks or silence">
+            <label title="Auto-onset will set this initially. Increase if you still hear silence or clicks.">
               Trim start
-              <input type="range" id="trimStart" min="0" max="500" value="0" />
+              <input type="range" id="trimStart" min="0" max="600" value="0" />
               <span id="trimStartVal" class="note">0 ms</span>
             </label>
           </div>
@@ -345,41 +260,50 @@
           <div class="row">
             <label title="Shorten the end if the recording is long">
               Trim end
-              <input type="range" id="trimEnd" min="0" max="1500" value="0" />
+              <input type="range" id="trimEnd" min="0" max="2000" value="0" />
               <span id="trimEndVal" class="note">0 ms</span>
             </label>
           </div>
 
           <div class="row">
-            <label title="Simple envelope to avoid clicks">
+            <label title="Per-note fade-in">
               Attack
-              <input type="range" id="attack" min="0" max="80" value="8" />
-              <span id="attackVal" class="note">8 ms</span>
+              <input type="range" id="attack" min="0" max="120" value="18" />
+              <span id="attackVal" class="note">18 ms</span>
             </label>
           </div>
 
           <div class="row">
-            <label title="Simple envelope to avoid clicks">
+            <label title="Per-note fade-out on key release">
               Release
-              <input type="range" id="release" min="20" max="450" value="140" />
-              <span id="releaseVal" class="note">140 ms</span>
+              <input type="range" id="release" min="30" max="700" value="220" />
+              <span id="releaseVal" class="note">220 ms</span>
             </label>
           </div>
 
           <div class="row">
-            <label title="If on, notes will keep playing while held (good for drones)">
-              Hold mode
-              <select id="holdSel">
-                <option value="off" selected>Off (one-shot)</option>
-                <option value="on">On (hold until key up)</option>
+            <label title="Granular settings. Smaller grains sound smoother but cost more CPU.">
+              Grain
+              <select id="grainSel">
+                <option value="30">30 ms (crisp)</option>
+                <option value="40" selected>40 ms (balanced)</option>
+                <option value="55">55 ms (smooth)</option>
+              </select>
+            </label>
+            <label title="Overlap between grains. More overlap = smoother and heavier CPU.">
+              Overlap
+              <select id="overlapSel">
+                <option value="0.35">35%</option>
+                <option value="0.5" selected>50%</option>
+                <option value="0.65">65%</option>
               </select>
             </label>
           </div>
 
           <div class="row">
             <div class="note">
-              Tip: record a single short sound (voice vowel, pluck, click) for best results.
-              Long recordings can feel laggy and less “instrument-like”.
+              Notes are granular-resynthesised, which lets pitch change without changing duration.
+              For best results, record a short, steady tone (hum, vowel, pluck, bow).
             </div>
           </div>
 
@@ -415,7 +339,8 @@
       const release = $("release");
       const attackVal = $("attackVal");
       const releaseVal = $("releaseVal");
-      const holdSel = $("holdSel");
+      const grainSel = $("grainSel");
+      const overlapSel = $("overlapSel");
       const sampleInfo = $("sampleInfo");
 
       const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -448,17 +373,19 @@
         { key: "k", semis: 12 }
       ];
 
+      // Audio + recording
       let audioCtx = null;
       let mediaStream = null;
       let recorder = null;
       let chunks = [];
-      let rawBuffer = null;      // decoded AudioBuffer from recording
-      let sampleBuffer = null;   // trimmed version used for playback
+      let rawBuffer = null;    // decoded AudioBuffer from recording
+      let sampleBuffer = null; // trimmed AudioBuffer used for playback
       let analyser = null;
       let meterRaf = null;
 
-      // tracking for hold mode
-      const heldSources = new Map(); // key -> {src, gain}
+      // Polyphony + voice management
+      const voices = new Map(); // key -> voice
+      const MAX_VOICES = 16;
 
       function log(msg){
         const t = new Date().toLocaleTimeString();
@@ -472,6 +399,7 @@
 
       function ensureAudio(){
         if(audioCtx) return;
+
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         const master = audioCtx.createGain();
@@ -493,7 +421,6 @@
         const data = new Uint8Array(analyser.fftSize);
         const tick = () => {
           analyser.getByteTimeDomainData(data);
-          // crude RMS meter
           let sum = 0;
           for(let i=0;i<data.length;i++){
             const v = (data[i] - 128) / 128;
@@ -538,7 +465,7 @@
         const scale = new Set(SCALES[scaleSel.value].map(x => x % 12));
 
         KEYMAP.forEach(({key, semis}) => {
-          const inScale = scale.has(semis % 12) || semis === 12; // keep octave as it matches root
+          const inScale = scale.has(semis % 12) || semis === 12;
           const k = document.createElement("div");
           k.className = "key";
           k.dataset.key = key;
@@ -550,42 +477,72 @@
           cap.innerHTML = `<div class="k">${key.toUpperCase()}</div><div class="n">${noteNameFromRoot(rootIdx, semis)}</div>`;
           k.appendChild(cap);
 
-          k.addEventListener("pointerdown", (e) => {
-            e.preventDefault();
-            playFromUI(k, true);
-          });
-          k.addEventListener("pointerup", (e) => {
-            e.preventDefault();
-            playFromUI(k, false);
-          });
-          k.addEventListener("pointercancel", (e) => {
-            e.preventDefault();
-            playFromUI(k, false);
-          });
-          k.addEventListener("pointerleave", (e) => {
-            if(e.buttons) playFromUI(k, false);
-          });
+          k.addEventListener("pointerdown", (e) => { e.preventDefault(); keyDownUI(key); });
+          k.addEventListener("pointerup", (e) => { e.preventDefault(); keyUpUI(key); });
+          k.addEventListener("pointercancel", (e) => { e.preventDefault(); keyUpUI(key); });
+          k.addEventListener("pointerleave", (e) => { if(e.buttons) keyUpUI(key); });
 
           keyboard.appendChild(k);
         });
       }
 
+      function updateLabels(){
+        trimStartVal.textContent = `${trimStart.value} ms`;
+        trimEndVal.textContent = `${trimEnd.value} ms`;
+        attackVal.textContent = `${attack.value} ms`;
+        releaseVal.textContent = `${release.value} ms`;
+      }
+
+      function allowedByScale(semis){
+        const scale = new Set(SCALES[scaleSel.value].map(x => x % 12));
+        return scale.has(semis % 12) || semis === 12;
+      }
+
+      function semisToRate(semis){
+        return Math.pow(2, semis / 12);
+      }
+
+      // ---- Auto-onset detection (amplitude threshold with smoothing) ----
+      function detectOnsetSamples(buffer, threshold = 0.02, windowSize = 128, consecutiveWindows = 4){
+        const ch = buffer.getChannelData(0);
+        let i = 0;
+        let hits = 0;
+
+        while(i < ch.length - windowSize){
+          let sum = 0;
+          for(let j = 0; j < windowSize; j++){
+            sum += Math.abs(ch[i + j]);
+          }
+          const avg = sum / windowSize;
+
+          if(avg > threshold){
+            hits++;
+            if(hits >= consecutiveWindows){
+              // back up slightly for safety
+              return Math.max(0, i - windowSize * 2);
+            }
+          } else {
+            hits = 0;
+          }
+          i += windowSize;
+        }
+        return 0;
+      }
+
+      // ---- Trim into sampleBuffer (manual trim applies after auto-onset) ----
       function applyTrim(){
-        if(!rawBuffer){ sampleBuffer = null; return; }
+        if(!rawBuffer || !audioCtx){ sampleBuffer = null; return; }
 
         const sr = rawBuffer.sampleRate;
         const startMs = parseInt(trimStart.value, 10);
         const endMs = parseInt(trimEnd.value, 10);
 
-        const startS = startMs / 1000;
-        const endS = endMs / 1000;
-
-        const startSample = Math.floor(startS * sr);
-        const endSample = Math.floor(endS * sr);
+        const startSample = Math.floor((startMs / 1000) * sr);
+        const endSample = Math.floor((endMs / 1000) * sr);
 
         const total = rawBuffer.length;
-        const newStart = Math.min(total-1, Math.max(0, startSample));
-        const newEnd = Math.min(total, Math.max(newStart+1, total - endSample));
+        const newStart = Math.min(total - 1, Math.max(0, startSample));
+        const newEnd = Math.min(total, Math.max(newStart + 1, total - endSample));
 
         const newLen = newEnd - newStart;
         const out = audioCtx.createBuffer(rawBuffer.numberOfChannels, newLen, sr);
@@ -597,103 +554,185 @@
         }
 
         sampleBuffer = out;
-
-        const dur = (sampleBuffer.length / sr);
+        const dur = sampleBuffer.duration;
         sampleInfo.textContent = `Sample: ${dur.toFixed(2)}s @ ${sr}Hz`;
         btnClear.disabled = false;
       }
 
-      function allowedByScale(semis){
-        const scale = new Set(SCALES[scaleSel.value].map(x => x % 12));
-        return scale.has(semis % 12) || semis === 12;
+      // ---- Granular voice engine (pitch change without speed change) ----
+      // Each voice schedules grains ahead in small chunks while key is held.
+      // To pitch shift without time change:
+      // - Grain times advance at normal speed
+      // - Sample read offset advances at rate (wraps for sustain)
+      function createVoice(semis){
+        const rate = semisToRate(semis);
+        const gVoice = audioCtx.createGain();
+        gVoice.gain.value = 0;
+        gVoice.connect(audioCtx._master);
+
+        const now = audioCtx.currentTime;
+        const a = Math.max(0.001, parseInt(attack.value, 10) / 1000);
+        gVoice.gain.setValueAtTime(0.0001, now);
+        gVoice.gain.linearRampToValueAtTime(0.95, now + a);
+
+        const grainDur = parseInt(grainSel.value, 10) / 1000;
+        const overlap = parseFloat(overlapSel.value);
+        const hop = Math.max(0.005, grainDur * (1 - overlap));
+
+        const scheduleAhead = 0.12; // seconds
+        const tickEvery = 0.03;     // seconds
+
+        const voice = {
+          semis,
+          rate,
+          gain: gVoice,
+          grainDur,
+          hop,
+          scheduleAhead,
+          tickEvery,
+          timer: null,
+          active: true,
+          // timeline
+          tNext: now,
+          // position in sample (seconds)
+          pos: 0,
+          // keep some recent grain sources for cleanup
+          grains: []
+        };
+
+        // Spread starts slightly to avoid phasey start when stacking chords
+        voice.pos = Math.random() * Math.min(0.03, sampleBuffer ? sampleBuffer.duration : 0);
+
+        return voice;
       }
 
-      function semisToRate(semis){
-        // pitch shift using playbackRate (equal temperament)
-        return Math.pow(2, semis / 12);
-      }
-
-      function makeVoice(semis){
-        if(!sampleBuffer) return null;
+      function scheduleGrain(voice, when, offsetSec){
+        if(!sampleBuffer) return;
 
         const src = audioCtx.createBufferSource();
         src.buffer = sampleBuffer;
-        src.playbackRate.value = semisToRate(semis);
+        src.playbackRate.value = voice.rate;
 
         const g = audioCtx.createGain();
-        g.gain.value = 0;
+        g.gain.setValueAtTime(0.0, when);
 
-        src.connect(g);
-        g.connect(audioCtx._master);
+        // simple Hann-ish envelope using linear segments
+        const dur = voice.grainDur;
+        const fade = Math.min(0.012, dur * 0.35);
+        g.gain.linearRampToValueAtTime(1.0, when + fade);
+        g.gain.setValueAtTime(1.0, Math.max(when + fade, when + dur - fade));
+        g.gain.linearRampToValueAtTime(0.0, when + dur);
 
-        return { src, gain: g };
+        src.connect(g).connect(voice.gain);
+
+        // Clamp offset into buffer duration
+        const bd = sampleBuffer.duration;
+        let off = offsetSec % bd;
+        if(off < 0) off += bd;
+
+        // Keep grains short. If offset near end, allow wrap by shortening duration.
+        const maxPlayable = Math.max(0.01, bd - off);
+        const playDur = Math.min(dur, maxPlayable);
+
+        src.start(when, off, playDur);
+
+        // cleanup
+        const stopAt = when + playDur + 0.02;
+        try { src.stop(stopAt); } catch {}
+
+        voice.grains.push({ src, gain: g, stopAt });
+        // prevent unbounded growth
+        if(voice.grains.length > 80) voice.grains.splice(0, 20);
       }
 
-      function triggerOn(key, semis){
+      function voiceTick(voice){
+        if(!voice.active || !sampleBuffer) return;
+        const now = audioCtx.currentTime;
+        const horizon = now + voice.scheduleAhead;
+
+        // schedule grains up to horizon
+        while(voice.tNext < horizon){
+          scheduleGrain(voice, voice.tNext, voice.pos);
+
+          // time advances at normal hop
+          voice.tNext += voice.hop;
+
+          // read position advances by hop * rate (this is the pitch shift)
+          voice.pos += voice.hop * voice.rate;
+
+          // wrap for sustain
+          const bd = sampleBuffer.duration;
+          if(bd > 0.01){
+            voice.pos = voice.pos % bd;
+          } else {
+            voice.pos = 0;
+          }
+        }
+
+        // prune finished grains occasionally
+        const cutoff = now - 0.25;
+        voice.grains = voice.grains.filter(g => g.stopAt > cutoff);
+      }
+
+      function startVoice(key, semis){
         if(!sampleBuffer) return;
         if(!allowedByScale(semis)) return;
 
-        // in one-shot mode, we allow retriggers even if held
-        // in hold mode, ignore if already held
-        const hold = holdSel.value === "on";
-        if(hold && heldSources.has(key)) return;
-
-        const voice = makeVoice(semis);
-        if(!voice) return;
-
-        const now = audioCtx.currentTime;
-        const a = parseInt(attack.value, 10) / 1000;
-        const r = parseInt(release.value, 10) / 1000;
-
-        // fast envelope to avoid clicks
-        voice.gain.gain.cancelScheduledValues(now);
-        voice.gain.gain.setValueAtTime(0.0001, now);
-        voice.gain.gain.linearRampToValueAtTime(0.95, now + Math.max(0.001, a));
-
-        voice.src.start(now);
-
-        if(hold){
-          heldSources.set(key, { ...voice, releaseS: r });
-        } else {
-          // one-shot: fade out near end
-          const dur = sampleBuffer.duration / voice.src.playbackRate.value;
-          const off = now + Math.max(0.01, dur - Math.max(0.02, r));
-          voice.gain.gain.setValueAtTime(0.95, off);
-          voice.gain.gain.linearRampToValueAtTime(0.0001, off + r);
-          voice.src.stop(off + r + 0.02);
+        // voice stealing if too many
+        if(voices.size >= MAX_VOICES){
+          const oldestKey = voices.keys().next().value;
+          stopVoice(oldestKey);
         }
+
+        // if already playing, ignore
+        if(voices.has(key)) return;
+
+        const v = createVoice(semis);
+        voices.set(key, v);
+
+        // immediate tick and then periodic scheduling
+        voiceTick(v);
+        v.timer = setInterval(() => voiceTick(v), Math.floor(v.tickEvery * 1000));
       }
 
-      function triggerOff(key){
-        const v = heldSources.get(key);
+      function stopVoice(key){
+        const v = voices.get(key);
         if(!v) return;
 
+        v.active = false;
+        if(v.timer) clearInterval(v.timer);
+
         const now = audioCtx.currentTime;
-        const r = v.releaseS || (parseInt(release.value, 10) / 1000);
+        const r = Math.max(0.02, parseInt(release.value, 10) / 1000);
 
-        v.gain.gain.cancelScheduledValues(now);
-        const current = v.gain.gain.value;
-        v.gain.gain.setValueAtTime(Math.max(0.0001, current), now);
-        v.gain.gain.linearRampToValueAtTime(0.0001, now + Math.max(0.02, r));
-        v.src.stop(now + Math.max(0.02, r) + 0.02);
+        // fade voice bus
+        try{
+          v.gain.gain.cancelScheduledValues(now);
+          const current = v.gain.gain.value;
+          v.gain.gain.setValueAtTime(Math.max(0.0001, current), now);
+          v.gain.gain.linearRampToValueAtTime(0.0001, now + r);
+        } catch {}
 
-        heldSources.delete(key);
+        // best-effort stop scheduled grain sources shortly after release
+        for(const gr of v.grains){
+          try{
+            gr.gain.gain.cancelScheduledValues(now);
+            gr.gain.gain.setValueAtTime(gr.gain.gain.value || 0.0001, now);
+            gr.gain.gain.linearRampToValueAtTime(0.0, now + Math.min(0.05, r));
+          } catch {}
+          try { gr.src.stop(now + r + 0.08); } catch {}
+        }
+
+        // disconnect after release
+        setTimeout(() => {
+          try { v.gain.disconnect(); } catch {}
+        }, Math.ceil((r + 0.15) * 1000));
+
+        voices.delete(key);
       }
 
-      function playFromUI(el, isDown){
-        ensureAudio();
-        if(audioCtx.state === "suspended") audioCtx.resume();
-
-        const key = el.dataset.key;
-        const semis = parseInt(el.dataset.semis, 10);
-
-        if(isDown){
-          el.classList.add("down");
-          triggerOn(key, semis);
-        } else {
-          el.classList.remove("down");
-          triggerOff(key);
-        }
+      function stopAllVoices(){
+        for(const k of [...voices.keys()]) stopVoice(k);
       }
 
       function setUIEnabledForSample(has){
@@ -721,13 +760,20 @@
               const arr = await blob.arrayBuffer();
               rawBuffer = await audioCtx.decodeAudioData(arr);
 
+              // Auto-onset sets trimStart slider (ms) before applyTrim()
+              const onset = detectOnsetSamples(rawBuffer, 0.02, 128, 4);
+              const onsetMs = Math.round((onset / rawBuffer.sampleRate) * 1000);
+              trimStart.value = String(Math.min(parseInt(trimStart.max, 10), onsetMs));
+              updateLabels();
+
               applyTrim();
               setStatus("Ready (sample loaded)", "idle");
-              log("Sample decoded and loaded.");
+              log(`Sample decoded. Auto-onset: ~${onsetMs} ms.`);
 
-              // stop tracks
               mediaStream.getTracks().forEach(t => t.stop());
               mediaStream = null;
+
+              btnClear.disabled = !sampleBuffer;
             } catch(err){
               log("Decode failed: " + err.message);
               setStatus("Decode failed", "idle");
@@ -758,6 +804,7 @@
       }
 
       function clearSample(){
+        stopAllVoices();
         rawBuffer = null;
         sampleBuffer = null;
         sampleInfo.textContent = "No sample loaded";
@@ -766,15 +813,23 @@
         log("Sample cleared.");
       }
 
-      function updateLabels(){
-        trimStartVal.textContent = `${trimStart.value} ms`;
-        trimEndVal.textContent = `${trimEnd.value} ms`;
-        attackVal.textContent = `${attack.value} ms`;
-        releaseVal.textContent = `${release.value} ms`;
+      function keyDownUI(key){
+        ensureAudio();
+        if(audioCtx.state === "suspended") audioCtx.resume();
+
+        const m = KEYMAP.find(x => x.key === key);
+        if(!m) return;
+
+        const el = keyboard.querySelector(`.key[data-key="${key}"]`);
+        if(el) el.classList.add("down");
+
+        startVoice(key, m.semis);
       }
 
-      function stopAllHeld(){
-        [...heldSources.keys()].forEach(k => triggerOff(k));
+      function keyUpUI(key){
+        const el = keyboard.querySelector(`.key[data-key="${key}"]`);
+        if(el) el.classList.remove("down");
+        stopVoice(key);
       }
 
       function bindEvents(){
@@ -788,20 +843,26 @@
 
         btnRec.addEventListener("click", startRecording);
         btnStop.addEventListener("click", stopRecording);
-        btnClear.addEventListener("click", () => { stopAllHeld(); clearSample(); });
+        btnClear.addEventListener("click", clearSample);
 
         [trimStart, trimEnd].forEach(el => {
-          el.addEventListener("input", () => { updateLabels(); if(rawBuffer) applyTrim(); });
+          el.addEventListener("input", () => { updateLabels(); if(rawBuffer){ stopAllVoices(); applyTrim(); } });
         });
 
         [attack, release].forEach(el => {
           el.addEventListener("input", updateLabels);
         });
 
+        [grainSel, overlapSel].forEach(el => {
+          el.addEventListener("change", () => {
+            // existing voices keep current scheduling; stop to avoid mixed settings
+            stopAllVoices();
+            log("Granular settings changed. Existing notes stopped.");
+          });
+        });
+
         rootSel.addEventListener("change", buildKeyboard);
         scaleSel.addEventListener("change", buildKeyboard);
-
-        holdSel.addEventListener("change", () => { stopAllHeld(); });
 
         // QWERTY play
         const downSet = new Set();
@@ -812,16 +873,10 @@
           const m = KEYMAP.find(x => x.key === k);
           if(!m) return;
 
-          ensureAudio();
-          if(audioCtx.state === "suspended") audioCtx.resume();
-
           if(downSet.has(k)) return;
           downSet.add(k);
 
-          const el = keyboard.querySelector(`.key[data-key="${k}"]`);
-          if(el) el.classList.add("down");
-
-          triggerOn(k, m.semis);
+          keyDownUI(k);
         });
 
         document.addEventListener("keyup", (e) => {
@@ -830,18 +885,11 @@
           if(!m) return;
 
           downSet.delete(k);
-
-          const el = keyboard.querySelector(`.key[data-key="${k}"]`);
-          if(el) el.classList.remove("down");
-
-          triggerOff(k);
+          keyUpUI(k);
         });
 
-        // Safety: stop held notes if tab loses focus
-        window.addEventListener("blur", stopAllHeld);
-        document.addEventListener("visibilitychange", () => {
-          if(document.hidden) stopAllHeld();
-        });
+        window.addEventListener("blur", stopAllVoices);
+        document.addEventListener("visibilitychange", () => { if(document.hidden) stopAllVoices(); });
       }
 
       function init(){
@@ -852,7 +900,7 @@
 
         setStatus("Idle", "idle");
         setUIEnabledForSample(false);
-        log("Click Enable Audio. Then Record a short sound and play it.");
+        log("Enable Audio. Record. Hold keys to sustain. Release to stop.");
       }
 
       init();

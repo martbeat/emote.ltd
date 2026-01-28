@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sample Keyboard</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --ink:#eaf0ff;
+      --muted:#b7c4ff;
+      --line:#223059;
+      --accent:#7aa7ff;
+      --good:#57c46a;
+      --warn:#d6b84b;
+      --danger:#ff6b88;
+      --r:16px;
+      --shadow: 0 10px 28px rgba(0,0,0,.35);
+      --tap:44px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 20% 0%, #16235a55, transparent 55%),
+                  radial-gradient(1000px 800px at 90% 20%, #2a8cff33, transparent 60%),
+                  linear-gradient(180deg, #070a12, var(--bg));
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .app{
+      width:min(980px, 100%);
+      background: linear-gradient(180deg, rgba(17,26,51,.9), rgba(15,23,48,.9));
+      border:1px solid var(--line);
+      border-radius:24px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    header{
+      padding:16px 18px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 240px;
+    }
+    .title h1{
+      margin:0;
+      font-size:16px;
+      letter-spacing:.2px;
+      font-weight:700;
+    }
+    .title p{
+      margin:0;
+      font-size:12.5px;
+      color: var(--muted);
+      line-height:1.25;
+    }
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .btn{
+      min-height: var(--tap);
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--ink);
+      cursor:pointer;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+    }
+    .btn:hover{ border-color:#2f4480 }
+    .btn:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+    }
+    .btn.primary{
+      border-color: rgba(122,167,255,.55);
+      background: rgba(122,167,255,.12);
+    }
+    .btn.danger{
+      border-color: rgba(255,107,136,.55);
+      background: rgba(255,107,136,.12);
+    }
+    .pill{
+      font-size:12px;
+      padding:8px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      min-height: var(--tap);
+    }
+    .dot{
+      width:8px;height:8px;border-radius:999px;background: var(--muted);display:inline-block;
+      box-shadow: 0 0 0 3px rgba(183,196,255,.15);
+    }
+    .dot.rec{
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(255,107,136,.15);
+      animation: pulse 1.1s infinite;
+    }
+    @keyframes pulse{ 0%{transform:scale(1)} 50%{transform:scale(1.22)} 100%{transform:scale(1)} }
+
+    main{
+      padding:16px 18px 18px;
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap:14px;
+    }
+    @media (max-width: 860px){
+      main{ grid-template-columns: 1fr; }
+    }
+    .card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background: rgba(0,0,0,.12);
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0;
+      padding:12px 14px;
+      font-size:13.5px;
+      font-weight:750;
+      border-bottom:1px solid var(--line);
+      color: var(--ink);
+      background: rgba(255,255,255,.03);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .card h2 small{
+      font-weight:600;
+      color: var(--muted);
+      font-size:12px;
+    }
+    .card .content{
+      padding:12px 14px 14px;
+    }
+
+    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .row + .row{ margin-top:10px; }
+
+    label{
+      font-size:12px;
+      color: var(--muted);
+      display:flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+    }
+    select, input[type="range"]{
+      accent-color: var(--accent);
+    }
+    select{
+      min-height: var(--tap);
+      padding:10px 10px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--ink);
+      outline:none;
+    }
+    input[type="range"]{
+      width: min(320px, 100%);
+    }
+
+    .kbd-hint{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.35;
+    }
+    .kbd-hint b{ color: var(--ink); font-weight:750 }
+
+    .keyboard{
+      padding:14px;
+      display:flex;
+      gap:6px;
+      flex-wrap:nowrap;
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width: thin;
+    }
+    .key{
+      position:relative;
+      width: min(68px, 10vw);
+      min-width: 54px;
+      height: 170px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18));
+      cursor:pointer;
+      user-select:none;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      padding:10px 8px;
+      transition: transform .05s ease, border-color .1s ease, background .12s ease;
+      box-shadow: 0 10px 18px rgba(0,0,0,.22);
+      touch-action: none;
+    }
+    .key:active, .key.down{
+      transform: translateY(2px);
+      border-color: rgba(122,167,255,.8);
+      background: linear-gradient(180deg, rgba(122,167,255,.18), rgba(0,0,0,.22));
+    }
+    .key .cap{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      align-items:center;
+      text-align:center;
+    }
+    .key .cap .k{
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.3px;
+      padding:6px 8px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.16);
+      min-width:36px;
+    }
+    .key .cap .n{
+      font-size:11.5px;
+      color: var(--muted);
+      font-weight:650;
+    }
+
+    .meter{
+      height:10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      overflow:hidden;
+      background: rgba(0,0,0,.22);
+      width: 220px;
+    }
+    .meter > div{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(122,167,255,.9), rgba(125,255,178,.85));
+      transition: width .12s linear;
+    }
+
+    .note{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.35;
+    }
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 11.5px;
+      color: #cfe0ff;
+      background: rgba(0,0,0,.18);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px;
+      white-space:pre-wrap;
+      line-height:1.35;
+      max-height: 220px;
+      overflow:auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="title">
+        <h1>Sample Keyboard</h1>
+        <p>Record a sound, then play it across a keyboard by pitch-shifting the sample.</p>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="btnEnable">Enable Audio</button>
+        <button class="btn primary" id="btnRec">Record</button>
+        <button class="btn danger" id="btnStop" disabled>Stop</button>
+        <button class="btn" id="btnClear" disabled>Clear</button>
+        <span class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">Idle</span></span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>
+          <span>Keyboard <small>(tap or use keys)</small></span>
+          <span class="meter" title="Output level"><div id="levelFill"></div></span>
+        </h2>
+        <div class="content">
+          <div class="keyboard" id="keyboard"></div>
+          <div class="kbd-hint">
+            QWERTY mapping: <b>A W S E D F T G Y H U J K</b> (one octave + root on A).<br/>
+            If you choose a scale, notes outside it will be skipped.
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h2>Sound + Play Settings <small id="sampleInfo">No sample loaded</small></h2>
+        <div class="content">
+          <div class="row">
+            <label>
+              Root
+              <select id="rootSel"></select>
+            </label>
+            <label>
+              Scale
+              <select id="scaleSel"></select>
+            </label>
+          </div>
+
+          <div class="row">
+            <label title="Shorten the start to reduce clicks or silence">
+              Trim start
+              <input type="range" id="trimStart" min="0" max="500" value="0" />
+              <span id="trimStartVal" class="note">0 ms</span>
+            </label>
+          </div>
+
+          <div class="row">
+            <label title="Shorten the end if the recording is long">
+              Trim end
+              <input type="range" id="trimEnd" min="0" max="1500" value="0" />
+              <span id="trimEndVal" class="note">0 ms</span>
+            </label>
+          </div>
+
+          <div class="row">
+            <label title="Simple envelope to avoid clicks">
+              Attack
+              <input type="range" id="attack" min="0" max="80" value="8" />
+              <span id="attackVal" class="note">8 ms</span>
+            </label>
+          </div>
+
+          <div class="row">
+            <label title="Simple envelope to avoid clicks">
+              Release
+              <input type="range" id="release" min="20" max="450" value="140" />
+              <span id="releaseVal" class="note">140 ms</span>
+            </label>
+          </div>
+
+          <div class="row">
+            <label title="If on, notes will keep playing while held (good for drones)">
+              Hold mode
+              <select id="holdSel">
+                <option value="off" selected>Off (one-shot)</option>
+                <option value="on">On (hold until key up)</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="note">
+              Tip: record a single short sound (voice vowel, pluck, click) for best results.
+              Long recordings can feel laggy and less “instrument-like”.
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="mono" id="logBox">Ready.</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+
+      const btnEnable = $("btnEnable");
+      const btnRec = $("btnRec");
+      const btnStop = $("btnStop");
+      const btnClear = $("btnClear");
+      const statusText = $("statusText");
+      const statusDot = $("statusDot");
+      const levelFill = $("levelFill");
+      const keyboard = $("keyboard");
+      const logBox = $("logBox");
+
+      const rootSel = $("rootSel");
+      const scaleSel = $("scaleSel");
+      const trimStart = $("trimStart");
+      const trimEnd = $("trimEnd");
+      const trimStartVal = $("trimStartVal");
+      const trimEndVal = $("trimEndVal");
+      const attack = $("attack");
+      const release = $("release");
+      const attackVal = $("attackVal");
+      const releaseVal = $("releaseVal");
+      const holdSel = $("holdSel");
+      const sampleInfo = $("sampleInfo");
+
+      const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+      const SCALES = {
+        "Chromatic": [0,1,2,3,4,5,6,7,8,9,10,11],
+        "Major": [0,2,4,5,7,9,11],
+        "Natural minor": [0,2,3,5,7,8,10],
+        "Pentatonic (major)": [0,2,4,7,9],
+        "Pentatonic (minor)": [0,3,5,7,10],
+        "Blues": [0,3,5,6,7,10],
+        "Dorian": [0,2,3,5,7,9,10],
+        "Mixolydian": [0,2,4,5,7,9,10]
+      };
+
+      // QWERTY mapping (semitones from root)
+      const KEYMAP = [
+        { key: "a", semis: 0 },
+        { key: "w", semis: 1 },
+        { key: "s", semis: 2 },
+        { key: "e", semis: 3 },
+        { key: "d", semis: 4 },
+        { key: "f", semis: 5 },
+        { key: "t", semis: 6 },
+        { key: "g", semis: 7 },
+        { key: "y", semis: 8 },
+        { key: "h", semis: 9 },
+        { key: "u", semis: 10 },
+        { key: "j", semis: 11 },
+        { key: "k", semis: 12 }
+      ];
+
+      let audioCtx = null;
+      let mediaStream = null;
+      let recorder = null;
+      let chunks = [];
+      let rawBuffer = null;      // decoded AudioBuffer from recording
+      let sampleBuffer = null;   // trimmed version used for playback
+      let analyser = null;
+      let meterRaf = null;
+
+      // tracking for hold mode
+      const heldSources = new Map(); // key -> {src, gain}
+
+      function log(msg){
+        const t = new Date().toLocaleTimeString();
+        logBox.textContent = `[${t}] ${msg}\n` + logBox.textContent;
+      }
+
+      function setStatus(text, mode){
+        statusText.textContent = text;
+        statusDot.classList.toggle("rec", mode === "rec");
+      }
+
+      function ensureAudio(){
+        if(audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const master = audioCtx.createGain();
+        master.gain.value = 0.95;
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+
+        master.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        audioCtx._master = master;
+
+        startMeter();
+      }
+
+      function startMeter(){
+        if(!analyser) return;
+        const data = new Uint8Array(analyser.fftSize);
+        const tick = () => {
+          analyser.getByteTimeDomainData(data);
+          // crude RMS meter
+          let sum = 0;
+          for(let i=0;i<data.length;i++){
+            const v = (data[i] - 128) / 128;
+            sum += v*v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          const pct = Math.min(100, Math.max(0, rms * 180));
+          levelFill.style.width = pct.toFixed(1) + "%";
+          meterRaf = requestAnimationFrame(tick);
+        };
+        if(meterRaf) cancelAnimationFrame(meterRaf);
+        tick();
+      }
+
+      function populateSelects(){
+        NOTE_NAMES.forEach((n, i) => {
+          const opt = document.createElement("option");
+          opt.value = String(i);
+          opt.textContent = n;
+          rootSel.appendChild(opt);
+        });
+        rootSel.value = "0"; // C
+
+        Object.keys(SCALES).forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          scaleSel.appendChild(opt);
+        });
+        scaleSel.value = "Chromatic";
+      }
+
+      function noteNameFromRoot(rootIdx, semis){
+        const idx = (rootIdx + (semis % 12) + 12) % 12;
+        const oct = semis >= 12 ? "+8ve" : "";
+        return NOTE_NAMES[idx] + (oct ? " " + oct : "");
+      }
+
+      function buildKeyboard(){
+        keyboard.innerHTML = "";
+        const rootIdx = parseInt(rootSel.value, 10);
+        const scale = new Set(SCALES[scaleSel.value].map(x => x % 12));
+
+        KEYMAP.forEach(({key, semis}) => {
+          const inScale = scale.has(semis % 12) || semis === 12; // keep octave as it matches root
+          const k = document.createElement("div");
+          k.className = "key";
+          k.dataset.key = key;
+          k.dataset.semis = String(semis);
+          k.style.opacity = inScale ? "1" : ".45";
+
+          const cap = document.createElement("div");
+          cap.className = "cap";
+          cap.innerHTML = `<div class="k">${key.toUpperCase()}</div><div class="n">${noteNameFromRoot(rootIdx, semis)}</div>`;
+          k.appendChild(cap);
+
+          k.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            playFromUI(k, true);
+          });
+          k.addEventListener("pointerup", (e) => {
+            e.preventDefault();
+            playFromUI(k, false);
+          });
+          k.addEventListener("pointercancel", (e) => {
+            e.preventDefault();
+            playFromUI(k, false);
+          });
+          k.addEventListener("pointerleave", (e) => {
+            if(e.buttons) playFromUI(k, false);
+          });
+
+          keyboard.appendChild(k);
+        });
+      }
+
+      function applyTrim(){
+        if(!rawBuffer){ sampleBuffer = null; return; }
+
+        const sr = rawBuffer.sampleRate;
+        const startMs = parseInt(trimStart.value, 10);
+        const endMs = parseInt(trimEnd.value, 10);
+
+        const startS = startMs / 1000;
+        const endS = endMs / 1000;
+
+        const startSample = Math.floor(startS * sr);
+        const endSample = Math.floor(endS * sr);
+
+        const total = rawBuffer.length;
+        const newStart = Math.min(total-1, Math.max(0, startSample));
+        const newEnd = Math.min(total, Math.max(newStart+1, total - endSample));
+
+        const newLen = newEnd - newStart;
+        const out = audioCtx.createBuffer(rawBuffer.numberOfChannels, newLen, sr);
+
+        for(let ch=0; ch<rawBuffer.numberOfChannels; ch++){
+          const src = rawBuffer.getChannelData(ch);
+          const dst = out.getChannelData(ch);
+          dst.set(src.subarray(newStart, newEnd));
+        }
+
+        sampleBuffer = out;
+
+        const dur = (sampleBuffer.length / sr);
+        sampleInfo.textContent = `Sample: ${dur.toFixed(2)}s @ ${sr}Hz`;
+        btnClear.disabled = false;
+      }
+
+      function allowedByScale(semis){
+        const scale = new Set(SCALES[scaleSel.value].map(x => x % 12));
+        return scale.has(semis % 12) || semis === 12;
+      }
+
+      function semisToRate(semis){
+        // pitch shift using playbackRate (equal temperament)
+        return Math.pow(2, semis / 12);
+      }
+
+      function makeVoice(semis){
+        if(!sampleBuffer) return null;
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = sampleBuffer;
+        src.playbackRate.value = semisToRate(semis);
+
+        const g = audioCtx.createGain();
+        g.gain.value = 0;
+
+        src.connect(g);
+        g.connect(audioCtx._master);
+
+        return { src, gain: g };
+      }
+
+      function triggerOn(key, semis){
+        if(!sampleBuffer) return;
+        if(!allowedByScale(semis)) return;
+
+        // in one-shot mode, we allow retriggers even if held
+        // in hold mode, ignore if already held
+        const hold = holdSel.value === "on";
+        if(hold && heldSources.has(key)) return;
+
+        const voice = makeVoice(semis);
+        if(!voice) return;
+
+        const now = audioCtx.currentTime;
+        const a = parseInt(attack.value, 10) / 1000;
+        const r = parseInt(release.value, 10) / 1000;
+
+        // fast envelope to avoid clicks
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setValueAtTime(0.0001, now);
+        voice.gain.gain.linearRampToValueAtTime(0.95, now + Math.max(0.001, a));
+
+        voice.src.start(now);
+
+        if(hold){
+          heldSources.set(key, { ...voice, releaseS: r });
+        } else {
+          // one-shot: fade out near end
+          const dur = sampleBuffer.duration / voice.src.playbackRate.value;
+          const off = now + Math.max(0.01, dur - Math.max(0.02, r));
+          voice.gain.gain.setValueAtTime(0.95, off);
+          voice.gain.gain.linearRampToValueAtTime(0.0001, off + r);
+          voice.src.stop(off + r + 0.02);
+        }
+      }
+
+      function triggerOff(key){
+        const v = heldSources.get(key);
+        if(!v) return;
+
+        const now = audioCtx.currentTime;
+        const r = v.releaseS || (parseInt(release.value, 10) / 1000);
+
+        v.gain.gain.cancelScheduledValues(now);
+        const current = v.gain.gain.value;
+        v.gain.gain.setValueAtTime(Math.max(0.0001, current), now);
+        v.gain.gain.linearRampToValueAtTime(0.0001, now + Math.max(0.02, r));
+        v.src.stop(now + Math.max(0.02, r) + 0.02);
+
+        heldSources.delete(key);
+      }
+
+      function playFromUI(el, isDown){
+        ensureAudio();
+        if(audioCtx.state === "suspended") audioCtx.resume();
+
+        const key = el.dataset.key;
+        const semis = parseInt(el.dataset.semis, 10);
+
+        if(isDown){
+          el.classList.add("down");
+          triggerOn(key, semis);
+        } else {
+          el.classList.remove("down");
+          triggerOff(key);
+        }
+      }
+
+      function setUIEnabledForSample(has){
+        btnClear.disabled = !has;
+      }
+
+      async function startRecording(){
+        ensureAudio();
+        if(audioCtx.state === "suspended") await audioCtx.resume();
+
+        if(!navigator.mediaDevices?.getUserMedia){
+          log("This browser does not support microphone capture.");
+          alert("Microphone capture not supported in this browser.");
+          return;
+        }
+
+        try{
+          mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          chunks = [];
+          recorder = new MediaRecorder(mediaStream);
+          recorder.ondataavailable = (e) => { if(e.data.size) chunks.push(e.data); };
+          recorder.onstop = async () => {
+            try{
+              const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+              const arr = await blob.arrayBuffer();
+              rawBuffer = await audioCtx.decodeAudioData(arr);
+
+              applyTrim();
+              setStatus("Ready (sample loaded)", "idle");
+              log("Sample decoded and loaded.");
+
+              // stop tracks
+              mediaStream.getTracks().forEach(t => t.stop());
+              mediaStream = null;
+            } catch(err){
+              log("Decode failed: " + err.message);
+              setStatus("Decode failed", "idle");
+              alert("Could not decode recording. Try a different browser or shorter recording.");
+            }
+          };
+
+          recorder.start();
+          setStatus("Recording…", "rec");
+          log("Recording started.");
+          btnRec.disabled = true;
+          btnStop.disabled = false;
+          btnClear.disabled = true;
+        } catch(err){
+          log("Mic access blocked: " + err.message);
+          alert("Microphone access blocked or unavailable.");
+        }
+      }
+
+      function stopRecording(){
+        if(recorder && recorder.state !== "inactive"){
+          recorder.stop();
+          log("Recording stopped.");
+        }
+        setStatus("Processing…", "idle");
+        btnStop.disabled = true;
+        btnRec.disabled = false;
+      }
+
+      function clearSample(){
+        rawBuffer = null;
+        sampleBuffer = null;
+        sampleInfo.textContent = "No sample loaded";
+        setStatus("Idle", "idle");
+        setUIEnabledForSample(false);
+        log("Sample cleared.");
+      }
+
+      function updateLabels(){
+        trimStartVal.textContent = `${trimStart.value} ms`;
+        trimEndVal.textContent = `${trimEnd.value} ms`;
+        attackVal.textContent = `${attack.value} ms`;
+        releaseVal.textContent = `${release.value} ms`;
+      }
+
+      function stopAllHeld(){
+        [...heldSources.keys()].forEach(k => triggerOff(k));
+      }
+
+      function bindEvents(){
+        btnEnable.addEventListener("click", async () => {
+          ensureAudio();
+          if(audioCtx.state === "suspended") await audioCtx.resume();
+          setStatus("Audio enabled", "idle");
+          log("AudioContext resumed.");
+          btnEnable.disabled = true;
+        });
+
+        btnRec.addEventListener("click", startRecording);
+        btnStop.addEventListener("click", stopRecording);
+        btnClear.addEventListener("click", () => { stopAllHeld(); clearSample(); });
+
+        [trimStart, trimEnd].forEach(el => {
+          el.addEventListener("input", () => { updateLabels(); if(rawBuffer) applyTrim(); });
+        });
+
+        [attack, release].forEach(el => {
+          el.addEventListener("input", updateLabels);
+        });
+
+        rootSel.addEventListener("change", buildKeyboard);
+        scaleSel.addEventListener("change", buildKeyboard);
+
+        holdSel.addEventListener("change", () => { stopAllHeld(); });
+
+        // QWERTY play
+        const downSet = new Set();
+
+        document.addEventListener("keydown", (e) => {
+          const k = e.key.toLowerCase();
+          if(e.repeat) return;
+          const m = KEYMAP.find(x => x.key === k);
+          if(!m) return;
+
+          ensureAudio();
+          if(audioCtx.state === "suspended") audioCtx.resume();
+
+          if(downSet.has(k)) return;
+          downSet.add(k);
+
+          const el = keyboard.querySelector(`.key[data-key="${k}"]`);
+          if(el) el.classList.add("down");
+
+          triggerOn(k, m.semis);
+        });
+
+        document.addEventListener("keyup", (e) => {
+          const k = e.key.toLowerCase();
+          const m = KEYMAP.find(x => x.key === k);
+          if(!m) return;
+
+          downSet.delete(k);
+
+          const el = keyboard.querySelector(`.key[data-key="${k}"]`);
+          if(el) el.classList.remove("down");
+
+          triggerOff(k);
+        });
+
+        // Safety: stop held notes if tab loses focus
+        window.addEventListener("blur", stopAllHeld);
+        document.addEventListener("visibilitychange", () => {
+          if(document.hidden) stopAllHeld();
+        });
+      }
+
+      function init(){
+        populateSelects();
+        updateLabels();
+        buildKeyboard();
+        bindEvents();
+
+        setStatus("Idle", "idle");
+        setUIEnabledForSample(false);
+        log("Click Enable Audio. Then Record a short sound and play it.");
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

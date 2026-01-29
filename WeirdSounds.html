@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weird Sounds Lab</title>
+  <style>
+    :root{
+      color-scheme: dark;
+      --bg: #0c0f1f;
+      --panel: #141a33;
+      --panel2: #1b2345;
+      --accent: #75e3ff;
+      --accent2: #b485ff;
+      --text: #e9efff;
+      --muted: #8b96b6;
+      --ring: 0 0 0 3px rgba(117, 227, 255, .35);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1b2345, #0c0f1f 55%);
+      color: var(--text);
+    }
+
+    header{
+      padding: 32px 20px 10px;
+      text-align:center;
+    }
+    header h1{ margin:0 0 6px; font-size: clamp(28px, 4vw, 42px); }
+    header p{ margin:0; color: var(--muted); }
+
+    .layout{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 20px;
+      display:grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .panel{
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      border-radius: 18px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+
+    button{
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 700;
+      font-size: 15px;
+      background: linear-gradient(180deg, rgba(117,227,255,.35), rgba(117,227,255,.15));
+      color: var(--text);
+      cursor:pointer;
+      transition: transform .1s ease, box-shadow .1s ease;
+    }
+    button:hover{ transform: translateY(-1px); }
+    button:focus-visible{ outline:none; box-shadow: var(--ring); }
+    button.secondary{
+      background: linear-gradient(180deg, rgba(180,133,255,.3), rgba(180,133,255,.15));
+    }
+    button.stop{
+      background: linear-gradient(180deg, rgba(255,110,130,.4), rgba(255,110,130,.2));
+    }
+
+    .meters{
+      display:grid;
+      gap: 12px;
+    }
+    .meter{
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      overflow:hidden;
+    }
+    .meter span{
+      display:block;
+      height:100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width .1s ease;
+    }
+
+    .readout{
+      font-size: 13px;
+      color: var(--muted);
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+    }
+
+    .bubble{
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.25);
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Weird Sounds Lab</h1>
+    <p>Tap play to unleash unstable choirs, haunted radios, and elastic alien pulses.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls">
+      <button id="playBtn" type="button">Summon chaos</button>
+      <button id="switchBtn" class="secondary" type="button">Mutate vibe</button>
+      <button id="stopBtn" class="stop" type="button">Stop</button>
+      <div class="bubble">
+        Best with headphones. Each vibe blends unstable oscillator stacks, spectral noise
+        bursts, drifting filters, and stereo motion. Tap “Mutate vibe” anytime for a new texture.
+      </div>
+    </section>
+
+    <section class="panel meters">
+      <div>
+        <strong>Energy</strong>
+        <div class="meter"><span id="energyMeter"></span></div>
+      </div>
+      <div>
+        <strong>Warp</strong>
+        <div class="meter"><span id="warpMeter"></span></div>
+      </div>
+      <div class="readout" id="readout"></div>
+    </section>
+  </main>
+
+  <script>
+    const playBtn = document.getElementById("playBtn");
+    const switchBtn = document.getElementById("switchBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const energyMeter = document.getElementById("energyMeter");
+    const warpMeter = document.getElementById("warpMeter");
+    const readout = document.getElementById("readout");
+
+    let audioCtx = null;
+    let master = null;
+    let analyser = null;
+    let meterRaf = null;
+    let activeNodes = [];
+    let wobbleLfo = null;
+    let driftRaf = null;
+
+    const WAVE_TYPES = ["sine", "triangle", "sawtooth"];
+    const FILTER_TYPES = ["lowpass", "bandpass", "highpass", "notch"];
+
+    function rand(min, max){
+      return min + Math.random() * (max - min);
+    }
+
+    function ensureAudio(){
+      if(audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      master = audioCtx.createGain();
+      master.gain.value = 0.8;
+
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      master.connect(analyser).connect(audioCtx.destination);
+    }
+
+    function stopAll(){
+      activeNodes.forEach((node) => {
+        if(node.stop) node.stop();
+        if(node.disconnect) node.disconnect();
+      });
+      activeNodes = [];
+      if(wobbleLfo){
+        wobbleLfo.stop();
+        wobbleLfo.disconnect();
+        wobbleLfo = null;
+      }
+      if(driftRaf) cancelAnimationFrame(driftRaf);
+    }
+
+    function buildWeirdness(){
+      stopAll();
+      ensureAudio();
+
+      const now = audioCtx.currentTime;
+      const base = rand(40, 260);
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = FILTER_TYPES[Math.floor(rand(0, FILTER_TYPES.length))];
+      filter.frequency.value = rand(300, 2200);
+      filter.Q.value = rand(0.6, 14);
+
+      const distortion = audioCtx.createWaveShaper();
+      const curveLength = 256;
+      const curve = new Float32Array(curveLength);
+      const drive = rand(0.6, 1.3);
+      for(let i = 0; i < curveLength; i++){
+        const x = (i * 2 / (curveLength - 1)) - 1;
+        curve[i] = Math.tanh(x * drive);
+      }
+      distortion.curve = curve;
+      distortion.oversample = "4x";
+
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -26;
+      compressor.knee.value = 22;
+      compressor.ratio.value = 5.5;
+      compressor.attack.value = 0.012;
+      compressor.release.value = 0.18;
+
+      const noise = audioCtx.createBufferSource();
+      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      let brown = 0;
+      for(let i = 0; i < data.length; i++){
+        const white = Math.random() * 2 - 1;
+        brown = (brown + 0.02 * white) / 1.02;
+        data[i] = (brown * 0.8) + (white * 0.2 * (Math.random() > 0.96 ? 1.3 : 0.3));
+      }
+      noise.buffer = noiseBuffer;
+      noise.loop = true;
+
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.value = rand(0.12, 0.35);
+
+      const stack = [];
+      const oscillators = 4 + Math.floor(Math.random() * 3);
+      for(let i = 0; i < oscillators; i++){
+        const osc = audioCtx.createOscillator();
+        osc.type = WAVE_TYPES[Math.floor(rand(0, WAVE_TYPES.length))];
+        const detune = rand(-45, 65) * (i + 1);
+        osc.frequency.value = base * (1 + rand(-0.12, 0.14) * (i + 1));
+        osc.detune.value = detune;
+
+        const gain = audioCtx.createGain();
+        gain.gain.value = rand(0.05, 0.16);
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start();
+        stack.push({osc, gain});
+        activeNodes.push(osc, gain);
+      }
+
+      noise.connect(noiseGain).connect(filter);
+      noise.start();
+
+      const wobble = audioCtx.createOscillator();
+      const wobbleGain = audioCtx.createGain();
+      wobble.frequency.value = rand(0.08, 0.8);
+      wobbleGain.gain.value = rand(260, 900);
+      wobble.connect(wobbleGain);
+      wobbleGain.connect(filter.frequency);
+      wobble.start();
+      wobbleLfo = wobble;
+
+      const ringMod = audioCtx.createOscillator();
+      const ringGain = audioCtx.createGain();
+      ringMod.frequency.value = rand(18, 120);
+      ringGain.gain.value = rand(0.4, 0.9);
+      ringMod.connect(ringGain.gain);
+
+      const env = audioCtx.createGain();
+      env.gain.value = 0;
+      filter.connect(distortion).connect(ringGain).connect(env).connect(compressor).connect(master);
+      env.gain.cancelScheduledValues(now);
+      env.gain.linearRampToValueAtTime(rand(0.7, 1.0), now + rand(0.7, 1.3));
+      env.gain.linearRampToValueAtTime(rand(0.5, 0.85), now + rand(4.5, 7.5));
+
+      ringMod.start();
+
+      const pan = audioCtx.createStereoPanner();
+      pan.pan.value = rand(-0.7, 0.7);
+      compressor.disconnect();
+      compressor.connect(pan).connect(master);
+
+      activeNodes.push(
+        noise,
+        noiseGain,
+        filter,
+        distortion,
+        ringMod,
+        ringGain,
+        env,
+        wobble,
+        wobbleGain,
+        pan,
+        compressor
+      );
+
+      readout.innerHTML = `
+        <div>Base freq: ${base.toFixed(1)} Hz</div>
+        <div>Filter: ${filter.type} @ ${filter.frequency.value.toFixed(0)} Hz</div>
+        <div>Wobble rate: ${wobble.frequency.value.toFixed(2)} Hz</div>
+        <div>Ring mod: ${ringMod.frequency.value.toFixed(1)} Hz</div>
+      `;
+
+      const drift = () => {
+        const t = audioCtx.currentTime;
+        const targetCutoff = rand(300, 2200);
+        const targetPan = rand(-0.85, 0.85);
+        filter.frequency.linearRampToValueAtTime(targetCutoff, t + rand(1.5, 3.5));
+        pan.pan.linearRampToValueAtTime(targetPan, t + rand(1.2, 2.8));
+        wobble.frequency.linearRampToValueAtTime(rand(0.08, 0.9), t + rand(1, 2.5));
+        driftRaf = requestAnimationFrame(drift);
+      };
+      driftRaf = requestAnimationFrame(drift);
+    }
+
+    function startMeter(){
+      if(!analyser) return;
+      const data = new Uint8Array(analyser.fftSize);
+      const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for(let i = 0; i < data.length; i++){
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        const energy = Math.min(100, rms * 180);
+        energyMeter.style.width = `${energy.toFixed(1)}%`;
+        warpMeter.style.width = `${Math.min(100, energy * 1.6).toFixed(1)}%`;
+        meterRaf = requestAnimationFrame(tick);
+      };
+      if(meterRaf) cancelAnimationFrame(meterRaf);
+      tick();
+    }
+
+    playBtn.addEventListener("click", () => {
+      ensureAudio();
+      audioCtx.resume();
+      buildWeirdness();
+      startMeter();
+    });
+
+    switchBtn.addEventListener("click", () => {
+      if(!audioCtx){
+        playBtn.click();
+        return;
+      }
+      buildWeirdness();
+    });
+
+    stopBtn.addEventListener("click", () => {
+      stopAll();
+      if(meterRaf) cancelAnimationFrame(meterRaf);
+      energyMeter.style.width = "0%";
+      warpMeter.style.width = "0%";
+      readout.textContent = "";
+    });
+  </script>
+  <div class="emote-copyright" style="position:fixed;bottom:8px;right:10px;font-size:11px;font-family:system-ui, -apple-system, Segoe UI, sans-serif;color:rgba(255,255,255,0.7);mix-blend-mode:difference;pointer-events:none;z-index:9999;">© eMote Systems</div>
+</body>
+</html>

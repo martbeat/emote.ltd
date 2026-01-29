@@ -174,6 +174,15 @@
     color:rgba(233,238,252,.8);
     pointer-events:none;
   }
+  .btnOn{
+  background:#2ecc71;
+  color:#000;
+}
+.btnOff{
+  background:#444;
+  color:#aaa;
+}
+
   canvas{
     width:100%;
     height:160px;
@@ -235,6 +244,37 @@
       <option>updown</option>
       <option>random</option>
     </select>
+  </div>
+</div>
+<div class="block">
+  <div class="title"><div>Groove</div></div>
+
+  <div class="ctl">
+    <label>Arp Swing</label>
+    <input type="range" id="arpSwing" min="0" max="0.6" value="0" step="0.01">
+  </div>
+
+  <div class="ctl">
+    <label>Drums On</label>
+    <input type="checkbox" id="drOn">
+  </div>
+
+  <div class="ctl">
+    <label>Drum Pattern</label>
+    <select id="drPat">
+      <option value="fourOnFloor">fourOnFloor</option>
+      <option value="breakbeat">breakbeat</option>
+    </select>
+  </div>
+
+  <div class="ctl">
+    <label>Drum Swing</label>
+    <input type="range" id="drSwing" min="0" max="0.6" value="0" step="0.01">
+  </div>
+
+  <div class="ctl">
+    <label>Drum Vol</label>
+    <input type="range" id="drVol" min="0" max="1" value="0.7" step="0.01">
   </div>
 </div>
 
@@ -471,9 +511,26 @@
       reverb:{size:0.55, damp:0.45, mix:0.12},
       master:{vol:0.65, limiter:1}
     }
+      arp: {
+    on: false,
+    rate: 120,
+    division: 4,
+    mode: "up",
+    octaves: 1,
+    gate: 0.7,
+    swing: 0.0 // 0..0.6 (recommended range)
+  },
+
+  drums: {
+    on: false,
+    rate: 120,
+    swing: 0.0,
+    pattern: "fourOnFloor",
+    vol: 0.7
+  }
   };
 
-  
+/*  
 state.arp = {
   on: false,
   rate: 120,        // BPM
@@ -481,7 +538,11 @@ state.arp = {
   mode: "up",       // up | down | updown | random
   octaves: 1,       // 1–4
   gate: 0.7         // note length (0–1)
+
 };
+
+let drumBus = null;
+
 const heldNotes = new Set();
 
   
@@ -702,7 +763,9 @@ const heldNotes = new Set();
     lfo2.type = state.lfo2.wave;
     lfo2.frequency.value = state.lfo2.rate;
     lfo2.start();
-
+drumBus = AC.createGain();
+drumBus.gain.value = 0.7;
+drumBus.connect(chorus.in);
     applyFX();
     applyMaster();
   }
@@ -1208,20 +1271,18 @@ function renderPower(){
   }
 
 function noteOn(note, velocity=0.9, fromArp=false){
-if(!fromArp){
-  heldNotes.add(note);
-
-  if(state.arp.on){
-    startArp();
-    return;
+  if(!fromArp){
+    heldNotes.add(note);
+    if(state.arp.on){
+      startArp();
+      return;
+    }
   }
-}
+  if(!state.power) return;
+  ensureAudio();
+  if(AC.state === "suspended") AC.resume();
+  master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
 
-    
-    if(!state.power) return;
-    ensureAudio();
-    if(AC.state === "suspended") AC.resume();
-master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
 
     const hz = midiToHz(note, state.a4);
     stealIfNeeded();
@@ -1249,14 +1310,13 @@ master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
   }
 
 function noteOff(note, fromArp=false){
-if(!fromArp){
-  heldNotes.delete(note);
-
-  if(state.arp.on){
-    if(heldNotes.size === 0) stopArp();
-    return;
+  if(!fromArp){
+    heldNotes.delete(note);
+    if(state.arp.on){
+      if(heldNotes.size === 0) stopArp();
+      return;
+    }
   }
-}
 
     const arr = active.get(note);
     if(!arr || arr.length===0) return;
@@ -1334,6 +1394,34 @@ if(!fromArp){
     ui.keys.addEventListener("pointercancel", (e)=>{ up(e.pointerId); }, {passive:true});
     ui.keys.addEventListener("pointerleave", (e)=>{ /* ignore */ }, {passive:true});
 
+$("arpSwing").oninput = e => {
+  state.arp.swing = parseFloat(e.target.value);
+  if(state.arp.on){ stopArp(); startArp(); }
+};
+
+$("drOn").onchange = e => {
+  state.drums.on = e.target.checked;
+  if(state.drums.on) startDrums();
+  else stopDrums();
+};
+
+$("drPat").onchange = e => {
+  state.drums.pattern = e.target.value;
+};
+
+$("drSwing").oninput = e => {
+  state.drums.swing = parseFloat(e.target.value);
+  if(state.drums.on){ stopDrums(); startDrums(); }
+};
+
+$("drVol").oninput = e => {
+  state.drums.vol = parseFloat(e.target.value);
+  if(drumBus) drumBus.gain.setTargetAtTime(state.drums.vol, AC.currentTime, 0.02);
+};
+
+
+
+  
 $("arpOn").onchange = e => {
   state.arp.on = e.target.checked;
   stopArp();
@@ -1341,6 +1429,8 @@ $("arpOn").onchange = e => {
 
 $("arpRate").oninput = e => {
   state.arp.rate = parseInt(e.target.value,10);
+  state.drums.rate = state.arp.rate;
+
   stopArp();
 };
 
@@ -1937,69 +2027,221 @@ ui.powerBtn.onclick = () => {
 
 let arpTimer = null;
 let arpIndex = 0;
-let arpDirection = 1;
 let arpLastNote = null;
+let arpStepParity = 0;
 
+function playKick(t, vel=1){
+  const o = AC.createOscillator();
+  const g = AC.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(140, t);
+  o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
+
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.9 * vel, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+
+  o.connect(g).connect(drumBus);
+  o.start(t);
+  o.stop(t + 0.25);
+}
+
+function playSnare(t, vel=1){
+  const nbuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.2), AC.sampleRate);
+  const d = nbuf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2);
+
+  const src = AC.createBufferSource();
+  src.buffer = nbuf;
+
+  const hp = AC.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.setValueAtTime(1200, t);
+
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.7 * vel, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+
+  src.connect(hp).connect(g).connect(drumBus);
+  src.start(t);
+  src.stop(t + 0.2);
+
+  // small tonal body
+  const o = AC.createOscillator();
+  const og = AC.createGain();
+  o.type = "triangle";
+  o.frequency.setValueAtTime(200, t);
+  og.gain.setValueAtTime(0.0001, t);
+  og.gain.exponentialRampToValueAtTime(0.25 * vel, t + 0.002);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  o.connect(og).connect(drumBus);
+  o.start(t);
+  o.stop(t + 0.12);
+}
+const DRUM_PATTERNS = {
+  fourOnFloor: {
+    k: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+    s: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    h: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]
+  },
+  breakbeat: {
+    k: [1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,1,0],
+    s: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    h: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]
+  }
+};
+
+let drumTimer = null;
+let drumStep = 0;
+let drumParity = 0;
+
+function drumStepBaseMs(){
+  // 16th notes
+  return (60000 / state.drums.rate) / 4;
+}
+
+function drumNextDelayMs(){
+  const base = drumStepBaseMs();
+  const s = Math.max(0, Math.min(0.6, state.drums.swing || 0));
+  return drumParity ? base * (1 + s) : base * (1 - s);
+}
+
+function drumTick(){
+  if(!state.drums.on){ stopDrums(); return; }
+  if(!AC) ensureAudio();
+  if(AC.state === "suspended") AC.resume();
+
+  const pat = DRUM_PATTERNS[state.drums.pattern] || DRUM_PATTERNS.fourOnFloor;
+  const t = AC.currentTime + 0.01; // tiny schedule-ahead
+
+  const vel = state.drums.vol;
+
+  if(pat.k[drumStep]) playKick(t, vel);
+  if(pat.s[drumStep]) playSnare(t, vel);
+  if(pat.h[drumStep]) playHat(t, vel, false);
+
+  drumStep = (drumStep + 1) & 15;
+  drumParity ^= 1;
+
+  drumTimer = setTimeout(drumTick, drumNextDelayMs());
+}
+
+function startDrums(){
+  if(drumTimer) return;
+  drumStep = 0;
+  drumParity = 0;
+  drumTick();
+}
+
+function stopDrums(){
+  if(drumTimer){
+    clearTimeout(drumTimer);
+    drumTimer = null;
+  }
+  drumStep = 0;
+  drumParity = 0;
+}
+
+function playHat(t, vel=1, open=false){
+  const nbuf = AC.createBuffer(1, Math.floor(AC.sampleRate * (open ? 0.25 : 0.08)), AC.sampleRate);
+  const d = nbuf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1);
+
+  const src = AC.createBufferSource();
+  src.buffer = nbuf;
+
+  const bp = AC.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.setValueAtTime(9000, t);
+  bp.Q.setValueAtTime(0.8, t);
+
+  const hp = AC.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.setValueAtTime(7000, t);
+
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.35 * vel, t + 0.001);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + (open ? 0.22 : 0.06));
+
+  src.connect(bp).connect(hp).connect(g).connect(drumBus);
+  src.start(t);
+  src.stop(t + (open ? 0.26 : 0.1));
+}
+
+
+  
 function getArpSequence(){
   let notes = Array.from(heldNotes).sort((a,b)=>a-b);
   if(notes.length === 0) return [];
 
   let seq = [];
   for(let o=0; o<state.arp.octaves; o++){
-    for(const n of notes){
-      seq.push(n + o*12);
-    }
+    for(const n of notes) seq.push(n + o*12);
   }
 
   if(state.arp.mode === "down"){
     seq.reverse();
-  }
-  if(state.arp.mode === "updown"){
+  }else if(state.arp.mode === "updown"){
     const down = seq.slice(1,-1).reverse();
     seq = seq.concat(down);
-  }
-  if(state.arp.mode === "random"){
+  }else if(state.arp.mode === "random"){
     seq.sort(()=>Math.random()-0.5);
   }
-
   return seq;
 }
 
-function startArp(){
-  ensureAudio();
-if(AC.state === "suspended") AC.resume();
+function arpStepMsBase(){
+  // same logic you used: division relative to quarter notes
+  return (60000 / state.arp.rate) / (state.arp.division / 4);
+}
 
-  if(arpTimer) return;
+function arpNextDelayMs(){
+  const base = arpStepMsBase();
+  const s = Math.max(0, Math.min(0.6, state.arp.swing || 0)); // 0..0.6
+  // swing: long-short, average remains base
+  return arpStepParity ? base * (1 + s) : base * (1 - s);
+}
 
-  const stepMs = (60000 / state.arp.rate) / (state.arp.division / 4);
+function arpTick(){
+  const seq = getArpSequence();
+  if(seq.length === 0){
+    stopArp();
+    return;
+  }
 
-  arpTimer = setInterval(()=>{
-    const seq = getArpSequence();
-    if(seq.length === 0) return;
+  const note = seq[arpIndex % seq.length];
+  arpIndex++;
+  arpStepParity ^= 1;
 
-    const note = seq[arpIndex % seq.length];
-    arpIndex++;
+  if(arpLastNote !== null) noteOff(arpLastNote, true);
 
-    if(arpLastNote !== null){
-      noteOff(arpLastNote, true);
+  noteOn(note, 0.9, true);
+  arpLastNote = note;
+
+  const base = arpStepMsBase();
+  setTimeout(()=>{
+    if(arpLastNote === note){
+      noteOff(note, true);
+      arpLastNote = null;
     }
+  }, base * state.arp.gate);
 
-    noteOn(note, 0.9, true);
-    arpLastNote = note;
+  arpTimer = setTimeout(arpTick, arpNextDelayMs());
+}
 
-    setTimeout(()=>{
-      if(arpLastNote === note){
-        noteOff(note, true);
-        arpLastNote = null;
-      }
-    }, stepMs * state.arp.gate);
-
-  }, stepMs);
+function startArp(){
+  if(arpTimer) return;
+  ensureAudio();
+  if(AC.state === "suspended") AC.resume();
+  arpStepParity = 0;
+  arpTick();
 }
 
 function stopArp(){
   if(arpTimer){
-    clearInterval(arpTimer);
+    clearTimeout(arpTimer);
     arpTimer = null;
   }
   if(arpLastNote !== null){
@@ -2007,8 +2249,8 @@ function stopArp(){
     arpLastNote = null;
   }
   arpIndex = 0;
+  arpStepParity = 0;
 }
-
   
 })();
 </script>

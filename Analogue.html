@@ -1799,7 +1799,7 @@ $("arpMode").onchange = e => {
     ui.presetSel.addEventListener("change", ()=>loadPreset(parseInt(ui.presetSel.value,10)));
 
     // power
-ui.power.onclick = () => {
+ui.powerBtn.onclick = () => {
   state.power = !state.power;
 
   if(state.power){
@@ -1817,7 +1817,7 @@ ui.power.onclick = () => {
     stopArp();   // safety
   }else{
     stopArp();
-    allNotesOff();  // if you have it
+    killAll();  // if you have it
     master.gain.setTargetAtTime(0.0001, AC.currentTime, 0.02);
   }
 };
@@ -1971,7 +1971,7 @@ if(AC.state === "suspended") AC.resume();
 
     setTimeout(()=>{
       if(arpLastNote === note){
-        noteOff(note);
+        noteOff(note, true);
         arpLastNote = null;
       }
     }, stepMs * state.arp.gate);

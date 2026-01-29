@@ -198,6 +198,7 @@
   }
 </style>
 </head>
+
 <body>
 <div class="wrap">
   <header>
@@ -213,6 +214,29 @@
       <button id="midiBtn">MIDI</button>
     </div>
   </header>
+<div class="block">
+  <div class="title"><div>Arpeggiator</div></div>
+
+  <div class="ctl">
+    <label>On</label>
+    <input type="checkbox" id="arpOn">
+  </div>
+
+  <div class="ctl">
+    <label>Rate (BPM)</label>
+    <input type="range" id="arpRate" min="40" max="200" value="120">
+  </div>
+
+  <div class="ctl">
+    <label>Mode</label>
+    <select id="arpMode">
+      <option>up</option>
+      <option>down</option>
+      <option>updown</option>
+      <option>random</option>
+    </select>
+  </div>
+</div>
 
   <div class="grid">
     <div class="panel">
@@ -422,6 +446,17 @@
     scope: $("scope"),
   };
 
+state.arp = {
+  on: false,
+  rate: 120,        // BPM
+  division: 4,      // 1=whole, 2=half, 4=quarter, 8=eighth, 16=sixteenth
+  mode: "up",       // up | down | updown | random
+  octaves: 1,       // 1–4
+  gate: 0.7         // note length (0–1)
+};
+const heldNotes = new Set();
+
+  
   // ---------- Patch helpers ----------
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp = (a,b,t)=>a+(b-a)*t;
@@ -1157,6 +1192,13 @@
   }
 
   function noteOn(note, velocity=0.9){
+heldNotes.add(note);
+
+if(state.arp.on){
+  startArp();
+  return;
+}
+    
     if(!state.power) return;
     ensureAudio();
     if(AC.state === "suspended") AC.resume();
@@ -1188,6 +1230,12 @@ master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
   }
 
   function noteOff(note){
+    heldNotes.delete(note);
+
+if(state.arp.on){
+  if(heldNotes.size === 0) stopArp();
+  return;
+}
     const arr = active.get(note);
     if(!arr || arr.length===0) return;
     // release the most recent voice for that note
@@ -1264,6 +1312,22 @@ master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
     ui.keys.addEventListener("pointercancel", (e)=>{ up(e.pointerId); }, {passive:true});
     ui.keys.addEventListener("pointerleave", (e)=>{ /* ignore */ }, {passive:true});
 
+$("arpOn").onchange = e => {
+  state.arp.on = e.target.checked;
+  stopArp();
+};
+
+$("arpRate").oninput = e => {
+  state.arp.rate = parseInt(e.target.value,10);
+  stopArp();
+};
+
+$("arpMode").onchange = e => {
+  state.arp.mode = e.target.value;
+  stopArp();
+};
+
+    
     // computer keyboard
     const heldKeys = new Set();
     window.addEventListener("keydown", (e)=>{
@@ -1843,6 +1907,78 @@ master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
   };
   startScopeIfReady();
 
+let arpTimer = null;
+let arpIndex = 0;
+let arpDirection = 1;
+let arpLastNote = null;
+
+function getArpSequence(){
+  let notes = Array.from(heldNotes).sort((a,b)=>a-b);
+  if(notes.length === 0) return [];
+
+  let seq = [];
+  for(let o=0; o<state.arp.octaves; o++){
+    for(const n of notes){
+      seq.push(n + o*12);
+    }
+  }
+
+  if(state.arp.mode === "down"){
+    seq.reverse();
+  }
+  if(state.arp.mode === "updown"){
+    const down = seq.slice(1,-1).reverse();
+    seq = seq.concat(down);
+  }
+  if(state.arp.mode === "random"){
+    seq.sort(()=>Math.random()-0.5);
+  }
+
+  return seq;
+}
+
+function startArp(){
+  if(arpTimer) return;
+
+  const stepMs = (60000 / state.arp.rate) / (state.arp.division / 4);
+
+  arpTimer = setInterval(()=>{
+    const seq = getArpSequence();
+    if(seq.length === 0) return;
+
+    const note = seq[arpIndex % seq.length];
+    arpIndex++;
+
+    if(arpLastNote !== null){
+      noteOff(arpLastNote);
+    }
+
+    noteOn(note, 0.9);
+    arpLastNote = note;
+
+    setTimeout(()=>{
+      if(arpLastNote === note){
+        noteOff(note);
+        arpLastNote = null;
+      }
+    }, stepMs * state.arp.gate);
+
+  }, stepMs);
+}
+
+function stopArp(){
+  if(arpTimer){
+    clearInterval(arpTimer);
+    arpTimer = null;
+  }
+  if(arpLastNote !== null){
+    noteOff(arpLastNote);
+    arpLastNote = null;
+  }
+  arpIndex = 0;
+}
+
+  
 })();
 </script>
 </body>

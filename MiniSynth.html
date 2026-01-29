@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pocket Sequencer</title>
+  <style>
+    :root{
+      --bg:#0b0e14;
+      --panel:#131a28;
+      --panel2:#0f141f;
+      --ink:#e9eefc;
+      --muted:#92a0c4;
+      --accent:#7aa7ff;
+      --accent2:#ffb2d1;
+      --accent3:#7dffb2;
+      --hot:#ffd36d;
+      --shadow:0 18px 40px rgba(0,0,0,.4);
+      --radius:22px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(900px 600px at 15% 10%, #1e2c5a 0%, transparent 60%),
+        radial-gradient(900px 600px at 85% 0%, #2a1d3b 0%, transparent 60%),
+        radial-gradient(900px 700px at 50% 100%, #153a2f 0%, transparent 60%),
+        var(--bg);
+      color:var(--ink);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .deck{
+      width:min(1100px, 96vw);
+      background: linear-gradient(160deg, rgba(255,255,255,.04), transparent 55%),
+                  linear-gradient(140deg, var(--panel), var(--panel2));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:24px;
+      display:grid;
+      gap:20px;
+      grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    }
+    header{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    h1{
+      margin:0;
+      font-size: clamp(22px, 2.6vw, 32px);
+      letter-spacing:.4px;
+    }
+    .subtitle{
+      color:var(--muted);
+      font-size:14px;
+      margin:0;
+    }
+    .screen{
+      border-radius:16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.12);
+      padding:16px;
+      display:grid;
+      gap:10px;
+      font-size:14px;
+    }
+    .screen .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color:var(--muted);
+    }
+    .screen .value{
+      color:var(--ink);
+      font-weight:600;
+      letter-spacing:.3px;
+    }
+    .controls{
+      display:grid;
+      gap:12px;
+    }
+    .control{
+      display:grid;
+      gap:6px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .control input[type="range"],
+    .control select{
+      width:100%;
+      accent-color: var(--accent);
+    }
+    .buttons{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    button{
+      border:none;
+      border-radius:999px;
+      padding:10px 16px;
+      cursor:pointer;
+      background: linear-gradient(180deg, rgba(122,167,255,.25), rgba(122,167,255,.08));
+      color:var(--ink);
+      font-weight:600;
+      letter-spacing:.2px;
+      box-shadow: 0 10px 18px rgba(0,0,0,.25);
+      transition: transform .15s ease, filter .15s ease;
+    }
+    button.secondary{
+      background: linear-gradient(180deg, rgba(255,178,209,.25), rgba(255,178,209,.08));
+    }
+    button.ghost{
+      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+    }
+    button:hover{ transform: translateY(-1px); filter: brightness(1.08); }
+    button:active{ transform: translateY(0); }
+    .grid{
+      display:grid;
+      gap:10px;
+    }
+    .row-labels{
+      display:grid;
+      grid-template-columns: 52px 1fr;
+      gap:12px;
+    }
+    .labels{
+      display:grid;
+      gap:8px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .labels span{
+      height:34px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      padding-right:6px;
+    }
+    .steps{
+      display:grid;
+      gap:8px;
+    }
+    .step-row{
+      display:grid;
+      grid-template-columns: repeat(16, minmax(0, 1fr));
+      gap:6px;
+    }
+    .cell{
+      height:34px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
+      transition: transform .1s ease, background .1s ease, border-color .1s ease;
+    }
+    .cell.active{
+      background: linear-gradient(180deg, rgba(125,255,178,.65), rgba(125,255,178,.18));
+      border-color: rgba(125,255,178,.7);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.1);
+    }
+    .cell.playing{
+      border-color: var(--hot);
+      box-shadow: 0 0 0 2px rgba(255,211,109,.35);
+      transform: translateY(-2px);
+    }
+    .cell.active.playing{
+      background: linear-gradient(180deg, rgba(255,211,109,.7), rgba(255,211,109,.15));
+    }
+    .hint{
+      color:var(--muted);
+      font-size:12px;
+    }
+    @media (max-width: 860px){
+      .deck{ grid-template-columns: 1fr; }
+      .row-labels{ grid-template-columns: 40px 1fr; }
+      .labels span{ justify-content:flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section>
+      <header>
+        <h1>Pocket Sequencer</h1>
+        <p class="subtitle">A tiny teenage-engineering-inspired groovebox. Tap pads, hit play, and twist the tempo.</p>
+      </header>
+
+      <div class="screen" aria-live="polite">
+        <div class="row"><span>Mode</span><span class="value" id="mode">Idle</span></div>
+        <div class="row"><span>Tempo</span><span class="value" id="tempoValue">110 BPM</span></div>
+        <div class="row"><span>Scale</span><span class="value" id="scaleValue">Minor</span></div>
+        <div class="row"><span>Step</span><span class="value" id="stepValue">01</span></div>
+      </div>
+
+      <div class="controls">
+        <label class="control">
+          Tempo
+          <input id="tempo" type="range" min="60" max="160" value="110" />
+        </label>
+        <label class="control">
+          Scale
+          <select id="scale">
+            <option value="minor">Minor</option>
+            <option value="major">Major</option>
+            <option value="pentatonic">Pentatonic</option>
+            <option value="chromatic">Chromatic</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="buttons">
+        <button id="play">Play</button>
+        <button id="stop" class="secondary">Stop</button>
+        <button id="clear" class="ghost">Clear</button>
+        <button id="random" class="ghost">Randomize</button>
+      </div>
+      <p class="hint">Audio starts after pressing play. Tap pads to toggle notes. Use headphones for extra sparkle.</p>
+    </section>
+
+    <section class="grid" aria-label="Step sequencer">
+      <div class="row-labels">
+        <div class="labels" id="labels"></div>
+        <div class="steps" id="steps"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const rows = 8;
+    const cols = 16;
+    const labelsEl = document.getElementById("labels");
+    const stepsEl = document.getElementById("steps");
+    const tempoInput = document.getElementById("tempo");
+    const tempoValue = document.getElementById("tempoValue");
+    const scaleSelect = document.getElementById("scale");
+    const scaleValue = document.getElementById("scaleValue");
+    const modeValue = document.getElementById("mode");
+    const stepValue = document.getElementById("stepValue");
+
+    const scales = {
+      minor: [0, 2, 3, 5, 7, 8, 10, 12],
+      major: [0, 2, 4, 5, 7, 9, 11, 12],
+      pentatonic: [0, 2, 4, 7, 9, 12, 14, 16],
+      chromatic: [0, 1, 2, 3, 4, 5, 6, 7]
+    };
+
+    let sequence = Array.from({ length: rows }, () => Array(cols).fill(false));
+    let currentStep = 0;
+    let isPlaying = false;
+    let timerId = null;
+    let audioCtx = null;
+
+    const cells = [];
+
+    function buildGrid(){
+      labelsEl.innerHTML = "";
+      stepsEl.innerHTML = "";
+      cells.length = 0;
+
+      const scale = scales[scaleSelect.value];
+      for (let r = 0; r < rows; r += 1){
+        const label = document.createElement("span");
+        label.textContent = `N${rows - r}`;
+        labelsEl.appendChild(label);
+
+        const row = document.createElement("div");
+        row.className = "step-row";
+        for (let c = 0; c < cols; c += 1){
+          const btn = document.createElement("button");
+          btn.className = "cell";
+          btn.setAttribute("type", "button");
+          btn.dataset.row = r;
+          btn.dataset.col = c;
+          btn.addEventListener("click", () => {
+            sequence[r][c] = !sequence[r][c];
+            btn.classList.toggle("active", sequence[r][c]);
+          });
+          row.appendChild(btn);
+          cells.push(btn);
+        }
+        stepsEl.appendChild(row);
+      }
+      updateLabels(scale);
+    }
+
+    function updateLabels(scale){
+      const labels = labelsEl.querySelectorAll("span");
+      labels.forEach((label, index) => {
+        const interval = scale[rows - 1 - index] ?? 0;
+        label.textContent = `+${interval}`;
+      });
+    }
+
+    function getTempo(){
+      return Number(tempoInput.value);
+    }
+
+    function updateTempo(){
+      tempoValue.textContent = `${getTempo()} BPM`;
+    }
+
+    function updateScale(){
+      scaleValue.textContent = scaleSelect.options[scaleSelect.selectedIndex].text;
+      updateLabels(scales[scaleSelect.value]);
+    }
+
+    function createAudio(){
+      if (!audioCtx){
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioCtx;
+    }
+
+    function playNote(semitone, timeOffset = 0){
+      const ctx = createAudio();
+      const now = ctx.currentTime + timeOffset;
+      const baseFreq = 196; // G3
+      const freq = baseFreq * Math.pow(2, semitone / 12);
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
+      osc.detune.value = (Math.random() * 12) - 6;
+
+      filter.type = "lowpass";
+      filter.frequency.value = 1200;
+      filter.Q.value = 0.8;
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.6, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+
+    function tick(){
+      const scale = scales[scaleSelect.value];
+      const step = currentStep;
+
+      const rowNodes = stepsEl.querySelectorAll(".step-row");
+      rowNodes.forEach((row) => {
+        row.querySelectorAll(".cell").forEach((cell, idx) => {
+          cell.classList.toggle("playing", idx === step);
+        });
+      });
+
+      for (let r = 0; r < rows; r += 1){
+        if (sequence[r][step]){
+          const semitone = scale[rows - 1 - r] ?? 0;
+          playNote(semitone);
+        }
+      }
+
+      stepValue.textContent = String(step + 1).padStart(2, "0");
+      currentStep = (currentStep + 1) % cols;
+    }
+
+    function start(){
+      if (isPlaying) return;
+      isPlaying = true;
+      modeValue.textContent = "Playing";
+      const interval = (60 / getTempo()) / 4 * 1000;
+      tick();
+      timerId = setInterval(tick, interval);
+    }
+
+    function stop(){
+      isPlaying = false;
+      modeValue.textContent = "Idle";
+      clearInterval(timerId);
+      timerId = null;
+      currentStep = 0;
+      stepValue.textContent = "01";
+      stepsEl.querySelectorAll(".cell").forEach((cell) => cell.classList.remove("playing"));
+    }
+
+    function clearSequence(){
+      sequence = Array.from({ length: rows }, () => Array(cols).fill(false));
+      stepsEl.querySelectorAll(".cell").forEach((cell) => cell.classList.remove("active"));
+    }
+
+    function randomize(){
+      stepsEl.querySelectorAll(".cell").forEach((cell) => {
+        const on = Math.random() > 0.7;
+        const r = Number(cell.dataset.row);
+        const c = Number(cell.dataset.col);
+        sequence[r][c] = on;
+        cell.classList.toggle("active", on);
+      });
+    }
+
+    tempoInput.addEventListener("input", () => {
+      updateTempo();
+      if (isPlaying){
+        clearInterval(timerId);
+        timerId = null;
+        start();
+      }
+    });
+
+    scaleSelect.addEventListener("change", updateScale);
+
+    document.getElementById("play").addEventListener("click", () => {
+      createAudio();
+      if (audioCtx && audioCtx.state === "suspended"){
+        audioCtx.resume();
+      }
+      start();
+    });
+
+    document.getElementById("stop").addEventListener("click", stop);
+    document.getElementById("clear").addEventListener("click", () => {
+      clearSequence();
+      stop();
+    });
+    document.getElementById("random").addEventListener("click", randomize);
+
+    buildGrid();
+    updateTempo();
+    updateScale();
+  </script>
+</body>
+</html>

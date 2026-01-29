@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DR-110 Drum Lab</title>
+  <meta name="description" content="A DR-110 inspired drum machine with punchy voices, accents, and a 16-step sequencer." />
+  <style>
+    :root{
+      --bg: #1a1a1f;
+      --panel: #2a2b33;
+      --panel-2: #1f2026;
+      --ink: #f7f3e6;
+      --muted: #c2b59b;
+      --accent: #ffad42;
+      --accent-2: #ff6b3c;
+      --accent-3: #5de2ff;
+      --shadow: 0 14px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+      --step-off: #3c3f4a;
+      --step-on: #ffbf5a;
+      --step-accent: #ff6b3c;
+      --step-playing: #5de2ff;
+      --grid-gap: 8px;
+      --label: #a99a7f;
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1100px 500px at 20% 0%, rgba(255,173,66,.15), transparent 60%),
+        radial-gradient(900px 500px at 90% 20%, rgba(255,107,60,.12), transparent 60%),
+        linear-gradient(180deg, #101014, var(--bg));
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding: 24px 14px 40px;
+    }
+
+    .machine{
+      width:min(1100px, 100%);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 16px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 20px;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size: clamp(24px, 3vw, 34px);
+      letter-spacing:.2px;
+    }
+
+    .brand p{
+      margin:0;
+      color: var(--muted);
+      max-width: 60ch;
+    }
+
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+
+    .control{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      background: rgba(0,0,0,.25);
+      border-radius: 12px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,.05);
+      min-width: 150px;
+    }
+
+    .control label{
+      color: var(--label);
+      text-transform: uppercase;
+      letter-spacing:.18em;
+      font-size: 11px;
+    }
+
+    .control input[type="range"]{
+      width: 100%;
+    }
+
+    .control .value{
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--accent);
+    }
+
+    .control .actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    button{
+      appearance:none;
+      border:none;
+      background: var(--accent);
+      color: #2b1a05;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor:pointer;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+      box-shadow: 0 10px 20px rgba(0,0,0,.3);
+    }
+
+    button.secondary{
+      background: #3b3d47;
+      color: var(--ink);
+    }
+
+    button.ghost{
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.2);
+      color: var(--ink);
+    }
+
+    button:hover{ transform: translateY(-1px); }
+    button:focus-visible{ outline:2px solid var(--accent-3); outline-offset:2px; }
+
+    .grid{
+      display:grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 160px 1fr;
+      gap: 12px;
+      align-items:center;
+    }
+
+    .row-label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .row-label span{
+      font-weight:700;
+      letter-spacing:.08em;
+    }
+
+    .row-label small{
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .steps{
+      display:grid;
+      grid-template-columns: repeat(16, minmax(32px, 1fr));
+      gap: var(--grid-gap);
+    }
+
+    .step{
+      border-radius: 8px;
+      background: var(--step-off);
+      height: 36px;
+      border: 1px solid rgba(255,255,255,.08);
+      cursor:pointer;
+      position:relative;
+      transition: transform .1s ease, background .15s ease;
+    }
+
+    .step.on{ background: var(--step-on); }
+    .step.accent{ background: var(--step-accent); }
+    .step.playing::after{
+      content:"";
+      position:absolute;
+      inset:-4px;
+      border-radius: 12px;
+      border: 2px solid var(--step-playing);
+      opacity:.9;
+    }
+
+    .step:focus-visible{
+      outline:2px solid var(--accent-3);
+      outline-offset:2px;
+    }
+
+    .legend{
+      display:flex;
+      gap: 14px;
+      flex-wrap:wrap;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend span{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .legend i{
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      display:inline-block;
+      background: var(--step-off);
+    }
+
+    .legend i.on{ background: var(--step-on); }
+    .legend i.accent{ background: var(--step-accent); }
+    .legend i.playing{ outline:2px solid var(--step-playing); background: transparent; }
+
+    .footer{
+      margin-top: 20px;
+      display:flex;
+      flex-wrap:wrap;
+      gap: 12px;
+      justify-content:space-between;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 820px){
+      .row{ grid-template-columns: 1fr; }
+      .steps{ grid-template-columns: repeat(8, minmax(32px, 1fr)); }
+      .machine{ padding: 18px; }
+    }
+
+    @media (max-width: 520px){
+      .steps{ grid-template-columns: repeat(4, minmax(32px, 1fr)); }
+      .control{ min-width: 130px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="machine">
+    <header>
+      <div class="brand">
+        <h1>DR-110 Drum Lab</h1>
+        <p>Vintage punch with modern polish. Tap steps to program the pattern, hit play, and ride the accents like a classic drum box.</p>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="tempo">Tempo</label>
+          <div class="value"><span id="tempoValue">122</span> BPM</div>
+          <input id="tempo" type="range" min="70" max="170" value="122" />
+        </div>
+        <div class="control">
+          <label for="swing">Swing</label>
+          <div class="value"><span id="swingValue">12</span>%</div>
+          <input id="swing" type="range" min="0" max="60" value="12" />
+        </div>
+        <div class="control">
+          <label for="accent">Accent</label>
+          <div class="value"><span id="accentValue">40</span>%</div>
+          <input id="accent" type="range" min="0" max="100" value="40" />
+        </div>
+        <div class="control">
+          <label>Transport</label>
+          <div class="actions">
+            <button id="playBtn" type="button">Play</button>
+            <button id="stopBtn" type="button" class="secondary">Stop</button>
+          </div>
+          <div class="actions">
+            <button id="clearBtn" type="button" class="ghost">Clear</button>
+            <button id="randomBtn" type="button" class="ghost">Random</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid" id="grid" aria-label="Drum step sequencer">
+      <!-- rows injected by JS -->
+    </section>
+
+    <div class="legend">
+      <span><i class="on"></i> Step On</span>
+      <span><i class="accent"></i> Accent Step</span>
+      <span><i class="playing"></i> Playhead</span>
+    </div>
+
+    <div class="footer">
+      <div>Tip: click while holding <strong>Shift</strong> to place an accent.</div>
+      <div>Voices: Kick, Snare, Clap, Tom, Rim, Closed Hat, Open Hat, Crash.</div>
+    </div>
+  </div>
+
+  <script>
+    const TRACKS = [
+      { name: "Kick", hint: "Low thump" },
+      { name: "Snare", hint: "Snap + noise" },
+      { name: "Clap", hint: "Classic burst" },
+      { name: "Tom", hint: "Warm tone" },
+      { name: "Rim", hint: "Sharp click" },
+      { name: "Closed Hat", hint: "Tight sizzle" },
+      { name: "Open Hat", hint: "Open decay" },
+      { name: "Crash", hint: "Bright wash" }
+    ];
+
+    const STEPS = 16;
+    const gridEl = document.getElementById("grid");
+    const tempoEl = document.getElementById("tempo");
+    const swingEl = document.getElementById("swing");
+    const accentEl = document.getElementById("accent");
+    const tempoValue = document.getElementById("tempoValue");
+    const swingValue = document.getElementById("swingValue");
+    const accentValue = document.getElementById("accentValue");
+    const playBtn = document.getElementById("playBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const randomBtn = document.getElementById("randomBtn");
+
+    let context = null;
+    let isPlaying = false;
+    let currentStep = 0;
+    let timer = null;
+
+    const pattern = TRACKS.map(() => Array.from({ length: STEPS }, () => ({ on: false, accent: false })));
+
+    function buildGrid(){
+      gridEl.innerHTML = "";
+      TRACKS.forEach((track, trackIndex) => {
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const label = document.createElement("div");
+        label.className = "row-label";
+        label.innerHTML = `<span>${track.name}</span><small>${track.hint}</small>`;
+
+        const steps = document.createElement("div");
+        steps.className = "steps";
+
+        for (let step = 0; step < STEPS; step += 1){
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "step";
+          button.setAttribute("aria-label", `${track.name} step ${step + 1}`);
+          button.dataset.track = trackIndex;
+          button.dataset.step = step;
+          steps.appendChild(button);
+        }
+
+        row.appendChild(label);
+        row.appendChild(steps);
+        gridEl.appendChild(row);
+      });
+    }
+
+    function updateGrid(){
+      document.querySelectorAll(".step").forEach((stepEl) => {
+        const track = Number(stepEl.dataset.track);
+        const step = Number(stepEl.dataset.step);
+        const state = pattern[track][step];
+        stepEl.classList.toggle("on", state.on);
+        stepEl.classList.toggle("accent", state.accent);
+        stepEl.classList.toggle("playing", step === currentStep);
+      });
+    }
+
+    function toggleStep(track, step, accent){
+      const cell = pattern[track][step];
+      if (accent){
+        cell.on = true;
+        cell.accent = !cell.accent;
+      } else {
+        cell.on = !cell.on;
+        if (!cell.on) cell.accent = false;
+      }
+      updateGrid();
+    }
+
+    function randomize(){
+      pattern.forEach((track, trackIndex) => {
+        track.forEach((cell) => {
+          const density = trackIndex < 2 ? 0.5 : 0.25;
+          cell.on = Math.random() < density;
+          cell.accent = cell.on && Math.random() < 0.2;
+        });
+      });
+      updateGrid();
+    }
+
+    function clearPattern(){
+      pattern.forEach((track) => {
+        track.forEach((cell) => {
+          cell.on = false;
+          cell.accent = false;
+        });
+      });
+      updateGrid();
+    }
+
+    function ensureContext(){
+      if (!context){
+        context = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function play(){
+      ensureContext();
+      if (context.state === "suspended"){
+        context.resume();
+      }
+      if (isPlaying) return;
+      isPlaying = true;
+      schedule();
+    }
+
+    function stop(){
+      isPlaying = false;
+      clearInterval(timer);
+      timer = null;
+      currentStep = 0;
+      updateGrid();
+    }
+
+    function schedule(){
+      const bpm = Number(tempoEl.value);
+      const swing = Number(swingEl.value) / 100;
+      const stepDuration = (60 / bpm) / 4;
+      clearInterval(timer);
+      timer = setInterval(() => {
+        playStep(currentStep, swing, stepDuration);
+        currentStep = (currentStep + 1) % STEPS;
+        updateGrid();
+      }, stepDuration * 1000);
+    }
+
+    function playStep(step, swingAmount, baseDuration){
+      const isSwingStep = step % 2 === 1;
+      const offset = isSwingStep ? baseDuration * swingAmount * 0.6 : 0;
+      const now = context.currentTime + offset;
+      const accentBoost = 1 + (Number(accentEl.value) / 100) * 0.6;
+
+      pattern.forEach((track, trackIndex) => {
+        const cell = track[step];
+        if (!cell.on) return;
+        const velocity = cell.accent ? accentBoost : 1;
+        triggerVoice(trackIndex, now, velocity);
+      });
+    }
+
+    function triggerVoice(trackIndex, time, velocity){
+      switch (trackIndex){
+        case 0:
+          kick(time, velocity);
+          break;
+        case 1:
+          snare(time, velocity);
+          break;
+        case 2:
+          clap(time, velocity);
+          break;
+        case 3:
+          tom(time, velocity);
+          break;
+        case 4:
+          rim(time, velocity);
+          break;
+        case 5:
+          hat(time, velocity, false);
+          break;
+        case 6:
+          hat(time, velocity, true);
+          break;
+        case 7:
+          crash(time, velocity);
+          break;
+        default:
+          break;
+      }
+    }
+
+    function createNoise(duration){
+      const buffer = context.createBuffer(1, context.sampleRate * duration, context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1){
+        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      }
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      return source;
+    }
+
+    function kick(time, velocity){
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(140, time);
+      osc.frequency.exponentialRampToValueAtTime(48, time + 0.18);
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.9 * velocity, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+      osc.connect(gain).connect(context.destination);
+      osc.start(time);
+      osc.stop(time + 0.3);
+    }
+
+    function snare(time, velocity){
+      const noise = createNoise(0.2);
+      const noiseFilter = context.createBiquadFilter();
+      noiseFilter.type = "highpass";
+      noiseFilter.frequency.value = 1400;
+      const noiseGain = context.createGain();
+      noiseGain.gain.setValueAtTime(0.001, time);
+      noiseGain.gain.exponentialRampToValueAtTime(0.6 * velocity, time + 0.01);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.18);
+
+      const tone = context.createOscillator();
+      const toneGain = context.createGain();
+      tone.type = "triangle";
+      tone.frequency.value = 220;
+      toneGain.gain.setValueAtTime(0.001, time);
+      toneGain.gain.exponentialRampToValueAtTime(0.35 * velocity, time + 0.02);
+      toneGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+
+      noise.connect(noiseFilter).connect(noiseGain).connect(context.destination);
+      tone.connect(toneGain).connect(context.destination);
+      noise.start(time);
+      noise.stop(time + 0.2);
+      tone.start(time);
+      tone.stop(time + 0.2);
+    }
+
+    function clap(time, velocity){
+      const noise = createNoise(0.25);
+      const filter = context.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 1200;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.45 * velocity, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.2 * velocity, time + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+      noise.connect(filter).connect(gain).connect(context.destination);
+      noise.start(time);
+      noise.stop(time + 0.25);
+    }
+
+    function tom(time, velocity){
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(180, time);
+      osc.frequency.exponentialRampToValueAtTime(90, time + 0.16);
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.5 * velocity, time + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+      osc.connect(gain).connect(context.destination);
+      osc.start(time);
+      osc.stop(time + 0.25);
+    }
+
+    function rim(time, velocity){
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(900, time);
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.35 * velocity, time + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+      osc.connect(gain).connect(context.destination);
+      osc.start(time);
+      osc.stop(time + 0.08);
+    }
+
+    function hat(time, velocity, open){
+      const noise = createNoise(open ? 0.45 : 0.12);
+      const filter = context.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.value = 6200;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime((open ? 0.35 : 0.25) * velocity, time + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + (open ? 0.42 : 0.1));
+      noise.connect(filter).connect(gain).connect(context.destination);
+      noise.start(time);
+      noise.stop(time + (open ? 0.45 : 0.12));
+    }
+
+    function crash(time, velocity){
+      const noise = createNoise(0.6);
+      const filter = context.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.value = 4000;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.exponentialRampToValueAtTime(0.5 * velocity, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
+      noise.connect(filter).connect(gain).connect(context.destination);
+      noise.start(time);
+      noise.stop(time + 0.6);
+    }
+
+    buildGrid();
+    updateGrid();
+
+    gridEl.addEventListener("click", (event) => {
+      const target = event.target.closest(".step");
+      if (!target) return;
+      const track = Number(target.dataset.track);
+      const step = Number(target.dataset.step);
+      toggleStep(track, step, event.shiftKey);
+    });
+
+    tempoEl.addEventListener("input", () => {
+      tempoValue.textContent = tempoEl.value;
+      if (isPlaying) schedule();
+    });
+
+    swingEl.addEventListener("input", () => {
+      swingValue.textContent = swingEl.value;
+    });
+
+    accentEl.addEventListener("input", () => {
+      accentValue.textContent = accentEl.value;
+    });
+
+    playBtn.addEventListener("click", play);
+    stopBtn.addEventListener("click", stop);
+    clearBtn.addEventListener("click", clearPattern);
+    randomBtn.addEventListener("click", randomize);
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === " "){
+        event.preventDefault();
+        if (isPlaying){
+          stop();
+        } else {
+          play();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

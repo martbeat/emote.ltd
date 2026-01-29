@@ -1191,13 +1191,16 @@ const heldNotes = new Set();
     }
   }
 
-  function noteOn(note, velocity=0.9){
-heldNotes.add(note);
+function noteOn(note, velocity=0.9, fromArp=false){
+if(!fromArp){
+  heldNotes.add(note);
 
-if(state.arp.on){
-  startArp();
-  return;
+  if(state.arp.on){
+    startArp();
+    return;
+  }
 }
+
     
     if(!state.power) return;
     ensureAudio();
@@ -1229,13 +1232,16 @@ master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
     ui.noteRead.textContent = `${note} (${hz.toFixed(2)} Hz)`;
   }
 
-  function noteOff(note){
-    heldNotes.delete(note);
+function noteOff(note, fromArp=false){
+if(!fromArp){
+  heldNotes.delete(note);
 
-if(state.arp.on){
-  if(heldNotes.size === 0) stopArp();
-  return;
+  if(state.arp.on){
+    if(heldNotes.size === 0) stopArp();
+    return;
+  }
 }
+
     const arr = active.get(note);
     if(!arr || arr.length===0) return;
     // release the most recent voice for that note
@@ -1938,6 +1944,9 @@ function getArpSequence(){
 }
 
 function startArp(){
+  ensureAudio();
+if(AC.state === "suspended") AC.resume();
+
   if(arpTimer) return;
 
   const stepMs = (60000 / state.arp.rate) / (state.arp.division / 4);
@@ -1950,10 +1959,10 @@ function startArp(){
     arpIndex++;
 
     if(arpLastNote !== null){
-      noteOff(arpLastNote);
+      noteOff(arpLastNote, true);
     }
 
-    noteOn(note, 0.9);
+    noteOn(note, 0.9, true);
     arpLastNote = note;
 
     setTimeout(()=>{
@@ -1972,7 +1981,7 @@ function stopArp(){
     arpTimer = null;
   }
   if(arpLastNote !== null){
-    noteOff(arpLastNote);
+    noteOff(arpLastNote, true);
     arpLastNote = null;
   }
   arpIndex = 0;

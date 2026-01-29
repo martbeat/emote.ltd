@@ -1160,6 +1160,7 @@
     if(!state.power) return;
     ensureAudio();
     if(AC.state === "suspended") AC.resume();
+master.gain.setTargetAtTime(state.fx.master.vol ** 2, AC.currentTime, 0.01);
 
     const hz = midiToHz(note, state.a4);
     stealIfNeeded();

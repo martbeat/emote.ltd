@@ -446,6 +446,34 @@
     scope: $("scope"),
   };
 
+
+  const state = {
+    power:false,
+    a4: 440,
+
+    vcoA: {wave:"sawtooth", oct:0, det:0, level:0.70},
+    vcoB: {wave:"sawtooth", oct:0, det:7, level:0.55, sync:0.0},
+    drift: 0.20,
+
+    mix: {sub:0.25, noise:0.08, unison:2, vlim:10, porta:0.0},
+
+    vcf: {type:"lowpass", cut:1200, q:0.8, keytrack:0.35, drive:0.20},
+    envA: {a:0.004, d:0.22, s:0.78, r:0.25},
+    envF: {a:0.01, d:0.18, s:0.00, r:0.20, amt:4200},
+
+    lfo1: {rate:5.0, wave:"sine", pitch:0, cut:0},
+    lfo2: {rate:0.35, wave:"triangle", pwm:0},
+    modWheel: 0.0,
+
+    fx: {
+      chorus:{mix:0.18, rate:0.28, depth:0.004},
+      delay:{time:0.27, fb:0.28, mix:0.18, wow:0.08},
+      reverb:{size:0.55, damp:0.45, mix:0.12},
+      master:{vol:0.65, limiter:1}
+    }
+  };
+
+  
 state.arp = {
   on: false,
   rate: 120,        // BPM
@@ -487,32 +515,6 @@ const heldNotes = new Set();
   let voicePool = [];         // released voices (for reuse)
   let voiceId = 0;
   let lastFreq = null;
-
-  const state = {
-    power:false,
-    a4: 440,
-
-    vcoA: {wave:"sawtooth", oct:0, det:0, level:0.70},
-    vcoB: {wave:"sawtooth", oct:0, det:7, level:0.55, sync:0.0},
-    drift: 0.20,
-
-    mix: {sub:0.25, noise:0.08, unison:2, vlim:10, porta:0.0},
-
-    vcf: {type:"lowpass", cut:1200, q:0.8, keytrack:0.35, drive:0.20},
-    envA: {a:0.004, d:0.22, s:0.78, r:0.25},
-    envF: {a:0.01, d:0.18, s:0.00, r:0.20, amt:4200},
-
-    lfo1: {rate:5.0, wave:"sine", pitch:0, cut:0},
-    lfo2: {rate:0.35, wave:"triangle", pwm:0},
-    modWheel: 0.0,
-
-    fx: {
-      chorus:{mix:0.18, rate:0.28, depth:0.004},
-      delay:{time:0.27, fb:0.28, mix:0.18, wow:0.08},
-      reverb:{size:0.55, damp:0.45, mix:0.12},
-      master:{vol:0.65, limiter:1}
-    }
-  };
 
   // ---------- Analog-ish curves ----------
   function makeWaveshaper(ac){

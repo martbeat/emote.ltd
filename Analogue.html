@@ -1799,24 +1799,28 @@ $("arpMode").onchange = e => {
     ui.presetSel.addEventListener("change", ()=>loadPreset(parseInt(ui.presetSel.value,10)));
 
     // power
-    ui.powerBtn.addEventListener("click", ()=>{
-      state.power = !state.power;
-      if(state.power){
-        ensureAudio();
-        AC.resume();
-        ui.powerBtn.textContent = "Power: On";
-        ui.powerBtn.classList.add("btnOn");
-        ui.powerBtn.classList.remove("btnWarn");
-        // ramp master up gently
-        applyMaster();
-      }else{
-        killAll();
-        ui.powerBtn.textContent = "Power: Off";
-        ui.powerBtn.classList.remove("btnOn");
-        ui.powerBtn.classList.add("btnWarn");
-        if(AC) master.gain.setTargetAtTime(0.0001, now(AC), 0.02);
-      }
-    });
+ui.power.onclick = () => {
+  state.power = !state.power;
+
+  if(state.power){
+    ensureAudio();
+    if(AC.state === "suspended") AC.resume();
+
+    master.gain.cancelScheduledValues(AC.currentTime);
+    master.gain.setValueAtTime(0.0001, AC.currentTime);
+    master.gain.setTargetAtTime(
+      state.fx.master.vol ** 2,
+      AC.currentTime,
+      0.02
+    );
+
+    stopArp();   // safety
+  }else{
+    stopArp();
+    allNotesOff();  // if you have it
+    master.gain.setTargetAtTime(0.0001, AC.currentTime, 0.02);
+  }
+};
 
     ui.panicBtn.addEventListener("click", killAll);
     ui.randomBtn.addEventListener("click", randomPatch);

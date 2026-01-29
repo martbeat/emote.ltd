@@ -771,6 +771,20 @@ const heldNotes = new Set();
     return n;
   }
 
+function renderPower(){
+  if(state.power){
+    ui.powerBtn.textContent = "Power: ON";
+    ui.powerBtn.classList.add("btnOn");
+    ui.powerBtn.classList.remove("btnOff");
+  }else{
+    ui.powerBtn.textContent = "Power: OFF";
+    ui.powerBtn.classList.remove("btnOn");
+    ui.powerBtn.classList.add("btnOff");
+  }
+}
+
+
+  
   function killAll(){
     for(const [note, arr] of active.entries()){
       for(const v of arr){
@@ -1803,7 +1817,6 @@ $("arpMode").onchange = e => {
     // power
 ui.powerBtn.onclick = () => {
   state.power = !state.power;
-console.log("AC state:", AC.state); //TEMP LOG
 
   if(state.power){
     ensureAudio();
@@ -1817,12 +1830,14 @@ console.log("AC state:", AC.state); //TEMP LOG
       0.02
     );
 
-    stopArp();   // safety
+    stopArp();
   }else{
     stopArp();
-    killAll();  // if you have it
+    killAll();
     master.gain.setTargetAtTime(0.0001, AC.currentTime, 0.02);
   }
+
+  renderPower();
 };
 
     ui.panicBtn.addEventListener("click", killAll);

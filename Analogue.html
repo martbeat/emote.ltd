@@ -1803,6 +1803,7 @@ $("arpMode").onchange = e => {
     // power
 ui.powerBtn.onclick = () => {
   state.power = !state.power;
+console.log("AC state:", AC.state); //TEMP LOG
 
   if(state.power){
     ensureAudio();

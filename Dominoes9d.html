@@ -534,15 +534,31 @@
     return el;
   }
 
-  function getPlayableSides(tile){
-    if (chain.length === 0) return ["left"];
-    const left = chain[0][0];
-    const right = chain[chain.length - 1][1];
-    const sides = [];
-    if (tile[0] === left || tile[1] === left) sides.push("left");
-    if (tile[0] === right || tile[1] === right) sides.push("right");
-    return sides;
-  }
+function getEndValues(){
+  if (chain.length === 0) return { left: null, right: null };
+
+  const leftTile = chain[0];
+  const rightTile = chain[chain.length - 1];
+
+  return {
+    left:  leftTile[0] === leftTile[1] ? leftTile[0] * 2 : leftTile[0],
+    right: rightTile[0] === rightTile[1] ? rightTile[1] * 2 : rightTile[1]
+  };
+}
+
+  
+function getPlayableSides(tile){
+  if (chain.length === 0) return ["left"];
+
+  const { left, right } = getEndValues();
+  const sides = [];
+
+  if (tile[0] === left || tile[1] === left) sides.push("left");
+  if (tile[0] === right || tile[1] === right) sides.push("right");
+
+  return sides;
+}
+
 
   function getPlayableTiles(handTiles){
     if (chain.length === 0) return handTiles.map((_, index) => index);

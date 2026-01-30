@@ -951,7 +951,31 @@ if (earned > 0){
       player.hand = tiles.splice(0, 7);
       if (resetScores) player.score = 0;
     });
-    chain = [tiles.pop()];
+// Find highest opening double
+let opener = null;
+let openerIndex = 0;
+let highestDouble = -1;
+
+players.forEach((player, index) => {
+  player.hand.forEach((tile, tileIndex) => {
+    if (tile[0] === tile[1] && tile[0] > highestDouble){
+      highestDouble = tile[0];
+      opener = { index, tileIndex, tile };
+      openerIndex = index;
+    }
+  });
+});
+
+if (opener){
+  // Start chain with the highest double
+  chain = [opener.tile];
+  players[openerIndex].hand.splice(opener.tileIndex, 1);
+  setTurn(openerIndex);
+} else {
+  // Fallback if no doubles exist
+  chain = [tiles.pop()];
+  setTurn(0);
+}
     boneyard = tiles;
     selected = null;
     gameOver = false;

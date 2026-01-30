@@ -897,7 +897,8 @@ if (earned > 0){
     pendingResetScores = resetScores;
   }
 
-  function updateGameOver(){
+function updateGameOver(){
+  if (chain.length <= 1) return;
     if (!isGameBlocked()) return;
     const totals = players.map((player) => handTotal(player.hand));
     const winnerTotal = Math.min(...totals);

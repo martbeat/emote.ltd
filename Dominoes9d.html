@@ -270,6 +270,22 @@
     border-radius:50%;
     background: var(--accent);
   }
+  .toggle{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    color:var(--muted);
+    font-size:12px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .toggle input{
+    accent-color: var(--accent2);
+  }
 </style>
 </head>
 <body>
@@ -299,6 +315,10 @@
               <div class="stat"><strong id="turnLabel">You</strong><br>Turn</div>
             </div>
             <div class="controls">
+              <label class="toggle">
+                <input type="checkbox" id="aiToggle" checked />
+                <span>AI Opponents</span>
+              </label>
               <button class="primary" id="playLeft">Play Left</button>
               <button class="primary" id="playRight">Play Right</button>
               <button class="warn" id="drawTile">Draw</button>
@@ -331,13 +351,13 @@
             </div>
             <div class="score">
               <strong>North</strong>
-              <span>Score: 35</span>
-              <span>Hand: 9 tiles</span>
+              <span>Score: <span id="scoreNorth">0</span></span>
+              <span>Hand: <span id="handNorth">0</span> tiles</span>
             </div>
             <div class="score">
               <strong>East</strong>
-              <span>Score: 52</span>
-              <span>Hand: 8 tiles</span>
+              <span>Score: <span id="scoreEast">0</span></span>
+              <span>Hand: <span id="handEast">0</span> tiles</span>
             </div>
           </div>
         </div>
@@ -380,8 +400,13 @@
   const rightCapEl = document.getElementById("rightCap");
   const turnLabelEl = document.getElementById("turnLabel");
   const scoreYouEl = document.getElementById("scoreYou");
+  const scoreNorthEl = document.getElementById("scoreNorth");
+  const scoreEastEl = document.getElementById("scoreEast");
   const handCountEl = document.getElementById("handCount");
+  const handNorthEl = document.getElementById("handNorth");
+  const handEastEl = document.getElementById("handEast");
   const boneyardEl = document.getElementById("boneyard");
+  const aiToggleEl = document.getElementById("aiToggle");
 
   const playLeftBtn = document.getElementById("playLeft");
   const playRightBtn = document.getElementById("playRight");
@@ -390,12 +415,15 @@
   const resetBtn = document.getElementById("reset");
 
   let boneyard = [];
-  let hand = [];
   let chain = [];
   let selected = null;
-  let score = 0;
-  const turnOrder = ["You", "North", "East"];
+  const players = [
+    { name: "You", hand: [], score: 0, isAI: false },
+    { name: "North", hand: [], score: 0, isAI: true },
+    { name: "East", hand: [], score: 0, isAI: true }
+  ];
   let currentTurn = 0;
+  let aiInProgress = false;
 
   function buildSet(){
     const tiles = [];
@@ -493,9 +521,13 @@
   }
 
   function setTurn(index){
-    currentTurn = (index + turnOrder.length) % turnOrder.length;
-    turnLabelEl.textContent = turnOrder[currentTurn];
+    currentTurn = (index + players.length) % players.length;
+    turnLabelEl.textContent = players[currentTurn].name;
+    if (currentTurn !== 0){
+      selected = null;
+    }
     updatePlayButtons();
+    queueAiTurn();
   }
 
   function advanceTurn(){
@@ -504,16 +536,17 @@
 
   function renderHand(){
     handEl.innerHTML = "";
-    hand.forEach((tile, index) => {
+    players[0].hand.forEach((tile, index) => {
       const domino = renderDomino(tile, { selected: selected === index });
       domino.addEventListener("click", () => {
+        if (currentTurn !== 0) return;
         selected = selected === index ? null : index;
         renderHand();
         updatePlayButtons();
       });
       handEl.appendChild(domino);
     });
-    handCountEl.textContent = hand.length;
+    handCountEl.textContent = players[0].hand.length;
   }
 
   function updatePlayButtons(){
@@ -522,22 +555,22 @@
       playLeftBtn.disabled = true;
       playRightBtn.disabled = true;
       drawBtn.disabled = !isYourTurn;
-      endTurnBtn.disabled = !isYourTurn;
+      endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
       return;
     }
-    const tile = hand[selected];
+    const tile = players[0].hand[selected];
     if (!tile){
       playLeftBtn.disabled = true;
       playRightBtn.disabled = true;
       drawBtn.disabled = !isYourTurn;
-      endTurnBtn.disabled = !isYourTurn;
+      endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
       return;
     }
     if (chain.length === 0){
       playLeftBtn.disabled = !isYourTurn;
       playRightBtn.disabled = !isYourTurn;
       drawBtn.disabled = !isYourTurn;
-      endTurnBtn.disabled = !isYourTurn;
+      endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
       return;
     }
     const left = chain[0][0];
@@ -545,18 +578,17 @@
     playLeftBtn.disabled = !isYourTurn || !(tile[0] === left || tile[1] === left);
     playRightBtn.disabled = !isYourTurn || !(tile[0] === right || tile[1] === right);
     drawBtn.disabled = !isYourTurn;
-    endTurnBtn.disabled = !isYourTurn;
+    endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
   }
 
-  function playTile(side){
-    if (currentTurn !== 0) return;
-    if (selected === null) return;
-    const tile = hand[selected];
-    if (!tile) return;
+  function placeTile(playerIndex, handIndex, side){
+    const player = players[playerIndex];
+    const tile = player.hand[handIndex];
+    if (!tile) return false;
 
     if (chain.length === 0){
       chain.push(tile);
-      hand.splice(selected, 1);
+      player.hand.splice(handIndex, 1);
     } else if (side === "left"){
       const left = chain[0][0];
       if (tile[1] === left){
@@ -564,9 +596,9 @@
       } else if (tile[0] === left){
         chain.unshift([tile[1], tile[0]]);
       } else {
-        return;
+        return false;
       }
-      hand.splice(selected, 1);
+      player.hand.splice(handIndex, 1);
     } else {
       const right = chain[chain.length - 1][1];
       if (tile[0] === right){
@@ -574,17 +606,86 @@
       } else if (tile[1] === right){
         chain.push([tile[1], tile[0]]);
       } else {
-        return;
+        return false;
       }
-      hand.splice(selected, 1);
+      player.hand.splice(handIndex, 1);
     }
 
-    selected = null;
     const earned = scoreForTotal(chain[0][0] + chain[chain.length - 1][1]);
     if (earned > 0){
-      score += earned;
-      scoreYouEl.textContent = score;
+      player.score += earned;
     }
+    return true;
+  }
+
+  function findBestMove(handTiles){
+    if (chain.length === 0){
+      if (handTiles.length === 0) return null;
+      return { index: 0, side: "left" };
+    }
+    const left = chain[0][0];
+    const right = chain[chain.length - 1][1];
+    let best = null;
+    handTiles.forEach((tile, index) => {
+      const canLeft = tile[0] === left || tile[1] === left;
+      const canRight = tile[0] === right || tile[1] === right;
+      const options = [];
+      if (canLeft) options.push("left");
+      if (canRight) options.push("right");
+      options.forEach((side) => {
+        const nextLeft = side === "left" ? (tile[0] === left ? tile[1] : tile[0]) : left;
+        const nextRight = side === "right" ? (tile[0] === right ? tile[1] : tile[0]) : right;
+        const earned = scoreForTotal(nextLeft + nextRight);
+        if (!best || earned > best.earned){
+          best = { index, side, earned };
+        }
+      });
+    });
+    return best;
+  }
+
+  function queueAiTurn(){
+    if (aiInProgress) return;
+    if (currentTurn === 0) return;
+    if (!aiToggleEl.checked) return;
+    aiInProgress = true;
+    setTimeout(() => {
+      runAiTurn();
+      aiInProgress = false;
+    }, 600);
+  }
+
+  function runAiTurn(){
+    if (currentTurn === 0) return;
+    const player = players[currentTurn];
+    const move = findBestMove(player.hand);
+    if (move){
+      placeTile(currentTurn, move.index, move.side);
+      render();
+      advanceTurn();
+      return;
+    }
+    if (boneyard.length > 0){
+      player.hand.push(boneyard.pop());
+      render();
+      const moveAfterDraw = findBestMove(player.hand);
+      if (moveAfterDraw){
+        placeTile(currentTurn, moveAfterDraw.index, moveAfterDraw.side);
+        render();
+      }
+    }
+    advanceTurn();
+  }
+
+  function playTile(side){
+    if (currentTurn !== 0) return;
+    if (selected === null) return;
+    const tile = players[0].hand[selected];
+    if (!tile) return;
+
+    if (!placeTile(currentTurn, selected, side)) return;
+
+    selected = null;
     render();
     advanceTurn();
   }
@@ -592,7 +693,7 @@
   function drawTile(){
     if (currentTurn !== 0) return;
     if (boneyard.length === 0) return;
-    hand.push(boneyard.pop());
+    players[0].hand.push(boneyard.pop());
     render();
     advanceTurn();
   }
@@ -600,12 +701,16 @@
   function resetGame(){
     const tiles = buildSet();
     shuffle(tiles);
-    hand = tiles.splice(0, 7);
+    players.forEach((player) => {
+      player.hand = tiles.splice(0, 7);
+      player.score = 0;
+    });
     chain = [tiles.pop()];
     boneyard = tiles;
     selected = null;
-    score = 0;
-    scoreYouEl.textContent = score;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
     setTurn(0);
     render();
   }
@@ -616,6 +721,11 @@
     updateEnds();
     updatePlayButtons();
     boneyardEl.textContent = boneyard.length;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
+    handNorthEl.textContent = players[1].hand.length;
+    handEastEl.textContent = players[2].hand.length;
   }
 
   playLeftBtn.addEventListener("click", () => playTile("left"));
@@ -623,6 +733,7 @@
   drawBtn.addEventListener("click", drawTile);
   endTurnBtn.addEventListener("click", advanceTurn);
   resetBtn.addEventListener("click", resetGame);
+  aiToggleEl.addEventListener("change", queueAiTurn);
 
   resetGame();
 </script>

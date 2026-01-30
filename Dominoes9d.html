@@ -426,6 +426,7 @@
     { name: "North", hand: [], score: 0, isAI: true },
     { name: "East", hand: [], score: 0, isAI: true }
   ];
+  const targetScore = 150;
   let currentTurn = 0;
   let aiInProgress = false;
 
@@ -616,6 +617,8 @@
     drawBtn.disabled = !mustDraw;
     endTurnBtn.classList.toggle("hidden", !canEnd);
     endTurnBtn.disabled = !canEnd;
+    resetBtn.classList.toggle("hidden", !gameOver);
+    resetBtn.disabled = !gameOver;
 
     if (selected !== null){
       const tile = players[0].hand[selected];
@@ -735,7 +738,9 @@
       return sum + moduloScore(total);
     }, 0);
     players[winnerIndex].score += bonus;
-    turnLabelEl.textContent = "Game Over";
+    const matchWinnerIndex = players.findIndex((player) => player.score >= targetScore);
+    const resetScores = matchWinnerIndex !== -1;
+    turnLabelEl.textContent = resetScores ? "Match Won" : "Deal Over";
     playLeftBtn.classList.add("hidden");
     playRightBtn.classList.add("hidden");
     drawBtn.classList.add("hidden");
@@ -748,7 +753,7 @@
     scoreNorthEl.textContent = players[1].score;
     scoreEastEl.textContent = players[2].score;
     setTimeout(() => {
-      resetGame();
+      resetGame({ resetScores });
     }, 1200);
   }
 
@@ -827,12 +832,13 @@
     drawUntilPlayable();
   }
 
-  function resetGame(){
+  function resetGame(options = {}){
+    const { resetScores = false } = options;
     const tiles = buildSet();
     shuffle(tiles);
     players.forEach((player) => {
       player.hand = tiles.splice(0, 7);
-      player.score = 0;
+      if (resetScores) player.score = 0;
     });
     chain = [tiles.pop()];
     boneyard = tiles;
@@ -863,7 +869,7 @@
   playRightBtn.addEventListener("click", () => playTile("right"));
   drawBtn.addEventListener("click", drawTile);
   endTurnBtn.addEventListener("click", advanceTurn);
-  resetBtn.addEventListener("click", resetGame);
+  resetBtn.addEventListener("click", () => resetGame());
   aiToggleEl.addEventListener("change", queueAiTurn);
 
   resetGame();

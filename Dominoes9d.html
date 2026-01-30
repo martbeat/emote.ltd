@@ -810,7 +810,8 @@
       return sum + moduloScore(total);
     }, 0);
     players[winnerIndex].score += bonus;
-    const resetScores = players[winnerIndex].score >= targetScore;
+    const matchWinnerIndex = players.findIndex((player) => player.score >= targetScore);
+    const resetScores = matchWinnerIndex !== -1;
     turnLabelEl.textContent = resetScores ? "Match Won" : "Deal Over";
     playLeftBtn.classList.add("hidden");
     playRightBtn.classList.add("hidden");
@@ -926,6 +927,9 @@
     boneyard = tiles;
     selected = null;
     gameOver = false;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
     setTurn(0);
     render();
   }

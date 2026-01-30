@@ -649,7 +649,10 @@
     if (currentTurn === 0) return;
     if (!aiToggleEl.checked) return;
     aiInProgress = true;
-    setTimeout(runAiTurn, 600);
+    setTimeout(() => {
+      runAiTurn();
+      aiInProgress = false;
+    }, 600);
   }
 
   function runAiTurn(){

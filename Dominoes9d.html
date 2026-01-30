@@ -970,11 +970,18 @@ players.forEach((player, index) => {
 
 if (opener){
   // Lay the opening double immediately
-  chain = [opener.tile];
-  players[openerIndex].hand.splice(opener.tileIndex, 1);
+chain = [opener.tile];
+players[openerIndex].hand.splice(opener.tileIndex, 1);
 
-  // Next player after the opener starts
-  setTurn(openerIndex + 1);
+// Score the opening tile
+const openingTotal = opener.tile[0] * 2;
+const openingScore = scoreForTotal(openingTotal);
+if (openingScore > 0){
+  players[openerIndex].score += openingScore;
+}
+
+setTurn(openerIndex + 1);
+
 } else {
   // Fallback if no doubles exist
   chain = [tiles.pop()];

@@ -570,10 +570,8 @@
     return handTiles.reduce((sum, tile) => sum + tileScore(tile), 0);
   }
 
-  function handScoringLine(player, tiles){
-    const total = handTotal(tiles);
-    const score = handScore(tiles);
-    return player.name + ": " + total + " pips → " + score + " (Σ⌊tile/3⌋ + ⌊tile/5⌋)";
+  function tileLabel(tile){
+    return tile[0] + "|" + tile[1];
   }
 
   function showCelebration({ title, message, breakdownLines, isMatchWin }){
@@ -611,14 +609,18 @@
       endScoreEl.textContent = "0";
       return;
     }
-    const left = chain[0][0];
-    const right = chain[chain.length - 1][1];
+    const leftTile = chain[0];
+    const rightTile = chain[chain.length - 1];
+    const left = leftTile[0];
+    const right = rightTile[1];
     leftValueEl.textContent = left;
     rightValueEl.textContent = right;
     leftCapEl.textContent = "Left end: " + left;
     rightCapEl.textContent = "Right end: " + right;
 
-    const total = left + right;
+    const leftScore = leftTile[0] === leftTile[1] ? left * 2 : left;
+    const rightScore = rightTile[0] === rightTile[1] ? right * 2 : right;
+    const total = leftScore + rightScore;
     endTotalEl.textContent = total;
     endScoreEl.textContent = scoreForTotal(total);
   }
@@ -836,10 +838,16 @@
     scoreYouEl.textContent = players[0].score;
     scoreNorthEl.textContent = players[1].score;
     scoreEastEl.textContent = players[2].score;
-    const scoringLines = players.map((player, index) => {
-      const line = handScoringLine(player, player.hand);
-      return index === winnerIndex ? "<strong>" + line + "</strong>" : line;
-    });
+    const scoringLines = players.reduce((lines, player, index) => {
+      const total = handTotal(player.hand);
+      const score = handScore(player.hand);
+      const header = player.name + ": " + total + " pips → " + score + " (Σ⌊tile/3⌋ + ⌊tile/5⌋)";
+      const headerLine = index === winnerIndex ? "<strong>" + header + "</strong>" : header;
+      const tileLines = player.hand.length
+        ? player.hand.map((tile) => "• " + tileLabel(tile) + " = " + tileScore(tile))
+        : ["• No tiles remaining"];
+      return lines.concat([headerLine].concat(tileLines));
+    }, []);
     showCelebration({
       title: resetScores ? players[winnerIndex].name + " wins the match!" : players[winnerIndex].name + " wins the hand",
       message: resetScores ? "Target reached. Scores reset for a fresh match!" : "Scoring this hand:",

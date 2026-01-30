@@ -346,7 +346,7 @@
         <div class="subtitle">Double-nine dominoes with 3s &amp; 5s scoring. Build the chain, watch the end totals, and score whenever the exposed ends sum to a multiple of 3 or 5.</div>
       </div>
       <div class="pillbar">
-        <div class="pill">Set: Double Nine (0–9)</div>
+        <div class="pill">Set: Double Nine</div>
         <div class="pill">Scoring: 3s &amp; 5s</div>
         <div class="pill">Target: 150 points</div>
       </div>
@@ -841,7 +841,7 @@
     const scoringLines = players.reduce((lines, player, index) => {
       const total = handTotal(player.hand);
       const score = handScore(player.hand);
-      const header = player.name + ": " + total + " pips → " + score + " (Σ⌊tile/3⌋ + ⌊tile/5⌋)";
+      const header = player.name + ": " + total + " pips → " + score;
       const headerLine = index === winnerIndex ? "<strong>" + header + "</strong>" : header;
       const tileLines = player.hand.length
         ? player.hand.map((tile) => "• " + tileLabel(tile) + " = " + tileScore(tile))

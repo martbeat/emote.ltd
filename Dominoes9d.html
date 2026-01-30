@@ -781,9 +781,14 @@ const earned = scoreForTotal(
     ? chain[chain.length - 1][1] * 2
     : chain[chain.length - 1][1])
 );
-    if (earned > 0){
-      player.score += earned;
-    }
+if (earned > 0){
+  player.score += earned;
+  if (player.score >= targetScore){
+    finishDeal(playerIndex, { includeWinner: true });
+    return true;
+  }
+}
+
     if (player.hand.length === 0){
       finishDeal(playerIndex, { includeWinner: false });
     }

@@ -662,6 +662,7 @@
     if (move){
       placeTile(currentTurn, move.index, move.side);
       render();
+      aiInProgress = false;
       advanceTurn();
       return;
     }
@@ -674,6 +675,7 @@
         render();
       }
     }
+    aiInProgress = false;
     advanceTurn();
   }
 

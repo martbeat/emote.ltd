@@ -775,7 +775,12 @@
       player.hand.splice(handIndex, 1);
     }
 
-    const earned = scoreForTotal(chain[0][0] + chain[chain.length - 1][1]);
+const earned = scoreForTotal(
+  (chain[0][0] === chain[0][1] ? chain[0][0] * 2 : chain[0][0]) +
+  (chain[chain.length - 1][0] === chain[chain.length - 1][1]
+    ? chain[chain.length - 1][1] * 2
+    : chain[chain.length - 1][1])
+);
     if (earned > 0){
       player.score += earned;
     }

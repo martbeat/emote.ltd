@@ -616,6 +616,8 @@
     drawBtn.disabled = !mustDraw;
     endTurnBtn.classList.toggle("hidden", !canEnd);
     endTurnBtn.disabled = !canEnd;
+    resetBtn.classList.toggle("hidden", !gameOver);
+    resetBtn.disabled = !gameOver;
 
     if (selected !== null){
       const tile = players[0].hand[selected];
@@ -827,12 +829,13 @@
     drawUntilPlayable();
   }
 
-  function resetGame(){
+  function resetGame(options = {}){
+    const { resetScores = false } = options;
     const tiles = buildSet();
     shuffle(tiles);
     players.forEach((player) => {
       player.hand = tiles.splice(0, 7);
-      player.score = 0;
+      if (resetScores) player.score = 0;
     });
     chain = [tiles.pop()];
     boneyard = tiles;
@@ -863,7 +866,7 @@
   playRightBtn.addEventListener("click", () => playTile("right"));
   drawBtn.addEventListener("click", drawTile);
   endTurnBtn.addEventListener("click", advanceTurn);
-  resetBtn.addEventListener("click", resetGame);
+  resetBtn.addEventListener("click", () => resetGame());
   aiToggleEl.addEventListener("change", queueAiTurn);
 
   resetGame();

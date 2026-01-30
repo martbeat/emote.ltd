@@ -453,11 +453,10 @@
     el.dataset.left = tile[0];
     el.dataset.right = tile[1];
 
-    el.innerHTML = `
-      <div class="half">${pipMarkup(tile[0])}</div>
-      <div class="divider"></div>
-      <div class="half">${pipMarkup(tile[1])}</div>
-    `;
+    el.innerHTML =
+      '<div class="half">' + pipMarkup(tile[0]) + '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="half">' + pipMarkup(tile[1]) + '</div>';
 
     if (opts.disabled){
       el.classList.add("disabled");
@@ -529,8 +528,8 @@
     const right = chain[chain.length - 1][1];
     leftValueEl.textContent = left;
     rightValueEl.textContent = right;
-    leftCapEl.textContent = `Left end: ${left}`;
-    rightCapEl.textContent = `Right end: ${right}`;
+    leftCapEl.textContent = "Left end: " + left;
+    rightCapEl.textContent = "Right end: " + right;
 
     const total = left + right;
     endTotalEl.textContent = total;
@@ -549,7 +548,7 @@
     chain.forEach((tile) => {
       const domino = renderDomino(tile, { disabled: true });
       domino.classList.remove("disabled");
-      domino.setAttribute("aria-label", `Domino ${tile[0]}-${tile[1]}`);
+      domino.setAttribute("aria-label", "Domino " + tile[0] + "-" + tile[1]);
       domino.style.cursor = "default";
       chainEl.appendChild(domino);
     });

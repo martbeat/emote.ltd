@@ -332,6 +332,10 @@
     color:var(--muted);
   }
   .score-breakdown strong{ color:var(--ink); }
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+  }
 </style>
 </head>
 <body>
@@ -441,6 +445,9 @@
       <h3 id="celebrationTitle">Deal Complete</h3>
       <p id="celebrationMessage">Great play! Here is how the scoring landed this hand.</p>
       <div class="score-breakdown" id="celebrationBreakdown"></div>
+      <div class="modal-actions">
+        <button class="primary" id="celebrationClose">Continue</button>
+      </div>
     </div>
   </div>
 
@@ -467,6 +474,7 @@
   const celebrationMessageEl = document.getElementById("celebrationMessage");
   const celebrationBreakdownEl = document.getElementById("celebrationBreakdown");
   const celebrationIconsEl = document.getElementById("celebrationIcons");
+  const celebrationCloseEl = document.getElementById("celebrationClose");
 
   const playLeftBtn = document.getElementById("playLeft");
   const playRightBtn = document.getElementById("playRight");
@@ -478,6 +486,8 @@
   let chain = [];
   let selected = null;
   let gameOver = false;
+  let pendingReset = false;
+  let pendingResetScores = false;
   const players = [
     { name: "You", hand: [], score: 0, isAI: false },
     { name: "North", hand: [], score: 0, isAI: true },
@@ -954,6 +964,13 @@
   endTurnBtn.addEventListener("click", advanceTurn);
   resetBtn.addEventListener("click", () => resetGame());
   aiToggleEl.addEventListener("change", queueAiTurn);
+  celebrationCloseEl.addEventListener("click", () => {
+    celebrationModalEl.classList.add("hidden");
+    if (pendingReset){
+      pendingReset = false;
+      resetGame({ resetScores: pendingResetScores });
+    }
+  });
 
   resetGame();
 </script>

@@ -233,7 +233,10 @@
     display:flex;
     gap:10px;
     flex-wrap:wrap;
+    align-items:center;
   }
+  .controls.hidden{ display:none; }
+  .hidden{ display:none; }
   button{
     cursor:pointer;
     border:1px solid var(--line);
@@ -314,17 +317,10 @@
               <div class="stat warn"><strong id="endScore">0</strong><br>Score now</div>
               <div class="stat"><strong id="turnLabel">You</strong><br>Turn</div>
             </div>
-            <div class="controls">
-              <label class="toggle">
-                <input type="checkbox" id="aiToggle" checked />
-                <span>AI Opponents</span>
-              </label>
-              <button class="primary" id="playLeft">Play Left</button>
-              <button class="primary" id="playRight">Play Right</button>
-              <button class="warn" id="drawTile">Draw</button>
-              <button class="good" id="endTurn">End Turn</button>
-              <button id="reset">New Deal</button>
-            </div>
+            <label class="toggle">
+              <input type="checkbox" id="aiToggle" checked />
+              <span>AI Opponents</span>
+            </label>
           </div>
 
           <div class="chain" id="chain">
@@ -367,8 +363,15 @@
         <h2>Your Hand</h2>
         <div class="body hand-area">
           <div id="hand" class="hand"></div>
+          <div class="controls">
+            <button class="primary" id="playLeft">Play Left</button>
+            <button class="primary" id="playRight">Play Right</button>
+            <button class="warn" id="drawTile">Draw</button>
+            <button class="good" id="endTurn">End Turn</button>
+            <button id="reset">New Deal</button>
+          </div>
           <div class="legend">
-            <span>Tip: select a tile, then play it to the left or right end.</span>
+            <span>Tip: tap a tile to play it. If it fits both ends, choose left or right.</span>
             <span>Boneyard: <strong id="boneyard">0</strong> tiles</span>
           </div>
         </div>
@@ -417,6 +420,7 @@
   let boneyard = [];
   let chain = [];
   let selected = null;
+  let gameOver = false;
   const players = [
     { name: "You", hand: [], score: 0, isAI: false },
     { name: "North", hand: [], score: 0, isAI: true },
@@ -449,11 +453,10 @@
     el.dataset.left = tile[0];
     el.dataset.right = tile[1];
 
-    el.innerHTML = `
-      <div class="half">${pipMarkup(tile[0])}</div>
-      <div class="divider"></div>
-      <div class="half">${pipMarkup(tile[1])}</div>
-    `;
+    el.innerHTML =
+      '<div class="half">' + pipMarkup(tile[0]) + '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="half">' + pipMarkup(tile[1]) + '</div>';
 
     if (opts.disabled){
       el.classList.add("disabled");
@@ -461,6 +464,37 @@
     }
 
     return el;
+  }
+
+  function getPlayableSides(tile){
+    if (chain.length === 0) return ["left"];
+    const left = chain[0][0];
+    const right = chain[chain.length - 1][1];
+    const sides = [];
+    if (tile[0] === left || tile[1] === left) sides.push("left");
+    if (tile[0] === right || tile[1] === right) sides.push("right");
+    return sides;
+  }
+
+  function getPlayableTiles(handTiles){
+    if (chain.length === 0) return handTiles.map((_, index) => index);
+    return handTiles
+      .map((tile, index) => ({ tile, index, sides: getPlayableSides(tile) }))
+      .filter((entry) => entry.sides.length > 0)
+      .map((entry) => entry.index);
+  }
+
+  function hasPlayableTiles(handTiles){
+    if (chain.length === 0) return handTiles.length > 0;
+    return getPlayableTiles(handTiles).length > 0;
+  }
+
+  function handTotal(handTiles){
+    return handTiles.reduce((sum, tile) => sum + tile[0] + tile[1], 0);
+  }
+
+  function moduloScore(total){
+    return (total % 3) + (total % 5);
   }
 
   function pipMarkup(value){
@@ -494,8 +528,8 @@
     const right = chain[chain.length - 1][1];
     leftValueEl.textContent = left;
     rightValueEl.textContent = right;
-    leftCapEl.textContent = `Left end: ${left}`;
-    rightCapEl.textContent = `Right end: ${right}`;
+    leftCapEl.textContent = "Left end: " + left;
+    rightCapEl.textContent = "Right end: " + right;
 
     const total = left + right;
     endTotalEl.textContent = total;
@@ -514,35 +548,58 @@
     chain.forEach((tile) => {
       const domino = renderDomino(tile, { disabled: true });
       domino.classList.remove("disabled");
-      domino.setAttribute("aria-label", `Domino ${tile[0]}-${tile[1]}`);
+      domino.setAttribute("aria-label", "Domino " + tile[0] + "-" + tile[1]);
       domino.style.cursor = "default";
       chainEl.appendChild(domino);
     });
   }
 
   function setTurn(index){
+    if (gameOver){
+      turnLabelEl.textContent = "Game Over";
+      return;
+    }
     currentTurn = (index + players.length) % players.length;
     turnLabelEl.textContent = players[currentTurn].name;
     if (currentTurn !== 0){
       selected = null;
+    }
+    if (gameOver) return;
+    if (currentTurn === 0){
+      if (drawUntilPlayable()){
+        return;
+      }
     }
     updatePlayButtons();
     queueAiTurn();
   }
 
   function advanceTurn(){
+    if (gameOver) return;
     setTurn(currentTurn + 1);
   }
 
   function renderHand(){
     handEl.innerHTML = "";
     players[0].hand.forEach((tile, index) => {
-      const domino = renderDomino(tile, { selected: selected === index });
+      const sides = getPlayableSides(tile);
+      const isDisabled = currentTurn !== 0 || gameOver || (chain.length > 0 && sides.length === 0);
+      const domino = renderDomino(tile, { selected: selected === index, disabled: isDisabled });
       domino.addEventListener("click", () => {
-        if (currentTurn !== 0) return;
-        selected = selected === index ? null : index;
-        renderHand();
-        updatePlayButtons();
+        if (currentTurn !== 0 || gameOver) return;
+        const options = getPlayableSides(tile);
+        if (options.length === 1){
+          placeTile(0, index, options[0]);
+          selected = null;
+          render();
+          advanceTurn();
+          return;
+        }
+        if (options.length === 2){
+          selected = selected === index ? null : index;
+          renderHand();
+          updatePlayButtons();
+        }
       });
       handEl.appendChild(domino);
     });
@@ -550,35 +607,53 @@
   }
 
   function updatePlayButtons(){
-    const isYourTurn = currentTurn === 0;
-    if (selected === null){
+    const isYourTurn = currentTurn === 0 && !gameOver;
+    const canPlay = isYourTurn && hasPlayableTiles(players[0].hand);
+    const mustDraw = isYourTurn && !canPlay && boneyard.length > 0;
+    const canEnd = isYourTurn && !canPlay && boneyard.length === 0;
+
+    drawBtn.classList.toggle("hidden", !mustDraw);
+    drawBtn.disabled = !mustDraw;
+    endTurnBtn.classList.toggle("hidden", !canEnd);
+    endTurnBtn.disabled = !canEnd;
+    resetBtn.classList.toggle("hidden", !gameOver);
+    resetBtn.disabled = !gameOver;
+
+    if (selected !== null){
+      const tile = players[0].hand[selected];
+      const sides = tile ? getPlayableSides(tile) : [];
+      if (sides.length !== 2){
+        selected = null;
+      }
+    }
+
+    if (selected === null || !isYourTurn){
       playLeftBtn.disabled = true;
       playRightBtn.disabled = true;
-      drawBtn.disabled = !isYourTurn;
-      endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
+      playLeftBtn.classList.add("hidden");
+      playRightBtn.classList.add("hidden");
       return;
     }
     const tile = players[0].hand[selected];
     if (!tile){
       playLeftBtn.disabled = true;
       playRightBtn.disabled = true;
-      drawBtn.disabled = !isYourTurn;
-      endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
+      playLeftBtn.classList.add("hidden");
+      playRightBtn.classList.add("hidden");
       return;
     }
-    if (chain.length === 0){
-      playLeftBtn.disabled = !isYourTurn;
-      playRightBtn.disabled = !isYourTurn;
-      drawBtn.disabled = !isYourTurn;
-      endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
-      return;
+    const options = getPlayableSides(tile);
+    if (options.length === 2){
+      playLeftBtn.disabled = false;
+      playRightBtn.disabled = false;
+      playLeftBtn.classList.remove("hidden");
+      playRightBtn.classList.remove("hidden");
+    } else {
+      playLeftBtn.disabled = true;
+      playRightBtn.disabled = true;
+      playLeftBtn.classList.add("hidden");
+      playRightBtn.classList.add("hidden");
     }
-    const left = chain[0][0];
-    const right = chain[chain.length - 1][1];
-    playLeftBtn.disabled = !isYourTurn || !(tile[0] === left || tile[1] === left);
-    playRightBtn.disabled = !isYourTurn || !(tile[0] === right || tile[1] === right);
-    drawBtn.disabled = !isYourTurn;
-    endTurnBtn.disabled = !isYourTurn && aiToggleEl.checked;
   }
 
   function placeTile(playerIndex, handIndex, side){
@@ -615,6 +690,9 @@
     if (earned > 0){
       player.score += earned;
     }
+    if (player.hand.length === 0){
+      finishDeal(playerIndex, { includeWinner: false });
+    }
     return true;
   }
 
@@ -644,10 +722,67 @@
     return best;
   }
 
+  function isGameBlocked(){
+    if (boneyard.length > 0) return false;
+    return players.every((player) => !hasPlayableTiles(player.hand));
+  }
+
+  function finishDeal(winnerIndex, options = {}){
+    if (gameOver) return;
+    const { includeWinner = false } = options;
+    gameOver = true;
+    const totals = players.map((player) => handTotal(player.hand));
+    const bonus = totals.reduce((sum, total, index) => {
+      if (!includeWinner && index === winnerIndex) return sum;
+      return sum + moduloScore(total);
+    }, 0);
+    players[winnerIndex].score += bonus;
+    turnLabelEl.textContent = "Game Over";
+    playLeftBtn.classList.add("hidden");
+    playRightBtn.classList.add("hidden");
+    drawBtn.classList.add("hidden");
+    endTurnBtn.classList.add("hidden");
+    playLeftBtn.disabled = true;
+    playRightBtn.disabled = true;
+    drawBtn.disabled = true;
+    endTurnBtn.disabled = true;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
+    setTimeout(() => {
+      resetGame();
+    }, 1200);
+  }
+
+  function updateGameOver(){
+    if (!isGameBlocked()) return;
+    const totals = players.map((player) => handTotal(player.hand));
+    const winnerTotal = Math.min(...totals);
+    const winnerIndex = totals.indexOf(winnerTotal);
+    finishDeal(winnerIndex, { includeWinner: true });
+  }
+
+  function drawUntilPlayable(){
+    const player = players[currentTurn];
+    let playable = hasPlayableTiles(player.hand);
+    while (!playable && boneyard.length > 0){
+      player.hand.push(boneyard.pop());
+      playable = hasPlayableTiles(player.hand);
+    }
+    render();
+    if (gameOver) return true;
+    if (!playable && boneyard.length === 0){
+      advanceTurn();
+      return true;
+    }
+    return false;
+  }
+
   function queueAiTurn(){
     if (aiInProgress) return;
     if (currentTurn === 0) return;
     if (!aiToggleEl.checked) return;
+    if (gameOver) return;
     aiInProgress = true;
     setTimeout(() => {
       runAiTurn();
@@ -658,7 +793,11 @@
   function runAiTurn(){
     if (currentTurn === 0) return;
     const player = players[currentTurn];
-    const move = findBestMove(player.hand);
+    let move = findBestMove(player.hand);
+    while (!move && boneyard.length > 0){
+      player.hand.push(boneyard.pop());
+      move = findBestMove(player.hand);
+    }
     if (move){
       placeTile(currentTurn, move.index, move.side);
       render();
@@ -666,15 +805,7 @@
       advanceTurn();
       return;
     }
-    if (boneyard.length > 0){
-      player.hand.push(boneyard.pop());
-      render();
-      const moveAfterDraw = findBestMove(player.hand);
-      if (moveAfterDraw){
-        placeTile(currentTurn, moveAfterDraw.index, moveAfterDraw.side);
-        render();
-      }
-    }
+    render();
     aiInProgress = false;
     advanceTurn();
   }
@@ -695,24 +826,21 @@
   function drawTile(){
     if (currentTurn !== 0) return;
     if (boneyard.length === 0) return;
-    players[0].hand.push(boneyard.pop());
-    render();
-    advanceTurn();
+    drawUntilPlayable();
   }
 
-  function resetGame(){
+  function resetGame(options = {}){
+    const { resetScores = false } = options;
     const tiles = buildSet();
     shuffle(tiles);
     players.forEach((player) => {
       player.hand = tiles.splice(0, 7);
-      player.score = 0;
+      if (resetScores) player.score = 0;
     });
     chain = [tiles.pop()];
     boneyard = tiles;
     selected = null;
-    scoreYouEl.textContent = players[0].score;
-    scoreNorthEl.textContent = players[1].score;
-    scoreEastEl.textContent = players[2].score;
+    gameOver = false;
     setTurn(0);
     render();
   }
@@ -728,13 +856,14 @@
     scoreEastEl.textContent = players[2].score;
     handNorthEl.textContent = players[1].hand.length;
     handEastEl.textContent = players[2].hand.length;
+    updateGameOver();
   }
 
   playLeftBtn.addEventListener("click", () => playTile("left"));
   playRightBtn.addEventListener("click", () => playTile("right"));
   drawBtn.addEventListener("click", drawTile);
   endTurnBtn.addEventListener("click", advanceTurn);
-  resetBtn.addEventListener("click", resetGame);
+  resetBtn.addEventListener("click", () => resetGame());
   aiToggleEl.addEventListener("change", queueAiTurn);
 
   resetGame();

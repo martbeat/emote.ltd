@@ -726,6 +726,14 @@
     return players.every((player) => !hasPlayableTiles(player.hand));
   }
 
+  function updateGameOver(){
+    if (!isGameBlocked()) return;
+    if (gameOver) return;
+    gameOver = true;
+    const totals = players.map((player) => handTotal(player.hand));
+    const winnerTotal = Math.min(...totals);
+    const winnerIndex = totals.indexOf(winnerTotal);
+    const bonus = totals.reduce((sum, total) => sum + moduloScore(total), 0);
   function finishDeal(winnerIndex, options = {}){
     if (gameOver) return;
     const { includeWinner = false } = options;

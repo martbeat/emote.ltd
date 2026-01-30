@@ -947,10 +947,12 @@ if (earned > 0){
     const { resetScores = false } = options;
     const tiles = buildSet();
     shuffle(tiles);
+
     players.forEach((player) => {
       player.hand = tiles.splice(0, 7);
       if (resetScores) player.score = 0;
     });
+
 // Find highest opening double
 let opener = null;
 let openerIndex = 0;
@@ -978,7 +980,8 @@ if (opener){
   chain = [tiles.pop()];
   setTurn(0);
 }
-
+}
+  
   function render(){
     renderChain();
     renderHand();

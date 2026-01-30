@@ -557,16 +557,23 @@
     return getPlayableTiles(handTiles).length > 0;
   }
 
+  function tileScore(tile){
+    const total = tile[0] + tile[1];
+    return Math.floor(total / 3) + Math.floor(total / 5);
+  }
+
   function handTotal(handTiles){
     return handTiles.reduce((sum, tile) => sum + tile[0] + tile[1], 0);
   }
 
-  function handScore(total){
-    return Math.round(total / 3) + Math.round(total / 5);
+  function handScore(handTiles){
+    return handTiles.reduce((sum, tile) => sum + tileScore(tile), 0);
   }
 
-  function handScoringLine(player, total){
-    return player.name + ": " + total + " pips → (" + (total / 3).toFixed(2) + " /3) + (" + (total / 5).toFixed(2) + " /5)";
+  function handScoringLine(player, tiles){
+    const total = handTotal(tiles);
+    const score = handScore(tiles);
+    return player.name + ": " + total + " pips → " + score + " (Σ⌊tile/3⌋ + ⌊tile/5⌋)";
   }
 
   function showCelebration({ title, message, breakdownLines, isMatchWin }){
@@ -811,10 +818,9 @@
     if (gameOver) return;
     const { includeWinner = false } = options;
     gameOver = true;
-    const totals = players.map((player) => handTotal(player.hand));
-    const bonus = totals.reduce((sum, total, index) => {
+    const bonus = players.reduce((sum, player, index) => {
       if (!includeWinner && index === winnerIndex) return sum;
-      return sum + handScore(total);
+      return sum + handScore(player.hand);
     }, 0);
     players[winnerIndex].score += bonus;
     const resetScores = players[winnerIndex].score >= targetScore;
@@ -831,8 +837,7 @@
     scoreNorthEl.textContent = players[1].score;
     scoreEastEl.textContent = players[2].score;
     const scoringLines = players.map((player, index) => {
-      const total = totals[index];
-      const line = handScoringLine(player, total) + " → " + handScore(total);
+      const line = handScoringLine(player, player.hand);
       return index === winnerIndex ? "<strong>" + line + "</strong>" : line;
     });
     showCelebration({

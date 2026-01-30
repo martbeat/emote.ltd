@@ -844,6 +844,9 @@
     boneyard = tiles;
     selected = null;
     gameOver = false;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
     setTurn(0);
     render();
   }

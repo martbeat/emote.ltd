@@ -663,10 +663,23 @@
     queueAiTurn();
   }
 
-  function advanceTurn(){
-    if (gameOver) return;
-    setTurn(currentTurn + 1);
+function advanceTurn(){
+  if (gameOver) return;
+
+  // NEW: deadlock on turn with empty boneyard
+  if (
+    boneyard.length === 0 &&
+    !hasPlayableTiles(players[currentTurn].hand)
+  ){
+    const totals = players.map((p) => handTotal(p.hand));
+    const winnerIndex = totals.indexOf(Math.min(...totals));
+    finishDeal(winnerIndex, { includeWinner: true });
+    return;
   }
+
+  setTurn(currentTurn + 1);
+}
+
 
   function renderHand(){
     handEl.innerHTML = "";

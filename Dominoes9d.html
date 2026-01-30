@@ -575,9 +575,6 @@
     celebrationBreakdownEl.innerHTML = breakdownLines.map((line) => "<div>" + line + "</div>").join("");
     celebrationIconsEl.textContent = isMatchWin ? "🏆🎉✨🏆" : "🎉✨🎉";
     celebrationModalEl.classList.remove("hidden");
-    setTimeout(() => {
-      celebrationModalEl.classList.add("hidden");
-    }, isMatchWin ? 2200 : 1600);
   }
 
   function pipMarkup(value){
@@ -820,8 +817,7 @@
       return sum + moduloScore(total);
     }, 0);
     players[winnerIndex].score += bonus;
-    const matchWinnerIndex = players.findIndex((player) => player.score >= targetScore);
-    const resetScores = matchWinnerIndex !== -1;
+    const resetScores = players[winnerIndex].score >= targetScore;
     turnLabelEl.textContent = resetScores ? "Match Won" : "Deal Over";
     playLeftBtn.classList.add("hidden");
     playRightBtn.classList.add("hidden");
@@ -845,9 +841,8 @@
       breakdownLines: scoringLines,
       isMatchWin: resetScores
     });
-    setTimeout(() => {
-      resetGame({ resetScores });
-    }, 1200);
+    pendingReset = true;
+    pendingResetScores = resetScores;
   }
 
   function updateGameOver(){
@@ -937,9 +932,8 @@
     boneyard = tiles;
     selected = null;
     gameOver = false;
-    scoreYouEl.textContent = players[0].score;
-    scoreNorthEl.textContent = players[1].score;
-    scoreEastEl.textContent = players[2].score;
+    pendingReset = false;
+    pendingResetScores = false;
     setTurn(0);
     render();
   }
@@ -964,6 +958,11 @@
   endTurnBtn.addEventListener("click", advanceTurn);
   resetBtn.addEventListener("click", () => resetGame());
   aiToggleEl.addEventListener("change", queueAiTurn);
+  celebrationModalEl.addEventListener("click", (event) => {
+    if (event.target === celebrationModalEl){
+      event.stopPropagation();
+    }
+  });
   celebrationCloseEl.addEventListener("click", () => {
     celebrationModalEl.classList.add("hidden");
     if (pendingReset){

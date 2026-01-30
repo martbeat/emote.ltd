@@ -505,6 +505,13 @@ const GAMES = [
     desc: "Basic game. The display is a bit stone age but it works!"
   },  
   {
+    title: "Dominoes 9D (3s & 5s)",
+    href: "Dominoes9d.html",
+    tag: "Board",
+    tagClass: "board",
+    desc: "Double-nine dominoes with 3s & 5s scoring and a refined table layout."
+  },
+  {
     title: "Soundboard",
     href: "Soundboard.html",
     tag: "Music",
@@ -613,7 +620,15 @@ const GAMES = [
     const countEl = document.getElementById("count");
 
     // z-index management so clicked/dragged cards come to front
-    let topZ = 10;
+    const baseZ = 1;
+    let topZ = baseZ + GAMES.length + 5;
+
+    // visibility cycling (fade out ~50% of cards over a minute)
+    const visibilityCycleMs = 60000;
+    const visibilityStartDelayMs = 1500;
+    const visibleFraction = 0.5;
+    const fadeFraction = 0.1;
+    let visibilityStart = performance.now() + visibilityStartDelayMs;
 
     // motion state
     let autopilot = true;
@@ -701,9 +716,13 @@ const state = {
   curveBiasY: rand(-1, 1)
 };
 
+      state.visibilityOrder = idx;
+      state.visibilityOffset = 0;
+      state.wasVisible = true;
+
       el.style.left = state.x + "px";
       el.style.top  = state.y + "px";
-      el.style.zIndex = String(++topZ);
+      el.style.zIndex = String(baseZ + idx);
 
       // bring to front on click
       el.addEventListener("pointerdown", (e) => {
@@ -804,6 +823,55 @@ const strength = (sepRadius - d) / sepRadius;
   return { fx, fy };
 }
 
+function visibilityOpacity(phase){
+  const local = ((phase % 1) + 1) % 1;
+  if (local < visibleFraction){
+    if (local < fadeFraction){
+      return local / fadeFraction;
+    }
+    if (local > visibleFraction - fadeFraction){
+      return (visibleFraction - local) / fadeFraction;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+function updateVisibility(t){
+  const elapsed = t - visibilityStart;
+  if (elapsed < 0){
+    cards.forEach((s) => {
+      s.el.style.opacity = "1";
+      s.el.style.pointerEvents = "auto";
+      s.el.setAttribute("aria-hidden", "false");
+      s.wasVisible = true;
+    });
+    return;
+  }
+
+  const cyclePos = (elapsed % visibilityCycleMs) / visibilityCycleMs;
+  cards.forEach((s) => {
+    if (s.dragging){
+      s.el.style.opacity = "1";
+      s.el.style.pointerEvents = "auto";
+      s.el.setAttribute("aria-hidden", "false");
+      s.wasVisible = true;
+      return;
+    }
+
+    const opacity = visibilityOpacity(cyclePos + s.visibilityOffset);
+    const isVisible = opacity > 0.02;
+    s.el.style.opacity = opacity.toFixed(3);
+    s.el.style.pointerEvents = isVisible ? "auto" : "none";
+    s.el.setAttribute("aria-hidden", isVisible ? "false" : "true");
+
+    if (isVisible !== s.wasVisible){
+      s.el.style.zIndex = String(baseZ + s.visibilityOrder);
+    }
+    s.wasVisible = isVisible;
+  });
+}
+
     
     function bringToFront(state){
       state.el.style.zIndex = String(++topZ);
@@ -882,6 +950,8 @@ function sync(s){
       const dt = Math.min(0.033, (t - lastT) / 1000);
       lastT = t;
 
+      updateVisibility(t);
+
 if (autopilot){
   cards.forEach((s) => {
     if (s.pinned || s.dragging) return;
@@ -938,13 +1008,9 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
       document.querySelector(".dot").style.background = autopilot ? "rgba(125,255,178,.75)" : "rgba(255,255,255,.35)";
       document.querySelector(".dot").style.boxShadow = autopilot ? "0 0 0 3px rgba(125,255,178,.12)" : "0 0 0 3px rgba(255,255,255,.10)";
 
-      if (autopilot && !raf){
+      if (!raf){
         lastT = performance.now();
         raf = requestAnimationFrame(tick);
-      }
-      if (!autopilot && raf){
-        cancelAnimationFrame(raf);
-        raf = null;
       }
     }
 
@@ -965,9 +1031,19 @@ function shuffleArray(arr){
         .replaceAll("'", "&#039;");
     }
 
+    function assignVisibilityOffsets(){
+      const ordered = [...cards].sort(
+        (a, b) => Number(b.el.style.zIndex) - Number(a.el.style.zIndex)
+      );
+      ordered.forEach((s, i) => {
+        s.visibilityOffset = i / Math.max(1, cards.length);
+      });
+    }
+
     // create all cards
 shuffleArray(GAMES);
     GAMES.forEach(makeCard);
+    assignVisibilityOffsets();
 
     // buttons
     shuffleBtn.addEventListener("click", shuffle);

@@ -575,6 +575,9 @@
     celebrationBreakdownEl.innerHTML = breakdownLines.map((line) => "<div>" + line + "</div>").join("");
     celebrationIconsEl.textContent = isMatchWin ? "🏆🎉✨🏆" : "🎉✨🎉";
     celebrationModalEl.classList.remove("hidden");
+    setTimeout(() => {
+      celebrationModalEl.classList.add("hidden");
+    }, isMatchWin ? 2200 : 1600);
   }
 
   function pipMarkup(value){
@@ -817,7 +820,8 @@
       return sum + moduloScore(total);
     }, 0);
     players[winnerIndex].score += bonus;
-    const resetScores = players[winnerIndex].score >= targetScore;
+    const matchWinnerIndex = players.findIndex((player) => player.score >= targetScore);
+    const resetScores = matchWinnerIndex !== -1;
     turnLabelEl.textContent = resetScores ? "Match Won" : "Deal Over";
     playLeftBtn.classList.add("hidden");
     playRightBtn.classList.add("hidden");
@@ -841,8 +845,9 @@
       breakdownLines: scoringLines,
       isMatchWin: resetScores
     });
-    pendingReset = true;
-    pendingResetScores = resetScores;
+    setTimeout(() => {
+      resetGame({ resetScores });
+    }, 1200);
   }
 
   function updateGameOver(){
@@ -932,8 +937,9 @@
     boneyard = tiles;
     selected = null;
     gameOver = false;
-    pendingReset = false;
-    pendingResetScores = false;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
     setTurn(0);
     render();
   }

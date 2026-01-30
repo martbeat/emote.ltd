@@ -967,23 +967,17 @@ players.forEach((player, index) => {
 });
 
 if (opener){
-  // Start chain with the highest double
+  // Lay the opening double immediately
   chain = [opener.tile];
   players[openerIndex].hand.splice(opener.tileIndex, 1);
-  setTurn(openerIndex);
+
+  // Next player after the opener starts
+  setTurn(openerIndex + 1);
 } else {
   // Fallback if no doubles exist
   chain = [tiles.pop()];
   setTurn(0);
 }
-    boneyard = tiles;
-    selected = null;
-    gameOver = false;
-    pendingReset = false;
-    pendingResetScores = false;
-    setTurn(0);
-    render();
-  }
 
   function render(){
     renderChain();

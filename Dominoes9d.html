@@ -289,6 +289,49 @@
   .toggle input{
     accent-color: var(--accent2);
   }
+  .modal{
+    position:fixed;
+    inset:0;
+    background: rgba(7,10,18,.78);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:20;
+  }
+  .modal.hidden{ display:none; }
+  .modal-card{
+    background: linear-gradient(180deg, rgba(16,24,46,.98), rgba(9,12,22,.98));
+    border:1px solid rgba(122,167,255,.35);
+    border-radius:20px;
+    padding:20px 22px;
+    max-width:520px;
+    width:min(90vw, 520px);
+    box-shadow: var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .modal-card h3{
+    margin:0;
+    font-size:18px;
+  }
+  .modal-card p{ margin:0; color:var(--muted); }
+  .celebrate{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    font-size:20px;
+  }
+  .score-breakdown{
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;
+    padding:10px 12px;
+    background: rgba(0,0,0,.3);
+    font-size:13px;
+    color:var(--muted);
+  }
+  .score-breakdown strong{ color:var(--ink); }
 </style>
 </head>
 <body>
@@ -392,6 +435,15 @@
     </section>
   </div>
 
+  <div class="modal hidden" id="celebrationModal" role="dialog" aria-live="polite">
+    <div class="modal-card">
+      <div class="celebrate" id="celebrationIcons">🎉✨🎉</div>
+      <h3 id="celebrationTitle">Deal Complete</h3>
+      <p id="celebrationMessage">Great play! Here is how the scoring landed this hand.</p>
+      <div class="score-breakdown" id="celebrationBreakdown"></div>
+    </div>
+  </div>
+
 <script>
   const chainEl = document.getElementById("chainTiles");
   const handEl = document.getElementById("hand");
@@ -410,6 +462,11 @@
   const handEastEl = document.getElementById("handEast");
   const boneyardEl = document.getElementById("boneyard");
   const aiToggleEl = document.getElementById("aiToggle");
+  const celebrationModalEl = document.getElementById("celebrationModal");
+  const celebrationTitleEl = document.getElementById("celebrationTitle");
+  const celebrationMessageEl = document.getElementById("celebrationMessage");
+  const celebrationBreakdownEl = document.getElementById("celebrationBreakdown");
+  const celebrationIconsEl = document.getElementById("celebrationIcons");
 
   const playLeftBtn = document.getElementById("playLeft");
   const playRightBtn = document.getElementById("playRight");
@@ -496,6 +553,21 @@
 
   function moduloScore(total){
     return (total % 3) + (total % 5);
+  }
+
+  function handScoringLine(player, total){
+    return player.name + ": " + total + " pips → (" + (total % 3) + " mod 3) + (" + (total % 5) + " mod 5)";
+  }
+
+  function showCelebration({ title, message, breakdownLines, isMatchWin }){
+    celebrationTitleEl.textContent = title;
+    celebrationMessageEl.textContent = message;
+    celebrationBreakdownEl.innerHTML = breakdownLines.map((line) => "<div>" + line + "</div>").join("");
+    celebrationIconsEl.textContent = isMatchWin ? "🏆🎉✨🏆" : "🎉✨🎉";
+    celebrationModalEl.classList.remove("hidden");
+    setTimeout(() => {
+      celebrationModalEl.classList.add("hidden");
+    }, isMatchWin ? 2200 : 1600);
   }
 
   function pipMarkup(value){
@@ -752,6 +824,17 @@
     scoreYouEl.textContent = players[0].score;
     scoreNorthEl.textContent = players[1].score;
     scoreEastEl.textContent = players[2].score;
+    const scoringLines = players.map((player, index) => {
+      const total = totals[index];
+      const line = handScoringLine(player, total);
+      return index === winnerIndex ? "<strong>" + line + "</strong>" : line;
+    });
+    showCelebration({
+      title: resetScores ? players[winnerIndex].name + " wins the match!" : players[winnerIndex].name + " wins the hand",
+      message: resetScores ? "Target reached. Scores reset for a fresh match!" : "Scoring this hand:",
+      breakdownLines: scoringLines,
+      isMatchWin: resetScores
+    });
     setTimeout(() => {
       resetGame({ resetScores });
     }, 1200);

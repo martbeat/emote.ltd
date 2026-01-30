@@ -540,10 +540,8 @@ function getEndValues(){
   const leftTile = chain[0];
   const rightTile = chain[chain.length - 1];
 
-  return {
-    left:  leftTile[0] === leftTile[1] ? leftTile[0] * 2 : leftTile[0],
-    right: rightTile[0] === rightTile[1] ? rightTile[1] * 2 : rightTile[1]
-  };
+return { left: leftTile[0], right: rightTile[1] };
+
 }
 
   
@@ -977,6 +975,10 @@ function updateGameOver(){
     const { resetScores = false } = options;
     const tiles = buildSet();
     shuffle(tiles);
+selected = null;
+gameOver = false;
+pendingReset = false;
+pendingResetScores = false;
 
     players.forEach((player) => {
       player.hand = tiles.splice(0, 7);
@@ -1017,6 +1019,8 @@ setTurn(openerIndex + 1);
   chain = [tiles.pop()];
   setTurn(0);
 }
+    boneyard = tiles;
+    render();
 }
   
   function render(){

@@ -689,6 +689,9 @@
     if (earned > 0){
       player.score += earned;
     }
+    if (player.hand.length === 0){
+      finishDeal(playerIndex, { includeWinner: false });
+    }
     return true;
   }
 
@@ -731,6 +734,15 @@
     const winnerTotal = Math.min(...totals);
     const winnerIndex = totals.indexOf(winnerTotal);
     const bonus = totals.reduce((sum, total) => sum + moduloScore(total), 0);
+  function finishDeal(winnerIndex, options = {}){
+    if (gameOver) return;
+    const { includeWinner = false } = options;
+    gameOver = true;
+    const totals = players.map((player) => handTotal(player.hand));
+    const bonus = totals.reduce((sum, total, index) => {
+      if (!includeWinner && index === winnerIndex) return sum;
+      return sum + moduloScore(total);
+    }, 0);
     players[winnerIndex].score += bonus;
     turnLabelEl.textContent = "Game Over";
     playLeftBtn.classList.add("hidden");
@@ -747,6 +759,14 @@
     setTimeout(() => {
       resetGame();
     }, 1200);
+  }
+
+  function updateGameOver(){
+    if (!isGameBlocked()) return;
+    const totals = players.map((player) => handTotal(player.hand));
+    const winnerTotal = Math.min(...totals);
+    const winnerIndex = totals.indexOf(winnerTotal);
+    finishDeal(winnerIndex, { includeWinner: true });
   }
 
   function drawUntilPlayable(){

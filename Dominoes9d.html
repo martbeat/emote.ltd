@@ -561,12 +561,12 @@
     return handTiles.reduce((sum, tile) => sum + tile[0] + tile[1], 0);
   }
 
-  function moduloScore(total){
-    return (total % 3) + (total % 5);
+  function handScore(total){
+    return Math.round(total / 3) + Math.round(total / 5);
   }
 
   function handScoringLine(player, total){
-    return player.name + ": " + total + " pips → (" + (total % 3) + " mod 3) + (" + (total % 5) + " mod 5)";
+    return player.name + ": " + total + " pips → (" + (total / 3).toFixed(2) + " /3) + (" + (total / 5).toFixed(2) + " /5)";
   }
 
   function showCelebration({ title, message, breakdownLines, isMatchWin }){
@@ -814,7 +814,7 @@
     const totals = players.map((player) => handTotal(player.hand));
     const bonus = totals.reduce((sum, total, index) => {
       if (!includeWinner && index === winnerIndex) return sum;
-      return sum + moduloScore(total);
+      return sum + handScore(total);
     }, 0);
     players[winnerIndex].score += bonus;
     const resetScores = players[winnerIndex].score >= targetScore;
@@ -832,7 +832,7 @@
     scoreEastEl.textContent = players[2].score;
     const scoringLines = players.map((player, index) => {
       const total = totals[index];
-      const line = handScoringLine(player, total);
+      const line = handScoringLine(player, total) + " → " + handScore(total);
       return index === winnerIndex ? "<strong>" + line + "</strong>" : line;
     });
     showCelebration({

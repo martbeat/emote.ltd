@@ -296,11 +296,13 @@
               <div class="stat"><strong id="rightValue">0</strong><br>Right end</div>
               <div class="stat good"><strong id="endTotal">0</strong><br>End total</div>
               <div class="stat warn"><strong id="endScore">0</strong><br>Score now</div>
+              <div class="stat"><strong id="turnLabel">You</strong><br>Turn</div>
             </div>
             <div class="controls">
               <button class="primary" id="playLeft">Play Left</button>
               <button class="primary" id="playRight">Play Right</button>
               <button class="warn" id="drawTile">Draw</button>
+              <button class="good" id="endTurn">End Turn</button>
               <button id="reset">New Deal</button>
             </div>
           </div>
@@ -359,7 +361,7 @@
           <ul style="margin:0;padding-left:18px;color:var(--muted);">
             <li>End total 6 → score 2</li>
             <li>End total 10 → score 2</li>
-            <li>End total 15 → score 3</li>
+            <li>End total 15 → score 8 (3 + 5)</li>
             <li>End total 20 → score 4</li>
           </ul>
         </div>
@@ -376,6 +378,7 @@
   const endScoreEl = document.getElementById("endScore");
   const leftCapEl = document.getElementById("leftCap");
   const rightCapEl = document.getElementById("rightCap");
+  const turnLabelEl = document.getElementById("turnLabel");
   const scoreYouEl = document.getElementById("scoreYou");
   const handCountEl = document.getElementById("handCount");
   const boneyardEl = document.getElementById("boneyard");
@@ -383,6 +386,7 @@
   const playLeftBtn = document.getElementById("playLeft");
   const playRightBtn = document.getElementById("playRight");
   const drawBtn = document.getElementById("drawTile");
+  const endTurnBtn = document.getElementById("endTurn");
   const resetBtn = document.getElementById("reset");
 
   let boneyard = [];
@@ -390,6 +394,8 @@
   let chain = [];
   let selected = null;
   let score = 0;
+  const turnOrder = ["You", "North", "East"];
+  let currentTurn = 0;
 
   function buildSet(){
     const tiles = [];
@@ -486,6 +492,16 @@
     });
   }
 
+  function setTurn(index){
+    currentTurn = (index + turnOrder.length) % turnOrder.length;
+    turnLabelEl.textContent = turnOrder[currentTurn];
+    updatePlayButtons();
+  }
+
+  function advanceTurn(){
+    setTurn(currentTurn + 1);
+  }
+
   function renderHand(){
     handEl.innerHTML = "";
     hand.forEach((tile, index) => {
@@ -501,29 +517,39 @@
   }
 
   function updatePlayButtons(){
+    const isYourTurn = currentTurn === 0;
     if (selected === null){
       playLeftBtn.disabled = true;
       playRightBtn.disabled = true;
+      drawBtn.disabled = !isYourTurn;
+      endTurnBtn.disabled = !isYourTurn;
       return;
     }
     const tile = hand[selected];
     if (!tile){
       playLeftBtn.disabled = true;
       playRightBtn.disabled = true;
+      drawBtn.disabled = !isYourTurn;
+      endTurnBtn.disabled = !isYourTurn;
       return;
     }
     if (chain.length === 0){
-      playLeftBtn.disabled = false;
-      playRightBtn.disabled = false;
+      playLeftBtn.disabled = !isYourTurn;
+      playRightBtn.disabled = !isYourTurn;
+      drawBtn.disabled = !isYourTurn;
+      endTurnBtn.disabled = !isYourTurn;
       return;
     }
     const left = chain[0][0];
     const right = chain[chain.length - 1][1];
-    playLeftBtn.disabled = !(tile[0] === left || tile[1] === left);
-    playRightBtn.disabled = !(tile[0] === right || tile[1] === right);
+    playLeftBtn.disabled = !isYourTurn || !(tile[0] === left || tile[1] === left);
+    playRightBtn.disabled = !isYourTurn || !(tile[0] === right || tile[1] === right);
+    drawBtn.disabled = !isYourTurn;
+    endTurnBtn.disabled = !isYourTurn;
   }
 
   function playTile(side){
+    if (currentTurn !== 0) return;
     if (selected === null) return;
     const tile = hand[selected];
     if (!tile) return;
@@ -560,12 +586,15 @@
       scoreYouEl.textContent = score;
     }
     render();
+    advanceTurn();
   }
 
   function drawTile(){
+    if (currentTurn !== 0) return;
     if (boneyard.length === 0) return;
     hand.push(boneyard.pop());
     render();
+    advanceTurn();
   }
 
   function resetGame(){
@@ -577,6 +606,7 @@
     selected = null;
     score = 0;
     scoreYouEl.textContent = score;
+    setTurn(0);
     render();
   }
 
@@ -591,6 +621,7 @@
   playLeftBtn.addEventListener("click", () => playTile("left"));
   playRightBtn.addEventListener("click", () => playTile("right"));
   drawBtn.addEventListener("click", drawTile);
+  endTurnBtn.addEventListener("click", advanceTurn);
   resetBtn.addEventListener("click", resetGame);
 
   resetGame();

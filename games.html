@@ -205,7 +205,7 @@
     /* floating cards */
     .card{
       position:absolute;
-    //  width: min(320px, 78vw);
+    /*  width: min(320px, 78vw); */
       border-radius: var(--radius);
       background: linear-gradient(180deg, var(--card), var(--card2));
       border: 1px solid rgba(255,255,255,.12);
@@ -508,7 +508,7 @@ const GAMES = [
   }, 
    {
     title: "Buy me a coffee",
-    href: "Https://buymeacoffee.com/MartyMcFry",
+    href: "https://buymeacoffee.com/MartyMcFry",
     tag: "Coffee",
     tagClass: "coffee",
     desc: "Do support this page - It is coffee-powered."
@@ -613,7 +613,7 @@ const GAMES = [
     const autopilotToggle = document.getElementById("autopilot");
     const statusEl = document.getElementById("status");
     const countEl = document.getElementById("count");
-let chrome = measureChrome();
+let chromeMetrics = measureChrome();
 
     // z-index management so clicked/dragged cards come to front
     const baseZ = 1;
@@ -879,7 +879,7 @@ function keepInBounds(s){
   const w = cardRect.width;
   const h = cardRect.height;
 
-  const footerReserve = (chrome && chrome.footerPad) ? chrome.footerPad : 86;
+  const footerReserve = (chromeMetrics && chromeMetrics.footerPad) ? chromeMetrics.footerPad : 86;
 
   const minX = w * 0.5 + 10;
   const maxX = rect.width - w * 0.5 - 10;
@@ -1066,7 +1066,7 @@ shuffleArray(GAMES);
     let resizeTimer = null;window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    chrome = measureChrome();
+    chromeMetrics = measureChrome();
     cards.forEach((s) => { if (!s.dragging) keepInBounds(s); sync(s); });
   }, 120);
 });

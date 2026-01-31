@@ -705,7 +705,7 @@ const state = {
   dragDX: 0,
   dragDY: 0,
 
-  // ✅ swoop motion state (THIS WAS MISSING)
+  // ✅ swoop motion state
   curvePhase: Math.random() * Math.PI * 2,
   curveSpeed: 0.6 + Math.random() * 0.6,
   curveBiasX: rand(-1, 1),
@@ -796,7 +796,8 @@ function separationForce(self, all){
   let fx = 0;
   let fy = 0;
 
-  all.forEach(other => {
+all.forEach(other => {
+  if (!other.isVisible) return;
     if (other === self) return;
 
     const dx = self.x - other.x;
@@ -857,6 +858,7 @@ function updateVisibility(t){
 
     const opacity = visibilityOpacity(cyclePos + s.visibilityOffset);
     const isVisible = opacity > 0.02;
+    s.isVisible = isVisible;
     s.el.style.opacity = opacity.toFixed(3);
     s.el.style.pointerEvents = isVisible ? "auto" : "none";
     s.el.setAttribute("aria-hidden", isVisible ? "false" : "true");
@@ -955,6 +957,7 @@ function sync(s){
 
 if (autopilot){
   cards.forEach((s) => {
+    if (!s.isVisible) return;      // ✅ invisible = frozen
     if (s.pinned || s.dragging) return;
 
     // advance internal phase
@@ -995,7 +998,7 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
     s.y += s.vy * dt;
 
     keepInBounds(s);
-    sync(s);
+if (s.isVisible) sync(s);
   });
 }
 

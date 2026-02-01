@@ -150,6 +150,10 @@
         Stop after (minutes)
         <input type="number" id="stopAfter" min="0" max="120" step="0.5" value="3.5" />
       </label>
+      <label>
+        Drone note (Hz)
+        <input type="number" id="droneHz" min="30" max="220" value="55" />
+      </label>
     </div>
 
     <div class="controls">
@@ -178,6 +182,7 @@
   const stepEveryEl = document.getElementById("stepEvery");
   const clickHzEl = document.getElementById("clickHz");
   const stopAfterEl = document.getElementById("stopAfter");
+  const droneHzEl = document.getElementById("droneHz");
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
   const applyBtn = document.getElementById("applyBtn");
@@ -191,6 +196,8 @@
   let stepTimer = null;
   let countdownTimer = null;
   let stopTimer = null;
+  let droneOsc = null;
+  let droneGain = null;
   let isRunning = false;
   let currentBpm = 71;
   let countdown = 15;
@@ -205,13 +212,45 @@
       step: clamp(parseInt(bpmStepEl.value, 10) || 13, 1, 60),
       every: clamp(parseInt(stepEveryEl.value, 10) || 15, 5, 120),
       clickHz: clamp(parseInt(clickHzEl.value, 10) || 1200, 400, 2000),
-      stopAfter: clamp(parseFloat(stopAfterEl.value) || 0, 0, 120)
+      stopAfter: clamp(parseFloat(stopAfterEl.value) || 0, 0, 120),
+      droneHz: clamp(parseInt(droneHzEl.value, 10) || 55, 30, 220)
     };
   }
 
   function updateDisplay(){
     currentBpmEl.textContent = currentBpm;
     nextIncreaseEl.textContent = countdown + "s";
+  }
+
+  function startDrone(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    stopDrone();
+    const { droneHz } = readSettings();
+    droneOsc = audioCtx.createOscillator();
+    droneGain = audioCtx.createGain();
+    droneOsc.type = "sine";
+    droneOsc.frequency.value = droneHz;
+    droneGain.gain.value = 0.1;
+    droneOsc.connect(droneGain);
+    droneGain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    droneGain.gain.setValueAtTime(0, now);
+    droneGain.gain.linearRampToValueAtTime(0.12, now + 0.4);
+    droneOsc.start(now);
+  }
+
+  function stopDrone(){
+    if (droneOsc && droneGain && audioCtx){
+      const now = audioCtx.currentTime;
+      droneGain.gain.cancelScheduledValues(now);
+      droneGain.gain.setValueAtTime(droneGain.gain.value, now);
+      droneGain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
+      droneOsc.stop(now + 0.25);
+    }
+    droneOsc = null;
+    droneGain = null;
   }
 
   function playClick(){
@@ -268,6 +307,7 @@
     isRunning = true;
     startBtn.disabled = true;
     stopBtn.disabled = false;
+    startDrone();
     playClick();
     startBeatTimer();
     startStepTimer();
@@ -288,6 +328,7 @@
     clearInterval(stepTimer);
     clearInterval(countdownTimer);
     clearTimeout(stopTimer);
+    stopDrone();
   }
 
   function applySettings(){
@@ -299,6 +340,7 @@
       return;
     }
     startStepTimer();
+    startDrone();
   }
 
   function resetMetronome(){

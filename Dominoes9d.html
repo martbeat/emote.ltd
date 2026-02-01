@@ -346,7 +346,7 @@
         <div class="subtitle">Double-nine dominoes with 3s &amp; 5s scoring. Build the chain, watch the end totals, and score whenever the exposed ends sum to a multiple of 3 or 5.</div>
       </div>
       <div class="pillbar">
-        <div class="pill">Set: Double Nine (0–9)</div>
+        <div class="pill">Set: Double Nine</div>
         <div class="pill">Scoring: 3s &amp; 5s</div>
         <div class="pill">Target: 150 points</div>
       </div>
@@ -534,15 +534,29 @@
     return el;
   }
 
-  function getPlayableSides(tile){
-    if (chain.length === 0) return ["left"];
-    const left = chain[0][0];
-    const right = chain[chain.length - 1][1];
-    const sides = [];
-    if (tile[0] === left || tile[1] === left) sides.push("left");
-    if (tile[0] === right || tile[1] === right) sides.push("right");
-    return sides;
-  }
+function getEndValues(){
+  if (chain.length === 0) return { left: null, right: null };
+
+  const leftTile = chain[0];
+  const rightTile = chain[chain.length - 1];
+
+return { left: leftTile[0], right: rightTile[1] };
+
+}
+
+  
+function getPlayableSides(tile){
+  if (chain.length === 0) return ["left"];
+
+  const { left, right } = getEndValues();
+  const sides = [];
+
+  if (tile[0] === left || tile[1] === left) sides.push("left");
+  if (tile[0] === right || tile[1] === right) sides.push("right");
+
+  return sides;
+}
+
 
   function getPlayableTiles(handTiles){
     if (chain.length === 0) return handTiles.map((_, index) => index);
@@ -663,10 +677,23 @@
     queueAiTurn();
   }
 
-  function advanceTurn(){
-    if (gameOver) return;
-    setTurn(currentTurn + 1);
+function advanceTurn(){
+  if (gameOver) return;
+
+  // NEW: deadlock on turn with empty boneyard
+  if (
+    boneyard.length === 0 &&
+    !hasPlayableTiles(players[currentTurn].hand)
+  ){
+    const totals = players.map((p) => handTotal(p.hand));
+    const winnerIndex = totals.indexOf(Math.min(...totals));
+    finishDeal(winnerIndex, { includeWinner: true });
+    return;
   }
+
+  setTurn(currentTurn + 1);
+}
+
 
   function renderHand(){
     handEl.innerHTML = "";
@@ -775,9 +802,25 @@
       player.hand.splice(handIndex, 1);
     }
 
-    const earned = scoreForTotal(chain[0][0] + chain[chain.length - 1][1]);
-    if (earned > 0){
-      player.score += earned;
+const earned = scoreForTotal(
+  (chain[0][0] === chain[0][1] ? chain[0][0] * 2 : chain[0][0]) +
+  (chain[chain.length - 1][0] === chain[chain.length - 1][1]
+    ? chain[chain.length - 1][1] * 2
+    : chain[chain.length - 1][1])
+);
+if (earned > 0){
+  player.score += earned;
+  if (player.score >= targetScore){
+    finishDeal(playerIndex, { includeWinner: true });
+    return true;
+  }
+}
+
+    if (player.hand.length === 0){
+      finishDeal(playerIndex, { includeWinner: false });
+    }
+    if (player.hand.length === 0){
+      finishDeal(playerIndex, { includeWinner: false });
     }
     if (player.hand.length === 0){
       finishDeal(playerIndex, { includeWinner: false });
@@ -841,7 +884,7 @@
     const scoringLines = players.reduce((lines, player, index) => {
       const total = handTotal(player.hand);
       const score = handScore(player.hand);
-      const header = player.name + ": " + total + " pips → " + score + " (Σ⌊tile/3⌋ + ⌊tile/5⌋)";
+      const header = player.name + ": " + total + " pips → " + score;
       const headerLine = index === winnerIndex ? "<strong>" + header + "</strong>" : header;
       const tileLines = player.hand.length
         ? player.hand.map((tile) => "• " + tileLabel(tile) + " = " + tileScore(tile))
@@ -858,7 +901,8 @@
     pendingResetScores = resetScores;
   }
 
-  function updateGameOver(){
+function updateGameOver(){
+  if (chain.length <= 1) return;
     if (!isGameBlocked()) return;
     const totals = players.map((player) => handTotal(player.hand));
     const winnerTotal = Math.min(...totals);
@@ -937,20 +981,54 @@
     const { resetScores = false } = options;
     const tiles = buildSet();
     shuffle(tiles);
+selected = null;
+gameOver = false;
+pendingReset = false;
+pendingResetScores = false;
+
     players.forEach((player) => {
       player.hand = tiles.splice(0, 7);
       if (resetScores) player.score = 0;
     });
-    chain = [tiles.pop()];
-    boneyard = tiles;
-    selected = null;
-    gameOver = false;
-    pendingReset = false;
-    pendingResetScores = false;
-    setTurn(0);
-    render();
-  }
 
+// Find highest opening double
+let opener = null;
+let openerIndex = 0;
+let highestDouble = -1;
+
+players.forEach((player, index) => {
+  player.hand.forEach((tile, tileIndex) => {
+    if (tile[0] === tile[1] && tile[0] > highestDouble){
+      highestDouble = tile[0];
+      opener = { index, tileIndex, tile };
+      openerIndex = index;
+    }
+  });
+});
+
+if (opener){
+  // Lay the opening double immediately
+chain = [opener.tile];
+players[openerIndex].hand.splice(opener.tileIndex, 1);
+
+// Score the opening tile
+const openingTotal = opener.tile[0] * 2;
+const openingScore = scoreForTotal(openingTotal);
+if (openingScore > 0){
+  players[openerIndex].score += openingScore;
+}
+
+setTurn(openerIndex + 1);
+
+} else {
+  // Fallback if no doubles exist
+  chain = [tiles.pop()];
+  setTurn(0);
+}
+    boneyard = tiles;
+    render();
+}
+  
   function render(){
     renderChain();
     renderHand();

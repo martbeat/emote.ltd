@@ -515,13 +515,14 @@
     const el = document.createElement("button");
     el.type = "button";
     el.className = "domino" + (opts.selected ? " selected" : "");
-    el.dataset.left = tile[0];
-    el.dataset.right = tile[1];
+    const [leftValue, rightValue] = opts.reverse ? [tile[1], tile[0]] : tile;
+    el.dataset.left = leftValue;
+    el.dataset.right = rightValue;
 
     el.innerHTML =
-      '<div class="half">' + pipMarkup(tile[0]) + '</div>' +
+      '<div class="half">' + pipMarkup(leftValue) + '</div>' +
       '<div class="divider"></div>' +
-      '<div class="half">' + pipMarkup(tile[1]) + '</div>';
+      '<div class="half">' + pipMarkup(rightValue) + '</div>';
 
     if (opts.disabled){
       el.classList.add("disabled");
@@ -642,9 +643,9 @@
       domino.style.cursor = "default";
       centerTileEl.appendChild(domino);
     }
-    arms.left.forEach((tile) => leftArmEl.appendChild(renderDomino(tile, { disabled: true })));
+    arms.left.forEach((tile) => leftArmEl.appendChild(renderDomino(tile, { disabled: true, reverse: true })));
     arms.right.forEach((tile) => rightArmEl.appendChild(renderDomino(tile, { disabled: true })));
-    arms.up.forEach((tile) => upArmEl.appendChild(renderDomino(tile, { disabled: true })));
+    arms.up.forEach((tile) => upArmEl.appendChild(renderDomino(tile, { disabled: true, reverse: true })));
     arms.down.forEach((tile) => downArmEl.appendChild(renderDomino(tile, { disabled: true })));
   }
 

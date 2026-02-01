@@ -21,6 +21,11 @@
       --ring: 0 0 0 2px rgba(122,167,255,.20), 0 0 0 6px rgba(122,167,255,.10);
       --grid: rgba(255,255,255,.06);
     }
+:root{
+  --safeB: env(safe-area-inset-bottom, 0px);
+  --footerPad: 86px;  /* JS will override with actual footer height */
+  --headerH: 94px;    /* JS can override too */
+}
 
     *{ box-sizing:border-box; }
     html, body { height:100%; }
@@ -167,15 +172,15 @@
     .toggle input:checked::after{ transform: translateX(18px); }
     .toggle label{ color: var(--muted); font-weight: 600; }
 
-    /* stage */
-    .stage{
-      position:relative;
-      z-index:2;
-      height: calc(100% - 94px);
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 10px 12px 18px;
-    }
+.stage{
+  position:relative;
+  z-index:2;
+  height: calc(100svh - var(--headerH));
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 12px calc(18px + var(--footerPad) + var(--safeB));
+}
+
 
     .hintbar{
       display:flex;
@@ -200,7 +205,7 @@
     /* floating cards */
     .card{
       position:absolute;
-    //  width: min(320px, 78vw);
+    /*  width: min(320px, 78vw); */
       border-radius: var(--radius);
       background: linear-gradient(180deg, var(--card), var(--card2));
       border: 1px solid rgba(255,255,255,.12);
@@ -314,13 +319,13 @@
     }
 
     /* footer strip */
-    .footer{
-      position:fixed;
-      left:0; right:0; bottom:0;
-      z-index:3;
-      padding: 10px 12px 14px;
-      pointer-events:none;
-    }
+.footer{
+  position:fixed;
+  left:0; right:0; bottom:0;
+  z-index:3;
+  padding: 10px 12px calc(14px + var(--safeB));
+  pointer-events:none;
+}
     .footer .bar{
       max-width: 1100px;
       margin: 0 auto;
@@ -351,68 +356,35 @@
     }
 
     /* reduced motion support */
-    @media (prefers-reduced-motion: reduce){
-      .grid, .orb{ animation:none !important; }
-    }
-
-    @media (max-width: 520px){
-  .card .desc{
-    display:none;
-  }
-
-  .card .title span{
-    display:none;
-  }
-      @media (max-width: 520px){
-  .card .inner{
-    padding: 10px 10px 8px;
-    gap: 6px;
-  }
-
-  .toprow{
-    gap: 6px;
-  }
-}
 @media (max-width: 520px){
+  .card .inner{ padding: 10px 10px 8px; gap: 6px; }
+  .toprow{ gap: 6px; }
+
+  .card .title span{ display:none; }
+  .title strong{ font-size: 15px; }
+
+  .tag{ font-size: 11px; padding: 4px 8px; }
+
   a.play{
     padding: 8px 10px;
     font-size: 14px;
     border-radius: 10px;
   }
-}
-@media (max-width: 520px){
-  .mini{
-    display:none;
-  }
-}
-@media (max-width: 520px){
-  .title strong{
-    font-size: 15px;
-  }
 
-  .tag{
-    font-size: 11px;
-    padding: 4px 8px;
-  }
-}
-.card .desc{
-  transition: max-height .2s ease, opacity .2s ease;
-}
+  .mini{ display:none; }
 
-@media (max-width: 520px){
+  /* description collapses unless focused */
   .card .desc{
     display:block;
     max-height: 0;
     opacity: 0;
     overflow:hidden;
+    transition: max-height .2s ease, opacity .2s ease;
   }
-
   .card.is-focused .desc{
-    max-height: 200px;
+    max-height: 220px;
     opacity: 1;
   }
-}
-
 }
 
   </style>
@@ -478,6 +450,22 @@ function rand(a, b){
   return a + Math.random() * (b - a);
 }
 
+    function measureChrome(){
+  const footerBar = document.querySelector(".footer .bar");
+  const headerEl = document.querySelector("header");
+
+  const footerH = footerBar ? footerBar.getBoundingClientRect().height : 72;
+  const headerH = headerEl ? headerEl.getBoundingClientRect().height : 94;
+
+  // extra breathing room so cards never touch the band
+  const footerPad = footerH + 18;
+
+  document.documentElement.style.setProperty("--footerPad", footerPad + "px");
+  document.documentElement.style.setProperty("--headerH", headerH + "px");
+
+  return { footerPad, headerH };
+}
+
     
     // 1) Add your games here.
     // Use relative links if these pages sit in the same folder, eg: "squordle.html"
@@ -524,6 +512,13 @@ const GAMES = [
     tag: "Music",
     tagClass: "music",
     desc: "Keyboard that will play captured sounds."
+  }, 
+   {
+    title: "Buy me a coffee",
+    href: "https://buymeacoffee.com/MartyMcFry",
+    tag: "Coffee",
+    tagClass: "coffee",
+    desc: "Do support this page - It is coffee-powered."
   },  
   {
     title: "Othello",
@@ -596,6 +591,13 @@ const GAMES = [
     desc: "Tight countdown gameplay with escalating chaos mechanics across levels."
   },
   {
+    title: "Analogue Synth",
+    href: "Analogue.html",
+    tag: "Sound",
+    tagClass: "sound",
+    desc: "Almost a Moog!"
+  },
+  {
     title: "Weird Sounds Lab",
     href: "WeirdSounds.html",
     tag: "Audio",
@@ -625,6 +627,7 @@ const GAMES = [
     const autopilotToggle = document.getElementById("autopilot");
     const statusEl = document.getElementById("status");
     const countEl = document.getElementById("count");
+let chromeMetrics = measureChrome();
 
     // z-index management so clicked/dragged cards come to front
     const baseZ = 1;
@@ -716,7 +719,7 @@ const state = {
   dragDX: 0,
   dragDY: 0,
 
-  // ✅ swoop motion state (THIS WAS MISSING)
+  // ✅ swoop motion state
   curvePhase: Math.random() * Math.PI * 2,
   curveSpeed: 0.6 + Math.random() * 0.6,
   curveBiasX: rand(-1, 1),
@@ -807,7 +810,8 @@ function separationForce(self, all){
   let fx = 0;
   let fy = 0;
 
-  all.forEach(other => {
+all.forEach(other => {
+  if (!other.isVisible) return;
     if (other === self) return;
 
     const dx = self.x - other.x;
@@ -868,6 +872,7 @@ function updateVisibility(t){
 
     const opacity = visibilityOpacity(cyclePos + s.visibilityOffset);
     const isVisible = opacity > 0.02;
+    s.isVisible = isVisible;
     s.el.style.opacity = opacity.toFixed(3);
     s.el.style.pointerEvents = isVisible ? "auto" : "none";
     s.el.setAttribute("aria-hidden", isVisible ? "false" : "true");
@@ -884,23 +889,28 @@ function updateVisibility(t){
       state.el.style.zIndex = String(++topZ);
     }
 
-    function keepInBounds(s){
-      const rect = stage.getBoundingClientRect();
-      const cardRect = s.el.getBoundingClientRect();
-      const w = cardRect.width;
-      const h = cardRect.height;
+function keepInBounds(s){
+  const rect = stage.getBoundingClientRect();
+  const cardRect = s.el.getBoundingClientRect();
+  const w = cardRect.width;
+  const h = cardRect.height;
 
-      // bounds in stage coordinates, but remember card uses translate(-50%, -50%)
-      const minX = w * 0.5 + 10;
-      const maxX = rect.width - w * 0.5 - 10;
-      const minY = h * 0.5 + 60; // keep below header area inside stage
-      const maxY = rect.height - h * 0.5 - 20;
+  const footerReserve = (chromeMetrics && chromeMetrics.footerPad) ? chromeMetrics.footerPad : 86;
 
-      if (s.x < minX){ s.x = minX; s.vx *= -0.75; }
-      if (s.x > maxX){ s.x = maxX; s.vx *= -0.75; }
-      if (s.y < minY){ s.y = minY; s.vy *= -0.75; }
-      if (s.y > maxY){ s.y = maxY; s.vy *= -0.75; }
-    }
+  const minX = w * 0.5 + 10;
+  const maxX = rect.width - w * 0.5 - 10;
+
+  // keep below hintbar area
+  const minY = h * 0.5 + 60;
+
+  // IMPORTANT: reserve space for the fixed footer band
+  const maxY = rect.height - h * 0.5 - footerReserve;
+
+  if (s.x < minX){ s.x = minX; s.vx *= -0.75; }
+  if (s.x > maxX){ s.x = maxX; s.vx *= -0.75; }
+  if (s.y < minY){ s.y = minY; s.vy *= -0.75; }
+  if (s.y > maxY){ s.y = maxY; s.vy *= -0.75; }
+}
 
 function sync(s){
   const rect = s.el.getBoundingClientRect();
@@ -961,6 +971,7 @@ function sync(s){
 
 if (autopilot){
   cards.forEach((s) => {
+    if (!s.isVisible) return;      // ✅ invisible = frozen
     if (s.pinned || s.dragging) return;
 
     // advance internal phase
@@ -1001,7 +1012,7 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
     s.y += s.vy * dt;
 
     keepInBounds(s);
-    sync(s);
+if (s.isVisible) sync(s);
   });
 }
 
@@ -1069,13 +1080,14 @@ shuffleArray(GAMES);
     });
 
     // keep layout sane on resize
-    let resizeTimer = null;
-    window.addEventListener("resize", () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        cards.forEach((s) => { if (!s.dragging) keepInBounds(s); sync(s); });
-      }, 120);
-    });
+    let resizeTimer = null;window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    chromeMetrics = measureChrome();
+    cards.forEach((s) => { if (!s.dragging) keepInBounds(s); sync(s); });
+  }, 120);
+});
+
 
     // start with a little motion, then settle
 shuffle();

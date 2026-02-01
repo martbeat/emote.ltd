@@ -102,6 +102,17 @@
   border:1px solid rgba(255,255,255,.18);
 }
 
+.evalBar::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:-2px;
+  bottom:-2px;
+  width:2px;
+  background: rgba(255,255,255,.45);
+}
+
+
 #evalFill{
   position:absolute;
   top:0;
@@ -306,6 +317,11 @@
       color: var(--muted);
       font-size: 12px;
     }
+    #evalLabel{
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
 
     .overlay{
       position:fixed;
@@ -1590,21 +1606,27 @@ function queenOpeningRisk(sq){
   return pen; // centipawns
 }
 function updateEvalBar(score){
-  // score is centipawns from White's perspective
-  // clamp to ±600cp for display
-  const cp = Math.max(-600, Math.min(600, score));
-
-  // map -600..+600 → 0..100
-  const pct = 50 + (cp / 1200) * 100;
-
   const fill = document.getElementById("evalFill");
+
+  // Clamp raw eval
+  let cp = Math.max(-900, Math.min(900, score));
+
+  // Non-linear scaling: exaggerate small advantages
+  const scaled = Math.sign(cp) * Math.pow(Math.abs(cp) / 900, 0.65);
+
+  // Map to percentage
+  const pct = 50 + scaled * 50;
 
   if(cp >= 0){
     fill.style.left = "50%";
-    fill.style.width = `${pct - 50}%`;
+    fill.style.width = `${Math.max(1, pct - 50)}%`;
+    fill.style.background =
+      "linear-gradient(to right, rgba(125,255,178,.35), rgba(125,255,178,.95))";
   }else{
     fill.style.left = `${pct}%`;
-    fill.style.width = `${50 - pct}%`;
+    fill.style.width = `${Math.max(1, 50 - pct)}%`;
+    fill.style.background =
+      "linear-gradient(to left, rgba(255,107,136,.35), rgba(255,107,136,.95))";
   }
 }
 

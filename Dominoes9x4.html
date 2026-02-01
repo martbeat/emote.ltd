@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dominoes 9D x4 – 3s &amp; 5s</title>
+<style>
+  :root{
+    --bg:#070a12;
+    --panel:#10182e;
+    --panel2:#0d1428;
+    --ink:#e9eefc;
+    --muted:#aeb8da;
+    --accent:#7aa7ff;
+    --accent2:#7dffb2;
+    --warn:#ffd36e;
+    --danger:#ff6b88;
+    --line:#2a3356;
+    --shadow: 0 18px 32px rgba(0,0,0,.35);
+    --radius:16px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(900px 540px at 12% -10%, rgba(122,167,255,.15) 0%, transparent 60%),
+      radial-gradient(900px 520px at 120% 10%, rgba(125,255,178,.18) 0%, transparent 55%),
+      radial-gradient(1000px 600px at 40% 120%, rgba(255,107,136,.18) 0%, transparent 62%),
+      linear-gradient(180deg, #070a12, #05060a);
+  }
+  .wrap{
+    max-width: 1250px;
+    margin: 0 auto;
+    padding: 16px 18px 20px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  header{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:flex-start;
+    justify-content:space-between;
+  }
+  .title{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  h1{ margin:0; font-size:20px; letter-spacing:.2px; }
+  .subtitle{ color:var(--muted); max-width: 60ch; }
+  .pillbar{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pill{
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    color:var(--muted);
+    font-size:12px;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap:14px;
+  }
+  @media (max-width: 980px){
+    .layout{ grid-template-columns: 1fr; }
+  }
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+  .card h2{
+    margin:0;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.18em;
+    color:var(--muted);
+    padding:12px 14px;
+    border-bottom:1px solid rgba(42,51,86,.7);
+    background: linear-gradient(180deg, rgba(0,0,0,.25), transparent);
+  }
+  .card .body{ padding:14px; }
+  .scoreboard{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap:10px;
+  }
+  .score{
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;
+    padding:10px 12px;
+    background: rgba(0,0,0,.25);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .score strong{ font-size:15px; }
+  .score span{ color:var(--muted); font-size:12px; }
+
+  .table{
+    min-height: 360px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .table-top{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    justify-content:space-between;
+  }
+  .statline{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .stat{
+    padding:8px 12px;
+    border-radius:12px;
+    background: rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.1);
+    font-size:12px;
+  }
+  .stat strong{ font-size:14px; }
+  .stat.good{ border-color: rgba(125,255,178,.35); color: var(--accent2); }
+  .stat.warn{ border-color: rgba(255,211,110,.4); color: var(--warn); }
+
+  .chain{
+    flex:1;
+    background: rgba(0,0,0,.25);
+    border:1px dashed rgba(255,255,255,.16);
+    border-radius:14px;
+    padding:16px;
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: 1fr auto 1fr;
+    gap:10px;
+    align-items:center;
+    justify-items:center;
+    overflow:auto;
+  }
+  .arm{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .arm.left{ grid-column:1; grid-row:2; flex-direction: row-reverse; }
+  .arm.right{ grid-column:3; grid-row:2; }
+  .arm.up{ grid-column:2; grid-row:1; flex-direction: column-reverse; }
+  .arm.down{ grid-column:2; grid-row:3; flex-direction: column; }
+  .arm.vertical .domino{ transform: rotate(90deg); }
+  .center-slot{ grid-column:2; grid-row:2; }
+  .endcap{
+    padding:6px 10px;
+    border-radius:10px;
+    background: rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
+    font-size:12px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+
+  .hand-area{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .hand{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  .domino{
+    width:64px;
+    height:34px;
+    background: linear-gradient(180deg, #f7f9ff, #e2e8ff);
+    border-radius:8px;
+    border:1px solid rgba(0,0,0,.35);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:4px;
+    position:relative;
+    box-shadow: 0 8px 16px rgba(0,0,0,.25);
+    cursor:pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .domino.selected{
+    transform: translateY(-4px);
+    box-shadow: 0 12px 22px rgba(122,167,255,.35);
+    outline:2px solid rgba(122,167,255,.55);
+  }
+  .domino.disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    transform:none;
+  }
+  .pip{ width:8px; height:8px; border-radius:50%; background:#2d3558; }
+  .half{
+    width:50%;
+    height:100%;
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    place-items:center;
+  }
+  .divider{
+    position:absolute;
+    left:50%;
+    top:4px;
+    bottom:4px;
+    width:2px;
+    background: rgba(0,0,0,.2);
+    transform: translateX(-50%);
+    border-radius:2px;
+  }
+
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .controls.hidden{ display:none; }
+  .hidden{ display:none; }
+  button{
+    cursor:pointer;
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    color:var(--ink);
+    padding:10px 12px;
+    border-radius:12px;
+    box-shadow: var(--shadow);
+    transition: transform .08s ease, border-color .12s ease;
+    font-weight:600;
+  }
+  button:hover{ border-color: rgba(122,167,255,.5); }
+  button:active{ transform: translateY(1px); }
+  button.primary{ border-color: rgba(122,167,255,.55); }
+  button.good{ border-color: rgba(125,255,178,.55); }
+  button.warn{ border-color: rgba(255,211,110,.55); }
+  button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    box-shadow:none;
+  }
+
+  .legend{
+    color:var(--muted);
+    font-size:12px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .dot{ width:8px; height:8px; border-radius:50%; background: var(--accent); }
+  .toggle{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    color:var(--muted);
+    font-size:12px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .toggle input{ accent-color: var(--accent2); }
+  .modal{
+    position:fixed;
+    inset:0;
+    background: rgba(7,10,18,.78);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:20;
+  }
+  .modal.hidden{ display:none; }
+  .modal-card{
+    background: linear-gradient(180deg, rgba(16,24,46,.98), rgba(9,12,22,.98));
+    border:1px solid rgba(122,167,255,.35);
+    border-radius:20px;
+    padding:20px 22px;
+    max-width:520px;
+    width:min(90vw, 520px);
+    box-shadow: var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .modal-card h3{ margin:0; font-size:18px; }
+  .modal-card p{ margin:0; color:var(--muted); }
+  .celebrate{ display:flex; gap:8px; flex-wrap:wrap; font-size:20px; }
+  .score-breakdown{
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;
+    padding:10px 12px;
+    background: rgba(0,0,0,.3);
+    font-size:13px;
+    color:var(--muted);
+  }
+  .score-breakdown strong{ color:var(--ink); }
+  .modal-actions{ display:flex; justify-content:flex-end; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Dominoes 9D x4 – 3s &amp; 5s</h1>
+        <div class="subtitle">Double-nine dominoes with 3s &amp; 5s scoring. The opening tile can become a four-way spinner, opening up to four scoring ends once tiles are played on each arm.</div>
+      </div>
+      <div class="pillbar">
+        <div class="pill">Set: Double Nine</div>
+        <div class="pill">Scoring: 3s &amp; 5s</div>
+        <div class="pill">Mode: x4 Spinner</div>
+        <div class="pill">Target: 150 points</div>
+      </div>
+    </header>
+
+    <section class="layout">
+      <div class="card">
+        <h2>Table</h2>
+        <div class="body table">
+          <div class="table-top">
+            <div class="statline">
+              <div class="stat"><strong id="leftValue">0</strong><br>Left end</div>
+              <div class="stat"><strong id="rightValue">0</strong><br>Right end</div>
+              <div class="stat"><strong id="upValue">0</strong><br>Up end</div>
+              <div class="stat"><strong id="downValue">0</strong><br>Down end</div>
+              <div class="stat good"><strong id="endTotal">0</strong><br>End total</div>
+              <div class="stat warn"><strong id="endScore">0</strong><br>Score now</div>
+              <div class="stat"><strong id="turnLabel">You</strong><br>Turn</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="aiToggle" checked />
+              <span>AI Opponents</span>
+            </label>
+          </div>
+
+          <div class="chain" id="chain">
+            <div class="arm left" id="leftArm"></div>
+            <div class="arm right" id="rightArm"></div>
+            <div class="arm up vertical" id="upArm"></div>
+            <div class="arm down vertical" id="downArm"></div>
+            <div class="center-slot" id="centerTile"></div>
+          </div>
+
+          <div class="legend">
+            <span><span class="dot" style="background:var(--accent2)"></span>Playable dominoes glow when selected.</span>
+            <span><span class="dot" style="background:var(--warn)"></span>Extra arms score only after at least one tile is laid on them.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Players</h2>
+        <div class="body">
+          <div class="scoreboard">
+            <div class="score">
+              <strong>You</strong>
+              <span>Score: <span id="scoreYou">0</span></span>
+              <span>Hand: <span id="handCount">0</span> tiles</span>
+            </div>
+            <div class="score">
+              <strong>North</strong>
+              <span>Score: <span id="scoreNorth">0</span></span>
+              <span>Hand: <span id="handNorth">0</span> tiles</span>
+            </div>
+            <div class="score">
+              <strong>East</strong>
+              <span>Score: <span id="scoreEast">0</span></span>
+              <span>Hand: <span id="handEast">0</span> tiles</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Your Hand</h2>
+        <div class="body hand-area">
+          <div id="hand" class="hand"></div>
+          <div class="controls">
+            <button class="primary" id="playLeft">Play Left</button>
+            <button class="primary" id="playRight">Play Right</button>
+            <button class="primary" id="playUp">Play Up</button>
+            <button class="primary" id="playDown">Play Down</button>
+            <button class="warn" id="drawTile">Draw</button>
+            <button class="good" id="endTurn">End Turn</button>
+            <button id="reset">New Deal</button>
+          </div>
+          <div class="legend">
+            <span>Tip: tap a tile to play it. If it fits multiple ends, choose which arm to extend.</span>
+            <span>Boneyard: <strong id="boneyard">0</strong> tiles</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Scoring Guide</h2>
+        <div class="body">
+          <p style="margin-top:0;color:var(--muted);">Score when the sum of the active exposed ends hits a multiple of 3 or 5. The spinner opens additional arms once tiles are played there.</p>
+          <ul style="margin:0;padding-left:18px;color:var(--muted);">
+            <li>End total 12 → score 4</li>
+            <li>End total 15 → score 8 (3 + 5)</li>
+            <li>End total 20 → score 4</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal hidden" id="celebrationModal" role="dialog" aria-live="polite">
+    <div class="modal-card">
+      <div class="celebrate" id="celebrationIcons">🎉✨🎉</div>
+      <h3 id="celebrationTitle">Deal Complete</h3>
+      <p id="celebrationMessage">Great play! Here is how the scoring landed this hand.</p>
+      <div class="score-breakdown" id="celebrationBreakdown"></div>
+      <div class="modal-actions">
+        <button class="primary" id="celebrationClose">Continue</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const handEl = document.getElementById("hand");
+  const leftValueEl = document.getElementById("leftValue");
+  const rightValueEl = document.getElementById("rightValue");
+  const upValueEl = document.getElementById("upValue");
+  const downValueEl = document.getElementById("downValue");
+  const endTotalEl = document.getElementById("endTotal");
+  const endScoreEl = document.getElementById("endScore");
+  const turnLabelEl = document.getElementById("turnLabel");
+  const scoreYouEl = document.getElementById("scoreYou");
+  const scoreNorthEl = document.getElementById("scoreNorth");
+  const scoreEastEl = document.getElementById("scoreEast");
+  const handCountEl = document.getElementById("handCount");
+  const handNorthEl = document.getElementById("handNorth");
+  const handEastEl = document.getElementById("handEast");
+  const boneyardEl = document.getElementById("boneyard");
+  const aiToggleEl = document.getElementById("aiToggle");
+  const celebrationModalEl = document.getElementById("celebrationModal");
+  const celebrationTitleEl = document.getElementById("celebrationTitle");
+  const celebrationMessageEl = document.getElementById("celebrationMessage");
+  const celebrationBreakdownEl = document.getElementById("celebrationBreakdown");
+  const celebrationIconsEl = document.getElementById("celebrationIcons");
+  const celebrationCloseEl = document.getElementById("celebrationClose");
+
+  const playLeftBtn = document.getElementById("playLeft");
+  const playRightBtn = document.getElementById("playRight");
+  const playUpBtn = document.getElementById("playUp");
+  const playDownBtn = document.getElementById("playDown");
+  const drawBtn = document.getElementById("drawTile");
+  const endTurnBtn = document.getElementById("endTurn");
+  const resetBtn = document.getElementById("reset");
+
+  const leftArmEl = document.getElementById("leftArm");
+  const rightArmEl = document.getElementById("rightArm");
+  const upArmEl = document.getElementById("upArm");
+  const downArmEl = document.getElementById("downArm");
+  const centerTileEl = document.getElementById("centerTile");
+
+  let boneyard = [];
+  let selected = null;
+  let gameOver = false;
+  let pendingReset = false;
+  let pendingResetScores = false;
+  let centerTile = null;
+  const arms = {
+    left: [],
+    right: [],
+    up: [],
+    down: []
+  };
+  const players = [
+    { name: "You", hand: [], score: 0, isAI: false },
+    { name: "North", hand: [], score: 0, isAI: true },
+    { name: "East", hand: [], score: 0, isAI: true }
+  ];
+  const targetScore = 150;
+  let currentTurn = 0;
+  let aiInProgress = false;
+
+  function buildSet(){
+    const tiles = [];
+    for (let i = 0; i <= 9; i++){
+      for (let j = i; j <= 9; j++){
+        tiles.push([i, j]);
+      }
+    }
+    return tiles;
+  }
+
+  function shuffle(arr){
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  function renderDomino(tile, opts = {}){
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "domino" + (opts.selected ? " selected" : "");
+    el.dataset.left = tile[0];
+    el.dataset.right = tile[1];
+
+    el.innerHTML =
+      '<div class="half">' + pipMarkup(tile[0]) + '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="half">' + pipMarkup(tile[1]) + '</div>';
+
+    if (opts.disabled){
+      el.classList.add("disabled");
+      el.disabled = true;
+    }
+
+    return el;
+  }
+
+  function pipMarkup(value){
+    const positions = [
+      [],
+      [4],
+      [0, 8],
+      [0, 4, 8],
+      [0, 2, 6, 8],
+      [0, 2, 4, 6, 8],
+      [0, 2, 3, 5, 6, 8],
+      [0, 2, 3, 4, 5, 6, 8],
+      [0, 1, 2, 3, 5, 6, 7, 8],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    ];
+    const dots = positions[value] || [];
+    return Array.from({ length: 9 }, (_, idx) => dots.includes(idx) ? '<span class="pip"></span>' : '<span></span>').join("");
+  }
+
+  function tileScore(tile){
+    const total = tile[0] + tile[1];
+    return Math.floor(total / 3) + Math.floor(total / 5);
+  }
+
+  function handTotal(handTiles){
+    return handTiles.reduce((sum, tile) => sum + tile[0] + tile[1], 0);
+  }
+
+  function handScore(handTiles){
+    return handTiles.reduce((sum, tile) => sum + tileScore(tile), 0);
+  }
+
+  function tileLabel(tile){
+    return tile[0] + "|" + tile[1];
+  }
+
+  function spinnerAvailable(){
+    return centerTile && centerTile[0] === centerTile[1];
+  }
+
+  function getArmMatchValue(side){
+    if (!centerTile) return null;
+    const tiles = arms[side];
+    if (tiles.length > 0){
+      return tiles[tiles.length - 1][1];
+    }
+    if (side === "left") return centerTile[0];
+    if (side === "right") return centerTile[1];
+    if ((side === "up" || side === "down") && spinnerAvailable()) return centerTile[0];
+    return null;
+  }
+
+  function getArmScoreValue(side){
+    if (!centerTile) return 0;
+    const tiles = arms[side];
+    if (tiles.length === 0){
+      if (side === "left") return centerTile[0];
+      if (side === "right") return centerTile[1];
+      return 0;
+    }
+    const endTile = tiles[tiles.length - 1];
+    return endTile[0] === endTile[1] ? endTile[1] * 2 : endTile[1];
+  }
+
+  function getEndTotal(){
+    if (!centerTile) return 0;
+    let total = getArmScoreValue("left") + getArmScoreValue("right");
+    if (arms.up.length > 0) total += getArmScoreValue("up");
+    if (arms.down.length > 0) total += getArmScoreValue("down");
+    return total;
+  }
+
+  function scoreForTotal(total){
+    let points = 0;
+    if (total % 3 === 0) points += total / 3;
+    if (total % 5 === 0) points += total / 5;
+    return points;
+  }
+
+  function getPlayableSides(tile){
+    if (!centerTile) return ["center"];
+    const sides = [];
+    ["left", "right", "up", "down"].forEach((side) => {
+      if ((side === "up" || side === "down") && !spinnerAvailable()) return;
+      const matchValue = getArmMatchValue(side);
+      if (matchValue === null) return;
+      if (tile[0] === matchValue || tile[1] === matchValue) sides.push(side);
+    });
+    return sides;
+  }
+
+  function hasPlayableTiles(handTiles){
+    if (!centerTile) return handTiles.length > 0;
+    return handTiles.some((tile) => getPlayableSides(tile).length > 0);
+  }
+
+  function showCelebration({ title, message, breakdownLines, isMatchWin }){
+    celebrationTitleEl.textContent = title;
+    celebrationMessageEl.textContent = message;
+    celebrationBreakdownEl.innerHTML = breakdownLines.map((line) => "<div>" + line + "</div>").join("");
+    celebrationIconsEl.textContent = isMatchWin ? "🏆🎉✨🏆" : "🎉✨🎉";
+    celebrationModalEl.classList.remove("hidden");
+  }
+
+  function renderChain(){
+    [leftArmEl, rightArmEl, upArmEl, downArmEl].forEach((armEl) => armEl.innerHTML = "");
+    centerTileEl.innerHTML = "";
+    if (centerTile){
+      const domino = renderDomino(centerTile, { disabled: true });
+      domino.classList.remove("disabled");
+      domino.style.cursor = "default";
+      centerTileEl.appendChild(domino);
+    }
+    arms.left.forEach((tile) => leftArmEl.appendChild(renderDomino(tile, { disabled: true })));
+    arms.right.forEach((tile) => rightArmEl.appendChild(renderDomino(tile, { disabled: true })));
+    arms.up.forEach((tile) => upArmEl.appendChild(renderDomino(tile, { disabled: true })));
+    arms.down.forEach((tile) => downArmEl.appendChild(renderDomino(tile, { disabled: true })));
+  }
+
+  function updateEnds(){
+    if (!centerTile){
+      leftValueEl.textContent = "0";
+      rightValueEl.textContent = "0";
+      upValueEl.textContent = "0";
+      downValueEl.textContent = "0";
+      endTotalEl.textContent = "0";
+      endScoreEl.textContent = "0";
+      return;
+    }
+    const leftValue = arms.left.length ? getArmMatchValue("left") : centerTile[0];
+    const rightValue = arms.right.length ? getArmMatchValue("right") : centerTile[1];
+    const upValue = arms.up.length ? getArmMatchValue("up") : 0;
+    const downValue = arms.down.length ? getArmMatchValue("down") : 0;
+    leftValueEl.textContent = leftValue;
+    rightValueEl.textContent = rightValue;
+    upValueEl.textContent = upValue;
+    downValueEl.textContent = downValue;
+    const total = getEndTotal();
+    endTotalEl.textContent = total;
+    endScoreEl.textContent = scoreForTotal(total);
+  }
+
+  function updatePlayButtons(){
+    const isYourTurn = currentTurn === 0 && !gameOver;
+    const canPlay = isYourTurn && hasPlayableTiles(players[0].hand);
+    const mustDraw = isYourTurn && !canPlay && boneyard.length > 0;
+    const canEnd = isYourTurn && !canPlay && boneyard.length === 0;
+
+    drawBtn.classList.toggle("hidden", !mustDraw);
+    drawBtn.disabled = !mustDraw;
+    endTurnBtn.classList.toggle("hidden", !canEnd);
+    endTurnBtn.disabled = !canEnd;
+    resetBtn.classList.toggle("hidden", !gameOver);
+    resetBtn.disabled = !gameOver;
+
+    if (selected !== null){
+      const tile = players[0].hand[selected];
+      const sides = tile ? getPlayableSides(tile) : [];
+      if (sides.length < 2 && sides[0] !== "center"){
+        selected = null;
+      }
+    }
+
+    const buttons = {
+      left: playLeftBtn,
+      right: playRightBtn,
+      up: playUpBtn,
+      down: playDownBtn
+    };
+    Object.values(buttons).forEach((btn) => {
+      btn.disabled = true;
+      btn.classList.add("hidden");
+    });
+
+    if (selected === null || !isYourTurn){
+      return;
+    }
+    const tile = players[0].hand[selected];
+    if (!tile) return;
+    const options = getPlayableSides(tile).filter((side) => side !== "center");
+    if (options.length >= 2){
+      options.forEach((side) => {
+        buttons[side].disabled = false;
+        buttons[side].classList.remove("hidden");
+      });
+    }
+  }
+
+  function renderHand(){
+    handEl.innerHTML = "";
+    players[0].hand.forEach((tile, index) => {
+      const sides = getPlayableSides(tile);
+      const isDisabled = currentTurn !== 0 || gameOver || (centerTile && sides.length === 0);
+      const domino = renderDomino(tile, { selected: selected === index, disabled: isDisabled });
+      domino.addEventListener("click", () => {
+        if (currentTurn !== 0 || gameOver) return;
+        const options = getPlayableSides(tile);
+        if (options.length === 1){
+          placeTile(0, index, options[0]);
+          selected = null;
+          render();
+          advanceTurn();
+          return;
+        }
+        if (options.length >= 2){
+          selected = selected === index ? null : index;
+          renderHand();
+          updatePlayButtons();
+        }
+      });
+      handEl.appendChild(domino);
+    });
+    handCountEl.textContent = players[0].hand.length;
+  }
+
+  function placeTile(playerIndex, handIndex, side){
+    const player = players[playerIndex];
+    const tile = player.hand[handIndex];
+    if (!tile) return false;
+
+    if (side === "center"){
+      centerTile = tile;
+      player.hand.splice(handIndex, 1);
+    } else {
+      const matchValue = getArmMatchValue(side);
+      if (matchValue === null) return false;
+      let oriented = null;
+      if (tile[0] === matchValue) oriented = [tile[0], tile[1]];
+      if (tile[1] === matchValue) oriented = [tile[1], tile[0]];
+      if (!oriented) return false;
+      arms[side].push(oriented);
+      player.hand.splice(handIndex, 1);
+    }
+
+    const earned = scoreForTotal(getEndTotal());
+    if (earned > 0){
+      player.score += earned;
+      if (player.score >= targetScore){
+        finishDeal(playerIndex, { includeWinner: true });
+        return true;
+      }
+    }
+
+    if (player.hand.length === 0){
+      finishDeal(playerIndex, { includeWinner: false });
+    }
+    return true;
+  }
+
+  function findBestMove(handTiles){
+    if (!centerTile){
+      if (handTiles.length === 0) return null;
+      return { index: 0, side: "center" };
+    }
+    let best = null;
+    handTiles.forEach((tile, index) => {
+      const sides = getPlayableSides(tile).filter((side) => side !== "center");
+      sides.forEach((side) => {
+        const previewScore = estimateScoreAfter(tile, side);
+        if (!best || previewScore > best.earned){
+          best = { index, side, earned: previewScore };
+        }
+      });
+    });
+    return best;
+  }
+
+  function estimateScoreAfter(tile, side){
+    if (side === "center"){
+      return scoreForTotal(tile[0] + tile[1]);
+    }
+    const matchValue = getArmMatchValue(side);
+    if (matchValue === null) return 0;
+    const currentTotal = getEndTotal();
+    const oldValue = side === "left" || side === "right"
+      ? getArmScoreValue(side)
+      : (arms[side].length > 0 ? getArmScoreValue(side) : 0);
+    let oriented = null;
+    if (tile[0] === matchValue) oriented = [tile[0], tile[1]];
+    if (tile[1] === matchValue) oriented = [tile[1], tile[0]];
+    if (!oriented) return 0;
+    const newValue = oriented[0] === oriented[1] ? oriented[1] * 2 : oriented[1];
+    const previewTotal = currentTotal - oldValue + newValue;
+    return scoreForTotal(previewTotal);
+  }
+
+  function isGameBlocked(){
+    if (boneyard.length > 0) return false;
+    return players.every((player) => !hasPlayableTiles(player.hand));
+  }
+
+  function finishDeal(winnerIndex, options = {}){
+    if (gameOver) return;
+    const { includeWinner = false } = options;
+    gameOver = true;
+    const bonus = players.reduce((sum, player, index) => {
+      if (!includeWinner && index === winnerIndex) return sum;
+      return sum + handScore(player.hand);
+    }, 0);
+    players[winnerIndex].score += bonus;
+    const resetScores = players[winnerIndex].score >= targetScore;
+    turnLabelEl.textContent = resetScores ? "Match Won" : "Deal Over";
+    playLeftBtn.classList.add("hidden");
+    playRightBtn.classList.add("hidden");
+    playUpBtn.classList.add("hidden");
+    playDownBtn.classList.add("hidden");
+    drawBtn.classList.add("hidden");
+    endTurnBtn.classList.add("hidden");
+    playLeftBtn.disabled = true;
+    playRightBtn.disabled = true;
+    playUpBtn.disabled = true;
+    playDownBtn.disabled = true;
+    drawBtn.disabled = true;
+    endTurnBtn.disabled = true;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
+    const scoringLines = players.reduce((lines, player, index) => {
+      const total = handTotal(player.hand);
+      const score = handScore(player.hand);
+      const header = player.name + ": " + total + " pips → " + score;
+      const headerLine = index === winnerIndex ? "<strong>" + header + "</strong>" : header;
+      const tileLines = player.hand.length
+        ? player.hand.map((tile) => "• " + tileLabel(tile) + " = " + tileScore(tile))
+        : ["• No tiles remaining"];
+      return lines.concat([headerLine].concat(tileLines));
+    }, []);
+    showCelebration({
+      title: resetScores ? players[winnerIndex].name + " wins the match!" : players[winnerIndex].name + " wins the hand",
+      message: resetScores ? "Target reached. Scores reset for a fresh match!" : "Scoring this hand:",
+      breakdownLines: scoringLines,
+      isMatchWin: resetScores
+    });
+    pendingReset = true;
+    pendingResetScores = resetScores;
+  }
+
+  function updateGameOver(){
+    if (!centerTile) return;
+    if (!isGameBlocked()) return;
+    const totals = players.map((player) => handTotal(player.hand));
+    const winnerTotal = Math.min(...totals);
+    const winnerIndex = totals.indexOf(winnerTotal);
+    finishDeal(winnerIndex, { includeWinner: true });
+  }
+
+  function setTurn(index){
+    if (gameOver){
+      turnLabelEl.textContent = "Game Over";
+      return;
+    }
+    currentTurn = (index + players.length) % players.length;
+    turnLabelEl.textContent = players[currentTurn].name;
+    if (currentTurn !== 0){
+      selected = null;
+    }
+    if (gameOver) return;
+    if (currentTurn === 0){
+      if (drawUntilPlayable()){
+        return;
+      }
+    }
+    updatePlayButtons();
+    queueAiTurn();
+  }
+
+  function advanceTurn(){
+    if (gameOver) return;
+    if (boneyard.length === 0 && !hasPlayableTiles(players[currentTurn].hand)){
+      const totals = players.map((p) => handTotal(p.hand));
+      const winnerIndex = totals.indexOf(Math.min(...totals));
+      finishDeal(winnerIndex, { includeWinner: true });
+      return;
+    }
+    setTurn(currentTurn + 1);
+  }
+
+  function drawUntilPlayable(){
+    const player = players[currentTurn];
+    let playable = hasPlayableTiles(player.hand);
+    while (!playable && boneyard.length > 0){
+      player.hand.push(boneyard.pop());
+      playable = hasPlayableTiles(player.hand);
+    }
+    render();
+    if (gameOver) return true;
+    if (!playable && boneyard.length === 0){
+      advanceTurn();
+      return true;
+    }
+    return false;
+  }
+
+  function queueAiTurn(){
+    if (aiInProgress) return;
+    if (currentTurn === 0) return;
+    if (!aiToggleEl.checked) return;
+    if (gameOver) return;
+    aiInProgress = true;
+    setTimeout(() => {
+      runAiTurn();
+      aiInProgress = false;
+    }, 600);
+  }
+
+  function runAiTurn(){
+    if (currentTurn === 0) return;
+    const player = players[currentTurn];
+    let move = findBestMove(player.hand);
+    while (!move && boneyard.length > 0){
+      player.hand.push(boneyard.pop());
+      move = findBestMove(player.hand);
+    }
+    if (move){
+      placeTile(currentTurn, move.index, move.side);
+      render();
+      aiInProgress = false;
+      advanceTurn();
+      return;
+    }
+    render();
+    aiInProgress = false;
+    advanceTurn();
+  }
+
+  function playTile(side){
+    if (currentTurn !== 0) return;
+    if (selected === null) return;
+    const tile = players[0].hand[selected];
+    if (!tile) return;
+
+    if (!placeTile(currentTurn, selected, side)) return;
+
+    selected = null;
+    render();
+    advanceTurn();
+  }
+
+  function drawTile(){
+    if (currentTurn !== 0) return;
+    if (boneyard.length === 0) return;
+    drawUntilPlayable();
+  }
+
+  function resetGame(options = {}){
+    const { resetScores = false } = options;
+    const tiles = buildSet();
+    shuffle(tiles);
+    selected = null;
+    gameOver = false;
+    pendingReset = false;
+    pendingResetScores = false;
+    centerTile = null;
+    arms.left = [];
+    arms.right = [];
+    arms.up = [];
+    arms.down = [];
+
+    players.forEach((player) => {
+      player.hand = tiles.splice(0, 7);
+      if (resetScores) player.score = 0;
+    });
+
+    let opener = null;
+    let openerIndex = 0;
+    let highestDouble = -1;
+
+    players.forEach((player, index) => {
+      player.hand.forEach((tile, tileIndex) => {
+        if (tile[0] === tile[1] && tile[0] > highestDouble){
+          highestDouble = tile[0];
+          opener = { index, tileIndex, tile };
+          openerIndex = index;
+        }
+      });
+    });
+
+    if (opener){
+      centerTile = opener.tile;
+      players[openerIndex].hand.splice(opener.tileIndex, 1);
+      const openingScore = scoreForTotal(getEndTotal());
+      if (openingScore > 0){
+        players[openerIndex].score += openingScore;
+      }
+      setTurn(openerIndex + 1);
+    } else {
+      centerTile = tiles.pop();
+      setTurn(0);
+    }
+
+    boneyard = tiles;
+    render();
+  }
+
+  function render(){
+    renderChain();
+    renderHand();
+    updateEnds();
+    updatePlayButtons();
+    boneyardEl.textContent = boneyard.length;
+    scoreYouEl.textContent = players[0].score;
+    scoreNorthEl.textContent = players[1].score;
+    scoreEastEl.textContent = players[2].score;
+    handNorthEl.textContent = players[1].hand.length;
+    handEastEl.textContent = players[2].hand.length;
+    updateGameOver();
+  }
+
+  playLeftBtn.addEventListener("click", () => playTile("left"));
+  playRightBtn.addEventListener("click", () => playTile("right"));
+  playUpBtn.addEventListener("click", () => playTile("up"));
+  playDownBtn.addEventListener("click", () => playTile("down"));
+  drawBtn.addEventListener("click", drawTile);
+  endTurnBtn.addEventListener("click", advanceTurn);
+  resetBtn.addEventListener("click", () => resetGame());
+  aiToggleEl.addEventListener("change", queueAiTurn);
+  celebrationModalEl.addEventListener("click", (event) => {
+    if (event.target === celebrationModalEl){
+      event.stopPropagation();
+    }
+  });
+  celebrationCloseEl.addEventListener("click", () => {
+    celebrationModalEl.classList.add("hidden");
+    if (pendingReset){
+      pendingReset = false;
+      resetGame({ resetScores: pendingResetScores });
+    }
+  });
+
+  resetGame();
+</script>
+</body>
+</html>

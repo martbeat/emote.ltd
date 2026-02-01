@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Metronome</title>
+<style>
+  :root{
+    --bg:#0b0f1a;
+    --panel:#141a2a;
+    --panel2:#0f1424;
+    --ink:#e9eefc;
+    --muted:#aeb8da;
+    --accent:#7aa7ff;
+    --accent2:#7dffb2;
+    --line:#2a3356;
+    --shadow: 0 18px 32px rgba(0,0,0,.35);
+    --radius:16px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(900px 540px at 12% -10%, rgba(122,167,255,.15) 0%, transparent 60%),
+      radial-gradient(900px 520px at 120% 10%, rgba(125,255,178,.18) 0%, transparent 55%),
+      linear-gradient(180deg, #070a12, #05060a);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .card{
+    width:min(680px, 94vw);
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  h1{
+    margin:0;
+    font-size:22px;
+    letter-spacing:.3px;
+  }
+  .subtitle{ color:var(--muted); }
+  .row{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap:12px;
+  }
+  label{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  input{
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background: rgba(0,0,0,.25);
+    color:var(--ink);
+    font-size:14px;
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  button{
+    cursor:pointer;
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    color:var(--ink);
+    padding:10px 14px;
+    border-radius:12px;
+    box-shadow: var(--shadow);
+    transition: transform .08s ease, border-color .12s ease;
+    font-weight:600;
+  }
+  button.primary{ border-color: rgba(122,167,255,.55); }
+  button.good{ border-color: rgba(125,255,178,.55); }
+  button.warn{ border-color: rgba(255,211,110,.55); }
+  button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    box-shadow:none;
+  }
+  .status{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap:10px;
+  }
+  .stat{
+    padding:10px 12px;
+    border-radius:12px;
+    background: rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.1);
+    font-size:12px;
+    color:var(--muted);
+  }
+  .stat strong{ display:block; font-size:18px; color:var(--ink); }
+  .pulse{
+    height:8px;
+    border-radius:999px;
+    background: rgba(122,167,255,.25);
+    overflow:hidden;
+  }
+  .pulse span{
+    display:block;
+    height:100%;
+    width:0%;
+    background: var(--accent2);
+    transition: width .08s ease;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div>
+      <h1>Metronome</h1>
+      <div class="subtitle">Start at 71 BPM, increase by 13 BPM every 15 seconds, or set your own values.</div>
+    </div>
+
+    <div class="row">
+      <label>
+        Start BPM
+        <input type="number" id="startBpm" min="30" max="240" value="71" />
+      </label>
+      <label>
+        Increase by (BPM)
+        <input type="number" id="bpmStep" min="1" max="60" value="13" />
+      </label>
+      <label>
+        Every (seconds)
+        <input type="number" id="stepEvery" min="5" max="120" value="15" />
+      </label>
+      <label>
+        Click frequency (Hz)
+        <input type="number" id="clickHz" min="400" max="2000" value="1200" />
+      </label>
+      <label>
+        Stop after (minutes)
+        <input type="number" id="stopAfter" min="0" max="120" step="0.5" value="3.5" />
+      </label>
+      <label>
+        Drone note (Hz)
+        <input type="number" id="droneHz" min="30" max="220" value="55" />
+      </label>
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="startBtn">Start</button>
+      <button class="warn" id="stopBtn" disabled>Stop</button>
+      <button class="good" id="applyBtn">Apply Settings</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <div class="status">
+      <div class="stat">
+        Current BPM
+        <strong id="currentBpm">71</strong>
+      </div>
+      <div class="stat">
+        Next increase in
+        <strong id="nextIncrease">15s</strong>
+      </div>
+    </div>
+    <div class="pulse"><span id="pulseBar"></span></div>
+  </div>
+
+<script>
+  const startBpmEl = document.getElementById("startBpm");
+  const bpmStepEl = document.getElementById("bpmStep");
+  const stepEveryEl = document.getElementById("stepEvery");
+  const clickHzEl = document.getElementById("clickHz");
+  const stopAfterEl = document.getElementById("stopAfter");
+  const droneHzEl = document.getElementById("droneHz");
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const applyBtn = document.getElementById("applyBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const currentBpmEl = document.getElementById("currentBpm");
+  const nextIncreaseEl = document.getElementById("nextIncrease");
+  const pulseBarEl = document.getElementById("pulseBar");
+
+  let audioCtx = null;
+  let beatTimer = null;
+  let stepTimer = null;
+  let countdownTimer = null;
+  let stopTimer = null;
+  let droneOsc = null;
+  let droneGain = null;
+  let isRunning = false;
+  let currentBpm = 71;
+  let countdown = 15;
+
+  function clamp(value, min, max){
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function readSettings(){
+    return {
+      startBpm: clamp(parseInt(startBpmEl.value, 10) || 71, 30, 240),
+      step: clamp(parseInt(bpmStepEl.value, 10) || 13, 1, 60),
+      every: clamp(parseInt(stepEveryEl.value, 10) || 15, 5, 120),
+      clickHz: clamp(parseInt(clickHzEl.value, 10) || 1200, 400, 2000),
+      stopAfter: clamp(parseFloat(stopAfterEl.value) || 0, 0, 120),
+      droneHz: clamp(parseInt(droneHzEl.value, 10) || 55, 30, 220)
+    };
+  }
+
+  function updateDisplay(){
+    currentBpmEl.textContent = currentBpm;
+    nextIncreaseEl.textContent = countdown + "s";
+  }
+
+  function startDrone(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    stopDrone();
+    const { droneHz } = readSettings();
+    droneOsc = audioCtx.createOscillator();
+    droneGain = audioCtx.createGain();
+    droneOsc.type = "sine";
+    droneOsc.frequency.value = droneHz;
+    droneGain.gain.value = 0.1;
+    droneOsc.connect(droneGain);
+    droneGain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    droneGain.gain.setValueAtTime(0, now);
+    droneGain.gain.linearRampToValueAtTime(0.12, now + 0.4);
+    droneOsc.start(now);
+  }
+
+  function stopDrone(){
+    if (droneOsc && droneGain && audioCtx){
+      const now = audioCtx.currentTime;
+      droneGain.gain.cancelScheduledValues(now);
+      droneGain.gain.setValueAtTime(droneGain.gain.value, now);
+      droneGain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
+      droneOsc.stop(now + 0.25);
+    }
+    droneOsc = null;
+    droneGain = null;
+  }
+
+  function playClick(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const { clickHz } = readSettings();
+    osc.frequency.value = clickHz;
+    gain.gain.value = 0.3;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    osc.start(now);
+    osc.stop(now + 0.06);
+    pulseBarEl.style.width = "100%";
+    setTimeout(() => {
+      pulseBarEl.style.width = "0%";
+    }, 80);
+  }
+
+  function startBeatTimer(){
+    clearInterval(beatTimer);
+    const interval = 60000 / currentBpm;
+    beatTimer = setInterval(playClick, interval);
+  }
+
+  function startStepTimer(){
+    clearInterval(stepTimer);
+    clearInterval(countdownTimer);
+    const { step, every } = readSettings();
+    countdown = every;
+    updateDisplay();
+    countdownTimer = setInterval(() => {
+      countdown -= 1;
+      if (countdown < 0) countdown = 0;
+      updateDisplay();
+    }, 1000);
+    stepTimer = setInterval(() => {
+      currentBpm += step;
+      startBeatTimer();
+      countdown = every;
+      updateDisplay();
+    }, every * 1000);
+  }
+
+  function startMetronome(){
+    if (isRunning) return;
+    const { startBpm, stopAfter } = readSettings();
+    currentBpm = startBpm;
+    isRunning = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    startDrone();
+    playClick();
+    startBeatTimer();
+    startStepTimer();
+    clearTimeout(stopTimer);
+    if (stopAfter > 0){
+      stopTimer = setTimeout(() => {
+        stopMetronome();
+      }, stopAfter * 60 * 1000);
+    }
+    updateDisplay();
+  }
+
+  function stopMetronome(){
+    isRunning = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    clearInterval(beatTimer);
+    clearInterval(stepTimer);
+    clearInterval(countdownTimer);
+    clearTimeout(stopTimer);
+    stopDrone();
+  }
+
+  function applySettings(){
+    const { startBpm, every } = readSettings();
+    if (!isRunning){
+      currentBpm = startBpm;
+      countdown = every;
+      updateDisplay();
+      return;
+    }
+    startStepTimer();
+    startDrone();
+  }
+
+  function resetMetronome(){
+    stopMetronome();
+    const { startBpm, every } = readSettings();
+    currentBpm = startBpm;
+    countdown = every;
+    updateDisplay();
+  }
+
+  startBtn.addEventListener("click", startMetronome);
+  stopBtn.addEventListener("click", stopMetronome);
+  applyBtn.addEventListener("click", applySettings);
+  resetBtn.addEventListener("click", resetMetronome);
+
+  updateDisplay();
+</script>
+</body>
+</html>

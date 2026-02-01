@@ -222,6 +222,7 @@
   let countdownTimer = null;
   let stopTimer = null;
   let droneOsc = null;
+  let droneOsc2 = null;
   let droneGain = null;
   let isRunning = false;
   let currentBpm = 71;
@@ -286,16 +287,21 @@
     stopDrone();
     const { droneHz } = readSettings();
     droneOsc = audioCtx.createOscillator();
+    droneOsc2 = audioCtx.createOscillator();
     droneGain = audioCtx.createGain();
-    droneOsc.type = "sine";
+    droneOsc.type = "triangle";
     droneOsc.frequency.value = droneHz;
-    droneGain.gain.value = 0.1;
+    droneOsc2.type = "sine";
+    droneOsc2.frequency.value = droneHz * 2;
+    droneGain.gain.value = 0.2;
     droneOsc.connect(droneGain);
+    droneOsc2.connect(droneGain);
     droneGain.connect(audioCtx.destination);
     const now = audioCtx.currentTime;
     droneGain.gain.setValueAtTime(0, now);
-    droneGain.gain.linearRampToValueAtTime(0.12, now + 0.4);
+    droneGain.gain.linearRampToValueAtTime(0.22, now + 0.4);
     droneOsc.start(now);
+    droneOsc2.start(now);
   }
 
   function stopDrone(){
@@ -305,8 +311,12 @@
       droneGain.gain.setValueAtTime(droneGain.gain.value, now);
       droneGain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
       droneOsc.stop(now + 0.25);
+      if (droneOsc2){
+        droneOsc2.stop(now + 0.25);
+      }
     }
     droneOsc = null;
+    droneOsc2 = null;
     droneGain = null;
   }
 

@@ -144,10 +144,6 @@
         <input type="number" id="stepEvery" min="5" max="120" value="15" />
       </label>
       <label>
-        Click frequency (Hz)
-        <input type="number" id="clickHz" min="400" max="2000" value="1200" />
-      </label>
-      <label>
         Stop after (minutes)
         <input type="number" id="stopAfter" min="0" max="120" step="0.5" value="3.5" />
       </label>
@@ -172,6 +168,15 @@
           <option value="G2">G2</option>
           <option value="G#2/Ab2">G#2/Ab2</option>
           <option value="A2">A2</option>
+        </select>
+      </label>
+      <label>
+        Emphasis interval
+        <select id="accentEvery">
+          <option value="0">Off</option>
+          <option value="4">Every 4th beat</option>
+          <option value="6">Every 6th beat</option>
+          <option value="8">Every 8th beat</option>
         </select>
       </label>
     </div>
@@ -200,9 +205,9 @@
   const startBpmEl = document.getElementById("startBpm");
   const bpmStepEl = document.getElementById("bpmStep");
   const stepEveryEl = document.getElementById("stepEvery");
-  const clickHzEl = document.getElementById("clickHz");
   const stopAfterEl = document.getElementById("stopAfter");
   const droneNoteEl = document.getElementById("droneNote");
+  const accentEveryEl = document.getElementById("accentEvery");
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
   const applyBtn = document.getElementById("applyBtn");
@@ -217,10 +222,12 @@
   let countdownTimer = null;
   let stopTimer = null;
   let droneOsc = null;
+  let droneOsc2 = null;
   let droneGain = null;
   let isRunning = false;
   let currentBpm = 71;
   let countdown = 15;
+  let beatCount = 0;
 
   function clamp(value, min, max){
     return Math.min(Math.max(value, min), max);
@@ -255,10 +262,19 @@
       startBpm: clamp(parseInt(startBpmEl.value, 10) || 71, 30, 240),
       step: clamp(parseInt(bpmStepEl.value, 10) || 13, 1, 60),
       every: clamp(parseInt(stepEveryEl.value, 10) || 15, 5, 120),
-      clickHz: clamp(parseInt(clickHzEl.value, 10) || 1200, 400, 2000),
       stopAfter: clamp(parseFloat(stopAfterEl.value) || 0, 0, 120),
-      droneHz: noteToFrequency(droneNoteEl.value)
+      droneHz: noteToFrequency(droneNoteEl.value),
+      accentEvery: clamp(parseInt(accentEveryEl.value, 10) || 0, 0, 16)
     };
+  }
+
+  async function ensureAudioContext(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended"){
+      await audioCtx.resume();
+    }
   }
 
   function updateDisplay(){
@@ -266,23 +282,26 @@
     nextIncreaseEl.textContent = countdown + "s";
   }
 
-  function startDrone(){
-    if (!audioCtx){
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+  async function startDrone(){
+    await ensureAudioContext();
     stopDrone();
     const { droneHz } = readSettings();
     droneOsc = audioCtx.createOscillator();
+    droneOsc2 = audioCtx.createOscillator();
     droneGain = audioCtx.createGain();
-    droneOsc.type = "sine";
+    droneOsc.type = "triangle";
     droneOsc.frequency.value = droneHz;
-    droneGain.gain.value = 0.1;
+    droneOsc2.type = "sine";
+    droneOsc2.frequency.value = droneHz * 2;
+    droneGain.gain.value = 0.2;
     droneOsc.connect(droneGain);
+    droneOsc2.connect(droneGain);
     droneGain.connect(audioCtx.destination);
     const now = audioCtx.currentTime;
     droneGain.gain.setValueAtTime(0, now);
-    droneGain.gain.linearRampToValueAtTime(0.12, now + 0.4);
+    droneGain.gain.linearRampToValueAtTime(0.22, now + 0.4);
     droneOsc.start(now);
+    droneOsc2.start(now);
   }
 
   function stopDrone(){
@@ -292,27 +311,53 @@
       droneGain.gain.setValueAtTime(droneGain.gain.value, now);
       droneGain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
       droneOsc.stop(now + 0.25);
+      if (droneOsc2){
+        droneOsc2.stop(now + 0.25);
+      }
     }
     droneOsc = null;
+    droneOsc2 = null;
     droneGain = null;
   }
 
-  function playClick(){
-    if (!audioCtx){
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+  function playDrum(accent){
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    const { clickHz } = readSettings();
-    osc.frequency.value = clickHz;
-    gain.gain.value = 0.3;
+    const now = audioCtx.currentTime;
+    const peakGain = accent ? 0.7 : 0.45;
+    const startFreq = accent ? 160 : 200;
+    const endFreq = accent ? 70 : 90;
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(peakGain, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
     osc.start(now);
-    osc.stop(now + 0.06);
+    osc.stop(now + 0.22);
+
+    const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
+    const bufferData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferData.length; i += 1){
+      bufferData[i] = (Math.random() * 2 - 1) * (accent ? 0.6 : 0.35);
+    }
+    const noise = audioCtx.createBufferSource();
+    const noiseGain = audioCtx.createGain();
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noise.buffer = noiseBuffer;
+    noiseFilter.type = "highpass";
+    noiseFilter.frequency.setValueAtTime(900, now);
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(accent ? 0.4 : 0.22, now + 0.01);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    noise.start(now);
+    noise.stop(now + 0.09);
+
     pulseBarEl.style.width = "100%";
     setTimeout(() => {
       pulseBarEl.style.width = "0%";
@@ -322,7 +367,14 @@
   function startBeatTimer(){
     clearInterval(beatTimer);
     const interval = 60000 / currentBpm;
-    beatTimer = setInterval(playClick, interval);
+    beatTimer = setInterval(handleBeat, interval);
+  }
+
+  function handleBeat(){
+    const { accentEvery } = readSettings();
+    beatCount += 1;
+    const isAccent = accentEvery > 0 && beatCount % accentEvery === 0;
+    playDrum(isAccent);
   }
 
   function startStepTimer(){
@@ -344,15 +396,17 @@
     }, every * 1000);
   }
 
-  function startMetronome(){
+  async function startMetronome(){
     if (isRunning) return;
     const { startBpm, stopAfter } = readSettings();
     currentBpm = startBpm;
     isRunning = true;
+    beatCount = 0;
     startBtn.disabled = true;
     stopBtn.disabled = false;
-    startDrone();
-    playClick();
+    await ensureAudioContext();
+    await startDrone();
+    handleBeat();
     startBeatTimer();
     startStepTimer();
     clearTimeout(stopTimer);
@@ -375,7 +429,7 @@
     stopDrone();
   }
 
-  function applySettings(){
+  async function applySettings(){
     const { startBpm, every } = readSettings();
     if (!isRunning){
       currentBpm = startBpm;
@@ -384,7 +438,7 @@
       return;
     }
     startStepTimer();
-    startDrone();
+    await startDrone();
   }
 
   function resetMetronome(){
@@ -392,6 +446,7 @@
     const { startBpm, every } = readSettings();
     currentBpm = startBpm;
     countdown = every;
+    beatCount = 0;
     updateDisplay();
   }
 

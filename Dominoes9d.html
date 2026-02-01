@@ -825,6 +825,9 @@ if (earned > 0){
     if (player.hand.length === 0){
       finishDeal(playerIndex, { includeWinner: false });
     }
+    if (player.hand.length === 0){
+      finishDeal(playerIndex, { includeWinner: false });
+    }
     return true;
   }
 

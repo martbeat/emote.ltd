@@ -61,7 +61,8 @@
     font-size:12px;
     color:var(--muted);
   }
-  input{
+  input,
+  select{
     padding:10px 12px;
     border-radius:12px;
     border:1px solid var(--line);
@@ -151,8 +152,27 @@
         <input type="number" id="stopAfter" min="0" max="120" step="0.5" value="3.5" />
       </label>
       <label>
-        Drone note (Hz)
-        <input type="number" id="droneHz" min="30" max="220" value="55" />
+        Drone note
+        <select id="droneNote">
+          <option value="E1">E1</option>
+          <option value="F1">F1</option>
+          <option value="F#1/Gb1">F#1/Gb1</option>
+          <option value="G1">G1</option>
+          <option value="G#1/Ab1">G#1/Ab1</option>
+          <option value="A1" selected>A1</option>
+          <option value="A#1/Bb1">A#1/Bb1</option>
+          <option value="B1">B1</option>
+          <option value="C2">C2</option>
+          <option value="C#2/Db2">C#2/Db2</option>
+          <option value="D2">D2</option>
+          <option value="D#2/Eb2">D#2/Eb2</option>
+          <option value="E2">E2</option>
+          <option value="F2">F2</option>
+          <option value="F#2/Gb2">F#2/Gb2</option>
+          <option value="G2">G2</option>
+          <option value="G#2/Ab2">G#2/Ab2</option>
+          <option value="A2">A2</option>
+        </select>
       </label>
     </div>
 
@@ -182,7 +202,7 @@
   const stepEveryEl = document.getElementById("stepEvery");
   const clickHzEl = document.getElementById("clickHz");
   const stopAfterEl = document.getElementById("stopAfter");
-  const droneHzEl = document.getElementById("droneHz");
+  const droneNoteEl = document.getElementById("droneNote");
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
   const applyBtn = document.getElementById("applyBtn");
@@ -206,6 +226,30 @@
     return Math.min(Math.max(value, min), max);
   }
 
+  function noteToFrequency(note){
+    const map = {
+      "E1": 41.20,
+      "F1": 43.65,
+      "F#1/Gb1": 46.25,
+      "G1": 49.00,
+      "G#1/Ab1": 51.91,
+      "A1": 55.00,
+      "A#1/Bb1": 58.27,
+      "B1": 61.74,
+      "C2": 65.41,
+      "C#2/Db2": 69.30,
+      "D2": 73.42,
+      "D#2/Eb2": 77.78,
+      "E2": 82.41,
+      "F2": 87.31,
+      "F#2/Gb2": 92.50,
+      "G2": 98.00,
+      "G#2/Ab2": 103.83,
+      "A2": 110.00
+    };
+    return map[note] || 55.00;
+  }
+
   function readSettings(){
     return {
       startBpm: clamp(parseInt(startBpmEl.value, 10) || 71, 30, 240),
@@ -213,7 +257,7 @@
       every: clamp(parseInt(stepEveryEl.value, 10) || 15, 5, 120),
       clickHz: clamp(parseInt(clickHzEl.value, 10) || 1200, 400, 2000),
       stopAfter: clamp(parseFloat(stopAfterEl.value) || 0, 0, 120),
-      droneHz: clamp(parseInt(droneHzEl.value, 10) || 55, 30, 220)
+      droneHz: noteToFrequency(droneNoteEl.value)
     };
   }
 

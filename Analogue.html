@@ -547,6 +547,7 @@
 let drumBus = null;
 
 const heldNotes = new Set();
+const heldKeys = new Set();
 
   
   // ---------- Patch helpers ----------
@@ -852,6 +853,9 @@ function renderPower(){
 
   
   function killAll(){
+    stopArp();
+    heldNotes.clear();
+    heldKeys.clear();
     for(const [note, arr] of active.entries()){
       for(const v of arr){
         try{ v.stop(true); }catch(e){}
@@ -1464,10 +1468,10 @@ $("arpMode").onchange = e => {
 
     
     // computer keyboard
-    const heldKeys = new Set();
     window.addEventListener("keydown", (e)=>{
       const k = e.key.toLowerCase();
       if(!(k in KEYMAP)) return;
+      if(e.repeat) return;
       if(heldKeys.has(k)) return;
       heldKeys.add(k);
       const note = KEYMAP[k];
@@ -1484,6 +1488,15 @@ $("arpMode").onchange = e => {
       const el = keyEls.get(note);
       if(el) el.classList.remove("down");
       noteOff(note);
+    });
+
+    const releaseHeldInputs = ()=>{
+      killAll();
+    };
+
+    window.addEventListener("blur", releaseHeldInputs);
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.hidden) releaseHeldInputs();
     });
   }
 

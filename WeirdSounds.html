@@ -110,6 +110,17 @@
       color: var(--muted);
       line-height: 1.5;
     }
+
+    .status{
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(117,227,255,.12);
+      border: 1px solid rgba(117,227,255,.25);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -123,9 +134,10 @@
       <button id="playBtn" type="button">Play weirdness</button>
       <button id="switchBtn" class="secondary" type="button">Switch vibe</button>
       <button id="stopBtn" class="stop" type="button">Stop</button>
+      <div class="status" id="fmStatus">FM idle</div>
       <div class="bubble">
-        Best with headphones. Each vibe blends a random oscillator stack, noise swells,
-        and slow filter movement. Tap “Switch vibe” anytime for a new texture.
+        Best with headphones. Each vibe blends a random oscillator stack, FM growls, noise swells,
+        distortion, ring modulation, stereo drift, and chaotic filter moves. Tap “Switch vibe” anytime for a new texture.
       </div>
     </section>
 
@@ -149,6 +161,7 @@
     const energyMeter = document.getElementById("energyMeter");
     const wobbleMeter = document.getElementById("wobbleMeter");
     const readout = document.getElementById("readout");
+    const fmStatus = document.getElementById("fmStatus");
 
     let audioCtx = null;
     let master = null;
@@ -156,6 +169,8 @@
     let meterRaf = null;
     let activeNodes = [];
     let wobbleLfo = null;
+    let chaosInterval = null;
+    let glitchInterval = null;
 
     const WAVE_TYPES = ["sine", "triangle", "sawtooth"];
 
@@ -180,6 +195,14 @@
         if(node.disconnect) node.disconnect();
       });
       activeNodes = [];
+      if(chaosInterval){
+        clearInterval(chaosInterval);
+        chaosInterval = null;
+      }
+      if(glitchInterval){
+        clearInterval(glitchInterval);
+        glitchInterval = null;
+      }
       if(wobbleLfo){
         wobbleLfo.stop();
         wobbleLfo.disconnect();
@@ -197,6 +220,48 @@
       filter.type = "lowpass";
       filter.frequency.value = rand(600, 1500);
       filter.Q.value = rand(0.4, 8);
+
+      const toneShaper = audioCtx.createWaveShaper();
+      const shaperCurve = new Float32Array(512);
+      const drive = rand(2.2, 6.5);
+      const crushSteps = Math.floor(rand(6, 18));
+      const curveMode = Math.random() > 0.5 ? "tanh" : "crush";
+      for(let i = 0; i < shaperCurve.length; i++){
+        const x = (i / (shaperCurve.length - 1)) * 2 - 1;
+        if(curveMode === "tanh"){
+          shaperCurve[i] = Math.tanh(x * drive);
+        } else {
+          shaperCurve[i] = Math.round(x * crushSteps) / crushSteps;
+        }
+      }
+      toneShaper.curve = shaperCurve;
+      toneShaper.oversample = "4x";
+
+      const pan = audioCtx.createStereoPanner();
+      const panLfo = audioCtx.createOscillator();
+      const panGain = audioCtx.createGain();
+      panLfo.frequency.value = rand(0.08, 0.25);
+      panGain.gain.value = rand(0.4, 0.8);
+      panLfo.connect(panGain);
+      panGain.connect(pan.pan);
+      panLfo.start();
+
+      const ringCarrier = audioCtx.createOscillator();
+      const ringMod = audioCtx.createOscillator();
+      const ringDepth = audioCtx.createGain();
+      const ringGain = audioCtx.createGain();
+      ringCarrier.type = WAVE_TYPES[Math.floor(rand(0, WAVE_TYPES.length))];
+      ringMod.type = "sine";
+      ringCarrier.frequency.value = base * rand(2.2, 6.5);
+      ringMod.frequency.value = rand(22, 120);
+      ringDepth.gain.value = rand(0.2, 0.8);
+      ringGain.gain.value = rand(0.08, 0.16);
+      ringMod.connect(ringDepth);
+      ringDepth.connect(ringGain.gain);
+      ringCarrier.connect(ringGain);
+      ringGain.connect(filter);
+      ringCarrier.start();
+      ringMod.start();
 
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
@@ -226,6 +291,25 @@
         activeNodes.push(osc, gain);
       }
 
+      const fmCarrier = audioCtx.createOscillator();
+      const fmModulator = audioCtx.createOscillator();
+      const fmDepth = audioCtx.createGain();
+      const fmGain = audioCtx.createGain();
+
+      fmCarrier.type = "sine";
+      fmModulator.type = WAVE_TYPES[Math.floor(rand(0, WAVE_TYPES.length))];
+      fmCarrier.frequency.value = base * rand(1.8, 3.4);
+      fmModulator.frequency.value = rand(6, 38);
+      fmDepth.gain.value = fmCarrier.frequency.value * rand(0.45, 1.1);
+      fmGain.gain.value = rand(0.12, 0.22);
+
+      fmModulator.connect(fmDepth);
+      fmDepth.connect(fmCarrier.frequency);
+      fmCarrier.connect(fmGain);
+      fmGain.connect(filter);
+      fmCarrier.start();
+      fmModulator.start();
+
       noise.connect(noiseGain).connect(filter);
       noise.start();
 
@@ -238,20 +322,89 @@
       wobble.start();
       wobbleLfo = wobble;
 
+      const qLfo = audioCtx.createOscillator();
+      const qGain = audioCtx.createGain();
+      qLfo.frequency.value = rand(0.15, 0.6);
+      qGain.gain.value = rand(1.2, 4.5);
+      qLfo.connect(qGain);
+      qGain.connect(filter.Q);
+      qLfo.start();
+
+      const sampleHold = audioCtx.createBufferSource();
+      const sampleHoldBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      const holdData = sampleHoldBuffer.getChannelData(0);
+      for(let i = 0; i < holdData.length; i++){
+        holdData[i] = Math.random() * 2 - 1;
+      }
+      sampleHold.buffer = sampleHoldBuffer;
+      sampleHold.loop = true;
+      sampleHold.playbackRate.value = rand(0.6, 1.8);
+
+      const holdGain = audioCtx.createGain();
+      holdGain.gain.value = rand(150, 500);
+      sampleHold.connect(holdGain);
+      holdGain.connect(filter.frequency);
+      sampleHold.start();
+
       const env = audioCtx.createGain();
       env.gain.value = 0;
-      filter.connect(env).connect(master);
+      filter.connect(toneShaper).connect(pan).connect(env).connect(master);
       env.gain.cancelScheduledValues(now);
       env.gain.linearRampToValueAtTime(0.9, now + 0.9);
       env.gain.linearRampToValueAtTime(0.7, now + 6);
 
-      activeNodes.push(noise, noiseGain, filter, env, wobble, wobbleGain);
+      chaosInterval = window.setInterval(() => {
+        const nowLocal = audioCtx.currentTime;
+        filter.frequency.cancelScheduledValues(nowLocal);
+        filter.frequency.linearRampToValueAtTime(rand(500, 2200), nowLocal + rand(0.4, 1.2));
+        wobbleGain.gain.cancelScheduledValues(nowLocal);
+        wobbleGain.gain.linearRampToValueAtTime(rand(200, 750), nowLocal + rand(0.3, 1.1));
+      }, rand(900, 1600));
+
+      glitchInterval = window.setInterval(() => {
+        const nowLocal = audioCtx.currentTime;
+        env.gain.cancelScheduledValues(nowLocal);
+        env.gain.setValueAtTime(rand(0.15, 0.5), nowLocal);
+        env.gain.linearRampToValueAtTime(0.9, nowLocal + rand(0.2, 0.5));
+      }, rand(1800, 3200));
+
+      activeNodes.push(
+        noise,
+        noiseGain,
+        filter,
+        toneShaper,
+        pan,
+        env,
+        wobble,
+        wobbleGain,
+        panLfo,
+        panGain,
+        qLfo,
+        qGain,
+        ringCarrier,
+        ringMod,
+        ringDepth,
+        ringGain,
+        sampleHold,
+        holdGain,
+        fmCarrier,
+        fmModulator,
+        fmDepth,
+        fmGain
+      );
 
       readout.innerHTML = `
         <div>Base freq: ${base.toFixed(1)} Hz</div>
         <div>Filter cutoff: ${filter.frequency.value.toFixed(0)} Hz</div>
         <div>Wobble rate: ${wobble.frequency.value.toFixed(2)} Hz</div>
+        <div>FM depth: ${fmDepth.gain.value.toFixed(1)} Hz</div>
+        <div>FM rate: ${fmModulator.frequency.value.toFixed(2)} Hz</div>
+        <div>Drive: ${drive.toFixed(2)}x (${curveMode})</div>
+        <div>Ring rate: ${ringMod.frequency.value.toFixed(1)} Hz</div>
+        <div>Hold rate: ${sampleHold.playbackRate.value.toFixed(2)}x</div>
+        <div>Pan drift: ${panLfo.frequency.value.toFixed(2)} Hz</div>
       `;
+      fmStatus.textContent = `FM ${fmModulator.type} @ ${fmModulator.frequency.value.toFixed(1)} Hz • depth ${fmDepth.gain.value.toFixed(0)} Hz`;
     }
 
     function startMeter(){
@@ -295,6 +448,7 @@
       energyMeter.style.width = "0%";
       wobbleMeter.style.width = "0%";
       readout.textContent = "";
+      fmStatus.textContent = "FM idle";
     });
   </script>
   <div class="emote-copyright" style="position:fixed;bottom:8px;right:10px;font-size:11px;font-family:system-ui, -apple-system, Segoe UI, sans-serif;color:rgba(255,255,255,0.7);mix-blend-mode:difference;pointer-events:none;z-index:9999;">© eMote Systems</div>

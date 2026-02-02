@@ -137,7 +137,7 @@
       <div class="status" id="fmStatus">FM idle</div>
       <div class="bubble">
         Best with headphones. Each vibe blends a random oscillator stack, FM growls, noise swells,
-        and slow filter movement. Tap “Switch vibe” anytime for a new texture.
+        distortion, stereo drift, and chaotic filter moves. Tap “Switch vibe” anytime for a new texture.
       </div>
     </section>
 
@@ -169,6 +169,7 @@
     let meterRaf = null;
     let activeNodes = [];
     let wobbleLfo = null;
+    let chaosInterval = null;
 
     const WAVE_TYPES = ["sine", "triangle", "sawtooth"];
 
@@ -193,6 +194,10 @@
         if(node.disconnect) node.disconnect();
       });
       activeNodes = [];
+      if(chaosInterval){
+        clearInterval(chaosInterval);
+        chaosInterval = null;
+      }
       if(wobbleLfo){
         wobbleLfo.stop();
         wobbleLfo.disconnect();
@@ -210,6 +215,25 @@
       filter.type = "lowpass";
       filter.frequency.value = rand(600, 1500);
       filter.Q.value = rand(0.4, 8);
+
+      const toneShaper = audioCtx.createWaveShaper();
+      const shaperCurve = new Float32Array(512);
+      const drive = rand(2.2, 5.5);
+      for(let i = 0; i < shaperCurve.length; i++){
+        const x = (i / (shaperCurve.length - 1)) * 2 - 1;
+        shaperCurve[i] = Math.tanh(x * drive);
+      }
+      toneShaper.curve = shaperCurve;
+      toneShaper.oversample = "4x";
+
+      const pan = audioCtx.createStereoPanner();
+      const panLfo = audioCtx.createOscillator();
+      const panGain = audioCtx.createGain();
+      panLfo.frequency.value = rand(0.08, 0.25);
+      panGain.gain.value = rand(0.4, 0.8);
+      panLfo.connect(panGain);
+      panGain.connect(pan.pan);
+      panLfo.start();
 
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
@@ -270,20 +294,42 @@
       wobble.start();
       wobbleLfo = wobble;
 
+      const qLfo = audioCtx.createOscillator();
+      const qGain = audioCtx.createGain();
+      qLfo.frequency.value = rand(0.15, 0.6);
+      qGain.gain.value = rand(1.2, 4.5);
+      qLfo.connect(qGain);
+      qGain.connect(filter.Q);
+      qLfo.start();
+
       const env = audioCtx.createGain();
       env.gain.value = 0;
-      filter.connect(env).connect(master);
+      filter.connect(toneShaper).connect(pan).connect(env).connect(master);
       env.gain.cancelScheduledValues(now);
       env.gain.linearRampToValueAtTime(0.9, now + 0.9);
       env.gain.linearRampToValueAtTime(0.7, now + 6);
+
+      chaosInterval = window.setInterval(() => {
+        const nowLocal = audioCtx.currentTime;
+        filter.frequency.cancelScheduledValues(nowLocal);
+        filter.frequency.linearRampToValueAtTime(rand(500, 2200), nowLocal + rand(0.4, 1.2));
+        wobbleGain.gain.cancelScheduledValues(nowLocal);
+        wobbleGain.gain.linearRampToValueAtTime(rand(200, 750), nowLocal + rand(0.3, 1.1));
+      }, 1200);
 
       activeNodes.push(
         noise,
         noiseGain,
         filter,
+        toneShaper,
+        pan,
         env,
         wobble,
         wobbleGain,
+        panLfo,
+        panGain,
+        qLfo,
+        qGain,
         fmCarrier,
         fmModulator,
         fmDepth,
@@ -296,6 +342,8 @@
         <div>Wobble rate: ${wobble.frequency.value.toFixed(2)} Hz</div>
         <div>FM depth: ${fmDepth.gain.value.toFixed(1)} Hz</div>
         <div>FM rate: ${fmModulator.frequency.value.toFixed(2)} Hz</div>
+        <div>Drive: ${drive.toFixed(2)}x</div>
+        <div>Pan drift: ${panLfo.frequency.value.toFixed(2)} Hz</div>
       `;
       fmStatus.textContent = `FM ${fmModulator.type} @ ${fmModulator.frequency.value.toFixed(1)} Hz • depth ${fmDepth.gain.value.toFixed(0)} Hz`;
     }

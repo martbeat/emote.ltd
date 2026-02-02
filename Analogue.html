@@ -237,6 +237,17 @@
   </div>
 
   <div class="ctl">
+    <label>Beat Multiplier</label>
+    <select id="arpMul">
+      <option value="0.5">0.5× (32nd)</option>
+      <option value="1" selected>1× (16th)</option>
+      <option value="2">2× (8th)</option>
+      <option value="4">4× (quarter)</option>
+      <option value="8">8× (half)</option>
+    </select>
+  </div>
+
+  <div class="ctl">
     <label>Mode</label>
     <select id="arpMode">
       <option>up</option>
@@ -515,6 +526,7 @@
     on: false,
     rate: 120,
     division: 4,
+    multiplier: 1,
     mode: "up",
     octaves: 1,
     gate: 0.7,
@@ -1421,7 +1433,24 @@ $("arpRate").oninput = e => {
   state.arp.rate = parseInt(e.target.value,10);
   state.drums.rate = state.arp.rate;
 
-  stopArp();
+  if(state.drums.on){
+    stopDrums();
+    startDrums();
+  }
+  if(state.arp.on && heldNotes.size > 0){
+    stopArp();
+    startArp();
+  }else{
+    stopArp();
+  }
+};
+
+$("arpMul").onchange = e => {
+  state.arp.multiplier = parseFloat(e.target.value);
+  if(state.arp.on && heldNotes.size > 0){
+    stopArp();
+    startArp();
+  }
 };
 
 $("arpMode").onchange = e => {
@@ -1749,6 +1778,8 @@ $("arpMode").onchange = e => {
     ui.vol.value = state.fx.master.vol; ui.volV.textContent = state.fx.master.vol.toFixed(2);
     ui.lim.value = state.fx.master.limiter; ui.limV.textContent = state.fx.master.limiter ? "On" : "Off";
     ui.tune.value = state.a4; ui.tuneV.textContent = String(state.a4);
+    const arpMul = document.getElementById("arpMul");
+    if(arpMul) arpMul.value = String(state.arp.multiplier ?? 1);
 
     // apply to audio
     applyFX();
@@ -2183,8 +2214,10 @@ function getArpSequence(){
 }
 
 function arpStepMsBase(){
-  // same logic you used: division relative to quarter notes
-  return (60000 / state.arp.rate) / (state.arp.division / 4);
+  // lock arpeggio to drum 16th-note grid and scale by multiplier
+  const base = drumStepBaseMs();
+  const multiplier = Math.max(0.25, state.arp.multiplier || 1);
+  return base * multiplier;
 }
 
 function arpNextDelayMs(){
@@ -2216,7 +2249,7 @@ function arpTick(){
       noteOff(note, true);
       arpLastNote = null;
     }
-  }, base * state.arp.gate);
+  }, Math.max(base * state.arp.gate, 40));
 
   arpTimer = setTimeout(arpTick, arpNextDelayMs());
 }

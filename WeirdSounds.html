@@ -110,6 +110,17 @@
       color: var(--muted);
       line-height: 1.5;
     }
+
+    .status{
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(117,227,255,.12);
+      border: 1px solid rgba(117,227,255,.25);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -123,8 +134,9 @@
       <button id="playBtn" type="button">Play weirdness</button>
       <button id="switchBtn" class="secondary" type="button">Switch vibe</button>
       <button id="stopBtn" class="stop" type="button">Stop</button>
+      <div class="status" id="fmStatus">FM idle</div>
       <div class="bubble">
-        Best with headphones. Each vibe blends a random oscillator stack, noise swells,
+        Best with headphones. Each vibe blends a random oscillator stack, FM growls, noise swells,
         and slow filter movement. Tap “Switch vibe” anytime for a new texture.
       </div>
     </section>
@@ -149,6 +161,7 @@
     const energyMeter = document.getElementById("energyMeter");
     const wobbleMeter = document.getElementById("wobbleMeter");
     const readout = document.getElementById("readout");
+    const fmStatus = document.getElementById("fmStatus");
 
     let audioCtx = null;
     let master = null;
@@ -226,6 +239,25 @@
         activeNodes.push(osc, gain);
       }
 
+      const fmCarrier = audioCtx.createOscillator();
+      const fmModulator = audioCtx.createOscillator();
+      const fmDepth = audioCtx.createGain();
+      const fmGain = audioCtx.createGain();
+
+      fmCarrier.type = "sine";
+      fmModulator.type = WAVE_TYPES[Math.floor(rand(0, WAVE_TYPES.length))];
+      fmCarrier.frequency.value = base * rand(1.8, 3.4);
+      fmModulator.frequency.value = rand(6, 38);
+      fmDepth.gain.value = fmCarrier.frequency.value * rand(0.45, 1.1);
+      fmGain.gain.value = rand(0.12, 0.22);
+
+      fmModulator.connect(fmDepth);
+      fmDepth.connect(fmCarrier.frequency);
+      fmCarrier.connect(fmGain);
+      fmGain.connect(filter);
+      fmCarrier.start();
+      fmModulator.start();
+
       noise.connect(noiseGain).connect(filter);
       noise.start();
 
@@ -245,13 +277,27 @@
       env.gain.linearRampToValueAtTime(0.9, now + 0.9);
       env.gain.linearRampToValueAtTime(0.7, now + 6);
 
-      activeNodes.push(noise, noiseGain, filter, env, wobble, wobbleGain);
+      activeNodes.push(
+        noise,
+        noiseGain,
+        filter,
+        env,
+        wobble,
+        wobbleGain,
+        fmCarrier,
+        fmModulator,
+        fmDepth,
+        fmGain
+      );
 
       readout.innerHTML = `
         <div>Base freq: ${base.toFixed(1)} Hz</div>
         <div>Filter cutoff: ${filter.frequency.value.toFixed(0)} Hz</div>
         <div>Wobble rate: ${wobble.frequency.value.toFixed(2)} Hz</div>
+        <div>FM depth: ${fmDepth.gain.value.toFixed(1)} Hz</div>
+        <div>FM rate: ${fmModulator.frequency.value.toFixed(2)} Hz</div>
       `;
+      fmStatus.textContent = `FM ${fmModulator.type} @ ${fmModulator.frequency.value.toFixed(1)} Hz • depth ${fmDepth.gain.value.toFixed(0)} Hz`;
     }
 
     function startMeter(){
@@ -295,6 +341,7 @@
       energyMeter.style.width = "0%";
       wobbleMeter.style.width = "0%";
       readout.textContent = "";
+      fmStatus.textContent = "FM idle";
     });
   </script>
   <div class="emote-copyright" style="position:fixed;bottom:8px;right:10px;font-size:11px;font-family:system-ui, -apple-system, Segoe UI, sans-serif;color:rgba(255,255,255,0.7);mix-blend-mode:difference;pointer-events:none;z-index:9999;">© eMote Systems</div>

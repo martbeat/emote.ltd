@@ -768,7 +768,7 @@ const heldNotes = new Set();
     lfo2.start();
 drumBus = AC.createGain();
 drumBus.gain.value = 0.7;
-drumBus.connect(chorus.in);
+drumBus.connect(analyser);
     applyFX();
     applyMaster();
   }
@@ -1428,6 +1428,9 @@ $("drVol").oninput = e => {
 $("arpOn").onchange = e => {
   state.arp.on = e.target.checked;
   stopArp();
+  if(state.arp.on && heldNotes.size > 0){
+    startArp();
+  }
 };
 
 $("arpRate").oninput = e => {

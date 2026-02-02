@@ -82,6 +82,15 @@
   @media (max-width: 980px){
     .grid{grid-template-columns:1fr}
   }
+  .blockRow{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap:12px;
+  }
+  @media (max-width: 980px){
+    .blockRow{grid-template-columns:1fr}
+  }
   .panel{
     background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
     border:1px solid rgba(255,255,255,.08);
@@ -223,69 +232,72 @@
       <button id="midiBtn">MIDI</button>
     </div>
   </header>
-<div class="block">
-  <div class="title"><div>Arpeggiator</div></div>
+<div class="blockRow">
+  <div class="block">
+    <div class="title"><div>Arpeggiator</div></div>
 
-  <div class="ctl">
-    <label>On</label>
-    <input type="checkbox" id="arpOn">
+    <div class="ctl">
+      <label>On</label>
+      <input type="checkbox" id="arpOn">
+    </div>
+
+    <div class="ctl">
+      <label>Rate (BPM)</label>
+      <input type="range" id="arpRate" min="40" max="200" value="120">
+    </div>
+
+    <div class="ctl">
+      <label>Beat Multiplier</label>
+      <select id="arpMul">
+        <option value="0.5">0.5× (32nd)</option>
+        <option value="1" selected>1× (16th)</option>
+        <option value="2">2× (8th)</option>
+        <option value="4">4× (quarter)</option>
+        <option value="8">8× (half)</option>
+      </select>
+    </div>
+
+    <div class="ctl">
+      <label>Mode</label>
+      <select id="arpMode">
+        <option>up</option>
+        <option>down</option>
+        <option>updown</option>
+        <option>random</option>
+      </select>
+    </div>
+
+    <div class="ctl">
+      <label>Arp Swing</label>
+      <input type="range" id="arpSwing" min="0" max="0.6" value="0" step="0.01">
+    </div>
   </div>
 
-  <div class="ctl">
-    <label>Rate (BPM)</label>
-    <input type="range" id="arpRate" min="40" max="200" value="120">
-  </div>
+  <div class="block">
+    <div class="title"><div>Drums</div></div>
 
-  <div class="ctl">
-    <label>Beat Multiplier</label>
-    <select id="arpMul">
-      <option value="0.5">0.5× (32nd)</option>
-      <option value="1" selected>1× (16th)</option>
-      <option value="2">2× (8th)</option>
-      <option value="4">4× (quarter)</option>
-      <option value="8">8× (half)</option>
-    </select>
-  </div>
+    <div class="ctl">
+      <label>Drums On</label>
+      <input type="checkbox" id="drOn">
+    </div>
 
-  <div class="ctl">
-    <label>Mode</label>
-    <select id="arpMode">
-      <option>up</option>
-      <option>down</option>
-      <option>updown</option>
-      <option>random</option>
-    </select>
-  </div>
-</div>
-<div class="block">
-  <div class="title"><div>Groove</div></div>
+    <div class="ctl">
+      <label>Drum Pattern</label>
+      <select id="drPat">
+        <option value="fourOnFloor">fourOnFloor</option>
+        <option value="breakbeat">breakbeat</option>
+      </select>
+    </div>
 
-  <div class="ctl">
-    <label>Arp Swing</label>
-    <input type="range" id="arpSwing" min="0" max="0.6" value="0" step="0.01">
-  </div>
+    <div class="ctl">
+      <label>Drum Swing</label>
+      <input type="range" id="drSwing" min="0" max="0.6" value="0" step="0.01">
+    </div>
 
-  <div class="ctl">
-    <label>Drums On</label>
-    <input type="checkbox" id="drOn">
-  </div>
-
-  <div class="ctl">
-    <label>Drum Pattern</label>
-    <select id="drPat">
-      <option value="fourOnFloor">fourOnFloor</option>
-      <option value="breakbeat">breakbeat</option>
-    </select>
-  </div>
-
-  <div class="ctl">
-    <label>Drum Swing</label>
-    <input type="range" id="drSwing" min="0" max="0.6" value="0" step="0.01">
-  </div>
-
-  <div class="ctl">
-    <label>Drum Vol</label>
-    <input type="range" id="drVol" min="0" max="1" value="0.7" step="0.01">
+    <div class="ctl">
+      <label>Drum Vol</label>
+      <input type="range" id="drVol" min="0" max="1" value="0.7" step="0.01">
+    </div>
   </div>
 </div>
 
@@ -547,6 +559,7 @@
 let drumBus = null;
 
 const heldNotes = new Set();
+const heldKeys = new Set();
 
   
   // ---------- Patch helpers ----------
@@ -852,6 +865,9 @@ function renderPower(){
 
   
   function killAll(){
+    stopArp();
+    heldNotes.clear();
+    heldKeys.clear();
     for(const [note, arr] of active.entries()){
       for(const v of arr){
         try{ v.stop(true); }catch(e){}
@@ -1464,10 +1480,10 @@ $("arpMode").onchange = e => {
 
     
     // computer keyboard
-    const heldKeys = new Set();
     window.addEventListener("keydown", (e)=>{
       const k = e.key.toLowerCase();
       if(!(k in KEYMAP)) return;
+      if(e.repeat) return;
       if(heldKeys.has(k)) return;
       heldKeys.add(k);
       const note = KEYMAP[k];
@@ -1484,6 +1500,15 @@ $("arpMode").onchange = e => {
       const el = keyEls.get(note);
       if(el) el.classList.remove("down");
       noteOff(note);
+    });
+
+    const releaseHeldInputs = ()=>{
+      killAll();
+    };
+
+    window.addEventListener("blur", releaseHeldInputs);
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.hidden) releaseHeldInputs();
     });
   }
 

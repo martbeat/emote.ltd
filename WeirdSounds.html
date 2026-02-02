@@ -124,7 +124,7 @@
       <button id="switchBtn" class="secondary" type="button">Switch vibe</button>
       <button id="stopBtn" class="stop" type="button">Stop</button>
       <div class="bubble">
-        Best with headphones. Each vibe blends a random oscillator stack, noise swells,
+        Best with headphones. Each vibe blends a random oscillator stack, FM growls, noise swells,
         and slow filter movement. Tap “Switch vibe” anytime for a new texture.
       </div>
     </section>
@@ -226,6 +226,25 @@
         activeNodes.push(osc, gain);
       }
 
+      const fmCarrier = audioCtx.createOscillator();
+      const fmModulator = audioCtx.createOscillator();
+      const fmDepth = audioCtx.createGain();
+      const fmGain = audioCtx.createGain();
+
+      fmCarrier.type = "sine";
+      fmModulator.type = WAVE_TYPES[Math.floor(rand(0, WAVE_TYPES.length))];
+      fmCarrier.frequency.value = base * rand(1.5, 2.8);
+      fmModulator.frequency.value = rand(2.5, 18);
+      fmDepth.gain.value = fmCarrier.frequency.value * rand(0.2, 0.7);
+      fmGain.gain.value = rand(0.08, 0.16);
+
+      fmModulator.connect(fmDepth);
+      fmDepth.connect(fmCarrier.frequency);
+      fmCarrier.connect(fmGain);
+      fmGain.connect(filter);
+      fmCarrier.start();
+      fmModulator.start();
+
       noise.connect(noiseGain).connect(filter);
       noise.start();
 
@@ -245,12 +264,25 @@
       env.gain.linearRampToValueAtTime(0.9, now + 0.9);
       env.gain.linearRampToValueAtTime(0.7, now + 6);
 
-      activeNodes.push(noise, noiseGain, filter, env, wobble, wobbleGain);
+      activeNodes.push(
+        noise,
+        noiseGain,
+        filter,
+        env,
+        wobble,
+        wobbleGain,
+        fmCarrier,
+        fmModulator,
+        fmDepth,
+        fmGain
+      );
 
       readout.innerHTML = `
         <div>Base freq: ${base.toFixed(1)} Hz</div>
         <div>Filter cutoff: ${filter.frequency.value.toFixed(0)} Hz</div>
         <div>Wobble rate: ${wobble.frequency.value.toFixed(2)} Hz</div>
+        <div>FM depth: ${fmDepth.gain.value.toFixed(1)} Hz</div>
+        <div>FM rate: ${fmModulator.frequency.value.toFixed(2)} Hz</div>
       `;
     }
 

@@ -137,7 +137,7 @@
       <div class="status" id="fmStatus">FM idle</div>
       <div class="bubble">
         Best with headphones. Each vibe blends a random oscillator stack, FM growls, noise swells,
-        distortion, stereo drift, and chaotic filter moves. Tap “Switch vibe” anytime for a new texture.
+        distortion, ring modulation, stereo drift, and chaotic filter moves. Tap “Switch vibe” anytime for a new texture.
       </div>
     </section>
 
@@ -170,6 +170,7 @@
     let activeNodes = [];
     let wobbleLfo = null;
     let chaosInterval = null;
+    let glitchInterval = null;
 
     const WAVE_TYPES = ["sine", "triangle", "sawtooth"];
 
@@ -198,6 +199,10 @@
         clearInterval(chaosInterval);
         chaosInterval = null;
       }
+      if(glitchInterval){
+        clearInterval(glitchInterval);
+        glitchInterval = null;
+      }
       if(wobbleLfo){
         wobbleLfo.stop();
         wobbleLfo.disconnect();
@@ -218,10 +223,16 @@
 
       const toneShaper = audioCtx.createWaveShaper();
       const shaperCurve = new Float32Array(512);
-      const drive = rand(2.2, 5.5);
+      const drive = rand(2.2, 6.5);
+      const crushSteps = Math.floor(rand(6, 18));
+      const curveMode = Math.random() > 0.5 ? "tanh" : "crush";
       for(let i = 0; i < shaperCurve.length; i++){
         const x = (i / (shaperCurve.length - 1)) * 2 - 1;
-        shaperCurve[i] = Math.tanh(x * drive);
+        if(curveMode === "tanh"){
+          shaperCurve[i] = Math.tanh(x * drive);
+        } else {
+          shaperCurve[i] = Math.round(x * crushSteps) / crushSteps;
+        }
       }
       toneShaper.curve = shaperCurve;
       toneShaper.oversample = "4x";
@@ -234,6 +245,23 @@
       panLfo.connect(panGain);
       panGain.connect(pan.pan);
       panLfo.start();
+
+      const ringCarrier = audioCtx.createOscillator();
+      const ringMod = audioCtx.createOscillator();
+      const ringDepth = audioCtx.createGain();
+      const ringGain = audioCtx.createGain();
+      ringCarrier.type = WAVE_TYPES[Math.floor(rand(0, WAVE_TYPES.length))];
+      ringMod.type = "sine";
+      ringCarrier.frequency.value = base * rand(2.2, 6.5);
+      ringMod.frequency.value = rand(22, 120);
+      ringDepth.gain.value = rand(0.2, 0.8);
+      ringGain.gain.value = rand(0.08, 0.16);
+      ringMod.connect(ringDepth);
+      ringDepth.connect(ringGain.gain);
+      ringCarrier.connect(ringGain);
+      ringGain.connect(filter);
+      ringCarrier.start();
+      ringMod.start();
 
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
@@ -302,6 +330,22 @@
       qGain.connect(filter.Q);
       qLfo.start();
 
+      const sampleHold = audioCtx.createBufferSource();
+      const sampleHoldBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      const holdData = sampleHoldBuffer.getChannelData(0);
+      for(let i = 0; i < holdData.length; i++){
+        holdData[i] = Math.random() * 2 - 1;
+      }
+      sampleHold.buffer = sampleHoldBuffer;
+      sampleHold.loop = true;
+      sampleHold.playbackRate.value = rand(0.6, 1.8);
+
+      const holdGain = audioCtx.createGain();
+      holdGain.gain.value = rand(150, 500);
+      sampleHold.connect(holdGain);
+      holdGain.connect(filter.frequency);
+      sampleHold.start();
+
       const env = audioCtx.createGain();
       env.gain.value = 0;
       filter.connect(toneShaper).connect(pan).connect(env).connect(master);
@@ -315,7 +359,14 @@
         filter.frequency.linearRampToValueAtTime(rand(500, 2200), nowLocal + rand(0.4, 1.2));
         wobbleGain.gain.cancelScheduledValues(nowLocal);
         wobbleGain.gain.linearRampToValueAtTime(rand(200, 750), nowLocal + rand(0.3, 1.1));
-      }, 1200);
+      }, rand(900, 1600));
+
+      glitchInterval = window.setInterval(() => {
+        const nowLocal = audioCtx.currentTime;
+        env.gain.cancelScheduledValues(nowLocal);
+        env.gain.setValueAtTime(rand(0.15, 0.5), nowLocal);
+        env.gain.linearRampToValueAtTime(0.9, nowLocal + rand(0.2, 0.5));
+      }, rand(1800, 3200));
 
       activeNodes.push(
         noise,
@@ -330,6 +381,12 @@
         panGain,
         qLfo,
         qGain,
+        ringCarrier,
+        ringMod,
+        ringDepth,
+        ringGain,
+        sampleHold,
+        holdGain,
         fmCarrier,
         fmModulator,
         fmDepth,
@@ -342,7 +399,9 @@
         <div>Wobble rate: ${wobble.frequency.value.toFixed(2)} Hz</div>
         <div>FM depth: ${fmDepth.gain.value.toFixed(1)} Hz</div>
         <div>FM rate: ${fmModulator.frequency.value.toFixed(2)} Hz</div>
-        <div>Drive: ${drive.toFixed(2)}x</div>
+        <div>Drive: ${drive.toFixed(2)}x (${curveMode})</div>
+        <div>Ring rate: ${ringMod.frequency.value.toFixed(1)} Hz</div>
+        <div>Hold rate: ${sampleHold.playbackRate.value.toFixed(2)}x</div>
         <div>Pan drift: ${panLfo.frequency.value.toFixed(2)} Hz</div>
       `;
       fmStatus.textContent = `FM ${fmModulator.type} @ ${fmModulator.frequency.value.toFixed(1)} Hz • depth ${fmDepth.gain.value.toFixed(0)} Hz`;

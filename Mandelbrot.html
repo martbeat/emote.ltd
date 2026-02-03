@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mandelbrot Explorer</title>
+  <meta name="description" content="Explore the Mandelbrot set with interactive zooming, palettes, and iteration controls." />
+  <style>
+    :root{
+      color-scheme: dark;
+      --bg:#05060b;
+      --panel:#0e1426;
+      --panel2:#131a33;
+      --ink:#ecf1ff;
+      --muted:#9aa6d4;
+      --accent:#7aa7ff;
+      --accent2:#7dffb2;
+      --danger:#ff6b88;
+      --shadow: 0 18px 42px rgba(0,0,0,.45);
+      --radius: 18px;
+      --ring: 0 0 0 2px rgba(122,167,255,.25), 0 0 0 6px rgba(122,167,255,.12);
+    }
+
+    *{ box-sizing:border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      background: radial-gradient(900px 700px at 15% 10%, #172553 0%, transparent 55%),
+                  radial-gradient(900px 700px at 90% 20%, #1a3b2e 0%, transparent 60%),
+                  linear-gradient(180deg, #05060b, #070914);
+      color: var(--ink);
+      font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      display:flex;
+      flex-direction:column;
+    }
+
+    header{
+      padding: 18px 18px 8px;
+      display:flex;
+      flex-wrap:wrap;
+      gap: 14px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .title h1{ margin:0; font-size: clamp(22px, 2.8vw, 34px); }
+    .title p{ margin:0; color: var(--muted); max-width: 62ch; }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      padding: 14px;
+      margin: 0 18px 12px;
+    }
+
+    label{
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    input[type="range"], select{
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: var(--panel2);
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--ink);
+    }
+
+    .buttons{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    button{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor:pointer;
+      font-weight: 600;
+      letter-spacing: .2px;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    button:hover{ transform: translateY(-1px); border-color: rgba(122,167,255,.4); }
+    button:focus-visible{ outline:none; box-shadow: var(--ring); }
+
+    .stage{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding: 0 18px 18px;
+    }
+
+    .canvas-wrap{
+      position:relative;
+      flex:1;
+      min-height: 320px;
+      border-radius: 20px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.08);
+      background: #020309;
+      box-shadow: var(--shadow);
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    .status{
+      display:flex;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+    }
+
+    .hint{
+      color: var(--muted);
+      font-size: 13px;
+      margin-left: 18px;
+      margin-right: 18px;
+    }
+
+    .link{
+      color: var(--accent2);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>Mandelbrot Explorer</h1>
+      <p>Click to zoom in. Shift-click to zoom out. Drag to pan. Change palettes and iterations to reveal new detail.</p>
+    </div>
+    <div class="buttons">
+      <button id="resetBtn" type="button">Reset View</button>
+      <button id="homeBtn" type="button">Go to Seahorse Valley</button>
+    </div>
+  </header>
+
+  <section class="controls panel">
+    <label>
+      Iterations: <span id="iterValue">400</span>
+      <input id="iterInput" type="range" min="60" max="1200" step="10" value="400" />
+    </label>
+    <label>
+      Zoom factor: <span id="zoomValue">2.0×</span>
+      <input id="zoomInput" type="range" min="1.2" max="4.0" step="0.1" value="2.0" />
+    </label>
+    <label>
+      Palette
+      <select id="paletteSelect">
+        <option value="nebula">Nebula</option>
+        <option value="aurora">Aurora</option>
+        <option value="sunrise">Sunrise</option>
+        <option value="mono">Monochrome</option>
+      </select>
+    </label>
+    <label>
+      Render Quality
+      <select id="qualitySelect">
+        <option value="1">High</option>
+        <option value="0.75">Medium</option>
+        <option value="0.5">Low (fast)</option>
+      </select>
+    </label>
+  </section>
+
+  <p class="hint">Tip: Use the mouse wheel or trackpad to zoom smoothly. Double click to re-center. Learn more about the set at <a class="link" href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank" rel="noopener">Wikipedia</a>.</p>
+
+  <main class="stage">
+    <div class="canvas-wrap">
+      <canvas id="fractal" aria-label="Mandelbrot set"></canvas>
+    </div>
+    <div class="status">
+      <div class="chip" id="viewInfo">Center: (-0.5, 0.0) • Width: 3.5</div>
+      <div class="chip" id="renderInfo">Rendering…</div>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("fractal");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const iterInput = document.getElementById("iterInput");
+    const iterValue = document.getElementById("iterValue");
+    const zoomInput = document.getElementById("zoomInput");
+    const zoomValue = document.getElementById("zoomValue");
+    const paletteSelect = document.getElementById("paletteSelect");
+    const qualitySelect = document.getElementById("qualitySelect");
+    const resetBtn = document.getElementById("resetBtn");
+    const homeBtn = document.getElementById("homeBtn");
+    const viewInfo = document.getElementById("viewInfo");
+    const renderInfo = document.getElementById("renderInfo");
+
+    const state = {
+      centerX: -0.5,
+      centerY: 0.0,
+      width: 3.5,
+      maxIter: Number(iterInput.value),
+      zoomFactor: Number(zoomInput.value),
+      palette: paletteSelect.value,
+      quality: Number(qualitySelect.value),
+      dragging: false,
+      dragStart: null,
+      needsRender: true,
+      renderId: 0
+    };
+
+    const palettes = {
+      nebula: t => [
+        12 + 200 * Math.pow(t, 0.4),
+        30 + 120 * Math.sin(t * Math.PI),
+        60 + 200 * Math.pow(t, 0.2)
+      ],
+      aurora: t => [
+        40 + 180 * Math.sin(t * 2.2),
+        120 + 120 * Math.pow(t, 0.6),
+        80 + 160 * Math.cos(t * 1.6)
+      ],
+      sunrise: t => [
+        160 + 80 * t,
+        60 + 180 * Math.pow(t, 0.4),
+        60 + 160 * (1 - t)
+      ],
+      mono: t => {
+        const v = 30 + 210 * t;
+        return [v, v, v];
+      }
+    };
+
+    function resizeCanvas(){
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * scale * state.quality);
+      canvas.height = Math.floor(rect.height * scale * state.quality);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(1 / state.quality, 1 / state.quality);
+      state.needsRender = true;
+      render();
+    }
+
+    function updateStatus(){
+      viewInfo.textContent = `Center: (${state.centerX.toFixed(6)}, ${state.centerY.toFixed(6)}) • Width: ${state.width.toFixed(6)}`;
+    }
+
+    function smoothIteration(iter, zx, zy){
+      const logZn = Math.log(zx * zx + zy * zy) / 2;
+      const nu = Math.log(logZn / Math.log(2)) / Math.log(2);
+      return iter + 1 - nu;
+    }
+
+    function render(){
+      const renderId = ++state.renderId;
+      if (!state.needsRender) return;
+      state.needsRender = false;
+      renderInfo.textContent = "Rendering…";
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const image = ctx.createImageData(w, h);
+      const data = image.data;
+      const maxIter = state.maxIter;
+      const halfWidth = state.width / 2;
+      const scaleY = state.width * (h / w);
+      const halfHeight = scaleY / 2;
+      const paletteFn = palettes[state.palette] || palettes.nebula;
+
+      let idx = 0;
+      for (let py = 0; py < h; py++){
+        const cy = state.centerY + (py / h - 0.5) * scaleY;
+        for (let px = 0; px < w; px++){
+          const cx = state.centerX + (px / w - 0.5) * state.width;
+          let zx = 0;
+          let zy = 0;
+          let iter = 0;
+          while (zx * zx + zy * zy <= 4 && iter < maxIter){
+            const xt = zx * zx - zy * zy + cx;
+            zy = 2 * zx * zy + cy;
+            zx = xt;
+            iter++;
+          }
+
+          if (iter >= maxIter){
+            data[idx++] = 8;
+            data[idx++] = 10;
+            data[idx++] = 18;
+            data[idx++] = 255;
+          } else {
+            const smooth = smoothIteration(iter, zx, zy);
+            const t = smooth / maxIter;
+            const [r, g, b] = paletteFn(t);
+            data[idx++] = Math.max(0, Math.min(255, Math.round(r)));
+            data[idx++] = Math.max(0, Math.min(255, Math.round(g)));
+            data[idx++] = Math.max(0, Math.min(255, Math.round(b)));
+            data[idx++] = 255;
+          }
+        }
+      }
+
+      if (renderId !== state.renderId) return;
+      ctx.putImageData(image, 0, 0);
+      renderInfo.textContent = `Iterations: ${maxIter} • Palette: ${state.palette}`;
+      updateStatus();
+    }
+
+    function zoomAt(screenX, screenY, zoomIn){
+      const rect = canvas.getBoundingClientRect();
+      const offsetX = screenX - rect.left;
+      const offsetY = screenY - rect.top;
+      const nx = offsetX / rect.width - 0.5;
+      const ny = offsetY / rect.height - 0.5;
+      const scaleY = state.width * (rect.height / rect.width);
+      state.centerX += nx * state.width;
+      state.centerY += ny * scaleY;
+      state.width *= zoomIn ? 1 / state.zoomFactor : state.zoomFactor;
+      state.needsRender = true;
+      render();
+    }
+
+    function panBy(dx, dy){
+      const rect = canvas.getBoundingClientRect();
+      const scaleY = state.width * (rect.height / rect.width);
+      state.centerX -= (dx / rect.width) * state.width;
+      state.centerY -= (dy / rect.height) * scaleY;
+      state.needsRender = true;
+      render();
+    }
+
+    iterInput.addEventListener("input", () => {
+      state.maxIter = Number(iterInput.value);
+      iterValue.textContent = iterInput.value;
+      state.needsRender = true;
+      render();
+    });
+
+    zoomInput.addEventListener("input", () => {
+      state.zoomFactor = Number(zoomInput.value);
+      zoomValue.textContent = `${state.zoomFactor.toFixed(1)}×`;
+    });
+
+    paletteSelect.addEventListener("change", () => {
+      state.palette = paletteSelect.value;
+      state.needsRender = true;
+      render();
+    });
+
+    qualitySelect.addEventListener("change", () => {
+      state.quality = Number(qualitySelect.value);
+      resizeCanvas();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      state.centerX = -0.5;
+      state.centerY = 0.0;
+      state.width = 3.5;
+      state.needsRender = true;
+      render();
+    });
+
+    homeBtn.addEventListener("click", () => {
+      state.centerX = -0.743643887037151;
+      state.centerY = 0.13182590420533;
+      state.width = 0.002;
+      state.needsRender = true;
+      render();
+    });
+
+    canvas.addEventListener("click", event => {
+      if (state.dragging) return;
+      zoomAt(event.clientX, event.clientY, !event.shiftKey);
+    });
+
+    canvas.addEventListener("dblclick", event => {
+      const rect = canvas.getBoundingClientRect();
+      const nx = (event.clientX - rect.left) / rect.width - 0.5;
+      const ny = (event.clientY - rect.top) / rect.height - 0.5;
+      const scaleY = state.width * (rect.height / rect.width);
+      state.centerX += nx * state.width;
+      state.centerY += ny * scaleY;
+      state.needsRender = true;
+      render();
+    });
+
+    canvas.addEventListener("wheel", event => {
+      event.preventDefault();
+      const zoomIn = event.deltaY < 0;
+      zoomAt(event.clientX, event.clientY, zoomIn);
+    }, { passive: false });
+
+    canvas.addEventListener("mousedown", event => {
+      state.dragging = true;
+      state.dragStart = { x: event.clientX, y: event.clientY };
+    });
+
+    window.addEventListener("mousemove", event => {
+      if (!state.dragging || !state.dragStart) return;
+      const dx = event.clientX - state.dragStart.x;
+      const dy = event.clientY - state.dragStart.y;
+      if (Math.abs(dx) + Math.abs(dy) < 2) return;
+      panBy(dx, dy);
+      state.dragStart = { x: event.clientX, y: event.clientY };
+    });
+
+    window.addEventListener("mouseup", () => {
+      state.dragging = false;
+      state.dragStart = null;
+    });
+
+    window.addEventListener("resize", resizeCanvas);
+
+    iterValue.textContent = iterInput.value;
+    zoomValue.textContent = `${Number(zoomInput.value).toFixed(1)}×`;
+    resizeCanvas();
+  </script>
+</body>
+</html>

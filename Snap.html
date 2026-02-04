@@ -206,6 +206,39 @@
       line-height:1.4;
     }
 
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:28px;
+      transform: translateX(-50%) translateY(24px);
+      background: rgba(15,22,45,.92);
+      color: var(--ink);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 16px;
+      padding: 14px 18px;
+      box-shadow: 0 18px 36px rgba(0,0,0,.35);
+      max-width: min(520px, 92vw);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 20;
+      text-align:center;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast h3{
+      margin:0 0 6px;
+      font-size:16px;
+      letter-spacing:.3px;
+    }
+    .toast p{
+      margin:0;
+      font-size:13px;
+      color: var(--muted);
+    }
+
     .snap-btn{
       font-size:18px;
       letter-spacing:.8px;
@@ -330,6 +363,7 @@
       <div class="log" id="log">Press “Start new game” to shuffle and deal.</div>
     </section>
   </div>
+  <div id="snapToast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
     const players = [
@@ -362,6 +396,7 @@
       aiDelayBias: 0,
       snapStartedAt: 0,
       lastReactions: null,
+      toastTimer: null,
       voiceReady: false,
       voiceOn: false,
       soundOn: true,
@@ -382,6 +417,7 @@
       reactionSummary: document.getElementById("reactionSummary"),
       pileStack: document.getElementById("pileStack"),
       pileCount: document.getElementById("pileCount"),
+      snapToast: document.getElementById("snapToast"),
       micDot: document.getElementById("micDot"),
       micLabel: document.getElementById("micLabel"),
       countEls: [
@@ -485,16 +521,13 @@
 
     function renderCards(){
       const cards = state.pile.slice(-4);
-      const offsets = [
-        { x: 0, y: 0, r: 0 },
-        { x: 16, y: -6, r: 90 },
-        { x: -12, y: 12, r: 0 },
-        { x: 8, y: 18, r: 90 }
-      ];
       const fragments = cards.map((card, index) => {
-        const pos = offsets[index] || offsets[0];
+        const globalIndex = state.pile.length - cards.length + index;
+        const rotate = globalIndex % 2 === 0 ? 0 : 90;
+        const offsetX = (index - 1.5) * 8;
+        const offsetY = (index - 1.5) * 6;
         return `
-          <div class="pile-card" style="transform: translate(${pos.x}px, ${pos.y}px) rotate(${pos.r}deg);">
+          <div class="pile-card" style="transform: translate(${offsetX}px, ${offsetY}px) rotate(${rotate}deg);">
             ${cardFace(card)}
           </div>
         `;
@@ -653,7 +686,30 @@
         `SNAP! ${player.name} wins ${pileSize} cards.`,
         `Reactions: ${formatReactionList(player)}`
       ];
-      alert(lines.join("\n"));
+      shoutSnap(player);
+      setTimeout(() => {
+        showToast(lines[0], lines[1]);
+      }, 1000);
+    }
+
+    function showToast(title, detail){
+      els.snapToast.innerHTML = `<h3>${title}</h3><p>${detail}</p>`;
+      els.snapToast.classList.add("show");
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => {
+        els.snapToast.classList.remove("show");
+      }, 3000);
+    }
+
+    function shoutSnap(player){
+      if (!state.soundOn || !window.speechSynthesis){
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(`Snap! ${player.name} wins!`);
+      utter.rate = 1;
+      utter.pitch = 1.2;
+      window.speechSynthesis.speak(utter);
     }
 
     function formatReactionList(winner){

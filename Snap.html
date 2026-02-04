@@ -523,8 +523,15 @@
       if (!card || !state.soundOn || !window.speechSynthesis){
         return;
       }
+      const rankNames = {
+        A: "Ace",
+        J: "Jack",
+        Q: "Queen",
+        K: "King"
+      };
+      const rankLabel = rankNames[card.rank] || card.rank;
       const suitName = suits.find((suit) => suit.symbol === card.suit)?.name;
-      const label = suitName ? `${card.rank} of ${suitName}` : `${card.rank}`;
+      const label = suitName ? `${rankLabel} of ${suitName}` : `${rankLabel}`;
       speak(`${label}.`);
     }
 

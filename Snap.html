@@ -745,31 +745,6 @@
       }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(`SNAP! ${player.name} wins the cards.`);
-      utter.voice = getVoiceForPlayer(player);
-      utter.rate = 1;
-      utter.pitch = player.name === "Ada" ? 1.3 : 0.9;
-      window.speechSynthesis.speak(utter);
-    }
-
-    function announceCard(card){
-      if (!state.soundOn || !window.speechSynthesis){
-        return;
-      }
-      const rankNames = {
-        A: "Ace",
-        J: "Jack",
-        Q: "Queen",
-        K: "King"
-      };
-      const suitNames = {
-        "♥": "Hearts",
-        "♦": "Diamonds",
-        "♣": "Clubs",
-        "♠": "Spades"
-      };
-      const rank = rankNames[card.rank] || card.rank;
-      const suit = suitNames[card.suit] || card.suit;
-      const utter = new SpeechSynthesisUtterance(`${rank} of ${suit}`);
       utter.rate = 1;
       utter.pitch = 1.05;
       window.speechSynthesis.speak(utter);

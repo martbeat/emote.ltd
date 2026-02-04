@@ -196,6 +196,20 @@
       font-size:54px;
       opacity:.85;
     }
+    .card-face .mid.motorhead{
+      font-size:28px;
+      letter-spacing:1.5px;
+      text-transform: uppercase;
+      font-family: "Impact","Haettenschweiler","Arial Black",sans-serif;
+    }
+    .card-face .mid.motorhead span{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .card-face .mid.motorhead .bolt{
+      font-size:22px;
+    }
     .card-face.red{color:#c22032}
     .card-face.black{color:#121726}
 
@@ -501,13 +515,18 @@
       if (!card){
         return "";
       }
+      const isMotorheadAce = card.rank === "A" && card.suit === "♠";
+      const midClass = isMotorheadAce ? "mid motorhead" : "mid";
+      const midContent = isMotorheadAce
+        ? `<span><span class="bolt">⚡</span>Motörhead<span class="bolt">⚡</span></span>`
+        : card.suit;
       return `
         <div class="card-face ${card.color}">
           <div class="corner">
             <span class="rank">${card.rank}</span>
             <span class="suit">${card.suit}</span>
           </div>
-          <div class="mid">${card.suit}</div>
+          <div class="${midClass}">${midContent}</div>
           <div class="corner" style="align-items:flex-end; text-align:right;">
             <span class="rank">${card.rank}</span>
             <span class="suit">${card.suit}</span>

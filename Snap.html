@@ -366,10 +366,16 @@
   <div id="snapToast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
+    const botNamePool = [
+      "Ada","Beau","Cass","Dex","Elliot","Faye","Gizmo","Harlow",
+      "Iris","Juno","Koa","Luna","Milo","Nova","Orion","Piper",
+      "Quinn","Roux","Sage","Toby","Uma","Vera","Wren","Zara"
+    ];
+
     const players = [
       { name: "You", human: true, cards: [], snaps: 0 },
-      { name: "Ada", human: false, cards: [], snaps: 0 },
-      { name: "Beau", human: false, cards: [], snaps: 0 }
+      { name: "Bot A", human: false, cards: [], snaps: 0 },
+      { name: "Bot B", human: false, cards: [], snaps: 0 }
     ];
 
     const suits = [
@@ -470,6 +476,25 @@
         players[idx % players.length].cards.push(state.deck.pop());
         idx += 1;
       }
+    }
+
+    function assignBotNames(){
+      const pool = shuffle([...botNamePool]);
+      const botNames = pool.slice(0, players.length - 1);
+      players.forEach((player, index) => {
+        if (!player.human){
+          player.name = botNames[index - 1] || player.name;
+        }
+      });
+      const nameEls = [
+        document.querySelector("#player1 .panel-title span"),
+        document.querySelector("#player2 .panel-title span")
+      ];
+      nameEls.forEach((el, index) => {
+        if (el){
+          el.textContent = `🤖 ${players[index + 1].name}`;
+        }
+      });
     }
 
     function cardFace(card){
@@ -847,6 +872,7 @@
     }
 
     function startGame(){
+      assignBotNames();
       dealCards();
       state.currentPlayer = 0;
       state.running = true;

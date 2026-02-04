@@ -580,7 +580,7 @@
           return;
         }
         const base = 320 + Math.random() * (index === 1 ? 380 : 620);
-        const priorityDelay = state.firstSnapPending ? 1000 : 0;
+        const priorityDelay = state.firstSnapPending ? 5000 : 0;
         const reaction = Math.max(priorityDelay, base + state.aiDelayBias);
         setTimeout(() => {
           const elapsed = Math.round(performance.now() - state.snapStartedAt);
@@ -620,12 +620,12 @@
         }
         updateReactionSummary();
       }
-      if (state.firstSnapPending && player.human){
-        const elapsed = performance.now() - state.snapStartedAt;
-        if (elapsed > 1000){
-          log("Too slow for the opening advantage. The table is now fair.");
+        if (state.firstSnapPending && player.human){
+          const elapsed = performance.now() - state.snapStartedAt;
+          if (elapsed > 5000){
+            log("Too slow for the opening advantage. The table is now fair.");
+          }
         }
-      }
       state.snapLocked = true;
       state.snapActive = false;
       clearTimeout(state.snapTimeout);
@@ -665,7 +665,7 @@
       if (state.snapActive){
         if (state.firstSnapPending){
           const elapsed = performance.now() - state.snapStartedAt;
-          if (elapsed <= 1000){
+          if (elapsed <= 5000){
             attemptSnap(players[0], `Human ${source} (priority)`, Math.round(elapsed));
             return;
           }

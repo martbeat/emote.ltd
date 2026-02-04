@@ -612,6 +612,7 @@
       if (!state.running || !state.snapActive || state.snapLocked){
         return;
       }
+      const pileSize = state.pile.length;
       if (elapsedMs !== null){
         if (player.human){
           state.lastReactions.human = elapsedMs;
@@ -630,6 +631,7 @@
       state.snapActive = false;
       clearTimeout(state.snapTimeout);
       player.snaps += 1;
+      announceSnapWin(player, pileSize);
       collectPile(player);
       els.snapStatus.textContent = "Resolved";
       setGameState("Running");
@@ -644,6 +646,30 @@
       if (!checkForWinner()){
         scheduleNextTurn();
       }
+    }
+
+    function announceSnapWin(player, pileSize){
+      const lines = [
+        `SNAP! ${player.name} wins ${pileSize} cards.`,
+        `Reactions: ${formatReactionList(player)}`
+      ];
+      alert(lines.join("\n"));
+    }
+
+    function formatReactionList(winner){
+      if (!state.lastReactions){
+        return "No reaction data yet.";
+      }
+      const entries = [];
+      if (state.lastReactions.human !== null){
+        entries.push({ name: "You", ms: state.lastReactions.human });
+      }
+      state.lastReactions.ai.forEach((entry) => entries.push(entry));
+      const filtered = entries.filter((entry) => entry.name !== winner.name);
+      if (!filtered.length){
+        return "No other reactions recorded.";
+      }
+      return filtered.map((entry) => `${entry.name} ${entry.ms}ms`).join(" · ");
     }
 
     function falseSnap(player){

@@ -29,6 +29,20 @@
       color:var(--ink);
       -webkit-tap-highlight-color: transparent;
     }
+    body.super-win{
+      animation: superGlow 1.4s ease-in-out infinite;
+    }
+    body.super-win .wrap{
+      animation: superShake .4s ease-in-out infinite;
+    }
+    @keyframes superGlow{
+      0%,100%{filter: drop-shadow(0 0 0 rgba(125,255,178,.35));}
+      50%{filter: drop-shadow(0 0 22px rgba(125,255,178,.65));}
+    }
+    @keyframes superShake{
+      0%,100%{transform: translateY(0);}
+      50%{transform: translateY(-4px);}
+    }
     .wrap{
       max-width: 1100px;
       margin: 0 auto;
@@ -629,13 +643,17 @@
     function checkForWinner(){
       const active = players.filter((p) => p.cards.length > 0);
       if (active.length === 1){
+        const winner = active[0];
         state.running = false;
         state.snapActive = false;
         state.snapLocked = false;
         clearTimeout(state.turnTimer);
         clearTimeout(state.snapTimeout);
         setGameState("Finished");
-        log(`${active[0].name} wins the deck!`);
+        log(`${winner.name} wins the deck!`);
+        if (winner.cards.length === 52){
+          superCelebrate(winner);
+        }
         els.turnName.textContent = "—";
         return true;
       }
@@ -819,6 +837,15 @@
       state.toastTimer = setTimeout(() => {
         els.snapToast.classList.remove("show");
       }, 3000);
+    }
+
+    function superCelebrate(winner){
+      showToast("52-card sweep!", `${winner.name} owns the entire deck!`);
+      document.body.classList.add("super-win");
+      setTimeout(() => {
+        document.body.classList.remove("super-win");
+      }, 4200);
+      speak(`${winner.name} wins all fifty two cards! Super snap!`);
     }
 
     function shoutSnap(player){

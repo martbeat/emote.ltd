@@ -575,7 +575,15 @@
       if (!state.running || state.paused || state.snapActive){
         return;
       }
-      els.flipBtn.disabled = false;
+      const current = players[state.currentPlayer];
+      if (current.human){
+        els.flipBtn.disabled = false;
+        return;
+      }
+      els.flipBtn.disabled = true;
+      state.turnTimer = setTimeout(() => {
+        playTurn();
+      }, state.speedMs);
     }
 
     function playTurn(){

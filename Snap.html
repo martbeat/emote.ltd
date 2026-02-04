@@ -29,6 +29,20 @@
       color:var(--ink);
       -webkit-tap-highlight-color: transparent;
     }
+    body.super-win{
+      animation: superGlow 1.4s ease-in-out infinite;
+    }
+    body.super-win .wrap{
+      animation: superShake .4s ease-in-out infinite;
+    }
+    @keyframes superGlow{
+      0%,100%{filter: drop-shadow(0 0 0 rgba(125,255,178,.35));}
+      50%{filter: drop-shadow(0 0 22px rgba(125,255,178,.65));}
+    }
+    @keyframes superShake{
+      0%,100%{transform: translateY(0);}
+      50%{transform: translateY(-4px);}
+    }
     .wrap{
       max-width: 1100px;
       margin: 0 auto;
@@ -195,6 +209,20 @@
       justify-content:center;
       font-size:54px;
       opacity:.85;
+    }
+    .card-face .mid.motorhead{
+      font-size:28px;
+      letter-spacing:1.5px;
+      text-transform: uppercase;
+      font-family: "Impact","Haettenschweiler","Arial Black",sans-serif;
+    }
+    .card-face .mid.motorhead span{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .card-face .mid.motorhead .bolt{
+      font-size:22px;
     }
     .card-face.red{color:#c22032}
     .card-face.black{color:#121726}
@@ -501,13 +529,18 @@
       if (!card){
         return "";
       }
+      const isMotorheadAce = card.rank === "A" && card.suit === "♠";
+      const midClass = isMotorheadAce ? "mid motorhead" : "mid";
+      const midContent = isMotorheadAce
+        ? `<span><span class="bolt">⚡</span>Motörhead<span class="bolt">⚡</span></span>`
+        : card.suit;
       return `
         <div class="card-face ${card.color}">
           <div class="corner">
             <span class="rank">${card.rank}</span>
             <span class="suit">${card.suit}</span>
           </div>
-          <div class="mid">${card.suit}</div>
+          <div class="${midClass}">${midContent}</div>
           <div class="corner" style="align-items:flex-end; text-align:right;">
             <span class="rank">${card.rank}</span>
             <span class="suit">${card.suit}</span>
@@ -610,13 +643,17 @@
     function checkForWinner(){
       const active = players.filter((p) => p.cards.length > 0);
       if (active.length === 1){
+        const winner = active[0];
         state.running = false;
         state.snapActive = false;
         state.snapLocked = false;
         clearTimeout(state.turnTimer);
         clearTimeout(state.snapTimeout);
         setGameState("Finished");
-        log(`${active[0].name} wins the deck!`);
+        log(`${winner.name} wins the deck!`);
+        if (winner.cards.length === 52){
+          superCelebrate(winner);
+        }
         els.turnName.textContent = "—";
         return true;
       }
@@ -800,6 +837,15 @@
       state.toastTimer = setTimeout(() => {
         els.snapToast.classList.remove("show");
       }, 3000);
+    }
+
+    function superCelebrate(winner){
+      showToast("52-card sweep!", `${winner.name} owns the entire deck!`);
+      document.body.classList.add("super-win");
+      setTimeout(() => {
+        document.body.classList.remove("super-win");
+      }, 4200);
+      speak(`${winner.name} wins all fifty two cards! Super snap!`);
     }
 
     function shoutSnap(player){

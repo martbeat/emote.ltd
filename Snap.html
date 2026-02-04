@@ -519,6 +519,15 @@
       els.log.textContent = message;
     }
 
+    function announceCard(card){
+      if (!card || !state.soundOn || !window.speechSynthesis){
+        return;
+      }
+      const suitName = suits.find((suit) => suit.symbol === card.suit)?.name;
+      const label = suitName ? `${card.rank} of ${suitName}` : `${card.rank}`;
+      speak(`${label}.`);
+    }
+
     function setGameState(label){
       els.gameState.textContent = label;
     }
@@ -575,7 +584,15 @@
       if (!state.running || state.paused || state.snapActive){
         return;
       }
-      els.flipBtn.disabled = false;
+      const current = players[state.currentPlayer];
+      if (current.human){
+        els.flipBtn.disabled = false;
+        return;
+      }
+      els.flipBtn.disabled = true;
+      state.turnTimer = setTimeout(() => {
+        playTurn();
+      }, state.speedMs);
     }
 
     function playTurn(){

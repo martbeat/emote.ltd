@@ -144,9 +144,9 @@
       flex-wrap:wrap;
     }
     .stack{
-      width:120px;
-      height:170px;
-      border-radius: 14px;
+      width:200px;
+      height:200px;
+      border-radius: 18px;
       border: 1px solid rgba(255,255,255,.12);
       background: linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
       display:flex;
@@ -158,10 +158,16 @@
     .stack::after{
       content:"";
       position:absolute;
-      inset:10px;
-      border-radius:12px;
+      inset:12px;
+      border-radius:14px;
       border:1px dashed rgba(255,255,255,.2);
       opacity:.6;
+    }
+    .pile-card{
+      position:absolute;
+      width:120px;
+      height:170px;
+      transition: transform .2s ease;
     }
     .card-face{
       width:120px;
@@ -305,18 +311,11 @@
 
     <section class="card center">
       <div>
-        <div class="status">Previous card</div>
-        <div id="prevCard" class="stack"></div>
-      </div>
-      <div>
-        <div class="status">Current card</div>
-        <div id="currentCard" class="stack"></div>
-      </div>
-      <div>
-        <div class="status">Central pile</div>
+        <div class="status">Shared pile</div>
         <div class="stack" id="pileStack">
           <div class="status" id="pileCount">0 cards</div>
         </div>
+        <div class="hint">Cards land at right angles so you can track the previous flip.</div>
       </div>
     </section>
 
@@ -356,6 +355,9 @@
       speedMs: 1200,
       snapTimeout: null,
       turnTimer: null,
+      firstSnapPending: true,
+      aiDelayBias: 0,
+      snapStartedAt: 0,
       voiceReady: false,
       voiceOn: false,
       soundOn: true,
@@ -373,8 +375,7 @@
       turnName: document.getElementById("turnName"),
       speedLabel: document.getElementById("speedLabel"),
       snapStatus: document.getElementById("snapStatus"),
-      currentCard: document.getElementById("currentCard"),
-      prevCard: document.getElementById("prevCard"),
+      pileStack: document.getElementById("pileStack"),
       pileCount: document.getElementById("pileCount"),
       micDot: document.getElementById("micDot"),
       micLabel: document.getElementById("micLabel"),
@@ -462,10 +463,26 @@
     }
 
     function renderCards(){
-      const current = state.pile[state.pile.length - 1];
-      const previous = state.pile[state.pile.length - 2];
-      els.currentCard.innerHTML = current ? cardFace(current) : "";
-      els.prevCard.innerHTML = previous ? cardFace(previous) : "";
+      const cards = state.pile.slice(-4);
+      const offsets = [
+        { x: 0, y: 0, r: 0 },
+        { x: 16, y: -6, r: 90 },
+        { x: -12, y: 12, r: 0 },
+        { x: 8, y: 18, r: 90 }
+      ];
+      const fragments = cards.map((card, index) => {
+        const pos = offsets[index] || offsets[0];
+        return `
+          <div class="pile-card" style="transform: translate(${pos.x}px, ${pos.y}px) rotate(${pos.r}deg);">
+            ${cardFace(card)}
+          </div>
+        `;
+      });
+      els.pileStack.innerHTML = `
+        <div class="status" id="pileCount">${state.pile.length} cards</div>
+        ${fragments.join("")}
+      `;
+      els.pileCount = document.getElementById("pileCount");
     }
 
     function nextPlayerIndex(start){
@@ -530,6 +547,7 @@
     function triggerSnap(){
       state.snapActive = true;
       state.snapLocked = false;
+      state.snapStartedAt = performance.now();
       els.snapStatus.textContent = "Snap now!";
       setGameState("SNAP!");
       log("Match! Race to shout SNAP!");
@@ -538,7 +556,9 @@
         if (player.human){
           return;
         }
-        const reaction = 320 + Math.random() * (index === 1 ? 380 : 620);
+        const base = 320 + Math.random() * (index === 1 ? 380 : 620);
+        const priorityDelay = state.firstSnapPending ? 1000 : 0;
+        const reaction = Math.max(priorityDelay, base + state.aiDelayBias);
         setTimeout(() => attemptSnap(player, "AI reaction"), reaction);
       });
 
@@ -549,6 +569,7 @@
           els.snapStatus.textContent = "Missed it";
           setGameState("Running");
           log("Nobody called snap in time. Keep playing!");
+          state.firstSnapPending = false;
           scheduleNextTurn();
         }
       }, 2200);
@@ -565,6 +586,12 @@
       if (!state.running || !state.snapActive || state.snapLocked){
         return;
       }
+      if (state.firstSnapPending && player.human){
+        const elapsed = performance.now() - state.snapStartedAt;
+        if (elapsed > 1000){
+          log("Too slow for the opening advantage. The table is now fair.");
+        }
+      }
       state.snapLocked = true;
       state.snapActive = false;
       clearTimeout(state.snapTimeout);
@@ -574,6 +601,8 @@
       setGameState("Running");
       state.currentPlayer = players.indexOf(player);
       updateCounts();
+      adjustAiBias();
+      state.firstSnapPending = false;
       if (!player.human){
         speak(`${player.name} says snap!`);
       }
@@ -600,6 +629,13 @@
         return;
       }
       if (state.snapActive){
+        if (state.firstSnapPending){
+          const elapsed = performance.now() - state.snapStartedAt;
+          if (elapsed <= 1000){
+            attemptSnap(players[0], `Human ${source} (priority)`);
+            return;
+          }
+        }
         attemptSnap(players[0], `Human ${source}`);
       } else {
         falseSnap(players[0]);
@@ -613,6 +649,8 @@
       state.paused = false;
       state.snapActive = false;
       state.snapLocked = false;
+      state.firstSnapPending = true;
+      state.aiDelayBias = 0;
       clearTimeout(state.snapTimeout);
       clearTimeout(state.turnTimer);
       renderCards();
@@ -720,6 +758,17 @@
     function toggleSound(){
       state.soundOn = !state.soundOn;
       els.soundBtn.textContent = state.soundOn ? "Sound: On" : "Sound: Off";
+    }
+
+    function adjustAiBias(){
+      const humanSnaps = players[0].snaps;
+      const aiSnaps = players.slice(1).reduce((sum, p) => sum + p.snaps, 0);
+      const diff = aiSnaps - humanSnaps;
+      if (diff >= 2){
+        state.aiDelayBias = Math.min(state.aiDelayBias + 80, 450);
+      } else if (diff <= -2){
+        state.aiDelayBias = Math.max(state.aiDelayBias - 60, -150);
+      }
     }
 
     els.startBtn.addEventListener("click", startGame);

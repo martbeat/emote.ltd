@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snap! Voice Table</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0e1730;
+      --ink:#eaf0ff;
+      --muted:#a6b3de;
+      --accent:#7aa7ff;
+      --accent2:#7dffb2;
+      --danger:#ff6b88;
+      --gold:#ffd56b;
+      --line:#243056;
+      --shadow: 0 10px 26px rgba(0,0,0,.35);
+      --r:16px;
+      --tap:48px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background: radial-gradient(1200px 700px at 30% 10%, #1a2858 0%, var(--bg) 55%, #060912 100%);
+      color:var(--ink);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      min-height:100%;
+    }
+    header{
+      display:flex;
+      gap:12px;
+      align-items:stretch;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      border-radius: var(--r);
+      padding: 12px;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 260px;
+      flex: 1;
+    }
+    .title h1{margin:0; font-size: 20px; letter-spacing:.2px;}
+    .title p{margin:0; color:var(--muted); font-size:13px; line-height:1.35}
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+      min-width: 260px;
+    }
+    button, .toggle{
+      height: var(--tap);
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--ink);
+      padding: 0 14px;
+      font-weight: 650;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      user-select:none;
+    }
+    button:hover{background: rgba(255,255,255,.09)}
+    button:active{transform: translateY(1px)}
+    button.primary{background: rgba(122,167,255,.18); border-color: rgba(122,167,255,.35)}
+    button.good{background: rgba(125,255,178,.14); border-color: rgba(125,255,178,.35)}
+    button.danger{background: rgba(255,107,136,.14); border-color: rgba(255,107,136,.35)}
+    button:disabled{opacity:.5; cursor:not-allowed; transform:none}
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap:12px;
+    }
+
+    .panel-title{
+      font-weight:700;
+      letter-spacing:.2px;
+      margin-bottom:6px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .badge{
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+    }
+    .player{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:150px;
+    }
+    .counts{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:6px;
+      font-size:13px;
+      color: var(--muted);
+    }
+    .pill{
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      font-weight:600;
+      color: var(--ink);
+      text-align:center;
+    }
+    .center{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+      flex-wrap:wrap;
+    }
+    .stack{
+      width:200px;
+      height:200px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      overflow:hidden;
+    }
+    .stack::after{
+      content:"";
+      position:absolute;
+      inset:12px;
+      border-radius:14px;
+      border:1px dashed rgba(255,255,255,.2);
+      opacity:.6;
+    }
+    .pile-card{
+      position:absolute;
+      width:120px;
+      height:170px;
+      transition: transform .2s ease;
+    }
+    .card-face{
+      width:120px;
+      height:170px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: #f7f6ff;
+      color:#0c1224;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      padding:10px;
+      font-weight:700;
+      box-shadow: 0 12px 24px rgba(0,0,0,.25);
+      position:relative;
+    }
+    .card-face .rank{font-size:24px}
+    .card-face .suit{font-size:28px}
+    .card-face .corner{display:flex; flex-direction:column; gap:2px}
+    .card-face .mid{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:54px;
+      opacity:.85;
+    }
+    .card-face.red{color:#c22032}
+    .card-face.black{color:#121726}
+
+    .log{
+      min-height: 58px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height:1.4;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:28px;
+      transform: translateX(-50%) translateY(24px);
+      background: rgba(15,22,45,.92);
+      color: var(--ink);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 16px;
+      padding: 14px 18px;
+      box-shadow: 0 18px 36px rgba(0,0,0,.35);
+      max-width: min(520px, 92vw);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 20;
+      text-align:center;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast h3{
+      margin:0 0 6px;
+      font-size:16px;
+      letter-spacing:.3px;
+    }
+    .toast p{
+      margin:0;
+      font-size:13px;
+      color: var(--muted);
+    }
+
+    .snap-btn{
+      font-size:18px;
+      letter-spacing:.8px;
+    }
+
+    .status-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .status{font-size:13px; color:var(--muted)}
+    .status strong{color:var(--ink)}
+
+    .mic-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      font-size:12px;
+      color: var(--muted);
+    }
+    .dot{
+      width:8px; height:8px; border-radius:50%;
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(255,107,136,.2);
+    }
+    .dot.on{
+      background: var(--accent2);
+      box-shadow: 0 0 0 3px rgba(125,255,178,.2);
+    }
+    .hint{font-size:12px; color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="card title">
+        <h1>Snap! Voice Table</h1>
+        <p>Flip through the deck and race to shout <strong>“SNAP!”</strong> when the rank matches the previous card. Your mic can listen for the call while the AI opponents shout through the speakers.</p>
+      </div>
+      <div class="card controls">
+        <button class="primary" id="startBtn">Start new game</button>
+        <button class="good" id="flipBtn">Flip card</button>
+        <button class="good snap-btn" id="snapBtn">SNAP!</button>
+        <button id="voiceBtn">Enable voice</button>
+        <button id="soundBtn">Sound: On</button>
+      </div>
+    </header>
+
+    <section class="card status-row">
+      <div class="status">
+        <strong>Turn:</strong> <span id="turnName">—</span> · <strong>Speed:</strong> <span id="speedLabel">1.2s</span>
+      </div>
+      <div class="status">
+        <strong>Snap Window:</strong> <span id="snapStatus">Waiting</span>
+      </div>
+      <div class="status">
+        <strong>Last reactions:</strong> <span id="reactionSummary">—</span>
+      </div>
+      <div class="status">
+        <span class="mic-pill"><span id="micDot" class="dot"></span><span id="micLabel">Mic off</span></span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card player" id="player0">
+        <div class="panel-title">
+          <span>🧑 You</span>
+          <span class="badge" id="humanBadge">Ready</span>
+        </div>
+        <div class="counts">
+          <div class="pill"><span id="count0">0</span> cards</div>
+          <div class="pill"><span id="wins0">0</span> snaps</div>
+        </div>
+        <div class="hint">Press <strong>S</strong> or click SNAP to call it. False snaps cost you a card.</div>
+      </div>
+      <div class="card player" id="player1">
+        <div class="panel-title">
+          <span>🤖 Ada</span>
+          <span class="badge" id="aiBadge1">Listening</span>
+        </div>
+        <div class="counts">
+          <div class="pill"><span id="count1">0</span> cards</div>
+          <div class="pill"><span id="wins1">0</span> snaps</div>
+        </div>
+        <div class="hint">Fast reflexes, louder shout.</div>
+      </div>
+      <div class="card player" id="player2">
+        <div class="panel-title">
+          <span>🤖 Beau</span>
+          <span class="badge" id="aiBadge2">Listening</span>
+        </div>
+        <div class="counts">
+          <div class="pill"><span id="count2">0</span> cards</div>
+          <div class="pill"><span id="wins2">0</span> snaps</div>
+        </div>
+        <div class="hint">A touch slower but sneaky.</div>
+      </div>
+    </section>
+
+    <section class="card center">
+      <div>
+        <div class="status">Shared pile</div>
+        <div class="stack" id="pileStack">
+          <div class="status" id="pileCount">0 cards</div>
+        </div>
+        <div class="hint">Cards land at right angles so you can track the previous flip.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="panel-title">
+        <span>Table Talk</span>
+        <span class="badge" id="gameState">Waiting</span>
+      </div>
+      <div class="log" id="log">Press “Start new game” to shuffle and deal.</div>
+    </section>
+  </div>
+  <div id="snapToast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const players = [
+      { name: "You", human: true, cards: [], snaps: 0 },
+      { name: "Ada", human: false, cards: [], snaps: 0 },
+      { name: "Beau", human: false, cards: [], snaps: 0 }
+    ];
+
+    const suits = [
+      { name: "hearts", symbol: "♥", color: "red" },
+      { name: "diamonds", symbol: "♦", color: "red" },
+      { name: "clubs", symbol: "♣", color: "black" },
+      { name: "spades", symbol: "♠", color: "black" }
+    ];
+
+    const ranks = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+
+    const state = {
+      deck: [],
+      pile: [],
+      currentPlayer: 0,
+      running: false,
+      paused: false,
+      snapActive: false,
+      snapLocked: false,
+      speedMs: 1200,
+      snapWindowMs: 5000,
+      snapTimeout: null,
+      snapResolveTimer: null,
+      turnTimer: null,
+      firstSnapPending: true,
+      aiDelayBias: 0,
+      snapStartedAt: 0,
+      snapWinner: null,
+      snapWinnerTime: null,
+      lastReactions: null,
+      toastTimer: null,
+      voiceReady: false,
+      voiceOn: false,
+      soundOn: true,
+      recognition: null
+    };
+
+    const els = {
+      startBtn: document.getElementById("startBtn"),
+      flipBtn: document.getElementById("flipBtn"),
+      snapBtn: document.getElementById("snapBtn"),
+      voiceBtn: document.getElementById("voiceBtn"),
+      soundBtn: document.getElementById("soundBtn"),
+      log: document.getElementById("log"),
+      gameState: document.getElementById("gameState"),
+      turnName: document.getElementById("turnName"),
+      speedLabel: document.getElementById("speedLabel"),
+      snapStatus: document.getElementById("snapStatus"),
+      reactionSummary: document.getElementById("reactionSummary"),
+      pileStack: document.getElementById("pileStack"),
+      pileCount: document.getElementById("pileCount"),
+      snapToast: document.getElementById("snapToast"),
+      micDot: document.getElementById("micDot"),
+      micLabel: document.getElementById("micLabel"),
+      countEls: [
+        document.getElementById("count0"),
+        document.getElementById("count1"),
+        document.getElementById("count2")
+      ],
+      winEls: [
+        document.getElementById("wins0"),
+        document.getElementById("wins1"),
+        document.getElementById("wins2")
+      ]
+    };
+
+    function buildDeck(){
+      const deck = [];
+      suits.forEach((suit) => {
+        ranks.forEach((rank) => {
+          deck.push({
+            rank,
+            suit: suit.symbol,
+            color: suit.color,
+            code: `${rank}${suit.symbol}`
+          });
+        });
+      });
+      return deck;
+    }
+
+    function shuffle(deck){
+      for (let i = deck.length - 1; i > 0; i -= 1){
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function dealCards(){
+      players.forEach((p) => { p.cards = []; p.snaps = 0; });
+      state.pile = [];
+      state.deck = shuffle(buildDeck());
+      let idx = 0;
+      while (state.deck.length){
+        players[idx % players.length].cards.push(state.deck.pop());
+        idx += 1;
+      }
+    }
+
+    function cardFace(card){
+      if (!card){
+        return "";
+      }
+      return `
+        <div class="card-face ${card.color}">
+          <div class="corner">
+            <span class="rank">${card.rank}</span>
+            <span class="suit">${card.suit}</span>
+          </div>
+          <div class="mid">${card.suit}</div>
+          <div class="corner" style="align-items:flex-end; text-align:right;">
+            <span class="rank">${card.rank}</span>
+            <span class="suit">${card.suit}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateCounts(){
+      players.forEach((p, i) => {
+        els.countEls[i].textContent = p.cards.length;
+        els.winEls[i].textContent = p.snaps;
+      });
+      els.pileCount.textContent = `${state.pile.length} cards`;
+      els.speedLabel.textContent = `${(state.speedMs / 1000).toFixed(1)}s`;
+      els.turnName.textContent = state.running ? players[state.currentPlayer].name : "—";
+    }
+
+    function updateReactionSummary(){
+      if (!state.lastReactions){
+        els.reactionSummary.textContent = "—";
+        return;
+      }
+      const { human, ai } = state.lastReactions;
+      const parts = [];
+      if (human !== null){
+        parts.push(`You ${human}ms`);
+      }
+      ai.forEach((entry) => {
+        parts.push(`${entry.name} ${entry.ms}ms`);
+      });
+      els.reactionSummary.textContent = parts.length ? parts.join(" · ") : "—";
+    }
+
+    function log(message){
+      els.log.textContent = message;
+    }
+
+    function setGameState(label){
+      els.gameState.textContent = label;
+    }
+
+    function renderCards(){
+      const cards = state.pile.slice(-4);
+      const fragments = cards.map((card, index) => {
+        const globalIndex = state.pile.length - cards.length + index;
+        const rotate = globalIndex % 2 === 0 ? 0 : 90;
+        const offsetX = (index - 1.5) * 8;
+        const offsetY = (index - 1.5) * 6;
+        return `
+          <div class="pile-card" style="transform: translate(${offsetX}px, ${offsetY}px) rotate(${rotate}deg);">
+            ${cardFace(card)}
+          </div>
+        `;
+      });
+      els.pileStack.innerHTML = `
+        <div class="status" id="pileCount">${state.pile.length} cards</div>
+        ${fragments.join("")}
+      `;
+      els.pileCount = document.getElementById("pileCount");
+    }
+
+    function nextPlayerIndex(start){
+      let idx = start;
+      for (let i = 0; i < players.length; i += 1){
+        idx = (idx + 1) % players.length;
+        if (players[idx].cards.length > 0){
+          return idx;
+        }
+      }
+      return start;
+    }
+
+    function checkForWinner(){
+      const active = players.filter((p) => p.cards.length > 0);
+      if (active.length === 1){
+        state.running = false;
+        state.snapActive = false;
+        state.snapLocked = false;
+        clearTimeout(state.turnTimer);
+        clearTimeout(state.snapTimeout);
+        setGameState("Finished");
+        log(`${active[0].name} wins the deck!`);
+        els.turnName.textContent = "—";
+        return true;
+      }
+      return false;
+    }
+
+    function scheduleNextTurn(){
+      clearTimeout(state.turnTimer);
+      if (!state.running || state.paused || state.snapActive){
+        return;
+      }
+      els.flipBtn.disabled = false;
+    }
+
+    function playTurn(){
+      if (!state.running || state.paused || state.snapActive){
+        return;
+      }
+      const player = players[state.currentPlayer];
+      if (player.cards.length === 0){
+        state.currentPlayer = nextPlayerIndex(state.currentPlayer);
+        scheduleNextTurn();
+        return;
+      }
+      const card = player.cards.shift();
+      state.pile.push(card);
+      renderCards();
+      updateCounts();
+      announceCard(card);
+      log(`${player.name} flips ${card.code}.`);
+      const prev = state.pile[state.pile.length - 2];
+      if (prev && prev.rank === card.rank){
+        triggerSnap();
+        return;
+      }
+      state.currentPlayer = nextPlayerIndex(state.currentPlayer);
+      scheduleNextTurn();
+    }
+
+    function triggerSnap(){
+      state.snapActive = true;
+      state.snapLocked = false;
+      state.snapStartedAt = performance.now();
+      state.lastReactions = { human: null, ai: [] };
+      state.snapWinner = null;
+      state.snapWinnerTime = null;
+      updateReactionSummary();
+      if (els.flipBtn){
+        els.flipBtn.disabled = true;
+      }
+      els.snapStatus.textContent = "Snap now!";
+      setGameState("SNAP!");
+      log("Match! Race to shout SNAP!");
+
+      players.forEach((player, index) => {
+        if (player.human){
+          return;
+        }
+        const base = 320 + Math.random() * (index === 1 ? 380 : 620);
+        const priorityDelay = state.firstSnapPending ? 5000 : 0;
+        const rawReaction = Math.max(priorityDelay, base + state.aiDelayBias);
+        const reaction = Math.min(rawReaction, state.snapWindowMs - 150);
+        setTimeout(() => {
+          const elapsed = Math.round(performance.now() - state.snapStartedAt);
+          attemptSnap(player, "AI reaction", elapsed);
+        }, reaction);
+      });
+
+      clearTimeout(state.snapTimeout);
+      state.snapTimeout = setTimeout(resolveSnapWindow, state.snapWindowMs);
+    }
+
+    function collectPile(winner){
+      winner.cards.push(...state.pile);
+      state.pile = [];
+      renderCards();
+      updateCounts();
+    }
+
+    function resolveSnapWindow(){
+      if (!state.snapActive){
+        return;
+      }
+      state.snapActive = false;
+      if (!state.snapWinner){
+        els.snapStatus.textContent = "Missed it";
+        setGameState("Running");
+        log("Nobody called snap in time. Keep playing!");
+        state.firstSnapPending = false;
+        scheduleNextTurn();
+        return;
+      }
+      const winner = state.snapWinner;
+      const pileSize = state.pile.length;
+      els.snapStatus.textContent = "Resolved";
+      setGameState("Celebrating");
+      announceSnapWin(winner, pileSize);
+      clearTimeout(state.snapResolveTimer);
+      state.snapResolveTimer = setTimeout(() => {
+        collectPile(winner);
+        state.currentPlayer = players.indexOf(winner);
+        updateCounts();
+        adjustAiBias();
+        state.firstSnapPending = false;
+        log(`${winner.name} wins the snap!`);
+        setGameState("Running");
+        if (!checkForWinner()){
+          scheduleNextTurn();
+        }
+      }, 1800);
+    }
+
+    function attemptSnap(player, reason, elapsedMs = null){
+      if (!state.running || !state.snapActive){
+        return;
+      }
+      if (elapsedMs !== null){
+        if (player.human){
+          state.lastReactions.human = elapsedMs;
+        } else {
+          state.lastReactions.ai.push({ name: player.name, ms: elapsedMs });
+        }
+        updateReactionSummary();
+      }
+      if (state.firstSnapPending && player.human){
+        const elapsed = performance.now() - state.snapStartedAt;
+        if (elapsed > 5000){
+          log("Too slow for the opening advantage. The table is now fair.");
+        }
+      }
+      if (!state.snapWinner){
+        state.snapWinner = player;
+        state.snapWinnerTime = elapsedMs;
+        player.snaps += 1;
+        shoutSnap(player);
+      }
+      log(`${player.name} calls snap! (${reason})`);
+    }
+
+    function getVoiceForPlayer(player){
+      const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      if (!voices.length){
+        return null;
+      }
+      if (player.human){
+        return voices[0] || null;
+      }
+      if (player.name === "Ada"){
+        return voices.find((voice) => /female|woman|zira|susan|samantha/i.test(voice.name)) || voices[1] || voices[0];
+      }
+      if (player.name === "Beau"){
+        return voices.find((voice) => /male|man|daniel|alex|fred/i.test(voice.name)) || voices[2] || voices[0];
+      }
+      return voices[0];
+    }
+
+    function announceSnapWin(player, pileSize){
+      const lines = [
+        `SNAP! ${player.name} wins ${pileSize} cards.`,
+        `Reactions: ${formatReactionList(player)}`
+      ];
+      setTimeout(() => {
+        showToast(lines[0], lines[1]);
+      }, 1000);
+    }
+
+    function showToast(title, detail){
+      els.snapToast.innerHTML = `<h3>${title}</h3><p>${detail}</p>`;
+      els.snapToast.classList.add("show");
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => {
+        els.snapToast.classList.remove("show");
+      }, 3000);
+    }
+
+    function shoutSnap(player){
+      if (!state.soundOn || !window.speechSynthesis){
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(`SNAP! ${player.name} wins the cards.`);
+      utter.voice = getVoiceForPlayer(player);
+      utter.rate = 1;
+      utter.pitch = player.name === "Ada" ? 1.3 : 0.9;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function announceCard(card){
+      if (!state.soundOn || !window.speechSynthesis){
+        return;
+      }
+      const rankNames = {
+        A: "Ace",
+        J: "Jack",
+        Q: "Queen",
+        K: "King"
+      };
+      const suitNames = {
+        "♥": "Hearts",
+        "♦": "Diamonds",
+        "♣": "Clubs",
+        "♠": "Spades"
+      };
+      const rank = rankNames[card.rank] || card.rank;
+      const suit = suitNames[card.suit] || card.suit;
+      const utter = new SpeechSynthesisUtterance(`${rank} of ${suit}`);
+      utter.rate = 1;
+      utter.pitch = 1.05;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function formatReactionList(winner){
+      if (!state.lastReactions){
+        return "No reaction data yet.";
+      }
+      const entries = [];
+      if (state.lastReactions.human !== null){
+        entries.push({ name: "You", ms: state.lastReactions.human });
+      }
+      state.lastReactions.ai.forEach((entry) => entries.push(entry));
+      const filtered = entries.filter((entry) => entry.name !== winner.name);
+      if (!filtered.length){
+        return "No other reactions recorded.";
+      }
+      return filtered.map((entry) => `${entry.name} ${entry.ms}ms`).join(" · ");
+    }
+
+    function falseSnap(player){
+      if (player.cards.length === 0){
+        log(`${player.name} shouted SNAP but has no cards to pay the penalty.`);
+        return;
+      }
+      const penalty = player.cards.shift();
+      state.pile.push(penalty);
+      renderCards();
+      updateCounts();
+      log(`${player.name} false-snapped and adds a penalty card to the pile.`);
+      announceFalseSnap(player);
+      if (state.running && !state.snapActive){
+        scheduleNextTurn();
+      }
+    }
+
+    function announceFalseSnap(player){
+      showToast("False SNAP!", `${player.name} pays a penalty card. Play continues.`);
+      if (!player.human){
+        speak(`${player.name} false snap.`);
+      }
+    }
+
+    function handleHumanSnap(source){
+      if (!state.running){
+        return;
+      }
+      if (state.snapActive){
+        if (state.firstSnapPending){
+          const elapsed = performance.now() - state.snapStartedAt;
+          if (elapsed <= 5000){
+            attemptSnap(players[0], `Human ${source} (priority)`, Math.round(elapsed));
+            return;
+          }
+        }
+        const elapsed = Math.round(performance.now() - state.snapStartedAt);
+        attemptSnap(players[0], `Human ${source}`, elapsed);
+      } else {
+        falseSnap(players[0]);
+      }
+    }
+
+    function startGame(){
+      dealCards();
+      state.currentPlayer = 0;
+      state.running = true;
+      state.paused = false;
+      state.snapActive = false;
+      state.snapLocked = false;
+      state.firstSnapPending = true;
+      state.aiDelayBias = 0;
+      state.lastReactions = null;
+      updateReactionSummary();
+      clearTimeout(state.snapTimeout);
+      clearTimeout(state.turnTimer);
+      renderCards();
+      updateCounts();
+      setGameState("Running");
+      els.snapStatus.textContent = "Waiting";
+      log("Cards dealt. Click Flip card to play the next turn.");
+      scheduleNextTurn();
+    }
+
+    function handleFlip(){
+      if (!state.running || state.snapActive){
+        return;
+      }
+      els.flipBtn.disabled = true;
+      playTurn();
+    }
+
+    function initVoice(){
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition){
+        els.voiceBtn.disabled = true;
+        els.voiceBtn.textContent = "Voice unsupported";
+        log("Voice recognition is not supported in this browser.");
+        return;
+      }
+      state.recognition = new SpeechRecognition();
+      state.recognition.lang = "en-US";
+      state.recognition.continuous = true;
+      state.recognition.interimResults = false;
+
+      state.recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; i += 1){
+          const result = event.results[i];
+          if (!result.isFinal){
+            continue;
+          }
+          const transcript = result[0].transcript.toLowerCase();
+          if (transcript.includes("snap")){
+            handleHumanSnap("voice");
+          }
+        }
+      };
+
+      state.recognition.onerror = (event) => {
+        log(`Mic error: ${event.error}.`);
+        updateMic(false, "Mic error");
+      };
+
+      state.recognition.onend = () => {
+        if (state.voiceOn){
+          try{
+            state.recognition.start();
+          } catch (err){
+            updateMic(false, "Mic blocked");
+          }
+        }
+      };
+
+      state.voiceReady = true;
+    }
+
+    function updateMic(active, label){
+      els.micDot.classList.toggle("on", active);
+      els.micLabel.textContent = label;
+    }
+
+    function toggleVoice(){
+      if (!state.voiceReady){
+        return;
+      }
+      if (state.voiceOn){
+        state.voiceOn = false;
+        updateMic(false, "Mic off");
+        els.voiceBtn.textContent = "Enable voice";
+        state.recognition.stop();
+        return;
+      }
+      try{
+        state.recognition.start();
+        state.voiceOn = true;
+        updateMic(true, "Listening for SNAP");
+        els.voiceBtn.textContent = "Disable voice";
+      } catch (err){
+        log("Microphone permission denied.");
+        updateMic(false, "Mic blocked");
+      }
+    }
+
+    function speak(text){
+      if (!state.soundOn || !window.speechSynthesis){
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1;
+      utter.pitch = 1.1;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function toggleSound(){
+      state.soundOn = !state.soundOn;
+      els.soundBtn.textContent = state.soundOn ? "Sound: On" : "Sound: Off";
+    }
+
+    function adjustAiBias(){
+      const humanSnaps = players[0].snaps;
+      const aiSnaps = players.slice(1).reduce((sum, p) => sum + p.snaps, 0);
+      const diff = aiSnaps - humanSnaps;
+      if (diff >= 2){
+        state.aiDelayBias = Math.min(state.aiDelayBias + 80, 450);
+      } else if (diff <= -2){
+        state.aiDelayBias = Math.max(state.aiDelayBias - 60, -150);
+      }
+    }
+
+    els.startBtn.addEventListener("click", startGame);
+    els.flipBtn.addEventListener("click", handleFlip);
+    els.snapBtn.addEventListener("click", () => handleHumanSnap("button"));
+    els.voiceBtn.addEventListener("click", toggleVoice);
+    els.soundBtn.addEventListener("click", toggleSound);
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "s"){
+        handleHumanSnap("key");
+      }
+    });
+
+    initVoice();
+    updateCounts();
+    renderCards();
+  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Spanish Circle: Voces del Mundo</title>
-  <meta name="description" content="A friendly Spanish-circle game with vocabulary, useful phrases, and regional slang from Bolivia, Mexico, Spain, and beyond." />
+  <meta name="description" content="A friendly Spanish-circle game with vocabulary, useful phrases, and regional and street slang from Bolivia, Mexico, Spain, and beyond." />
   <style>
     :root{
       --bg:#0f1329;
@@ -120,7 +120,7 @@
       <select id="mode">
         <option value="core">Core Vocabulary</option>
         <option value="phrases">Useful Phrases</option>
-        <option value="regional">Regional Slang & Expressions</option>
+        <option value="regional">Regional + Street Slang</option>
         <option value="mixed">Mixed Circle Mode</option>
       </select>
       <label for="rounds">Questions:</label>
@@ -181,7 +181,14 @@
         { prompt: "chévere", answer: "great / nice", options: ["great / nice","boring","risky","tiny"], context: "Widely used in parts of Latin America (e.g., Caribbean and Andean regions).", region: "Multiple regions 🌎" },
         { prompt: "¡Qué macanudo!", answer: "How nice / wonderful!", options: ["How nice / wonderful!","How dangerous!","How bitter!","How rushed!"], context: "Older generations in parts of South America may use 'macanudo'.", region: "Argentina/Uruguay + known elsewhere" },
         { prompt: "yapa", answer: "a little extra bonus", options: ["a little extra bonus","a bus ticket","a family reunion","an old neighborhood"], context: "In Bolivia and nearby countries, a seller may give 'yapa' (a little extra).", region: "Bolivia 🇧🇴 and Andes" },
-        { prompt: "casero / casera", answer: "friendly way to address a regular customer", options: ["friendly way to address a regular customer","professional cook","home owner","street musician"], context: "In Bolivia and Peru markets, vendors may say 'caserita/caserito'.", region: "Bolivia 🇧🇴 / Peru 🇵🇪" }
+        { prompt: "casero / casera", answer: "friendly way to address a regular customer", options: ["friendly way to address a regular customer","professional cook","home owner","street musician"], context: "In Bolivia and Peru markets, vendors may say 'caserita/caserito'.", region: "Bolivia 🇧🇴 / Peru 🇵🇪" },
+        { prompt: "güey / wey", answer: "dude / mate (very informal)", options: ["dude / mate (very informal)","teacher","bus driver","older sibling"], context: "Very common street talk in Mexico; use only in informal settings and with trust.", region: "Mexico 🇲🇽" },
+        { prompt: "chido", answer: "cool / great", options: ["cool / great","old-fashioned","tired","careful"], context: "Popular Mexican slang, similar to saying 'awesome'.", region: "Mexico 🇲🇽" },
+        { prompt: "curro", answer: "job / work (colloquial)", options: ["job / work (colloquial)","street market","coffee break","city center"], context: "Common in Spain: 'Tengo mucho curro hoy.'", region: "Spain 🇪🇸" },
+        { prompt: "tío / tía", answer: "guy / girl (casual, in Spain)", options: ["guy / girl (casual, in Spain)","uncle / aunt only","neighbor","shop owner"], context: "In Spain street speech, often used like 'mate' or 'dude'.", region: "Spain 🇪🇸" },
+        { prompt: "chamba", answer: "job / gig (informal)", options: ["job / gig (informal)","rainstorm","party","street"], context: "Used in parts of Latin America, including Bolivia and Mexico: 'Estoy buscando chamba.'", region: "Bolivia 🇧🇴 / Mexico 🇲🇽 / LatAm" },
+        { prompt: "estar al tiro", answer: "to be alert / on point", options: ["to be alert / on point","to be very tired","to be lucky","to be sick"], context: "Street-style expression in Mexico for staying sharp.", region: "Mexico 🇲🇽" },
+        { prompt: "de lujo", answer: "excellent / top-notch", options: ["excellent / top-notch","cheap","complicated","unfinished"], context: "Used in Spain to say something is excellent: 'La comida estuvo de lujo.'", region: "Spain 🇪🇸" }
       ]
     };
 

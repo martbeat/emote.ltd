@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spanish Circle: Voces del Mundo</title>
+  <meta name="description" content="A friendly Spanish-circle game with vocabulary, useful phrases, and regional slang from Bolivia, Mexico, Spain, and beyond." />
+  <style>
+    :root{
+      --bg:#0f1329;
+      --panel:#181f43;
+      --ink:#f6f7ff;
+      --muted:#c0c8ef;
+      --accent:#77e2b1;
+      --accent2:#84a8ff;
+      --good:#6ff0be;
+      --bad:#ff8fa4;
+      --card:#ffffff12;
+      --border:#ffffff28;
+      --shadow:0 14px 32px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100svh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1000px 600px at 0 -20%, #364ab066, transparent),
+        radial-gradient(900px 560px at 100% 0, #189f7866, transparent),
+        linear-gradient(180deg, #0a0d1d, var(--bg));
+      display:grid;
+      place-items:center;
+      padding:16px;
+      line-height:1.45;
+    }
+    .game{
+      width:min(860px, 100%);
+      background:linear-gradient(180deg, #1b2250, var(--panel));
+      border:1px solid #ffffff24;
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+    h1{margin:0 0 8px;font-size:clamp(1.6rem,3.4vw,2.3rem)}
+    .sub{margin:0 0 14px;color:var(--muted);font-size:1.03rem}
+
+    .toolbar,.stats,.footer{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .toolbar{margin-bottom:14px}
+    .stats{justify-content:space-between;margin-bottom:14px}
+
+    .pill{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:8px 14px;
+      font-size:1.02rem;
+      font-weight:700;
+    }
+
+    .panel{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px;
+    }
+
+    .prompt{font-size:1.35rem;font-weight:800;margin:0 0 6px}
+    .hint,.region{margin:0;color:var(--muted);font-size:1.02rem}
+    .region{margin-top:5px}
+
+    .options{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    button,select{
+      font:inherit;
+      border-radius:12px;
+      border:1px solid #ffffff33;
+      color:var(--ink);
+      background:#0c1130;
+      padding:10px 12px;
+    }
+
+    button{cursor:pointer;font-weight:700}
+    button:hover{border-color:#ffffff66;transform:translateY(-1px)}
+    button:disabled{opacity:.67;cursor:not-allowed;transform:none}
+
+    .opt{min-height:62px;text-align:left;background:#ffffff12}
+    .opt.good{background:color-mix(in srgb,var(--good) 35%, transparent);border-color:var(--good)}
+    .opt.bad{background:color-mix(in srgb,var(--bad) 35%, transparent);border-color:var(--bad)}
+
+    .primary{background:linear-gradient(180deg,var(--accent2),#607ed8);border:none}
+    .secondary{background:linear-gradient(180deg,var(--accent),#56bb8f);border:none;color:#0f1a1e}
+
+    .footer{justify-content:space-between;margin-top:14px}
+    .msg{font-size:1.05rem;font-weight:700;min-height:1.3em;margin:0}
+
+    .note,.summary{margin-top:14px}
+    .note{font-size:.97rem;color:var(--muted)}
+    .summary{display:none}
+
+    @media (max-width:700px){
+      .options{grid-template-columns:1fr}
+      .prompt{font-size:1.25rem}
+    }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <h1>Spanish Circle: Voces del Mundo 🌎</h1>
+    <p class="sub">Friendly turn-based play for your circle (especially great for 60+ learners): no timer, clear text, and culture-rich language from Bolivia, Mexico, Spain, and more.</p>
+
+    <div class="toolbar">
+      <label for="mode">Deck:</label>
+      <select id="mode">
+        <option value="core">Core Vocabulary</option>
+        <option value="phrases">Useful Phrases</option>
+        <option value="regional">Regional Slang & Expressions</option>
+        <option value="mixed">Mixed Circle Mode</option>
+      </select>
+      <label for="rounds">Questions:</label>
+      <select id="rounds">
+        <option value="8">8</option>
+        <option value="10" selected>10</option>
+        <option value="12">12</option>
+      </select>
+      <button id="newGame" class="secondary">Start fresh round</button>
+    </div>
+
+    <div class="stats">
+      <span class="pill" id="score">Team Score: 0</span>
+      <span class="pill" id="streak">Streak: 0 🔥</span>
+      <span class="pill" id="progress">Question 1/10</span>
+    </div>
+
+    <section class="panel">
+      <p class="prompt" id="prompt">Ready to play?</p>
+      <p class="hint" id="hint">Pick the best meaning.</p>
+      <p class="region" id="region"></p>
+      <div class="options" id="options"></div>
+    </section>
+
+    <div class="footer">
+      <p class="msg" id="msg"></p>
+      <div>
+        <button id="reveal" class="primary" disabled>Reveal context</button>
+        <button id="next" class="primary" disabled>Next</button>
+      </div>
+    </div>
+
+    <section class="panel summary" id="summary"></section>
+
+    <p class="note">Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. The context reveal helps avoid overgeneralizing slang.</p>
+  </main>
+
+  <script>
+    const decks = {
+      core: [
+        { prompt: "la jubilación", answer: "retirement", options: ["retirement","neighborhood festival","homework","daily walk"], context: "Useful in 60+ circles: 'Estoy disfrutando de la jubilación.'", region: "General Spanish" },
+        { prompt: "la receta", answer: "recipe / prescription", options: ["recipe / prescription","receipt","retirement plan","season"], context: "In Spanish, 'receta' can mean cooking recipe and also medical prescription.", region: "General Spanish" },
+        { prompt: "el barrio", answer: "neighborhood", options: ["neighborhood","bus stop","bridge","garden"], context: "'Vivimos en el mismo barrio.'", region: "General Spanish" },
+        { prompt: "aprovechar", answer: "to make good use of", options: ["to make good use of","to arrive late","to decorate","to argue"], context: "'Hay que aprovechar el tiempo.'", region: "General Spanish" },
+        { prompt: "charlar", answer: "to chat", options: ["to chat","to shout","to travel","to cook"], context: "Perfect for your circle: 'Vamos a charlar un rato.'", region: "General Spanish" }
+      ],
+      phrases: [
+        { prompt: "¿Me lo puede repetir, por favor?", answer: "Could you repeat that for me, please?", options: ["Could you repeat that for me, please?","Can you write me a prescription?","Where is the train station?","Would you like some coffee?"], context: "A polite phrase that keeps conversation flowing in group learning.", region: "General Spanish" },
+        { prompt: "Vamos poco a poco.", answer: "Let's go step by step.", options: ["Let's go step by step.","Let's hurry up now.","Let's cancel the plan.","Let's meet tomorrow."], context: "Great cooperative phrase for mixed ability groups.", region: "General Spanish" },
+        { prompt: "¿Cómo se dice ... en español?", answer: "How do you say ... in Spanish?", options: ["How do you say ... in Spanish?","Can you lend me money?","Where do you work?","Do you like this song?"], context: "Use this often to keep everyone actively participating.", region: "General Spanish" },
+        { prompt: "Estoy practicando con mi grupo.", answer: "I am practicing with my group.", options: ["I am practicing with my group.","I am waiting for my grandson.","I am buying fruit today.","I am looking for a doctor."], context: "Easy phrase for self-introduction in a Spanish circle.", region: "General Spanish" }
+      ],
+      regional: [
+        { prompt: "¡Qué padre!", answer: "That's great / awesome!", options: ["That's great / awesome!","That's difficult","That's expensive","That's impossible"], context: "Common in Mexico to express enthusiasm.", region: "Mexico 🇲🇽" },
+        { prompt: "platicar", answer: "to chat / have a conversation", options: ["to chat / have a conversation","to plan a trip","to eat slowly","to dance"], context: "Very common verb in Mexico; similar to 'charlar'.", region: "Mexico 🇲🇽" },
+        { prompt: "¡Qué guay!", answer: "How cool!", options: ["How cool!","How strange!","How early!","How loud!"], context: "Common in Spain for 'cool'.", region: "Spain 🇪🇸" },
+        { prompt: "vale", answer: "okay / sounds good", options: ["okay / sounds good","I am hungry","see you tomorrow","thank you very much"], context: "Heard constantly in Spain as quick agreement.", region: "Spain 🇪🇸" },
+        { prompt: "chévere", answer: "great / nice", options: ["great / nice","boring","risky","tiny"], context: "Widely used in parts of Latin America (e.g., Caribbean and Andean regions).", region: "Multiple regions 🌎" },
+        { prompt: "¡Qué macanudo!", answer: "How nice / wonderful!", options: ["How nice / wonderful!","How dangerous!","How bitter!","How rushed!"], context: "Older generations in parts of South America may use 'macanudo'.", region: "Argentina/Uruguay + known elsewhere" },
+        { prompt: "yapa", answer: "a little extra bonus", options: ["a little extra bonus","a bus ticket","a family reunion","an old neighborhood"], context: "In Bolivia and nearby countries, a seller may give 'yapa' (a little extra).", region: "Bolivia 🇧🇴 and Andes" },
+        { prompt: "casero / casera", answer: "friendly way to address a regular customer", options: ["friendly way to address a regular customer","professional cook","home owner","street musician"], context: "In Bolivia and Peru markets, vendors may say 'caserita/caserito'.", region: "Bolivia 🇧🇴 / Peru 🇵🇪" }
+      ]
+    };
+
+    const state = { score: 0, streak: 0, index: 0, total: 10, asked: [], current: null, answered: false };
+
+    const scoreEl = document.getElementById('score');
+    const streakEl = document.getElementById('streak');
+    const progressEl = document.getElementById('progress');
+    const promptEl = document.getElementById('prompt');
+    const hintEl = document.getElementById('hint');
+    const regionEl = document.getElementById('region');
+    const optionsEl = document.getElementById('options');
+    const msgEl = document.getElementById('msg');
+    const summaryEl = document.getElementById('summary');
+    const modeEl = document.getElementById('mode');
+    const roundsEl = document.getElementById('rounds');
+    const nextBtn = document.getElementById('next');
+    const revealBtn = document.getElementById('reveal');
+
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+
+    function mixedDeck(){
+      return [...decks.core, ...decks.phrases, ...decks.regional];
+    }
+
+    function activeDeck(){
+      if(modeEl.value === 'mixed') return mixedDeck();
+      return decks[modeEl.value];
+    }
+
+    function updateStats(){
+      scoreEl.textContent = `Team Score: ${state.score}`;
+      streakEl.textContent = `Streak: ${state.streak} 🔥`;
+      progressEl.textContent = `Question ${Math.min(state.index + 1, state.total)}/${state.total}`;
+    }
+
+    function pickQuestion(){
+      const deck = activeDeck();
+      const available = deck.filter(item => !state.asked.includes(item.prompt));
+      const source = available.length ? available : deck;
+      const item = source[Math.floor(Math.random() * source.length)];
+      state.asked.push(item.prompt);
+      return item;
+    }
+
+    function renderQuestion(){
+      state.current = pickQuestion();
+      state.answered = false;
+      promptEl.textContent = state.current.prompt;
+      hintEl.textContent = "Choose the best meaning, then discuss a sentence together.";
+      regionEl.textContent = `Region note: ${state.current.region}`;
+      msgEl.textContent = '';
+      summaryEl.style.display = 'none';
+      nextBtn.disabled = true;
+      revealBtn.disabled = true;
+
+      optionsEl.innerHTML = '';
+      shuffle(state.current.options).forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.textContent = choice;
+        btn.onclick = () => answer(btn, choice);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function answer(button, choice){
+      if(state.answered) return;
+      state.answered = true;
+
+      const isCorrect = choice === state.current.answer;
+      [...optionsEl.children].forEach(opt => {
+        opt.disabled = true;
+        if(opt.textContent === state.current.answer) opt.classList.add('good');
+      });
+
+      if(isCorrect){
+        state.streak += 1;
+        const bonus = Math.min(8, state.streak);
+        state.score += 10 + bonus;
+        msgEl.textContent = `¡Muy bien! +${10 + bonus} points. Invite someone else to use it in a sentence.`;
+      } else {
+        state.streak = 0;
+        button.classList.add('bad');
+        msgEl.textContent = `Good try. Correct answer: ${state.current.answer}`;
+      }
+
+      updateStats();
+      nextBtn.disabled = false;
+      revealBtn.disabled = false;
+    }
+
+    function reveal(){
+      if(!state.current) return;
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `<strong>Context:</strong> ${state.current.context}<br><strong>Reminder:</strong> Slang varies by country, age, and setting. Ask native speakers what sounds most natural in their region.`;
+    }
+
+    function finishGame(){
+      optionsEl.innerHTML = '';
+      promptEl.textContent = 'Round complete 🎉';
+      hintEl.textContent = 'Switch deck or question count, then start again.';
+      regionEl.textContent = '';
+      nextBtn.disabled = true;
+      revealBtn.disabled = true;
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `<strong>Final team score:</strong> ${state.score}<br><strong>Best streak:</strong> ${state.streak}<br><br>Suggested group activity: everyone picks one new word from this round and says a sentence related to family, food, travel, or memories.`;
+    }
+
+    function next(){
+      state.index += 1;
+      if(state.index >= state.total){
+        finishGame();
+        return;
+      }
+      updateStats();
+      renderQuestion();
+    }
+
+    function newGame(){
+      state.score = 0;
+      state.streak = 0;
+      state.index = 0;
+      state.asked = [];
+      state.total = Number(roundsEl.value);
+      updateStats();
+      renderQuestion();
+    }
+
+    nextBtn.addEventListener('click', next);
+    revealBtn.addEventListener('click', reveal);
+    document.getElementById('newGame').addEventListener('click', newGame);
+
+    newGame();
+  </script>
+</body>
+</html>

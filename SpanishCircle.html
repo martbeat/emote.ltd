@@ -113,35 +113,40 @@
 <body>
   <main class="game">
     <h1>Spanish Circle: Voces del Mundo 🌎</h1>
-    <p class="sub">Friendly turn-based play for your circle (especially great for 60+ learners): no timer, clear text, and culture-rich language, idioms, and street slang from Bolivia, Mexico, Spain, and more.</p>
+    <p class="sub" id="sub"></p>
 
     <div class="toolbar">
-      <label for="mode">Deck:</label>
+      <label for="mode" id="modeLabel"></label>
       <select id="mode">
-        <option value="core">Core Vocabulary</option>
-        <option value="phrases">Useful Phrases</option>
-        <option value="idioms">Idioms & Sayings</option>
-        <option value="regional">Regional + Street Slang</option>
-        <option value="mixed">Mixed Circle Mode</option>
+        <option value="core" id="deckCore"></option>
+        <option value="phrases" id="deckPhrases"></option>
+        <option value="idioms" id="deckIdioms"></option>
+        <option value="regional" id="deckRegional"></option>
+        <option value="mixed" id="deckMixed"></option>
       </select>
-      <label for="rounds">Questions:</label>
+      <label for="rounds" id="roundsLabel"></label>
       <select id="rounds">
         <option value="8">8</option>
         <option value="10" selected>10</option>
         <option value="12">12</option>
       </select>
-      <button id="newGame" class="secondary">Start fresh round</button>
+      <label for="uiLang" id="langLabel"></label>
+      <select id="uiLang">
+        <option value="en">English UI</option>
+        <option value="es">Interfaz en español</option>
+      </select>
+      <button id="newGame" class="secondary"></button>
     </div>
 
     <div class="stats">
-      <span class="pill" id="score">Team Score: 0</span>
-      <span class="pill" id="streak">Streak: 0 🔥</span>
-      <span class="pill" id="progress">Question 1/10</span>
+      <span class="pill" id="score"></span>
+      <span class="pill" id="streak"></span>
+      <span class="pill" id="progress"></span>
     </div>
 
     <section class="panel">
-      <p class="prompt" id="prompt">Ready to play?</p>
-      <p class="hint" id="hint">Pick the best meaning.</p>
+      <p class="prompt" id="prompt"></p>
+      <p class="hint" id="hint"></p>
       <p class="region" id="region"></p>
       <div class="options" id="options"></div>
     </section>
@@ -149,14 +154,14 @@
     <div class="footer">
       <p class="msg" id="msg"></p>
       <div>
-        <button id="reveal" class="primary" disabled>Reveal context</button>
-        <button id="next" class="primary" disabled>Next</button>
+        <button id="reveal" class="primary" disabled></button>
+        <button id="next" class="primary" disabled></button>
       </div>
     </div>
 
     <section class="panel summary" id="summary"></section>
 
-    <p class="note">Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. The context reveal helps avoid overgeneralizing slang.</p>
+    <p class="note" id="hostNote"></p>
   </main>
 
   <script>
@@ -301,6 +306,71 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
     };
     const state = { score: 0, streak: 0, index: 0, total: 10, asked: [], current: null, answered: false };
 
+    const I18N = {
+      en: {
+        sub: "Friendly turn-based play for your circle (especially great for 60+ learners): no timer, clear text, and culture-rich language, idioms, and street slang from Bolivia, Mexico, Spain, and more.",
+        modeLabel: "Deck:",
+        deckCore: "Core Vocabulary",
+        deckPhrases: "Useful Phrases",
+        deckIdioms: "Idioms & Sayings",
+        deckRegional: "Regional + Street Slang",
+        deckMixed: "Mixed Circle Mode",
+        roundsLabel: "Questions:",
+        langLabel: "UI language:",
+        newGame: "Start fresh round",
+        reveal: "Reveal context",
+        next: "Next",
+        hostNote: "Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. The context reveal helps avoid overgeneralizing slang.",
+        score: "Team Score",
+        streak: "Streak",
+        question: "Question",
+        hintQuestion: "Choose the best meaning, then discuss a sentence together.",
+        regionNote: "Region note",
+        okMsg: "¡Muy bien! +{points} points. Invite someone else to use it in a sentence.",
+        badMsg: "Good try. Correct answer: {answer}",
+        contextLabel: "Context:",
+        reminderLabel: "Reminder:",
+        reminderText: "Slang varies by country, age, and setting. Ask native speakers what sounds most natural in their region.",
+        roundComplete: "Round complete 🎉",
+        switchDeck: "Switch deck or question count, then start again.",
+        finalScore: "Final team score:",
+        bestStreak: "Best streak:",
+        suggested: "Suggested group activity: everyone picks one new word from this round and says a sentence related to family, food, travel, or memories."
+      },
+      es: {
+        sub: "Juego amistoso por turnos para tu círculo (ideal para personas de 60+): sin cronómetro, texto claro y lenguaje con cultura, modismos y jerga callejera de Bolivia, México, España y más.",
+        modeLabel: "Mazo:",
+        deckCore: "Vocabulario básico",
+        deckPhrases: "Frases útiles",
+        deckIdioms: "Modismos y refranes",
+        deckRegional: "Regional + Jerga callejera",
+        deckMixed: "Modo mixto del círculo",
+        roundsLabel: "Preguntas:",
+        langLabel: "Idioma de la interfaz:",
+        newGame: "Empezar ronda nueva",
+        reveal: "Mostrar contexto",
+        next: "Siguiente",
+        hostNote: "Consejo para anfitriones: tras cada respuesta, pide a alguien que haga una frase corta con esa palabra o expresión. El contexto ayuda a no generalizar la jerga.",
+        score: "Puntuación del equipo",
+        streak: "Racha",
+        question: "Pregunta",
+        hintQuestion: "Elige el mejor significado y luego comenten una frase juntos.",
+        regionNote: "Nota regional",
+        okMsg: "¡Muy bien! +{points} puntos. Invita a otra persona a usarlo en una frase.",
+        badMsg: "Buen intento. Respuesta correcta: {answer}",
+        contextLabel: "Contexto:",
+        reminderLabel: "Recordatorio:",
+        reminderText: "La jerga varía por país, edad y situación. Pregunten a hablantes nativos qué suena más natural en su región.",
+        roundComplete: "Ronda terminada 🎉",
+        switchDeck: "Cambia el mazo o el número de preguntas y vuelve a empezar.",
+        finalScore: "Puntuación final del equipo:",
+        bestStreak: "Mejor racha:",
+        suggested: "Actividad sugerida: cada persona elige una palabra nueva de la ronda y dice una frase sobre familia, comida, viajes o recuerdos."
+      }
+    };
+    let uiLang = 'en';
+    const t = k => I18N[uiLang][k];
+
     const scoreEl = document.getElementById('score');
     const streakEl = document.getElementById('streak');
     const progressEl = document.getElementById('progress');
@@ -312,6 +382,7 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
     const summaryEl = document.getElementById('summary');
     const modeEl = document.getElementById('mode');
     const roundsEl = document.getElementById('rounds');
+    const uiLangEl = document.getElementById('uiLang');
     const nextBtn = document.getElementById('next');
     const revealBtn = document.getElementById('reveal');
 
@@ -326,10 +397,26 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
       return decks[modeEl.value];
     }
 
+    function applyUIText(){
+      document.getElementById('sub').textContent = t('sub');
+      document.getElementById('modeLabel').textContent = t('modeLabel');
+      document.getElementById('deckCore').textContent = t('deckCore');
+      document.getElementById('deckPhrases').textContent = t('deckPhrases');
+      document.getElementById('deckIdioms').textContent = t('deckIdioms');
+      document.getElementById('deckRegional').textContent = t('deckRegional');
+      document.getElementById('deckMixed').textContent = t('deckMixed');
+      document.getElementById('roundsLabel').textContent = t('roundsLabel');
+      document.getElementById('langLabel').textContent = t('langLabel');
+      document.getElementById('newGame').textContent = t('newGame');
+      revealBtn.textContent = t('reveal');
+      nextBtn.textContent = t('next');
+      document.getElementById('hostNote').textContent = t('hostNote');
+    }
+
     function updateStats(){
-      scoreEl.textContent = `Team Score: ${state.score}`;
-      streakEl.textContent = `Streak: ${state.streak} 🔥`;
-      progressEl.textContent = `Question ${Math.min(state.index + 1, state.total)}/${state.total}`;
+      scoreEl.textContent = `${t('score')}: ${state.score}`;
+      streakEl.textContent = `${t('streak')}: ${state.streak} 🔥`;
+      progressEl.textContent = `${t('question')} ${Math.min(state.index + 1, state.total)}/${state.total}`;
     }
 
     function pickQuestion(){
@@ -345,8 +432,8 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
       state.current = pickQuestion();
       state.answered = false;
       promptEl.textContent = state.current.prompt;
-      hintEl.textContent = "Choose the best meaning, then discuss a sentence together.";
-      regionEl.textContent = `Region note: ${state.current.region}`;
+      hintEl.textContent = t('hintQuestion');
+      regionEl.textContent = `${t('regionNote')}: ${state.current.region}`;
       msgEl.textContent = '';
       summaryEl.style.display = 'none';
       nextBtn.disabled = true;
@@ -376,11 +463,11 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
         state.streak += 1;
         const bonus = Math.min(8, state.streak);
         state.score += 10 + bonus;
-        msgEl.textContent = `¡Muy bien! +${10 + bonus} points. Invite someone else to use it in a sentence.`;
+        msgEl.textContent = t('okMsg').replace('{points}', 10 + bonus);
       } else {
         state.streak = 0;
         button.classList.add('bad');
-        msgEl.textContent = `Good try. Correct answer: ${state.current.answer}`;
+        msgEl.textContent = t('badMsg').replace('{answer}', state.current.answer);
       }
 
       updateStats();
@@ -391,18 +478,18 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
     function reveal(){
       if(!state.current) return;
       summaryEl.style.display = 'block';
-      summaryEl.innerHTML = `<strong>Context:</strong> ${state.current.context}<br><strong>Reminder:</strong> Slang varies by country, age, and setting. Ask native speakers what sounds most natural in their region.`;
+      summaryEl.innerHTML = `<strong>${t('contextLabel')}</strong> ${state.current.context}<br><strong>${t('reminderLabel')}</strong> ${t('reminderText')}`;
     }
 
     function finishGame(){
       optionsEl.innerHTML = '';
-      promptEl.textContent = 'Round complete 🎉';
-      hintEl.textContent = 'Switch deck or question count, then start again.';
+      promptEl.textContent = t('roundComplete');
+      hintEl.textContent = t('switchDeck');
       regionEl.textContent = '';
       nextBtn.disabled = true;
       revealBtn.disabled = true;
       summaryEl.style.display = 'block';
-      summaryEl.innerHTML = `<strong>Final team score:</strong> ${state.score}<br><strong>Best streak:</strong> ${state.streak}<br><br>Suggested group activity: everyone picks one new word from this round and says a sentence related to family, food, travel, or memories.`;
+      summaryEl.innerHTML = `<strong>${t('finalScore')}</strong> ${state.score}<br><strong>${t('bestStreak')}</strong> ${state.streak}<br><br>${t('suggested')}`;
     }
 
     function next(){
@@ -421,6 +508,7 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
       state.index = 0;
       state.asked = [];
       state.total = Number(roundsEl.value);
+      applyUIText();
       updateStats();
       renderQuestion();
     }
@@ -428,7 +516,9 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
     nextBtn.addEventListener('click', next);
     revealBtn.addEventListener('click', reveal);
     document.getElementById('newGame').addEventListener('click', newGame);
+    uiLangEl.addEventListener('change', () => { uiLang = uiLangEl.value; applyUIText(); updateStats(); renderQuestion(); });
 
+    applyUIText();
     newGame();
   </script>
 </body>

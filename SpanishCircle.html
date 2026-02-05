@@ -154,6 +154,8 @@
     <div class="footer">
       <p class="msg" id="msg"></p>
       <div>
+        <button id="speakPrompt" class="primary"></button>
+        <button id="speakOptions" class="primary"></button>
         <button id="reveal" class="primary" disabled></button>
         <button id="next" class="primary" disabled></button>
       </div>
@@ -320,6 +322,9 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
         newGame: "Start fresh round",
         reveal: "Reveal context",
         next: "Next",
+        speakPrompt: "Say word/phrase",
+        speakOptions: "Say English options",
+        speechNotSupported: "Speech is not supported in this browser.",
         hostNote: "Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. The context reveal helps avoid overgeneralizing slang.",
         score: "Team Score",
         streak: "Streak",
@@ -350,6 +355,9 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
         newGame: "Empezar ronda nueva",
         reveal: "Mostrar contexto",
         next: "Siguiente",
+        speakPrompt: "Decir palabra/frase",
+        speakOptions: "Decir opciones en inglés",
+        speechNotSupported: "La síntesis de voz no está disponible en este navegador.",
         hostNote: "Consejo para anfitriones: tras cada respuesta, pide a alguien que haga una frase corta con esa palabra o expresión. El contexto ayuda a no generalizar la jerga.",
         score: "Puntuación del equipo",
         streak: "Racha",
@@ -385,6 +393,8 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
     const uiLangEl = document.getElementById('uiLang');
     const nextBtn = document.getElementById('next');
     const revealBtn = document.getElementById('reveal');
+    const speakPromptBtn = document.getElementById('speakPrompt');
+    const speakOptionsBtn = document.getElementById('speakOptions');
 
     const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
 
@@ -410,6 +420,8 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
       document.getElementById('newGame').textContent = t('newGame');
       revealBtn.textContent = t('reveal');
       nextBtn.textContent = t('next');
+      speakPromptBtn.textContent = t('speakPrompt');
+      speakOptionsBtn.textContent = t('speakOptions');
       document.getElementById('hostNote').textContent = t('hostNote');
     }
 
@@ -417,6 +429,29 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
       scoreEl.textContent = `${t('score')}: ${state.score}`;
       streakEl.textContent = `${t('streak')}: ${state.streak} 🔥`;
       progressEl.textContent = `${t('question')} ${Math.min(state.index + 1, state.total)}/${state.total}`;
+    }
+
+    function speakText(text, lang){
+      if (!('speechSynthesis' in window)) {
+        msgEl.textContent = t('speechNotSupported');
+        return;
+      }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      utter.rate = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+
+    function speakPrompt(){
+      if (!state.current) return;
+      speakText(state.current.prompt, 'es-ES');
+    }
+
+    function speakEnglishOptions(){
+      if (!state.current) return;
+      const text = state.current.options.join('. ');
+      speakText(text, 'en-US');
     }
 
     function pickQuestion(){
@@ -516,6 +551,8 @@ laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Ur
     nextBtn.addEventListener('click', next);
     revealBtn.addEventListener('click', reveal);
     document.getElementById('newGame').addEventListener('click', newGame);
+    speakPromptBtn.addEventListener('click', speakPrompt);
+    speakOptionsBtn.addEventListener('click', speakEnglishOptions);
     uiLangEl.addEventListener('change', () => { uiLang = uiLangEl.value; applyUIText(); updateStats(); renderQuestion(); });
 
     applyUIText();

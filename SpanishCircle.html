@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spanish Circle: Voces del Mundo</title>
+  <meta name="description" content="A friendly Spanish-circle game with vocabulary, useful phrases, and regional and street slang from Bolivia, Mexico, Spain, and beyond." />
+  <style>
+    :root{
+      --bg:#0f1329;
+      --panel:#181f43;
+      --ink:#f6f7ff;
+      --muted:#c0c8ef;
+      --accent:#77e2b1;
+      --accent2:#84a8ff;
+      --good:#6ff0be;
+      --bad:#ff8fa4;
+      --card:#ffffff12;
+      --border:#ffffff28;
+      --shadow:0 14px 32px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100svh;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1000px 600px at 0 -20%, #364ab066, transparent),
+        radial-gradient(900px 560px at 100% 0, #189f7866, transparent),
+        linear-gradient(180deg, #0a0d1d, var(--bg));
+      display:grid;
+      place-items:center;
+      padding:16px;
+      line-height:1.45;
+    }
+    .game{
+      width:min(860px, 100%);
+      background:linear-gradient(180deg, #1b2250, var(--panel));
+      border:1px solid #ffffff24;
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+    h1{margin:0 0 8px;font-size:clamp(1.6rem,3.4vw,2.3rem)}
+    .sub{margin:0 0 14px;color:var(--muted);font-size:1.03rem}
+
+    .toolbar,.stats,.footer{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .toolbar{margin-bottom:14px}
+    .stats{justify-content:space-between;margin-bottom:14px}
+
+    .pill{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:8px 14px;
+      font-size:1.02rem;
+      font-weight:700;
+    }
+
+    .panel{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px;
+    }
+
+    .prompt{font-size:1.35rem;font-weight:800;margin:0 0 6px}
+    .hint,.region{margin:0;color:var(--muted);font-size:1.02rem}
+    .region{margin-top:5px}
+
+    .options{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    button,select{
+      font:inherit;
+      border-radius:12px;
+      border:1px solid #ffffff33;
+      color:var(--ink);
+      background:#0c1130;
+      padding:10px 12px;
+    }
+
+    button{cursor:pointer;font-weight:700}
+    button:hover{border-color:#ffffff66;transform:translateY(-1px)}
+    button:disabled{opacity:.67;cursor:not-allowed;transform:none}
+
+    .opt{min-height:62px;text-align:left;background:#ffffff12}
+    .opt.good{background:color-mix(in srgb,var(--good) 35%, transparent);border-color:var(--good)}
+    .opt.bad{background:color-mix(in srgb,var(--bad) 35%, transparent);border-color:var(--bad)}
+
+    .primary{background:linear-gradient(180deg,var(--accent2),#607ed8);border:none}
+    .secondary{background:linear-gradient(180deg,var(--accent),#56bb8f);border:none;color:#0f1a1e}
+
+    .footer{justify-content:space-between;margin-top:14px}
+    .msg{font-size:1.05rem;font-weight:700;min-height:1.3em;margin:0}
+
+    .note,.summary{margin-top:14px}
+    .note{font-size:.97rem;color:var(--muted)}
+    .summary{display:none}
+
+    @media (max-width:700px){
+      .options{grid-template-columns:1fr}
+      .prompt{font-size:1.25rem}
+    }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <h1>Spanish Circle: Voces del Mundo 🌎</h1>
+    <p class="sub" id="sub"></p>
+
+    <div class="toolbar">
+      <label for="mode" id="modeLabel"></label>
+      <select id="mode">
+        <option value="core" id="deckCore"></option>
+        <option value="phrases" id="deckPhrases"></option>
+        <option value="idioms" id="deckIdioms"></option>
+        <option value="regional" id="deckRegional"></option>
+        <option value="mixed" id="deckMixed"></option>
+      </select>
+      <label for="rounds" id="roundsLabel"></label>
+      <select id="rounds">
+        <option value="8">8</option>
+        <option value="10" selected>10</option>
+        <option value="12">12</option>
+      </select>
+      <label for="uiLang" id="langLabel"></label>
+      <select id="uiLang">
+        <option value="en">English UI</option>
+        <option value="es">Interfaz en español</option>
+      </select>
+      <button id="newGame" class="secondary"></button>
+    </div>
+
+    <div class="stats">
+      <span class="pill" id="score"></span>
+      <span class="pill" id="streak"></span>
+      <span class="pill" id="progress"></span>
+    </div>
+
+    <section class="panel">
+      <p class="prompt" id="prompt"></p>
+      <p class="hint" id="hint"></p>
+      <p class="region" id="region"></p>
+      <div class="options" id="options"></div>
+    </section>
+
+    <div class="footer">
+      <p class="msg" id="msg"></p>
+      <div>
+        <button id="speakPrompt" class="primary"></button>
+        <button id="speakOptions" class="primary"></button>
+        <button id="reveal" class="primary" disabled></button>
+        <button id="next" class="primary" disabled></button>
+      </div>
+    </div>
+
+    <section class="panel summary" id="summary"></section>
+
+    <p class="note" id="hostNote"></p>
+  </main>
+
+  <script>
+    const parseDeck = raw => raw.trim().split("\n").map(line => {
+      const [prompt, answer, distract1, distract2, distract3, context, region] = line.split("|").map(x => x.trim());
+      return { prompt, answer, options: [answer, distract1, distract2, distract3], context, region };
+    });
+
+    const coreRaw = `
+la jubilación|retirement|festival|road|shirt|Useful for 60+ groups: Estoy disfrutando de la jubilación.|General Spanish
+la receta|recipe / prescription|receipt|calendar|district|Can mean cooking recipe or medical prescription.|General Spanish
+el barrio|neighborhood|bridge|airport|garage|Vivimos en el mismo barrio.|General Spanish
+aprovechar|to make good use of|to arrive late|to decorate|to argue|Hay que aprovechar el tiempo.|General Spanish
+charlar|to chat|to shout|to borrow|to boil|Vamos a charlar un rato.|General Spanish
+el trámite|administrative procedure|snack|song|traffic jam|Useful for paperwork conversations.|General Spanish
+la cita|appointment|coffee cup|blanket|pocket|Tengo cita con el médico.|General Spanish
+la farmacia|pharmacy|bakery|library|stadium|La farmacia está abierta.|General Spanish
+la vecina|female neighbor|cousin|teacher|nurse|Mi vecina es muy amable.|General Spanish
+el nieto|grandson|nephew|brother-in-law|godfather|Mi nieto vive en Madrid.|General Spanish
+la nieta|granddaughter|stepmother|goddaughter|aunt|Mi nieta estudia música.|General Spanish
+el ahorro|savings|raincoat|challenge|ticket|Estamos cuidando el ahorro.|General Spanish
+la factura|bill / invoice|recipe|birthday|poem|Necesito la factura, por favor.|General Spanish
+la tarjeta|card|window|floor|camera|¿Aceptan tarjeta?|General Spanish
+el descanso|rest / break|debate|storm|market|Después caminamos con descanso.|General Spanish
+saludable|healthy|nervous|expensive|cold|Comida saludable todos los días.|General Spanish
+el paseo|walk / outing|repair|contract|argument|Damos un paseo por el parque.|General Spanish
+la memoria|memory|mirror|mountain|wallet|Tengo buena memoria para palabras.|General Spanish
+el horario|schedule|blanket|hammer|button|¿Cuál es el horario de hoy?|General Spanish
+la mudanza|moving house|marriage|lecture|gym class|La mudanza fue tranquila.|General Spanish
+el vecino|male neighbor|manager|driver|lawyer|Mi vecino toca guitarra.|General Spanish
+la avenida|avenue|vineyard|riverbank|courtyard|Caminamos por la avenida principal.|General Spanish
+el semáforo|traffic light|ceiling fan|elevator|fountain|Cruza cuando el semáforo esté verde.|General Spanish
+la esquina|corner|recipe|shelf|ring|Nos vemos en la esquina.|General Spanish
+la ilusión|hope / excitement|injury|salary|dust|Me hace ilusión aprender más.|General Spanish
+despejado|clear (weather/mind)|burned|crowded|broken|Hoy el cielo está despejado.|General Spanish
+el remedio|remedy|ladder|newspaper|garage|Un remedio casero puede ayudar.|General Spanish
+la sobremesa|chat after a meal|late dinner|nap|shopping list|La sobremesa es muy social en países hispanos.|General Spanish
+la confianza|trust|distance|fury|argument|Hablar con confianza mejora el idioma.|General Spanish
+la costumbre|habit / custom|storm|receipt|appointment|Es costumbre saludarse con cariño.|General Spanish`;
+
+    const phrasesRaw = `
+¿Me lo puede repetir, por favor?|Could you repeat that for me, please?|Can you write me a prescription?|Where is the station?|Would you like tea?|Polite and useful in group learning.|General Spanish
+Vamos poco a poco.|Let's go step by step.|Let's rush now.|Let's cancel.|Let's separate.|Great for mixed-level circles.|General Spanish
+¿Cómo se dice ... en español?|How do you say ... in Spanish?|Can you lend me money?|Where do you work?|Do you like this song?|Encourages active participation.|General Spanish
+Estoy practicando con mi grupo.|I am practicing with my group.|I am waiting for my grandson.|I am buying fruit.|I am looking for a doctor.|Simple self-introduction line.|General Spanish
+¿Nos tomamos un cafecito?|Shall we have a little coffee?|Should we buy medicine?|Shall we skip class?|Should we call a taxi?|Warm social phrase.|General Spanish
+¿Le viene bien mañana?|Does tomorrow work for you?|Are you traveling tomorrow?|Did you sleep well?|Do you need a coat?|Common scheduling phrase.|General Spanish
+¡Qué alegría verte!|So happy to see you!|I forgot your name.|What a loud day!|I am in a hurry.|Friendly circle greeting.|General Spanish
+No se preocupe.|Don't worry.|Please stand up.|I have no money.|Turn left now.|Polite reassurance.|General Spanish
+¿Dónde queda ...?|Where is ... located?|How much does this weigh?|Who wrote that?|Can I sit here?|Very practical travel phrase.|General Spanish
+Tiene buena pinta.|It looks good.|It is far away.|It is expensive.|It is broken.|Used for food/events/ideas.|General Spanish
+Me cae muy bien.|I like them / they seem nice to me.|It fell badly.|I owe them money.|I called them yesterday.|Common social phrase.|General Spanish
+Hace un rato.|A little while ago.|In one year.|During summer.|Every morning.|Time expression.|General Spanish
+A ver si nos vemos.|Hope we see each other.|Let's avoid each other.|Please stop talking.|I lost your number.|Friendly goodbye line.|General Spanish
+¿Le importaría hablar más despacio?|Would you mind speaking slower?|Can you close the window?|Should I pay first?|Do you have my bag?|Very helpful for learners.|General Spanish
+Se me fue la palabra.|The word slipped my mind.|I lost my wallet.|My bus left.|I forgot the keys.|Great for language circles.|General Spanish
+Estoy hecho polvo.|I am exhausted.|I am dusty.|I am optimistic.|I am very lucky.|Idiomatic, common in Spain too.|General Spanish
+No pasa nada.|It's okay / no big deal.|Nothing happened today.|No one passes here.|Don't cross the street.|Comforting expression.|General Spanish
+¡Qué detalle!|How thoughtful!|What a small store!|What a delay!|What a staircase!|Polite appreciation.|General Spanish
+De vez en cuando.|From time to time.|Every minute.|Twice yesterday.|At dawn.|Frequency phrase.|General Spanish
+¡Ni hablar!|No way!|Don't speak.|Speak louder.|Who is speaking?|Strong refusal.|General Spanish
+¿Te importa si...?|Do you mind if...?|Are you carrying...?|Did you invite...?|Will you pay...?|Polite conversation starter.|General Spanish
+Ponerse al día.|To catch up|To get dressed fast|To move houses|To leave early|Useful for friends/classmates.|General Spanish
+Estar en las nubes.|To be daydreaming|To be online|To be famous|To be old-fashioned|Common figurative phrase.|General Spanish
+Quedamos en contacto.|Let's stay in touch.|Let's cancel contact.|Let's meet now.|Let's sign a contract.|Good closing line.|General Spanish
+¿Me echa una mano?|Can you give me a hand?|Can you throw me away?|Can you call my son?|Can you wash this?|Frequent idiomatic request.|General Spanish
+Sin prisa pero sin pausa.|Without hurry but without stopping.|Very quickly|Completely silent|No work today|Motivational saying.|General Spanish
+Ir sobre ruedas.|To go smoothly|To travel by bike|To need repairs|To become famous|Everyday idiom.|General Spanish
+Tomar el pelo.|To tease someone|To cut hair|To buy shampoo|To lose patience|Common idiom with caution.|General Spanish
+Me pilla lejos.|It's far for me|I got caught|I feel sleepy|I forgot|Useful practical phrase.|General Spanish
+No tengo pelos en la lengua.|I speak very directly|I forgot words|I am nervous|I am hoarse|Idiomatic honesty phrase.|General Spanish`;
+
+    const idiomsRaw = `
+estar entre la espada y la pared|to be between a rock and a hard place|to train fencing|to fix a wall|to feel calm|Classic Spanish idiom for tough choices.|General Spanish
+costar un ojo de la cara|to cost an arm and a leg|to need glasses|to hurt your eye|to be free|Used for expensive things.|General Spanish
+tener mano izquierda|to be tactful|to be left-handed only|to wave a lot|to be clumsy|Means social skill and diplomacy.|General Spanish
+a buenas horas, mangas verdes|too late to be useful|great timing|wear green sleeves|urgent request|Humorous old-style idiom.|Spain 🇪🇸
+estar hecho un chaval|to look/feel youthful|to be childish|to be unemployed|to be noisy|Often heard with older adults jokingly.|Spain/LatAm
+más vale tarde que nunca|better late than never|late is always bad|never arrive|time is money|Very common proverb.|General Spanish
+a mal tiempo, buena cara|keep a good face in bad times|rainy weather forecast|bad photo lighting|skip the event|Encourages resilience.|General Spanish
+buscarle tres pies al gato|to overcomplicate things|to look for a cat|to ignore details|to run away|Humorous idiom.|Spain 🇪🇸
+llover sobre mojado|bad things piling on|to rain heavily|to clean the floor|to repeat homework|Like 'when it rains, it pours'.|General Spanish
+quedarse de piedra|to be stunned|to build with stone|to be patient|to rest|Expresses surprise.|General Spanish
+estar como una cabra|to be a bit crazy|to own goats|to be stubborn|to be hungry|Informal idiom; tone matters.|General Spanish
+meter la pata|to put your foot in it|to kick someone|to dance|to hurry|Common mistake idiom.|General Spanish
+irse por las ramas|to ramble|to climb trees|to skip class|to travel|Used when someone avoids the point.|General Spanish
+dorar la píldora|to flatter someone|to sell medicine|to sunbathe|to hide money|Advanced idiom, good discussion prompt.|Spain 🇪🇸
+a ojo de buen cubero|roughly / by estimation|with perfect precision|with glasses|with fear|Means approximate calculation.|Spain/LatAm
+ser pan comido|to be very easy|to be delicious|to be old bread|to be unhealthy|Equivalent to 'piece of cake'.|General Spanish
+estar en el quinto pino|to be very far away|to be in a forest|to be fifth in line|to be famous|Used in Spain for remote places.|Spain 🇪🇸
+poner los puntos sobre las íes|to make things crystal clear|to write nicely|to correct accents|to relax|Clarifying issues directly.|General Spanish
+andar con pies de plomo|to proceed very carefully|to wear heavy shoes|to walk fast|to feel tired|Cautious idiom.|General Spanish
+ser uña y carne|to be inseparable friends|to cook meat|to have long nails|to be annoyed|Used for close relationships.|General Spanish
+estar de mala leche|to be in a bad mood|to dislike milk|to be sick|to be sleepy|Informal mood idiom.|Spain 🇪🇸
+tener la sartén por el mango|to have control|to be cooking|to be angry|to be hungry|Power/control idiom.|General Spanish
+quedarse en blanco|to blank out|to wear white|to clean a board|to become pale|Very relevant for learners.|General Spanish
+estar al pie del cañón|to stay dependable and active|to be at war|to be injured|to retire|Popular with older generations.|General Spanish
+dar en el clavo|to hit the nail on the head|to hammer often|to fail|to change the topic|Common success idiom.|General Spanish
+ser coser y cantar|to be super easy|to sew and sing|to practice music|to celebrate|Equivalent easy idiom.|Spain/LatAm
+poner toda la carne en el asador|to go all in|to cook a barbecue|to save money|to postpone|Used in plans and projects.|General Spanish
+no pegar ojo|to not sleep a wink|to hurt your eye|to avoid glue|to cry|Night/sleep idiom.|General Spanish
+sacar las castañas del fuego|to solve a hard problem for someone|to cook chestnuts|to start trouble|to run late|Great cooperative idiom.|Spain/LatAm
+estar en la luna de Valencia|to be left out / outside|to travel to Valencia|to be romantic|to be confused|Classic Spain idiom.|Spain 🇪🇸`;
+
+    const regionalRaw = `
+¡Qué padre!|That's great / awesome!|That's difficult|That's expensive|That's impossible|Common in Mexico to express enthusiasm.|Mexico 🇲🇽
+platicar|to chat / have a conversation|to plan a trip|to eat slowly|to dance|Very common in Mexico; similar to charlar.|Mexico 🇲🇽
+¡Qué guay!|How cool!|How strange!|How early!|How loud!|Common in Spain for cool.|Spain 🇪🇸
+vale|okay / sounds good|I am hungry|see you tomorrow|thank you very much|Heard constantly in Spain.|Spain 🇪🇸
+chévere|great / nice|boring|risky|tiny|Used in many Latin American regions.|Multiple regions 🌎
+¡Qué macanudo!|How nice / wonderful!|How dangerous!|How bitter!|How rushed!|Older generations may use it.|South America 🌎
+yapa|a little extra bonus|a bus ticket|a family reunion|an old neighborhood|Common in Bolivia and Andes markets.|Bolivia 🇧🇴 / Andes
+güey / wey|dude / mate (very informal)|teacher|bus driver|older sibling|Street talk in Mexico; informal only.|Mexico 🇲🇽
+chido|cool / great|old-fashioned|tired|careful|Popular Mexican slang.|Mexico 🇲🇽
+curro|job / work (colloquial)|street market|coffee break|city center|Common in Spain: tengo curro.|Spain 🇪🇸
+tío / tía|guy / girl (casual)|uncle/aunt only|neighbor|shop owner|Street speech in Spain.|Spain 🇪🇸
+chamba|job / gig (informal)|rainstorm|party|street|Common in Mexico/Bolivia/LatAm.|LatAm 🌎
+estar al tiro|to be alert / on point|to be tired|to be lucky|to be sick|Mexican street-style expression.|Mexico 🇲🇽
+de lujo|excellent / top-notch|cheap|complicated|unfinished|Used in Spain for excellent quality.|Spain 🇪🇸
+órale|come on!/wow!/okay|be quiet|goodbye|be careful|Very Mexican; meaning changes with tone.|Mexico 🇲🇽
+no manches|no way! / come on!|don't eat|be patient|where are you?|Very common Mexican exclamation.|Mexico 🇲🇽
+fresa|snobby / preppy person|strawberry only|sweet dessert|cheap product|Mexican slang descriptor.|Mexico 🇲🇽
+pijo/pija|posh / snobby|tiny|tired|funny|Common in Spain social slang.|Spain 🇪🇸
+molar|to be cool|to sleep|to explain|to borrow|Spain colloquial verb: me mola.|Spain 🇪🇸
+flipar|to freak out / be amazed|to cook quickly|to arrive late|to fail|Spain street slang, very informal.|Spain 🇪🇸
+currar|to work hard (slang)|to run|to dance|to rest|Street variation of curro/currar in Spain.|Spain 🇪🇸
+majo/maja|nice person|old person|strict person|slow person|Spain colloquial compliment.|Spain 🇪🇸
+padre/madre (as adjective)|great / awesome|parent only|strict|expensive|In Mexico, padre can mean cool.|Mexico 🇲🇽
+quedarse picado|to become hooked / obsessed|to get injured|to get lost|to stay quiet|Heard in Mexican speech.|Mexico 🇲🇽
+chale|aw man / what a pity|let's go|great!|what time?|Mexican expression of disappointment.|Mexico 🇲🇽
+pana|buddy / friend|bread|boss|teacher|Common in Caribbean/North South America.|Caribbean/Andes 🌎
+bacán|great / awesome|boring|strict|small|Used in parts of Andes and South Cone.|Andes/South Cone 🌎
+parce|buddy / pal|neighbor|driver|uncle|Common in Colombia (street speech).|Colombia 🇨🇴
+boludo/boluda|dude / fool (tone-dependent)|genius|teacher|child|Rioplatense slang; caution by tone.|Argentina/Uruguay 🇦🇷🇺🇾
+laburo|work/job|home|party|weekend|Rioplatense colloquial for work.|Argentina/Uruguay 🇦🇷🇺🇾
+coño|damn / hell (strong exclamation)|friend|bread|street|Common in Spain; vulgar in many settings, use with caution.|Spain 🇪🇸
+joder|damn / to mess up (vulgar)|to dance|to organize|to whisper|Very common in Spain but can be rude depending on tone.|Spain 🇪🇸
+qué cabrón / cabrona|what a bastard / what a crafty person|what a teacher|what a city|what a song|Can be insulting or joking among close friends; context matters a lot.|Spain/LatAm
+no mames|no way / stop kidding (vulgar)|don't eat|don't leave|don't run|Very common in Mexico; informal and potentially offensive.|Mexico 🇲🇽
+la neta|for real / honestly|the bill|the photo|the route|Not a swear word, but often appears with strong slang phrases in Mexico.|Mexico 🇲🇽
+mierda|shit (swear word)|rain|party|luck|Direct profanity used across regions; avoid in formal conversation.|General Spanish
+guagua|baby / little child|bus|market|shoe|From Quechua/Aymara roots (wawa); common in Andes and parts of Chile/Caribbean contexts.|Andes 🇧🇴🇪🇨🇵🇪 / Chile 🇨🇱
+chacra|small farm plot|street market|city center|factory|From Quechua (chakra), widely used in Andean Spanish.|Andes 🇧🇴🇵🇪🇪🇨
+cancha|field/court; also experience/confidence|ticket|kitchen|bridge|From Quechua (kancha); also appears in slang like canchero.|LatAm 🌎
+canchero/canchera|confident/cocky person|careful person|quiet person|new student|Rioplatense slang linked to Quechua-derived "cancha".|Argentina/Uruguay 🇦🇷🇺🇾
+cuate|buddy / pal|boss|driver|stranger|From Nahuatl (coatl) via Mexican usage; colloquial friendship term.|Mexico 🇲🇽
+apapachar|to hug/coddle lovingly|to scold|to argue|to pay|From Nahuatl roots; common affectionate colloquial verb in Mexico.|Mexico 🇲🇽
+escuincle|kid / brat (can be rude)|teacher|grandparent|neighbor|From Nahuatl (itzcuintli); often informal and can sound insulting.|Mexico 🇲🇽
+pibe/piba|kid / guy / girl|doctor|police officer|uncle|Common Southern Cone colloquial term for young person.|Argentina/Uruguay 🇦🇷🇺🇾
+chamaco/chamaca|kid (informal)|friend|manager|lawyer|Common colloquial term for child in Mexico/Central America.|Mexico/Centroamérica 🌎
+chibolo/chibola|kid / teen (informal)|teacher|nurse|tourist|Very common colloquialism in Peru.|Peru 🇵🇪
+huevón/weón|dude / idiot (tone-dependent insult)|great person|formal title|neighbor|Very common in Chile/Peru; can be friendly or insulting by tone.|Chile/Peru 🇨🇱🇵🇪
+pendejo/pendeja|idiot / jerk (or young person in some regions)|friendly person|shop owner|grandparent|Strongly regional meaning; often insulting in Mexico/LatAm.|LatAm 🌎
+culero/culera|asshole / mean person (vulgar)|smart person|calm person|careful person|Mexican vulgar insult; avoid in polite contexts.|Mexico 🇲🇽
+gil|fool / idiot|athlete|neighbor|artist|Common insult in Argentina/Uruguay speech.|Argentina/Uruguay 🇦🇷🇺🇾
+mamón/mamona|annoying jerk / show-off|quiet friend|chef|tour guide|Mexican insult; can also mean oversensitive depending context.|Mexico 🇲🇽`;
+
+    const decks = {
+      core: parseDeck(coreRaw),
+      phrases: parseDeck(phrasesRaw),
+      idioms: parseDeck(idiomsRaw),
+      regional: parseDeck(regionalRaw)
+    };
+    const state = { score: 0, streak: 0, index: 0, total: 10, asked: [], current: null, answered: false };
+
+    const I18N = {
+      en: {
+        sub: "Friendly turn-based play for your circle (especially great for 60+ learners): no timer, clear text, and culture-rich language, idioms, and street slang from Bolivia, Mexico, Spain, and more.",
+        modeLabel: "Deck:",
+        deckCore: "Core Vocabulary",
+        deckPhrases: "Useful Phrases",
+        deckIdioms: "Idioms & Sayings",
+        deckRegional: "Regional + Street Slang",
+        deckMixed: "Mixed Circle Mode",
+        roundsLabel: "Questions:",
+        langLabel: "UI language:",
+        newGame: "Start fresh round",
+        reveal: "Reveal context",
+        next: "Next",
+        speakPrompt: "Say word/phrase",
+        speakOptions: "Say English options",
+        speechNotSupported: "Speech is not supported in this browser.",
+        hostNote: "Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. Some cards include profanity and insults; discuss tone, audience, and when NOT to use them.",
+        score: "Team Score",
+        streak: "Streak",
+        question: "Question",
+        hintQuestion: "Choose the best meaning, then discuss a sentence together.",
+        regionNote: "Region note",
+        okMsg: "¡Muy bien! +{points} points. Invite someone else to use it in a sentence.",
+        badMsg: "Good try. Correct answer: {answer}",
+        contextLabel: "Context:",
+        reminderLabel: "Reminder:",
+        reminderText: "Slang varies by country, age, and setting. Ask native speakers what sounds most natural in their region.",
+        roundComplete: "Round complete 🎉",
+        switchDeck: "Switch deck or question count, then start again.",
+        finalScore: "Final team score:",
+        bestStreak: "Best streak:",
+        suggested: "Suggested group activity: everyone picks one new word from this round and says a sentence related to family, food, travel, or memories."
+      },
+      es: {
+        sub: "Juego amistoso por turnos para tu círculo (ideal para personas de 60+): sin cronómetro, texto claro y lenguaje con cultura, modismos y jerga callejera de Bolivia, México, España y más.",
+        modeLabel: "Mazo:",
+        deckCore: "Vocabulario básico",
+        deckPhrases: "Frases útiles",
+        deckIdioms: "Modismos y refranes",
+        deckRegional: "Regional + Jerga callejera",
+        deckMixed: "Modo mixto del círculo",
+        roundsLabel: "Preguntas:",
+        langLabel: "Idioma de la interfaz:",
+        newGame: "Empezar ronda nueva",
+        reveal: "Mostrar contexto",
+        next: "Siguiente",
+        speakPrompt: "Decir palabra/frase",
+        speakOptions: "Decir opciones en inglés",
+        speechNotSupported: "La síntesis de voz no está disponible en este navegador.",
+        hostNote: "Consejo para anfitriones: tras cada respuesta, pide a alguien que haga una frase corta con esa palabra o expresión. Algunas tarjetas incluyen palabrotas e insultos; comenten el tono, el público y cuándo NO usarlos.",
+        score: "Puntuación del equipo",
+        streak: "Racha",
+        question: "Pregunta",
+        hintQuestion: "Elige el mejor significado y luego comenten una frase juntos.",
+        regionNote: "Nota regional",
+        okMsg: "¡Muy bien! +{points} puntos. Invita a otra persona a usarlo en una frase.",
+        badMsg: "Buen intento. Respuesta correcta: {answer}",
+        contextLabel: "Contexto:",
+        reminderLabel: "Recordatorio:",
+        reminderText: "La jerga varía por país, edad y situación. Pregunten a hablantes nativos qué suena más natural en su región.",
+        roundComplete: "Ronda terminada 🎉",
+        switchDeck: "Cambia el mazo o el número de preguntas y vuelve a empezar.",
+        finalScore: "Puntuación final del equipo:",
+        bestStreak: "Mejor racha:",
+        suggested: "Actividad sugerida: cada persona elige una palabra nueva de la ronda y dice una frase sobre familia, comida, viajes o recuerdos."
+      }
+    };
+    let uiLang = 'en';
+    const t = k => I18N[uiLang][k];
+
+    const scoreEl = document.getElementById('score');
+    const streakEl = document.getElementById('streak');
+    const progressEl = document.getElementById('progress');
+    const promptEl = document.getElementById('prompt');
+    const hintEl = document.getElementById('hint');
+    const regionEl = document.getElementById('region');
+    const optionsEl = document.getElementById('options');
+    const msgEl = document.getElementById('msg');
+    const summaryEl = document.getElementById('summary');
+    const modeEl = document.getElementById('mode');
+    const roundsEl = document.getElementById('rounds');
+    const uiLangEl = document.getElementById('uiLang');
+    const nextBtn = document.getElementById('next');
+    const revealBtn = document.getElementById('reveal');
+    const speakPromptBtn = document.getElementById('speakPrompt');
+    const speakOptionsBtn = document.getElementById('speakOptions');
+
+    const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+
+    function mixedDeck(){
+      return [...decks.core, ...decks.phrases, ...decks.idioms, ...decks.regional];
+    }
+
+    function activeDeck(){
+      if(modeEl.value === 'mixed') return mixedDeck();
+      return decks[modeEl.value];
+    }
+
+    function applyUIText(){
+      document.getElementById('sub').textContent = t('sub');
+      document.getElementById('modeLabel').textContent = t('modeLabel');
+      document.getElementById('deckCore').textContent = t('deckCore');
+      document.getElementById('deckPhrases').textContent = t('deckPhrases');
+      document.getElementById('deckIdioms').textContent = t('deckIdioms');
+      document.getElementById('deckRegional').textContent = t('deckRegional');
+      document.getElementById('deckMixed').textContent = t('deckMixed');
+      document.getElementById('roundsLabel').textContent = t('roundsLabel');
+      document.getElementById('langLabel').textContent = t('langLabel');
+      document.getElementById('newGame').textContent = t('newGame');
+      revealBtn.textContent = t('reveal');
+      nextBtn.textContent = t('next');
+      speakPromptBtn.textContent = t('speakPrompt');
+      speakOptionsBtn.textContent = t('speakOptions');
+      document.getElementById('hostNote').textContent = t('hostNote');
+    }
+
+    function updateStats(){
+      scoreEl.textContent = `${t('score')}: ${state.score}`;
+      streakEl.textContent = `${t('streak')}: ${state.streak} 🔥`;
+      progressEl.textContent = `${t('question')} ${Math.min(state.index + 1, state.total)}/${state.total}`;
+    }
+
+    function speakText(text, lang){
+      if (!('speechSynthesis' in window)) {
+        msgEl.textContent = t('speechNotSupported');
+        return;
+      }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      utter.rate = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+
+    function speakPrompt(){
+      if (!state.current) return;
+      speakText(state.current.prompt, 'es-ES');
+    }
+
+    function speakEnglishOptions(){
+      if (!state.current) return;
+      const text = state.current.options.join('. ');
+      speakText(text, 'en-US');
+    }
+
+    function pickQuestion(){
+      const deck = activeDeck();
+      const available = deck.filter(item => !state.asked.includes(item.prompt));
+      const source = available.length ? available : deck;
+      const item = source[Math.floor(Math.random() * source.length)];
+      state.asked.push(item.prompt);
+      return item;
+    }
+
+    function renderQuestion(){
+      state.current = pickQuestion();
+      state.answered = false;
+      promptEl.textContent = state.current.prompt;
+      hintEl.textContent = t('hintQuestion');
+      regionEl.textContent = `${t('regionNote')}: ${state.current.region}`;
+      msgEl.textContent = '';
+      summaryEl.style.display = 'none';
+      nextBtn.disabled = true;
+      revealBtn.disabled = true;
+
+      optionsEl.innerHTML = '';
+      shuffle(state.current.options).forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.textContent = choice;
+        btn.onclick = () => answer(btn, choice);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function answer(button, choice){
+      if(state.answered) return;
+      state.answered = true;
+
+      const isCorrect = choice === state.current.answer;
+      [...optionsEl.children].forEach(opt => {
+        opt.disabled = true;
+        if(opt.textContent === state.current.answer) opt.classList.add('good');
+      });
+
+      if(isCorrect){
+        state.streak += 1;
+        const bonus = Math.min(8, state.streak);
+        state.score += 10 + bonus;
+        msgEl.textContent = t('okMsg').replace('{points}', 10 + bonus);
+      } else {
+        state.streak = 0;
+        button.classList.add('bad');
+        msgEl.textContent = t('badMsg').replace('{answer}', state.current.answer);
+      }
+
+      updateStats();
+      nextBtn.disabled = false;
+      revealBtn.disabled = false;
+    }
+
+    function reveal(){
+      if(!state.current) return;
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `<strong>${t('contextLabel')}</strong> ${state.current.context}<br><strong>${t('reminderLabel')}</strong> ${t('reminderText')}`;
+    }
+
+    function finishGame(){
+      optionsEl.innerHTML = '';
+      promptEl.textContent = t('roundComplete');
+      hintEl.textContent = t('switchDeck');
+      regionEl.textContent = '';
+      nextBtn.disabled = true;
+      revealBtn.disabled = true;
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `<strong>${t('finalScore')}</strong> ${state.score}<br><strong>${t('bestStreak')}</strong> ${state.streak}<br><br>${t('suggested')}`;
+    }
+
+    function next(){
+      state.index += 1;
+      if(state.index >= state.total){
+        finishGame();
+        return;
+      }
+      updateStats();
+      renderQuestion();
+    }
+
+    function newGame(){
+      state.score = 0;
+      state.streak = 0;
+      state.index = 0;
+      state.asked = [];
+      state.total = Number(roundsEl.value);
+      applyUIText();
+      updateStats();
+      renderQuestion();
+    }
+
+    nextBtn.addEventListener('click', next);
+    revealBtn.addEventListener('click', reveal);
+    document.getElementById('newGame').addEventListener('click', newGame);
+    speakPromptBtn.addEventListener('click', speakPrompt);
+    speakOptionsBtn.addEventListener('click', speakEnglishOptions);
+    uiLangEl.addEventListener('change', () => { uiLang = uiLangEl.value; applyUIText(); updateStats(); renderQuestion(); });
+
+    applyUIText();
+    newGame();
+  </script>
+</body>
+</html>

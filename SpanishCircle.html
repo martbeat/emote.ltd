@@ -172,8 +172,7 @@
       return { prompt, answer, options: [answer, distract1, distract2, distract3], context, region };
     });
 
-    const coreRaw = `
-la jubilación|retirement|festival|road|shirt|Useful for 60+ groups: Estoy disfrutando de la jubilación.|General Spanish
+    const coreRaw = `la jubilación|retirement|festival|road|shirt|Useful for 60+ groups: Estoy disfrutando de la jubilación.|General Spanish
 la receta|recipe / prescription|receipt|calendar|district|Can mean cooking recipe or medical prescription.|General Spanish
 el barrio|neighborhood|bridge|airport|garage|Vivimos en el mismo barrio.|General Spanish
 aprovechar|to make good use of|to arrive late|to decorate|to argue|Hay que aprovechar el tiempo.|General Spanish
@@ -202,7 +201,16 @@ despejado|clear (weather/mind)|burned|crowded|broken|Hoy el cielo está despejad
 el remedio|remedy|ladder|newspaper|garage|Un remedio casero puede ayudar.|General Spanish
 la sobremesa|chat after a meal|late dinner|nap|shopping list|La sobremesa es muy social en países hispanos.|General Spanish
 la confianza|trust|distance|fury|argument|Hablar con confianza mejora el idioma.|General Spanish
-la costumbre|habit / custom|storm|receipt|appointment|Es costumbre saludarse con cariño.|General Spanish`;
+la costumbre|habit / custom|storm|receipt|appointment|Es costumbre saludarse con cariño.|General Spanish
+ponerse las pilas|to get moving / focus|to recharge batteries|to sit down|to become angry|Pan-Latin informal expression for taking initiative.|LatAm 🌎
+meter la pata|to make a mistake|to kick hard|to walk quickly|to avoid talking|Universal idiom with forgiving tone.|Pan-Latin 🌎
+dar en el clavo|to hit the nail on the head|to miss the point|to make noise|to arrive late|Used when someone gets it exactly right.|Pan-Latin 🌎
+estar en la luna|to be distracted / daydreaming|to travel to the moon|to be lucky|to be angry|Very common in many countries.|Pan-Latin 🌎
+no pasa nada|it's fine / don't worry|nothing moves|no one comes|everything is broken|Often warm reassurance in Latin America.|Pan-Latin 🌎
+a ojo|by estimation / roughly|with glasses|with anger|with help|Quick informal way to estimate.|Pan-Latin 🌎
+ni fu ni fa|so-so / neither good nor bad|very exciting|very expensive|very late|Great rhythm-based expression for opinions.|Pan-Latin 🌎
+más vale tarde que nunca|better late than never|late is always bad|never arrive|leave early|Common proverb across Spanish-speaking regions.|Pan-Latin 🌎
+barriga llena, corazón contento|full belly, happy heart|empty belly, happy heart|eat fast|skip dinner|Food-centered saying that resonates with older groups.|Pan-Latin 🌎`;
 
     const phrasesRaw = `
 ¿Me lo puede repetir, por favor?|Could you repeat that for me, please?|Can you write me a prescription?|Where is the station?|Would you like tea?|Polite and useful in group learning.|General Spanish
@@ -268,8 +276,7 @@ no pegar ojo|to not sleep a wink|to hurt your eye|to avoid glue|to cry|Night/sle
 sacar las castañas del fuego|to solve a hard problem for someone|to cook chestnuts|to start trouble|to run late|Great cooperative idiom.|Spain/LatAm
 estar en la luna de Valencia|to be left out / outside|to travel to Valencia|to be romantic|to be confused|Classic Spain idiom.|Spain 🇪🇸`;
 
-    const regionalRaw = `
-¡Qué padre!|That's great / awesome!|That's difficult|That's expensive|That's impossible|Common in Mexico to express enthusiasm.|Mexico 🇲🇽
+    const regionalRaw = `¡Qué padre!|That's great / awesome!|That's difficult|That's expensive|That's impossible|Common in Mexico to express enthusiasm.|Mexico 🇲🇽
 platicar|to chat / have a conversation|to plan a trip|to eat slowly|to dance|Very common in Mexico; similar to charlar.|Mexico 🇲🇽
 ¡Qué guay!|How cool!|How strange!|How early!|How loud!|Common in Spain for cool.|Spain 🇪🇸
 vale|okay / sounds good|I am hungry|see you tomorrow|thank you very much|Heard constantly in Spain.|Spain 🇪🇸
@@ -319,7 +326,37 @@ huevón/weón|dude / idiot (tone-dependent insult)|great person|formal title|nei
 pendejo/pendeja|idiot / jerk (or young person in some regions)|friendly person|shop owner|grandparent|Strongly regional meaning; often insulting in Mexico/LatAm.|LatAm 🌎
 culero/culera|asshole / mean person (vulgar)|smart person|calm person|careful person|Mexican vulgar insult; avoid in polite contexts.|Mexico 🇲🇽
 gil|fool / idiot|athlete|neighbor|artist|Common insult in Argentina/Uruguay speech.|Argentina/Uruguay 🇦🇷🇺🇾
-mamón/mamona|annoying jerk / show-off|quiet friend|chef|tour guide|Mexican insult; can also mean oversensitive depending context.|Mexico 🇲🇽`;
+mamón/mamona|annoying jerk / show-off|quiet friend|chef|tour guide|Mexican insult; can also mean oversensitive depending context.|Mexico 🇲🇽
+¿qué onda?|what's going on?|how much is it?|where are you?|be quiet|Common friendly greeting in Mexico when tone is right.|Mexico 🇲🇽
+me cayó el veinte|it finally clicked / I understood|I dropped a coin|I got paid|I forgot|Mexican expression tied to old coin phones.|Mexico 🇲🇽
+no hay problema|no problem|there is a problem|don't speak|be careful|Common reassurance phrase in Mexico/Central America.|Mexico/Centroamérica 🌎
+echarle ganas|to put in effort|to give up|to complain|to rest|Culturally loaded phrase: effort and perseverance.|Mexico 🇲🇽
+andar con cuidado|to be careful|to walk fast|to be rude|to forget|Often used kindly as caring advice.|Mexico/Centroamérica 🌎
+está cañón|it's tough / complicated|it's easy|it's tiny|it's cheap|Informal Mexican phrase, widely recognized.|Mexico 🇲🇽
+qué chévere|how great / lovely!|how awful|how expensive|how late|Warm Caribbean/Andean-positive expression.|Caribe/Andes 🌎
+estar en la lucha|to keep going / get by|to fight physically|to lose hope|to rest|Strong resilience phrase in Caribbean speech.|Caribe 🌴
+más perdido que...|completely lost|very organized|very lucky|very hungry|Usually left unfinished humorously by speakers.|Caribe/LatAm 🌎
+ahorita|right now / soon / later (context-dependent)|yesterday|next year|never|Great discussion point about time perception by region.|Mexico/Centroamérica/Caribe 🌎
+de una|absolutely / right away|maybe later|not now|with one hand|Very common in Colombia and nearby regions.|Colombia/Andes 🇨🇴🌎
+parcero / parcera|friend / mate|teacher|neighbor only|boss|Friendly Colombian everyday slang.|Colombia 🇨🇴
+toca|it's necessary / no choice|play music|touch physically|arrive late|Pragmatic expression used in Andes/Colombia.|Andes/Colombia 🌎
+hágale|go ahead / let's do it|stop now|be quiet|sit down|Common motivating phrase in Colombia.|Colombia 🇨🇴
+che|hey / mate (vocative)|yes|no|goodbye|Key Southern Cone vocative marker.|Argentina/Uruguay 🇦🇷🇺🇾
+tal cual|exactly / that's exactly it|approximately|not sure|maybe|Common agreement marker in Southern Cone and beyond.|Cono Sur 🌎
+al tiro|immediately|tomorrow|slowly|with effort|Means right away in Chile and parts of Mexico contexts.|Chile/Mexico 🇨🇱🇲🇽
+chequear|to check|to cook|to dance|to wait|Common Spanglish borrowing in US Latino communities.|US Latino / LatAm 🌎
+textear|to send a text|to call back|to park|to apply|Frequent digital-age Spanglish verb.|US Latino / LatAm 🌎
+parquear|to park the car|to run quickly|to cook lunch|to shop|Widely heard Spanglish-influenced usage.|US Latino / Caribe 🌎
+aplicar para (un trabajo)|to apply for a job|to quit a job|to train someone|to sign a contract|Direct English influence common in bilingual communities.|US Latino / LatAm 🌎
+te llamo para atrás|I'll call you back|call me now|I called you yesterday|don't call me|Calque from English, common in diaspora speech.|US Latino 🌎
+lonche|lunch|dinner|breakfast|snack only|Border/diaspora borrowing from English 'lunch'.|Mexico fronterizo / US Latino 🌎
+¿me das un ride?|can you give me a lift?|can you sell me a car?|can you call a taxi?|can you wait here?|Socially common Spanglish request in bilingual settings.|US Latino 🌎
+guagua (Caribe)|bus|baby|cake|job|In Caribbean Spanish, guagua usually means bus.|Caribe 🌴
+guagua (Andes)|baby / small child|bus|wallet|teacher|In Andean Spanish, guagua commonly means baby.|Andes 🇧🇴🇪🇨🇵🇪
+torta (México)|sandwich|birthday cake|bus ticket|work shift|In Mexico, torta is typically a sandwich.|Mexico 🇲🇽
+torta (Argentina)|cake|sandwich|bus|wallet|In Argentina/Uruguay, torta usually means cake.|Argentina/Uruguay 🇦🇷🇺🇾
+chamba (uso general)|work / job (informal)|party|dessert|street|In many countries, chamba is informal but neutral for work.|LatAm 🌎
+insulto suave: menso/mensa|dummy / silly person|best friend|teacher|artist|Mild insult in Mexico; less harsh than stronger profanity.|Mexico 🇲🇽`;
 
     const decks = {
       core: parseDeck(coreRaw),
@@ -346,7 +383,7 @@ mamón/mamona|annoying jerk / show-off|quiet friend|chef|tour guide|Mexican insu
         speakPrompt: "Say word/phrase",
         speakOptions: "Say English options",
         speechNotSupported: "Speech is not supported in this browser.",
-        hostNote: "Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. Some cards include profanity and insults; discuss tone, audience, and when NOT to use them.",
+        hostNote: "Tip for hosts: after each answer, ask someone to make a short sentence using that word or expression. Some cards include profanity, insults, and country-specific slang; discuss tone, audience, and when NOT to use them.",
         score: "Team Score",
         streak: "Streak",
         question: "Question",
@@ -379,7 +416,7 @@ mamón/mamona|annoying jerk / show-off|quiet friend|chef|tour guide|Mexican insu
         speakPrompt: "Decir palabra/frase",
         speakOptions: "Decir opciones en inglés",
         speechNotSupported: "La síntesis de voz no está disponible en este navegador.",
-        hostNote: "Consejo para anfitriones: tras cada respuesta, pide a alguien que haga una frase corta con esa palabra o expresión. Algunas tarjetas incluyen palabrotas e insultos; comenten el tono, el público y cuándo NO usarlos.",
+        hostNote: "Consejo para anfitriones: tras cada respuesta, pide a alguien que haga una frase corta con esa palabra o expresión. Algunas tarjetas incluyen palabrotas, insultos y jerga específica por país; comenten el tono, el público y cuándo NO usarlos.",
         score: "Puntuación del equipo",
         streak: "Racha",
         question: "Pregunta",

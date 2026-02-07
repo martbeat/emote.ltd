@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Phrasal Verb Circle: English ↔ Spanish</title>
+  <meta name="description" content="A friendly circle-style game for learning English phrasal verbs with Spanish meanings, difficulty ratings, examples, and Mexico-focused learning tips." />
+  <style>
+    :root{
+      --bg:#0f1329;
+      --panel:#181f43;
+      --ink:#f6f7ff;
+      --muted:#c0c8ef;
+      --accent:#77e2b1;
+      --accent2:#84a8ff;
+      --good:#6ff0be;
+      --bad:#ff8fa4;
+      --card:#ffffff12;
+      --border:#ffffff28;
+      --shadow:0 14px 32px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100svh;
+      font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1000px 600px at 0 -20%, #364ab066, transparent),
+        radial-gradient(900px 560px at 100% 0, #189f7866, transparent),
+        linear-gradient(180deg, #0a0d1d, var(--bg));
+      display:grid;
+      place-items:center;
+      padding:16px;
+      line-height:1.45;
+    }
+    .game{
+      width:min(940px, 100%);
+      background:linear-gradient(180deg, #1b2250, var(--panel));
+      border:1px solid #ffffff24;
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+    h1{margin:0 0 8px;font-size:clamp(1.5rem,3.2vw,2.2rem)}
+    .sub{margin:0 0 14px;color:var(--muted);font-size:1rem}
+
+    .toolbar,.stats,.footer{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .toolbar{margin-bottom:14px}
+    .stats{justify-content:space-between;margin-bottom:14px}
+
+    .pill{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:1rem;font-weight:700}
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+
+    .prompt{font-size:1.3rem;font-weight:800;margin:0 0 5px}
+    .hint,.meta,.tip,.examples{margin:0;color:var(--muted);font-size:1rem}
+    .meta strong{color:var(--ink)}
+    .examples{margin-top:7px}
+    .tip{margin-top:7px;color:#b8ffd9}
+
+    .options{margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+    button,select{font:inherit;border-radius:12px;border:1px solid #ffffff33;color:var(--ink);background:#0c1130;padding:10px 12px}
+    button{cursor:pointer;font-weight:700}
+    button:hover{border-color:#ffffff66;transform:translateY(-1px)}
+    button:disabled{opacity:.67;cursor:not-allowed;transform:none}
+
+    .opt{min-height:58px;text-align:left;background:#ffffff12}
+    .opt.good{background:color-mix(in srgb,var(--good) 35%, transparent);border-color:var(--good)}
+    .opt.bad{background:color-mix(in srgb,var(--bad) 35%, transparent);border-color:var(--bad)}
+
+    .primary{background:linear-gradient(180deg,var(--accent2),#607ed8);border:none}
+    .secondary{background:linear-gradient(180deg,var(--accent),#56bb8f);border:none;color:#0f1a1e}
+
+    .footer{justify-content:space-between;margin-top:14px}
+    .msg{font-size:1.02rem;font-weight:700;min-height:1.3em;margin:0}
+
+    .summary{display:none;margin-top:14px}
+    .summary ul{margin:10px 0 0 18px}
+    .note{margin-top:14px;font-size:.95rem;color:var(--muted)}
+
+    @media (max-width:700px){
+      .options{grid-template-columns:1fr}
+      .prompt{font-size:1.15rem}
+    }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <h1>Phrasal Verb Circle: English ↔ Spanish 🇬🇧🇲🇽</h1>
+    <p class="sub">Practice high-frequency English phrasal verbs with Spanish meanings, graded difficulty, and examples. Built for Latin American learners and especially useful for Mexico-based contexts.</p>
+
+    <div class="toolbar">
+      <label for="deck">Deck:</label>
+      <select id="deck">
+        <option value="all">All levels</option>
+        <option value="easy">Easy (1–2)</option>
+        <option value="mid">Intermediate (3)</option>
+        <option value="hard">Advanced (4–5)</option>
+        <option value="work">Work & study</option>
+        <option value="social">Daily conversation</option>
+      </select>
+      <label for="rounds">Rounds:</label>
+      <select id="rounds">
+        <option value="10" selected>10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+      </select>
+      <label for="mexMode">Mexico boost:</label>
+      <select id="mexMode">
+        <option value="on" selected>On</option>
+        <option value="off">Off</option>
+      </select>
+      <button id="newGame" class="secondary">New game</button>
+    </div>
+
+    <div class="stats">
+      <span class="pill" id="score">Score: 0</span>
+      <span class="pill" id="progress">Round 0 / 0</span>
+      <span class="pill" id="difficulty">Difficulty: -</span>
+    </div>
+
+    <section class="panel">
+      <p class="prompt" id="prompt">Press “New game” to start.</p>
+      <p class="hint" id="hint"></p>
+      <p class="meta" id="meta"></p>
+      <p class="examples" id="examples"></p>
+      <p class="tip" id="tip"></p>
+      <div class="options" id="options"></div>
+    </section>
+
+    <div class="footer">
+      <p class="msg" id="msg"></p>
+      <div>
+        <button id="speakPrompt" class="primary">🔊 Verb + example</button>
+        <button id="speakOptions" class="primary">🔊 Options</button>
+        <button id="reveal" class="primary" disabled>Reveal</button>
+        <button id="next" class="primary" disabled>Next</button>
+      </div>
+    </div>
+
+    <section class="panel summary" id="summary"></section>
+    <p class="note">Extension ideas for Mexican learners: 1) contrast phrasal verbs vs one-word formal alternatives (e.g., <em>put off</em> vs <em>postpone</em>), 2) train against literal translation traps ("<em>subir arriba</em>" style overtranslation), 3) create roleplay sets for call centers, tourism, logistics, healthcare, and bilingual customer support.</p>
+  </main>
+
+  <script>
+    const raw = `
+get up|levantarse|1|social|I get up at 6:00 for work.|Me levanto a las 6:00 para trabajar.|In Mexico, many schedules start early; pair with time expressions.
+wake up|despertarse|1|social|Wake up, we are late.|Despiértate, vamos tarde.|Useful in family and school routines.
+turn on|encender|1|social|Turn on the light, please.|Enciende la luz, por favor.|High-frequency home command.
+turn off|apagar|1|social|Please turn off the TV.|Por favor apaga la tele.|Very common with electricity-saving habits.
+sit down|sentarse|1|social|Please sit down.|Por favor siéntate.|Polite classroom phrase.
+stand up|ponerse de pie|1|social|Stand up when your name is called.|Ponte de pie cuando digan tu nombre.|Frequent in school and meetings.
+come in|entrar|1|social|Come in and have a seat.|Pasa y toma asiento.|Classic polite invitation.
+go out|salir|1|social|We will go out after dinner.|Vamos a salir después de cenar.|Useful for plans with friends.
+find out|averiguar / enterarse|2|work|I need to find out the price.|Necesito averiguar el precio.|Great for shopping and admin tasks.
+look for|buscar|1|social|I am looking for my keys.|Estoy buscando mis llaves.|Keep separate from “look at”.
+look at|mirar|1|social|Look at this message.|Mira este mensaje.|Foundational verb + particle pattern.
+put on|ponerse (ropa)|2|social|Put on a jacket, it is cold.|Ponte una chamarra, hace frío.|Use “chamarra” for local relevance.
+take off|quitarse / despegar|2|social|Take off your shoes.|Quítate los zapatos.|Has two meanings; context matters.
+try on|probarse|2|social|Try on these jeans.|Pruébate estos jeans.|Useful in shopping conversations.
+pick up|recoger|2|social|I will pick you up at 8.|Paso por ti a las 8.|Very common in Mexico for transport plans.
+drop off|dejar (a alguien/en lugar)|2|social|Can you drop me off downtown?|¿Me puedes dejar en el centro?|Transport and commute phrase.
+call back|devolver la llamada|2|work|I will call you back in 10 minutes.|Te devuelvo la llamada en 10 minutos.|Critical for phone professionalism.
+hang up|colgar (teléfono)|2|work|Don’t hang up yet.|No cuelgues todavía.|Call-center essential.
+fill out|llenar (formulario)|2|work|Please fill out this form.|Por favor llena este formulario.|Admin/legal paperwork term.
+show up|aparecer / presentarse|2|social|He did not show up to class.|No se presentó a clase.|Great for attendance context.
+run out of|quedarse sin|2|social|We ran out of milk.|Nos quedamos sin leche.|Very frequent daily verb chunk.
+set up|configurar / organizar|3|work|Can you set up the meeting?|¿Puedes organizar la reunión?|Tech + events usefulness.
+log in|iniciar sesión|2|work|Log in with your email.|Inicia sesión con tu correo.|Digital literacy necessity.
+log out|cerrar sesión|2|work|Remember to log out.|Recuerda cerrar sesión.|Cybersecurity habit phrase.
+back up|respaldar (datos)|3|work|Back up your files.|Respalda tus archivos.|Useful in office and school.
+check in|registrarse|2|social|We need to check in at the hotel.|Necesitamos registrarnos en el hotel.|Travel English staple.
+check out|hacer checkout / revisar|3|social|What time do we check out?|¿A qué hora hacemos checkout?|Hotel contexts in tourism jobs.
+look up|buscar (información)|2|work|I will look it up online.|Lo voy a buscar en internet.|High-frequency online task.
+go over|repasar|2|work|Let’s go over the notes.|Repasemos los apuntes.|Great for study groups.
+hand in|entregar|2|work|Please hand in your homework.|Entreguen la tarea, por favor.|Classroom and compliance language.
+hand out|repartir|2|work|The teacher handed out worksheets.|La maestra repartió hojas de trabajo.|Frequent in training sessions.
+keep on|seguir (haciendo algo)|3|social|Keep on practicing every day.|Sigue practicando todos los días.|Motivational classroom phrase.
+carry on|continuar|3|work|Carry on with the project.|Continúen con el proyecto.|Formal workplace alternative to “continue”.
+work out|funcionar / hacer ejercicio / resolver|4|work|We need to work out a solution.|Necesitamos resolver una solución.|Multiple meanings: high difficulty.
+figure out|entender / resolver|3|work|I can’t figure out this problem.|No logro resolver este problema.|Very common in spoken English.
+bring up|mencionar / criar|4|work|She brought up an important issue.|Ella mencionó un tema importante.|Polysemy makes it advanced.
+come up with|idear / proponer|4|work|Can you come up with an idea?|¿Puedes proponer una idea?|Innovation meetings phrase.
+put off|posponer|3|work|Don’t put off your payment.|No pospongas tu pago.|Contrast with formal “postpone”.
+turn down|rechazar / bajar volumen|4|social|They turned down the offer.|Rechazaron la oferta.|Two main meanings; train both.
+turn up|aparecer / subir volumen|4|social|Turn up the music a little.|Súbele un poco a la música.|Common in social settings.
+give up|rendirse / dejar|3|social|Don’t give up on English.|No te rindas con el inglés.|Motivational high-frequency chunk.
+cut down on|reducir|4|social|I need to cut down on sugar.|Necesito reducir el azúcar.|Health conversations.
+cut off|cortar / interrumpir|4|work|The call was cut off.|La llamada se cortó.|Telecom context for remote work.
+look after|cuidar|2|social|She looks after her grandmother.|Ella cuida a su abuelita.|Family responsibility vocabulary.
+get along with|llevarse bien con|3|social|I get along with my coworkers.|Me llevo bien con mis compañeros.|Team culture phrase.
+catch up|ponerse al día|3|work|I need to catch up on emails.|Necesito ponerme al día con los correos.|Office rhythm vocabulary.
+keep up with|mantener el ritmo de|4|work|It’s hard to keep up with updates.|Es difícil seguir el ritmo de las actualizaciones.|Digital pace pressure phrase.
+end up|terminar (haciendo algo)|3|social|We ended up staying home.|Terminamos quedándonos en casa.|Narrative storytelling pattern.
+make up|inventar / reconciliarse / maquillar|5|social|They made up after the argument.|Se reconciliaron después de discutir.|Very polysemous; advanced.
+bring back|traer de vuelta / recordar|3|social|This song brings back memories.|Esta canción trae recuerdos.|Emotional and narrative use.
+point out|señalar|3|work|Let me point out one detail.|Déjame señalar un detalle.|Useful for presentations.
+settle down|calmarse / establecerse|4|social|After college, he settled down.|Después de la universidad, se estableció.|Life-stage and behavior meaning.
+run into|toparse con|4|social|I ran into an old friend.|Me topé con un amigo de antes.|Natural spoken interaction phrase.
+look forward to|tener ganas de / esperar con ilusión|4|social|I look forward to meeting you.|Tengo muchas ganas de conocerte.|Professional email phrase.
+get over|superar|4|social|It took her time to get over the breakup.|Le tomó tiempo superar la ruptura.|Emotion processing vocabulary.
+break down|descomponerse / derrumbarse|5|social|My car broke down on the highway.|Mi coche se descompuso en la carretera.|Mechanical + emotional meanings.
+break up|terminar una relación|3|social|They broke up last month.|Terminaron el mes pasado.|Very common in media and conversation.
+blow up|explotar / enojarse|5|social|He blew up when he heard the news.|Se enojó muchísimo al oír la noticia.|Slangy intensity.
+calm down|calmarse|2|social|Calm down and breathe.|Cálmate y respira.|Useful for emotional regulation language.
+slow down|bajar la velocidad / ir más despacio|2|social|Please slow down when you speak.|Habla más despacio, por favor.|Great for language classrooms.
+speed up|acelerar|3|work|We need to speed up production.|Necesitamos acelerar la producción.|Manufacturing/logistics context.
+carry out|realizar / ejecutar|4|work|The team carried out the plan.|El equipo ejecutó el plan.|Formal workplace usage.
+come across|encontrar / dar impresión|5|work|I came across an interesting article.|Me encontré un artículo interesante.|Subtle pragmatic meaning.
+ask for|pedir|1|social|Ask for help if you need it.|Pide ayuda si la necesitas.|Fundamental survival phrase.
+pay back|devolver dinero|2|social|I will pay you back tomorrow.|Mañana te pago.|Useful with friends and loans.
+put away|guardar|2|social|Put away your phone.|Guarda tu celular.|Family/classroom discipline phrase.
+throw away|tirar|2|social|Don’t throw away the receipt.|No tires el recibo.|Shopping and returns context.
+move in|mudarse a (entrar)|3|social|They moved in last week.|Se mudaron la semana pasada.|Housing conversation.
+move out|mudarse de (salir)|3|social|He moved out in January.|Se salió de la casa en enero.|Rental/housing reality.
+take over|tomar control|4|work|A new manager took over.|Un nuevo gerente tomó el control.|Business transitions.
+step down|renunciar (cargo)|4|work|The director stepped down.|El director renunció.|News and corporate language.
+step up|dar un paso al frente / aumentar|4|work|We need to step up quality.|Necesitamos subir la calidad.|Leadership and performance.
+follow up|dar seguimiento|3|work|I will follow up by email.|Daré seguimiento por correo.|Core professional communication.
+reach out|contactar|3|work|Please reach out to support.|Por favor contacta a soporte.|Modern business English staple.
+come back|regresar|1|social|Come back tomorrow.|Regresa mañana.|Foundational motion phrase.
+go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Permission and process phrase.
+`;
+
+    const DATA = raw.trim().split("\n").map(line => {
+      const [verb, meaning, difficulty, topic, exEn, exEs, mxTip] = line.split("|").map(s => s.trim());
+      return { verb, meaning, difficulty: Number(difficulty), topic, exEn, exEs, mxTip };
+    });
+
+    const byId = id => document.getElementById(id);
+    const deckEl = byId("deck"), roundsEl = byId("rounds"), mexModeEl = byId("mexMode");
+    const scoreEl = byId("score"), progressEl = byId("progress"), difficultyEl = byId("difficulty");
+    const promptEl = byId("prompt"), hintEl = byId("hint"), metaEl = byId("meta"), examplesEl = byId("examples"), tipEl = byId("tip");
+    const optionsEl = byId("options"), msgEl = byId("msg"), revealBtn = byId("reveal"), nextBtn = byId("next");
+    const speakPromptBtn = byId("speakPrompt"), speakOptionsBtn = byId("speakOptions");
+    const summaryEl = byId("summary");
+
+    let state = { score:0, round:0, total:10, deck:[], current:null, answered:false, misses:[] };
+
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    }
+
+    function buildDeck(){
+      const mode = deckEl.value;
+      return DATA.filter(item => {
+        if(mode === "easy") return item.difficulty <= 2;
+        if(mode === "mid") return item.difficulty === 3;
+        if(mode === "hard") return item.difficulty >= 4;
+        if(mode === "work") return item.topic === "work";
+        if(mode === "social") return item.topic === "social";
+        return true;
+      });
+    }
+
+    function start(){
+      const deck = shuffle(buildDeck());
+      state.total = Number(roundsEl.value);
+      state.deck = deck;
+      state.score = 0;
+      state.round = 0;
+      state.misses = [];
+      summaryEl.style.display = "none";
+      nextRound();
+    }
+
+    function optionSet(correct){
+      const distractors = shuffle(DATA.filter(x => x.meaning !== correct.meaning).map(x => x.meaning)).slice(0,3);
+      return shuffle([correct.meaning, ...distractors]);
+    }
+
+
+    function pickVoice(lang){
+      const voices = window.speechSynthesis.getVoices();
+      return voices.find(v => v.lang === lang) || voices.find(v => v.lang.toLowerCase().startsWith(lang.toLowerCase().split('-')[0])) || null;
+    }
+
+    function speak(text, lang = "en-US"){
+      if(!("speechSynthesis" in window)){
+        msgEl.textContent = "⚠️ Speech is not supported in this browser.";
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = 0.95;
+      const voice = pickVoice(lang);
+      if(voice) utterance.voice = voice;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function speakCurrentPrompt(){
+      if(!state.current) return;
+      const cur = state.current;
+      speak(`${cur.verb}. Example: ${cur.exEn}`, "en-US");
+    }
+
+    function speakCurrentOptions(){
+      const opts = [...optionsEl.querySelectorAll("button")].map(b => b.textContent);
+      if(!opts.length) return;
+      speak(`Opciones: ${opts.join('. ')}`, "es-MX");
+    }
+
+    function renderExamples(cur, showSpanish = false){
+      const english = `<strong>Example (EN):</strong> ${cur.exEn}`;
+      const spanish = `<br><strong>Ejemplo (ES):</strong> ${cur.exEs}`;
+      examplesEl.innerHTML = showSpanish ? english + spanish : english;
+    }
+
+    function nextRound(){
+      if(state.round >= state.total || !state.deck.length){
+        finish();
+        return;
+      }
+      state.answered = false;
+      state.round += 1;
+      state.current = state.deck[(state.round - 1) % state.deck.length];
+      const cur = state.current;
+
+      promptEl.textContent = `What does “${cur.verb}” mean in Spanish?`;
+      hintEl.textContent = `Topic: ${cur.topic === "work" ? "Work / study" : "Daily conversation"}`;
+      metaEl.innerHTML = `<strong>Difficulty:</strong> ${cur.difficulty}/5`;
+      renderExamples(cur, false);
+      tipEl.textContent = mexModeEl.value === "on" ? `🇲🇽 Mexico tip: ${cur.mxTip}` : "";
+
+      scoreEl.textContent = `Score: ${state.score}`;
+      progressEl.textContent = `Round ${state.round} / ${state.total}`;
+      difficultyEl.textContent = `Difficulty: ${cur.difficulty}/5`;
+      msgEl.textContent = "";
+      revealBtn.disabled = false;
+      nextBtn.disabled = true;
+
+      optionsEl.innerHTML = "";
+      optionSet(cur).forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "opt";
+        btn.textContent = opt;
+        btn.onclick = () => answer(opt, btn);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function answer(choice, button){
+      if(state.answered) return;
+      state.answered = true;
+      const correct = state.current.meaning;
+      const buttons = [...optionsEl.querySelectorAll("button")];
+      buttons.forEach(b => {
+        if(b.textContent === correct) b.classList.add("good");
+        else if(b === button) b.classList.add("bad");
+        b.disabled = true;
+      });
+
+      if(choice === correct){
+        state.score += 1;
+        msgEl.textContent = "✅ Correct.";
+      }else{
+        msgEl.textContent = `❌ Correct answer: ${correct}`;
+        state.misses.push(state.current);
+      }
+      renderExamples(state.current, true);
+      scoreEl.textContent = `Score: ${state.score}`;
+      revealBtn.disabled = true;
+      nextBtn.disabled = false;
+    }
+
+    function reveal(){
+      if(state.answered) return;
+      state.answered = true;
+      const correct = state.current.meaning;
+      [...optionsEl.querySelectorAll("button")].forEach(b => {
+        if(b.textContent === correct) b.classList.add("good");
+        b.disabled = true;
+      });
+      msgEl.textContent = `Answer: ${correct}`;
+      state.misses.push(state.current);
+      renderExamples(state.current, true);
+      revealBtn.disabled = true;
+      nextBtn.disabled = false;
+    }
+
+    function finish(){
+      promptEl.textContent = "Session complete 🎉";
+      hintEl.textContent = "";
+      metaEl.textContent = "";
+      examplesEl.textContent = "";
+      tipEl.textContent = "";
+      optionsEl.innerHTML = "";
+      revealBtn.disabled = true;
+      nextBtn.disabled = true;
+      const pct = Math.round((state.score / Math.max(1, state.total)) * 100);
+      msgEl.textContent = `Final score: ${state.score}/${state.total} (${pct}%).`;
+
+      const hardestMisses = state.misses
+        .sort((a,b) => b.difficulty - a.difficulty)
+        .slice(0,6)
+        .map(x => `<li><strong>${x.verb}</strong> → ${x.meaning} (D${x.difficulty})<br><em>${x.exEn}</em></li>`)
+        .join("");
+
+      summaryEl.innerHTML = `
+        <h3 style="margin-top:0">Mexico-focused next steps</h3>
+        <ul>
+          <li>Build mini-dialogues for customer service in Mexico: banking, logistics, tourism, healthcare, and e-commerce support.</li>
+          <li>Pair each phrasal verb with a formal single-word synonym (e.g., <em>put off</em> → <em>postpone</em>) to improve register control.</li>
+          <li>Train pronunciation contrasts that affect intelligibility for Mexican Spanish speakers: /v/ vs /b/, final consonants, and linked speech.</li>
+          <li>Create WhatsApp-sized drills: 5 verbs/day with one voice note and one roleplay response.</li>
+        </ul>
+        ${hardestMisses ? `<h4>Review set</h4><ul>${hardestMisses}</ul>` : "<p>Excellent run. No missed items in this set.</p>"}
+      `;
+      summaryEl.style.display = "block";
+    }
+
+    byId("newGame").addEventListener("click", start);
+    nextBtn.addEventListener("click", nextRound);
+    revealBtn.addEventListener("click", reveal);
+    speakPromptBtn.addEventListener("click", speakCurrentPrompt);
+    speakOptionsBtn.addEventListener("click", speakCurrentOptions);
+
+    start();
+  </script>
+</body>
+</html>

@@ -277,28 +277,35 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
     }
 
 
-    function speak(text){
+    function pickVoice(lang){
+      const voices = window.speechSynthesis.getVoices();
+      return voices.find(v => v.lang === lang) || voices.find(v => v.lang.toLowerCase().startsWith(lang.toLowerCase().split('-')[0])) || null;
+    }
+
+    function speak(text, lang = "en-US"){
       if(!("speechSynthesis" in window)){
         msgEl.textContent = "⚠️ Speech is not supported in this browser.";
         return;
       }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
+      utterance.lang = lang;
       utterance.rate = 0.95;
+      const voice = pickVoice(lang);
+      if(voice) utterance.voice = voice;
       window.speechSynthesis.speak(utterance);
     }
 
     function speakCurrentPrompt(){
       if(!state.current) return;
       const cur = state.current;
-      speak(`${cur.verb}. Example: ${cur.exEn}`);
+      speak(`${cur.verb}. Example: ${cur.exEn}`, "en-US");
     }
 
     function speakCurrentOptions(){
       const opts = [...optionsEl.querySelectorAll("button")].map(b => b.textContent);
       if(!opts.length) return;
-      speak(`Options: ${opts.join('. ')}`);
+      speak(`Opciones: ${opts.join('. ')}`, "es-MX");
     }
 
     function nextRound(){

@@ -301,6 +301,8 @@
     a.play:active{ transform: translateY(0px) scale(.99); }
     a.play:focus-visible{ outline:none; box-shadow: var(--ring), 0 12px 24px rgba(0,0,0,.22); }
 
+    .play-label-title{ display:none; }
+
     .mini{
       flex: 0 0 auto;
       display:flex;
@@ -384,6 +386,39 @@
   .card.is-focused .desc{
     max-height: 220px;
     opacity: 1;
+  }
+}
+
+@media (max-width: 380px){
+  .card .inner{
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .card .toprow,
+  .card .desc{
+    display:none;
+  }
+
+  .actions{
+    padding-top: 0;
+  }
+
+  a.play{
+    min-height: 50px;
+    padding: 6px 8px;
+    font-size: 13px;
+    border-radius: 9px;
+    gap: 6px;
+  }
+
+  .play-label-default,
+  .play-arrow{
+    display:none;
+  }
+
+  .play-label-title{
+    display:inline;
   }
 }
 
@@ -491,6 +526,13 @@ const GAMES = [
     tag: "Language",
     tagClass: "word",
     desc: "Friendly group game with vocabulary, phrases, and regional Spanish from Bolivia, Mexico, Spain, and beyond."
+  },
+  {
+    title: "Phrasal Verb Circle (EN ↔ ES)",
+    href: "PhrasalVerbsCircle.html",
+    tag: "Language",
+    tagClass: "word",
+    desc: "English phrasal verbs into Spanish with difficulty levels, examples, and Mexico-focused learning tips."
   },
   {
     title: "Dominoes",
@@ -697,8 +739,9 @@ let chromeMetrics = measureChrome();
 
           <div class="actions">
             <a class="play" href="${encodeURI(game.href)}" target="_self" rel="noopener">
-              Play
-              <span aria-hidden="true">→</span>
+              <span class="play-label-default">Play</span>
+              <span class="play-label-title">${escapeHtml(game.title)}</span>
+              <span class="play-arrow" aria-hidden="true">→</span>
             </a>
             <div class="mini">
               <button type="button" class="nudge" title="Nudge">↺</button>

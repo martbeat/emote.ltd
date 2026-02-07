@@ -133,6 +133,8 @@
     <div class="footer">
       <p class="msg" id="msg"></p>
       <div>
+        <button id="speakPrompt" class="primary">🔊 Verb + example</button>
+        <button id="speakOptions" class="primary">🔊 Options</button>
         <button id="reveal" class="primary" disabled>Reveal</button>
         <button id="next" class="primary" disabled>Next</button>
       </div>
@@ -232,6 +234,7 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
     const scoreEl = byId("score"), progressEl = byId("progress"), difficultyEl = byId("difficulty");
     const promptEl = byId("prompt"), hintEl = byId("hint"), metaEl = byId("meta"), examplesEl = byId("examples"), tipEl = byId("tip");
     const optionsEl = byId("options"), msgEl = byId("msg"), revealBtn = byId("reveal"), nextBtn = byId("next");
+    const speakPromptBtn = byId("speakPrompt"), speakOptionsBtn = byId("speakOptions");
     const summaryEl = byId("summary");
 
     let state = { score:0, round:0, total:10, deck:[], current:null, answered:false, misses:[] };
@@ -271,6 +274,31 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
     function optionSet(correct){
       const distractors = shuffle(DATA.filter(x => x.meaning !== correct.meaning).map(x => x.meaning)).slice(0,3);
       return shuffle([correct.meaning, ...distractors]);
+    }
+
+
+    function speak(text){
+      if(!("speechSynthesis" in window)){
+        msgEl.textContent = "⚠️ Speech is not supported in this browser.";
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function speakCurrentPrompt(){
+      if(!state.current) return;
+      const cur = state.current;
+      speak(`${cur.verb}. Example: ${cur.exEn}`);
+    }
+
+    function speakCurrentOptions(){
+      const opts = [...optionsEl.querySelectorAll("button")].map(b => b.textContent);
+      if(!opts.length) return;
+      speak(`Options: ${opts.join('. ')}`);
     }
 
     function nextRound(){
@@ -377,6 +405,8 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
     byId("newGame").addEventListener("click", start);
     nextBtn.addEventListener("click", nextRound);
     revealBtn.addEventListener("click", reveal);
+    speakPromptBtn.addEventListener("click", speakCurrentPrompt);
+    speakOptionsBtn.addEventListener("click", speakCurrentOptions);
 
     start();
   </script>

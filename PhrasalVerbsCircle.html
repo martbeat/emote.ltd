@@ -308,6 +308,12 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
       speak(`Opciones: ${opts.join('. ')}`, "es-MX");
     }
 
+    function renderExamples(cur, showSpanish = false){
+      const english = `<strong>Example (EN):</strong> ${cur.exEn}`;
+      const spanish = `<br><strong>Ejemplo (ES):</strong> ${cur.exEs}`;
+      examplesEl.innerHTML = showSpanish ? english + spanish : english;
+    }
+
     function nextRound(){
       if(state.round >= state.total || !state.deck.length){
         finish();
@@ -321,7 +327,7 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
       promptEl.textContent = `What does “${cur.verb}” mean in Spanish?`;
       hintEl.textContent = `Topic: ${cur.topic === "work" ? "Work / study" : "Daily conversation"}`;
       metaEl.innerHTML = `<strong>Difficulty:</strong> ${cur.difficulty}/5`;
-      examplesEl.innerHTML = `<strong>Example:</strong> ${cur.exEn} <br><strong>Ejemplo:</strong> ${cur.exEs}`;
+      renderExamples(cur, false);
       tipEl.textContent = mexModeEl.value === "on" ? `🇲🇽 Mexico tip: ${cur.mxTip}` : "";
 
       scoreEl.textContent = `Score: ${state.score}`;
@@ -359,6 +365,7 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
         msgEl.textContent = `❌ Correct answer: ${correct}`;
         state.misses.push(state.current);
       }
+      renderExamples(state.current, true);
       scoreEl.textContent = `Score: ${state.score}`;
       revealBtn.disabled = true;
       nextBtn.disabled = false;
@@ -374,6 +381,7 @@ go ahead|adelante / proceder|3|work|Go ahead and send it.|Adelante, envíalo.|Pe
       });
       msgEl.textContent = `Answer: ${correct}`;
       state.misses.push(state.current);
+      renderExamples(state.current, true);
       revealBtn.disabled = true;
       nextBtn.disabled = false;
     }

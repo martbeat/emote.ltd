@@ -125,6 +125,18 @@
       box-shadow: var(--shadow);
     }
 
+    .canvas-wrap::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(255,255,255,.1), transparent 35%),
+        radial-gradient(circle at 80% 10%, rgba(125,255,178,.08), transparent 40%),
+        linear-gradient(120deg, rgba(255,255,255,.03), transparent 45%);
+      mix-blend-mode: screen;
+    }
+
     canvas{
       width:100%;
       height:100%;
@@ -149,6 +161,8 @@
       border: 1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.04);
     }
+
+    .chip strong{ color: var(--accent2); }
 
     .hint{
       color: var(--muted);
@@ -189,8 +203,20 @@
         <option value="nebula">Nebula</option>
         <option value="aurora">Aurora</option>
         <option value="sunrise">Sunrise</option>
+        <option value="electric">Electric</option>
         <option value="mono">Monochrome</option>
       </select>
+    </label>
+    <label>
+      Fractal
+      <select id="fractalSelect">
+        <option value="mandelbrot">Mandelbrot</option>
+        <option value="julia">Julia</option>
+      </select>
+    </label>
+    <label>
+      Glow: <span id="glowValue">0.9</span>
+      <input id="glowInput" type="range" min="0" max="2" step="0.05" value="0.9" />
     </label>
     <label>
       Render Quality
@@ -211,6 +237,7 @@
     <div class="status">
       <div class="chip" id="viewInfo">Center: (-0.5, 0.0) • Width: 3.5</div>
       <div class="chip" id="renderInfo">Rendering…</div>
+      <div class="chip" id="extraInfo">Mode: Mandelbrot</div>
     </div>
   </main>
 
@@ -222,11 +249,15 @@
     const zoomInput = document.getElementById("zoomInput");
     const zoomValue = document.getElementById("zoomValue");
     const paletteSelect = document.getElementById("paletteSelect");
+    const fractalSelect = document.getElementById("fractalSelect");
+    const glowInput = document.getElementById("glowInput");
+    const glowValue = document.getElementById("glowValue");
     const qualitySelect = document.getElementById("qualitySelect");
     const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
     const viewInfo = document.getElementById("viewInfo");
     const renderInfo = document.getElementById("renderInfo");
+    const extraInfo = document.getElementById("extraInfo");
 
     const state = {
       centerX: -0.5,
@@ -235,6 +266,10 @@
       maxIter: Number(iterInput.value),
       zoomFactor: Number(zoomInput.value),
       palette: paletteSelect.value,
+      fractalType: fractalSelect.value,
+      juliaCx: -0.8,
+      juliaCy: 0.156,
+      glow: Number(glowInput.value),
       quality: Number(qualitySelect.value),
       dragging: false,
       dragStart: null,
@@ -258,6 +293,11 @@
         60 + 180 * Math.pow(t, 0.4),
         60 + 160 * (1 - t)
       ],
+      electric: t => [
+        80 + 170 * Math.pow(Math.sin(t * Math.PI * 2.6), 2),
+        25 + 220 * Math.pow(t, 0.5),
+        180 + 70 * Math.cos(t * Math.PI * 1.5)
+      ],
       mono: t => {
         const v = 30 + 210 * t;
         return [v, v, v];
@@ -277,6 +317,10 @@
 
     function updateStatus(){
       viewInfo.textContent = `Center: (${state.centerX.toFixed(6)}, ${state.centerY.toFixed(6)}) • Width: ${state.width.toFixed(6)}`;
+      const mode = state.fractalType === "julia"
+        ? `Mode: Julia c=(${state.juliaCx.toFixed(4)}, ${state.juliaCy.toFixed(4)})`
+        : "Mode: Mandelbrot";
+      extraInfo.innerHTML = `${mode} • Glow: <strong>${state.glow.toFixed(2)}</strong>`;
     }
 
     function smoothIteration(iter, zx, zy){
@@ -305,13 +349,19 @@
       for (let py = 0; py < h; py++){
         const cy = state.centerY + (py / h - 0.5) * scaleY;
         for (let px = 0; px < w; px++){
-          const cx = state.centerX + (px / w - 0.5) * state.width;
+          const fx = state.centerX + (px / w - 0.5) * state.width;
+          const cx = state.fractalType === "julia" ? state.juliaCx : fx;
+          const cyConst = state.fractalType === "julia" ? state.juliaCy : cy;
           let zx = 0;
           let zy = 0;
+          if (state.fractalType === "julia") {
+            zx = fx;
+            zy = cy;
+          }
           let iter = 0;
           while (zx * zx + zy * zy <= 4 && iter < maxIter){
             const xt = zx * zx - zy * zy + cx;
-            zy = 2 * zx * zy + cy;
+            zy = 2 * zx * zy + cyConst;
             zx = xt;
             iter++;
           }
@@ -325,9 +375,10 @@
             const smooth = smoothIteration(iter, zx, zy);
             const t = smooth / maxIter;
             const [r, g, b] = paletteFn(t);
-            data[idx++] = Math.max(0, Math.min(255, Math.round(r)));
-            data[idx++] = Math.max(0, Math.min(255, Math.round(g)));
-            data[idx++] = Math.max(0, Math.min(255, Math.round(b)));
+            const glow = 1 + state.glow * Math.pow(1 - t, 2);
+            data[idx++] = Math.max(0, Math.min(255, Math.round(r * glow)));
+            data[idx++] = Math.max(0, Math.min(255, Math.round(g * glow)));
+            data[idx++] = Math.max(0, Math.min(255, Math.round(b * glow)));
             data[idx++] = 255;
           }
         }
@@ -380,6 +431,24 @@
       render();
     });
 
+    fractalSelect.addEventListener("change", () => {
+      state.fractalType = fractalSelect.value;
+      if (state.fractalType === "julia") {
+        state.centerX = 0;
+        state.centerY = 0;
+        state.width = 3.2;
+      }
+      state.needsRender = true;
+      render();
+    });
+
+    glowInput.addEventListener("input", () => {
+      state.glow = Number(glowInput.value);
+      glowValue.textContent = state.glow.toFixed(2);
+      state.needsRender = true;
+      render();
+    });
+
     qualitySelect.addEventListener("change", () => {
       state.quality = Number(qualitySelect.value);
       resizeCanvas();
@@ -417,6 +486,24 @@
       render();
     });
 
+    canvas.addEventListener("contextmenu", event => {
+      if (state.fractalType !== "mandelbrot") return;
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const nx = (event.clientX - rect.left) / rect.width - 0.5;
+      const ny = (event.clientY - rect.top) / rect.height - 0.5;
+      const scaleY = state.width * (rect.height / rect.width);
+      state.juliaCx = state.centerX + nx * state.width;
+      state.juliaCy = state.centerY + ny * scaleY;
+      state.fractalType = "julia";
+      fractalSelect.value = "julia";
+      state.centerX = 0;
+      state.centerY = 0;
+      state.width = 3.2;
+      state.needsRender = true;
+      render();
+    });
+
     canvas.addEventListener("wheel", event => {
       event.preventDefault();
       const zoomIn = event.deltaY < 0;
@@ -446,6 +533,7 @@
 
     iterValue.textContent = iterInput.value;
     zoomValue.textContent = `${Number(zoomInput.value).toFixed(1)}×`;
+    glowValue.textContent = Number(glowInput.value).toFixed(2);
     resizeCanvas();
   </script>
 </body>

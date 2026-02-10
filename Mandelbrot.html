@@ -204,6 +204,10 @@
         <option value="aurora">Aurora</option>
         <option value="sunrise">Sunrise</option>
         <option value="electric">Electric</option>
+        <option value="infernoIce">Inferno Ice</option>
+        <option value="retroPop">Retro Pop</option>
+        <option value="acidWave">Acid Wave</option>
+        <option value="topography">Topography</option>
         <option value="mono">Monochrome</option>
       </select>
     </label>
@@ -298,6 +302,71 @@
         25 + 220 * Math.pow(t, 0.5),
         180 + 70 * Math.cos(t * Math.PI * 1.5)
       ],
+      infernoIce: t => {
+        const split = 0.52;
+        if (t < split) {
+          const n = t / split;
+          return [
+            20 + 235 * n,
+            10 + 90 * Math.pow(n, 1.6),
+            30 + 45 * n
+          ];
+        }
+        const n = (t - split) / (1 - split);
+        return [
+          255 - 170 * n,
+          105 + 145 * n,
+          75 + 180 * Math.pow(n, 0.8)
+        ];
+      },
+      retroPop: t => {
+        const bands = [
+          [255, 34, 96],
+          [255, 203, 33],
+          [45, 246, 255],
+          [121, 74, 255],
+          [255, 255, 255]
+        ];
+        const scaled = t * (bands.length - 1);
+        const i = Math.min(bands.length - 2, Math.floor(scaled));
+        const f = scaled - i;
+        const a = bands[i];
+        const b = bands[i + 1];
+        return [
+          a[0] + (b[0] - a[0]) * f,
+          a[1] + (b[1] - a[1]) * f,
+          a[2] + (b[2] - a[2]) * f
+        ];
+      },
+      acidWave: t => [
+        115 + 140 * Math.cos(t * Math.PI * 2.1 + 0.5),
+        90 + 160 * Math.sin(t * Math.PI * 3.3),
+        30 + 220 * Math.pow(1 - t, 0.45)
+      ],
+      topography: t => {
+        const terraces = [0, 0.16, 0.32, 0.48, 0.66, 0.82, 1];
+        const colors = [
+          [18, 32, 82],
+          [35, 98, 160],
+          [40, 145, 84],
+          [138, 168, 58],
+          [188, 136, 62],
+          [222, 208, 172],
+          [252, 248, 240]
+        ];
+        let i = 0;
+        while (i < terraces.length - 1 && t > terraces[i + 1]) i++;
+        const span = terraces[i + 1] - terraces[i] || 1;
+        const f = (t - terraces[i]) / span;
+        const edge = Math.max(0, Math.min(1, (f - 0.08) / 0.84));
+        const a = colors[i];
+        const b = colors[i + 1];
+        return [
+          a[0] + (b[0] - a[0]) * edge,
+          a[1] + (b[1] - a[1]) * edge,
+          a[2] + (b[2] - a[2]) * edge
+        ];
+      },
       mono: t => {
         const v = 30 + 210 * t;
         return [v, v, v];

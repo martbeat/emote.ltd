@@ -230,6 +230,14 @@
         <option value="0.5">Low (fast)</option>
       </select>
     </label>
+    <label>
+      Calculation Accuracy
+      <select id="accuracySelect">
+        <option value="1">Standard</option>
+        <option value="1.5">High</option>
+        <option value="2">Ultra (slow)</option>
+      </select>
+    </label>
   </section>
 
   <p class="hint">Tip: Use the mouse wheel or trackpad to zoom smoothly. Double click to re-center. Learn more about the set at <a class="link" href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank" rel="noopener">Wikipedia</a>.</p>
@@ -257,6 +265,7 @@
     const glowInput = document.getElementById("glowInput");
     const glowValue = document.getElementById("glowValue");
     const qualitySelect = document.getElementById("qualitySelect");
+    const accuracySelect = document.getElementById("accuracySelect");
     const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
     const viewInfo = document.getElementById("viewInfo");
@@ -275,6 +284,7 @@
       juliaCy: 0.156,
       glow: Number(glowInput.value),
       quality: Number(qualitySelect.value),
+      accuracy: Number(accuracySelect.value),
       dragging: false,
       dragStart: null,
       needsRender: true,
@@ -408,7 +418,7 @@
       const h = canvas.height;
       const image = ctx.createImageData(w, h);
       const data = image.data;
-      const maxIter = state.maxIter;
+      const maxIter = Math.max(1, Math.round(state.maxIter * state.accuracy));
       const halfWidth = state.width / 2;
       const scaleY = state.width * (h / w);
       const halfHeight = scaleY / 2;
@@ -455,7 +465,7 @@
 
       if (renderId !== state.renderId) return;
       ctx.putImageData(image, 0, 0);
-      renderInfo.textContent = `Iterations: ${maxIter} • Palette: ${state.palette}`;
+      renderInfo.textContent = `Iterations: ${maxIter} • Accuracy: ${state.accuracy.toFixed(1)}× • Palette: ${state.palette}`;
       updateStatus();
     }
 
@@ -521,6 +531,12 @@
     qualitySelect.addEventListener("change", () => {
       state.quality = Number(qualitySelect.value);
       resizeCanvas();
+    });
+
+    accuracySelect.addEventListener("change", () => {
+      state.accuracy = Number(accuracySelect.value);
+      state.needsRender = true;
+      render();
     });
 
     resetBtn.addEventListener("click", () => {

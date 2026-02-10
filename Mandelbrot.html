@@ -230,6 +230,14 @@
         <option value="0.5">Low (fast)</option>
       </select>
     </label>
+    <label>
+      Significant Figures
+      <select id="sigFigsSelect">
+        <option value="16">Standard (16)</option>
+        <option value="24">High (24)</option>
+        <option value="31">Ultra (31)</option>
+      </select>
+    </label>
   </section>
 
   <p class="hint">Tip: Use the mouse wheel or trackpad to zoom smoothly. Double click to re-center. Learn more about the set at <a class="link" href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank" rel="noopener">Wikipedia</a>.</p>
@@ -257,6 +265,7 @@
     const glowInput = document.getElementById("glowInput");
     const glowValue = document.getElementById("glowValue");
     const qualitySelect = document.getElementById("qualitySelect");
+    const sigFigsSelect = document.getElementById("sigFigsSelect");
     const resetBtn = document.getElementById("resetBtn");
     const homeBtn = document.getElementById("homeBtn");
     const viewInfo = document.getElementById("viewInfo");
@@ -275,6 +284,7 @@
       juliaCy: 0.156,
       glow: Number(glowInput.value),
       quality: Number(qualitySelect.value),
+      sigFigs: Number(sigFigsSelect.value),
       dragging: false,
       dragStart: null,
       needsRender: true,
@@ -384,10 +394,16 @@
       render();
     }
 
+    function formatSig(value){
+      if (!Number.isFinite(value) || value === 0) return String(value);
+      const displaySigFigs = Math.min(state.sigFigs, 16);
+      return Number(value.toPrecision(displaySigFigs)).toString();
+    }
+
     function updateStatus(){
-      viewInfo.textContent = `Center: (${state.centerX.toFixed(6)}, ${state.centerY.toFixed(6)}) • Width: ${state.width.toFixed(6)}`;
+      viewInfo.textContent = `Center: (${formatSig(state.centerX)}, ${formatSig(state.centerY)}) • Width: ${formatSig(state.width)}`;
       const mode = state.fractalType === "julia"
-        ? `Mode: Julia c=(${state.juliaCx.toFixed(4)}, ${state.juliaCy.toFixed(4)})`
+        ? `Mode: Julia c=(${formatSig(state.juliaCx)}, ${formatSig(state.juliaCy)})`
         : "Mode: Mandelbrot";
       extraInfo.innerHTML = `${mode} • Glow: <strong>${state.glow.toFixed(2)}</strong>`;
     }
@@ -397,6 +413,33 @@
       const nu = Math.log(logZn / Math.log(2)) / Math.log(2);
       return iter + 1 - nu;
     }
+
+    function ddFromNumber(n){ return { hi: n, lo: 0 }; }
+    function ddToNumber(a){ return a.hi + a.lo; }
+    function ddAdd(a, b){
+      const s = a.hi + b.hi;
+      const v = s - a.hi;
+      const t = ((b.hi - v) + (a.hi - (s - v))) + a.lo + b.lo;
+      const hi = s + t;
+      return { hi, lo: t - (hi - s) };
+    }
+    function ddSub(a, b){ return ddAdd(a, { hi: -b.hi, lo: -b.lo }); }
+    function ddMul(a, b){
+      const splitter = 134217729;
+      const p = a.hi * b.hi;
+      const aC = splitter * a.hi;
+      const aBig = aC - (aC - a.hi);
+      const aSmall = a.hi - aBig;
+      const bC = splitter * b.hi;
+      const bBig = bC - (bC - b.hi);
+      const bSmall = b.hi - bBig;
+      const err = ((aBig * bBig - p) + aBig * bSmall + aSmall * bBig) + aSmall * bSmall;
+      const cross = a.hi * b.lo + a.lo * b.hi;
+      const t = err + cross + a.lo * b.lo;
+      const hi = p + t;
+      return { hi, lo: t - (hi - p) };
+    }
+    function ddScale(a, k){ return ddMul(a, ddFromNumber(k)); }
 
     function render(){
       const renderId = ++state.renderId;
@@ -409,30 +452,45 @@
       const image = ctx.createImageData(w, h);
       const data = image.data;
       const maxIter = state.maxIter;
-      const halfWidth = state.width / 2;
       const scaleY = state.width * (h / w);
-      const halfHeight = scaleY / 2;
       const paletteFn = palettes[state.palette] || palettes.nebula;
+      const useDD = state.sigFigs > 16;
 
       let idx = 0;
       for (let py = 0; py < h; py++){
         const cy = state.centerY + (py / h - 0.5) * scaleY;
         for (let px = 0; px < w; px++){
           const fx = state.centerX + (px / w - 0.5) * state.width;
-          const cx = state.fractalType === "julia" ? state.juliaCx : fx;
-          const cyConst = state.fractalType === "julia" ? state.juliaCy : cy;
-          let zx = 0;
-          let zy = 0;
-          if (state.fractalType === "julia") {
-            zx = fx;
-            zy = cy;
-          }
+          const cxN = state.fractalType === "julia" ? state.juliaCx : fx;
+          const cyN = state.fractalType === "julia" ? state.juliaCy : cy;
           let iter = 0;
-          while (zx * zx + zy * zy <= 4 && iter < maxIter){
-            const xt = zx * zx - zy * zy + cx;
-            zy = 2 * zx * zy + cyConst;
-            zx = xt;
-            iter++;
+          let zxN = state.fractalType === "julia" ? fx : 0;
+          let zyN = state.fractalType === "julia" ? cy : 0;
+
+          if (useDD){
+            const cx = ddFromNumber(cxN);
+            const cyConst = ddFromNumber(cyN);
+            let zx = ddFromNumber(zxN);
+            let zy = ddFromNumber(zyN);
+            while (iter < maxIter){
+              const zx2 = ddMul(zx, zx);
+              const zy2 = ddMul(zy, zy);
+              if (ddToNumber(ddAdd(zx2, zy2)) > 4) break;
+              const xt = ddAdd(ddSub(zx2, zy2), cx);
+              const yz = ddMul(zx, zy);
+              zy = ddAdd(ddScale(yz, 2), cyConst);
+              zx = xt;
+              iter++;
+            }
+            zxN = ddToNumber(zx);
+            zyN = ddToNumber(zy);
+          } else {
+            while (zxN * zxN + zyN * zyN <= 4 && iter < maxIter){
+              const xt = zxN * zxN - zyN * zyN + cxN;
+              zyN = 2 * zxN * zyN + cyN;
+              zxN = xt;
+              iter++;
+            }
           }
 
           if (iter >= maxIter){
@@ -441,7 +499,7 @@
             data[idx++] = 18;
             data[idx++] = 255;
           } else {
-            const smooth = smoothIteration(iter, zx, zy);
+            const smooth = smoothIteration(iter, zxN, zyN);
             const t = smooth / maxIter;
             const [r, g, b] = paletteFn(t);
             const glow = 1 + state.glow * Math.pow(1 - t, 2);
@@ -455,7 +513,7 @@
 
       if (renderId !== state.renderId) return;
       ctx.putImageData(image, 0, 0);
-      renderInfo.textContent = `Iterations: ${maxIter} • Palette: ${state.palette}`;
+      renderInfo.textContent = `Iterations: ${maxIter} • Sig figs: ${state.sigFigs} • Palette: ${state.palette}`;
       updateStatus();
     }
 
@@ -521,6 +579,12 @@
     qualitySelect.addEventListener("change", () => {
       state.quality = Number(qualitySelect.value);
       resizeCanvas();
+    });
+
+    sigFigsSelect.addEventListener("change", () => {
+      state.sigFigs = Number(sigFigsSelect.value);
+      state.needsRender = true;
+      render();
     });
 
     resetBtn.addEventListener("click", () => {

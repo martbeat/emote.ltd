@@ -4,10 +4,10 @@
 
 
 .reading-page {
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-  line-height: 1.6;
+  padding: 2.5rem 1.25rem 4.5rem;
+  line-height: 1.75;
 }
 
 /* Header */
@@ -22,13 +22,13 @@
 
 .reading-intro p {
   margin-bottom: 1rem;
-  color: #333;
+  color: #2e3440;
 }
 
 /* Sections */
 
 .reading-section {
-  margin-top: 2.5rem;
+  margin-top: 3rem;
 }
 
 .reading-section h2 {
@@ -106,9 +106,9 @@
 /* Panel styling – echoes index cards */
 
 .reading-section {
-  background: rgba(240, 243, 242, 0.6);
+  background: rgba(245, 247, 250, 0.55);
   border-radius: 14px;
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem 1.75rem;
   margin-top: 2rem;
 }
 
@@ -146,7 +146,7 @@
   .reading-layout {
     display: grid;
     grid-template-columns: 3fr 1fr;
-    gap: 2rem;
+    gap: 3.5rem;
   }
 
   .reading-aside {
@@ -154,4 +154,11 @@
     color: #666;
     padding-top: 0.5rem;
   }
+}
+
+
+.reading-header p a {
+  color: #374151;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

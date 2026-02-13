@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aurora Canvas</title>
+  <meta name="description" content="A visually driven creative playground for painting with living light." />
+  <style>
+    :root{
+      --bg:#060812;
+      --panel:#11172bcc;
+      --ink:#e9efff;
+      --muted:#9badcf;
+      --accent:#7cc4ff;
+      --accent2:#a2ffbe;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(circle at 20% 20%, #15234d 0%, transparent 45%),
+                  radial-gradient(circle at 80% 15%, #1f4a32 0%, transparent 40%),
+                  radial-gradient(circle at 55% 85%, #401f4b 0%, transparent 42%),
+                  var(--bg);
+      color:var(--ink);
+      font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      overflow:hidden;
+    }
+    #paint{position:fixed; inset:0; width:100%; height:100%}
+    .hud{
+      position:fixed;
+      top:14px; left:14px; right:14px;
+      display:flex; flex-wrap:wrap; gap:8px;
+      align-items:center;
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:14px;
+      padding:10px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 14px 28px rgba(0,0,0,.35);
+      z-index:5;
+    }
+    .brand{margin-right:auto; min-width: 190px;}
+    .brand strong{display:block; font-size:15px}
+    .brand span{display:block; color:var(--muted); font-size:12px}
+    .group{display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.06); border-radius:10px; padding:6px}
+    label{font-size:12px; color:var(--muted)}
+    input[type="range"]{width:96px}
+    button,select{
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:8px;
+      background:rgba(255,255,255,.09);
+      color:var(--ink);
+      padding:6px 9px;
+      cursor:pointer;
+    }
+    button:hover,select:hover{border-color:rgba(124,196,255,.7)}
+    .cta{background:linear-gradient(135deg, rgba(124,196,255,.25), rgba(162,255,190,.2));}
+  </style>
+</head>
+<body>
+  <canvas id="paint"></canvas>
+  <div class="hud">
+    <div class="brand">
+      <strong>Aurora Canvas</strong>
+      <span>Drag to paint with living light · Tap for bursts · Press Space for pulse</span>
+    </div>
+    <div class="group">
+      <label for="mode">Mode</label>
+      <select id="mode">
+        <option value="nebula">Nebula</option>
+        <option value="kaleido">Kaleidoscope</option>
+        <option value="ribbons">Ribbons</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="size">Brush</label>
+      <input id="size" type="range" min="4" max="28" value="12" />
+    </div>
+    <div class="group">
+      <label for="gravity">Flow</label>
+      <input id="gravity" type="range" min="0" max="100" value="38" />
+    </div>
+    <div class="group">
+      <button id="pulse" class="cta" type="button">Pulse</button>
+      <button id="clear" type="button">Clear</button>
+      <button id="save" type="button">Save PNG</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('paint');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const modeEl = document.getElementById('mode');
+  const sizeEl = document.getElementById('size');
+  const gravityEl = document.getElementById('gravity');
+  const pulseBtn = document.getElementById('pulse');
+  const clearBtn = document.getElementById('clear');
+  const saveBtn = document.getElementById('save');
+
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = 0, h = 0;
+  let pointer = { x: 0, y: 0, down: false, moved: false };
+  const particles = [];
+  let hueBase = 180;
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = Math.floor(window.innerWidth);
+    h = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function spawn(x, y, power = 1){
+    const brush = Number(sizeEl.value);
+    const mode = modeEl.value;
+    const count = Math.floor((brush * 1.2 + 5) * power);
+
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 2.8 + 0.5;
+      const life = 70 + Math.random() * 80;
+      const spread = brush * (0.2 + Math.random() * 1.8);
+      const t = Math.random();
+      const hue = (hueBase + (mode === 'nebula' ? 60 * t : mode === 'kaleido' ? 160 * t : 260 * t)) % 360;
+      particles.push({
+        x: x + Math.cos(angle) * spread,
+        y: y + Math.sin(angle) * spread,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        age: 0,
+        size: 1.4 + Math.random() * brush * 0.5,
+        hue,
+        sparkle: Math.random() * 0.8 + 0.2,
+      });
+    }
+  }
+
+  function pulse(){
+    spawn(w * 0.5, h * 0.5, 5);
+    hueBase = (hueBase + 45) % 360;
+  }
+
+  function draw(){
+    requestAnimationFrame(draw);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(5,8,16,0.12)';
+    ctx.fillRect(0, 0, w, h);
+
+    const flow = Number(gravityEl.value) / 100;
+    const mode = modeEl.value;
+
+    if (pointer.down) {
+      spawn(pointer.x, pointer.y, pointer.moved ? 1.4 : 0.8);
+      pointer.moved = false;
+      hueBase = (hueBase + 0.8) % 360;
+    }
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.age += 1;
+      if (p.age >= p.life) {
+        particles.splice(i, 1);
+        continue;
+      }
+
+      const lifeT = 1 - p.age / p.life;
+      const swirl = Math.sin((p.age + p.hue) * 0.05) * 0.04;
+      if (mode === 'kaleido') {
+        p.vx += Math.cos(p.y * 0.008) * 0.02;
+        p.vy += Math.sin(p.x * 0.008) * 0.02;
+      } else if (mode === 'ribbons') {
+        p.vx += Math.sin(p.age * 0.05 + p.hue) * 0.03;
+        p.vy += Math.cos(p.age * 0.04 + p.hue) * 0.03;
+      } else {
+        p.vx += swirl;
+        p.vy -= swirl;
+      }
+
+      const cx = w * 0.5;
+      const cy = h * 0.5;
+      p.vx += (cx - p.x) * 0.00003 * flow;
+      p.vy += (cy - p.y) * 0.00003 * flow;
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+
+      const alpha = lifeT * (0.4 + p.sparkle * 0.6);
+      const radius = p.size * (0.5 + lifeT);
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3.2);
+      grad.addColorStop(0, `hsla(${p.hue},100%,72%,${alpha})`);
+      grad.addColorStop(0.6, `hsla(${(p.hue + 30) % 360},100%,55%,${alpha * 0.5})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (mode === 'kaleido') {
+        const mx = w - p.x;
+        const my = h - p.y;
+        ctx.beginPath();
+        ctx.arc(mx, my, radius * 2.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function setPointer(ev){
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ev.clientX - rect.left;
+    pointer.y = ev.clientY - rect.top;
+    pointer.moved = true;
+  }
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    pointer.down = true;
+    setPointer(ev);
+    spawn(pointer.x, pointer.y, 2);
+  });
+  window.addEventListener('pointermove', (ev) => { if (pointer.down) setPointer(ev); });
+  window.addEventListener('pointerup', () => { pointer.down = false; });
+
+  canvas.addEventListener('click', (ev) => {
+    setPointer(ev);
+    spawn(pointer.x, pointer.y, 2.8);
+  });
+
+  pulseBtn.addEventListener('click', pulse);
+  clearBtn.addEventListener('click', () => {
+    particles.length = 0;
+    ctx.clearRect(0, 0, w, h);
+  });
+  saveBtn.addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `aurora-canvas-${Date.now()}.png`;
+    a.click();
+  });
+
+  window.addEventListener('keydown', (ev) => {
+    if (ev.code === 'Space') {
+      ev.preventDefault();
+      pulse();
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  draw();
+})();
+</script>
+</body>
+</html>

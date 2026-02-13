@@ -314,9 +314,17 @@ section{
 
   /* scrim for legibility */
   background:
-    radial-gradient(circle at 18% 18%, rgba(51,199,255,0.24), transparent 42%),
-    radial-gradient(circle at 78% 78%, rgba(124,255,178,0.2), transparent 45%),
-    linear-gradient(135deg, rgba(6,10,26,0.9), rgba(10,17,35,0.72));
+    linear-gradient(90deg,
+      rgba(6,10,26,0.86) 0%,
+      rgba(6,10,26,0.62) 42%,
+      rgba(6,10,26,0.26) 72%,
+      rgba(6,10,26,0.08) 100%
+    ),
+    linear-gradient(180deg,
+      rgba(6,10,26,0.35) 0%,
+      rgba(6,10,26,0.70) 100%
+    ),
+    url("/assets/images/hero-bridge-compass.png");
 
   background-size: cover;
   background-position: center;

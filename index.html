@@ -3,14 +3,14 @@
 <head>
 <meta property="og:title" content="eMote | Models for Change and Governance">
 <meta property="og:description" content="Structured models, essays and tools for calm, evidence-led change governance.">
-<meta property="og:image" content="https://emote.ltd/assets/images/hero-bridge-compass.png">
+<meta property="og:image" content="https://emote.ltd/assets/images/card-compass-governance.png">
 <meta property="og:url" content="https://emote.ltd/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="eMote">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="eMote | Models for Change and Governance">
 <meta name="twitter:description" content="Structured models, essays and tools for calm, evidence-led change governance.">
-<meta name="twitter:image" content="https://emote.ltd/assets/images/hero-bridge-compass.png">
+<meta name="twitter:image" content="https://emote.ltd/assets/images/card-compass-governance.png">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="eMote provides structured models, essays and practical tools for change and governance in complex delivery environments." />
@@ -26,13 +26,13 @@
   <style>
     :root{
       --bg: #0b1020;
-      --panel: rgba(255,255,255,0.035);
-      --panel2: rgba(255,255,255,0.06);
+      --panel: rgba(255,255,255,0.02);
+      --panel2: rgba(255,255,255,0.04);
       --text: rgba(255,255,255,0.92);
       --muted: rgba(255,255,255,0.70);
       --muted2: rgba(255,255,255,0.55);
       --line: rgba(255,255,255,0.14);
-      --shadow: 0 8px 24px rgba(0,0,0,0.22);
+      --shadow: 0 6px 18px rgba(0,0,0,0.16);
       --danger:#ff7d7d;
       --radius: 18px;
       --radius2: 26px;
@@ -56,7 +56,7 @@
       --muted: rgba(0,0,0,0.64);
       --muted2: rgba(0,0,0,0.50);
       --line: rgba(0,0,0,0.14);
-      --shadow: 0 16px 42px rgba(0,0,0,0.12);
+      --shadow: 0 10px 28px rgba(0,0,0,0.08);
       --accent: #0aa6b4;
       --accent2:#2f8f2f;
       --warn:#a06d00;
@@ -87,7 +87,7 @@
     .wrap{
       width:min(1040px, 90vw);
       margin: 0 auto;
-      padding: 30px 0 96px;
+      padding: 42px 0 116px;
     }
 
 section{
@@ -96,12 +96,10 @@ section{
 
 /* Optional divider image between sections */
 .section-divider{
-  height: 110px;
-  margin: 22px 0 6px;
+  height: 84px;
+  margin: 30px 0 12px;
   border-radius: 18px;
-  background: url("/assets/images/divider-ink-watercolour.png");
-  background-size: cover;
-  background-position: center;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 12%, transparent), transparent 48%, color-mix(in oklab, var(--accent2) 10%, transparent));
   border: 1px solid var(--line);
 }
 
@@ -283,7 +281,7 @@ section{
 
     /* Hero */
     .hero{
-      padding: 46px 0 20px;
+      padding: 58px 0 34px;
       display:grid;
       grid-template-columns: 1.2fr 0.8fr;
       gap: 18px;
@@ -316,17 +314,9 @@ section{
 
   /* scrim for legibility */
   background:
-    linear-gradient(90deg,
-      rgba(6,10,26,0.86) 0%,
-      rgba(6,10,26,0.62) 42%,
-      rgba(6,10,26,0.26) 72%,
-      rgba(6,10,26,0.08) 100%
-    ),
-    linear-gradient(180deg,
-      rgba(6,10,26,0.35) 0%,
-      rgba(6,10,26,0.70) 100%
-    ),
-    url("/assets/images/hero-bridge-compass.png"); /* set your hero filename here */
+    radial-gradient(circle at 18% 18%, rgba(51,199,255,0.24), transparent 42%),
+    radial-gradient(circle at 78% 78%, rgba(124,255,178,0.2), transparent 45%),
+    linear-gradient(135deg, rgba(6,10,26,0.9), rgba(10,17,35,0.72));
 
   background-size: cover;
   background-position: center;
@@ -837,7 +827,7 @@ section{
     <a class="navlink" href="#tools">Tools</a>
     <a class="navlink" href="/reading.html">Reading</a>
     <a class="navlink" href="#contact">Contact</a>
-    <button class="btn" id="themeBtn" type="button" aria-label="Toggle theme">Theme</button>
+    <button class="btn" id="themeBtn" type="button" aria-label="Toggle site theme">Switch theme</button>
   </div>
 </nav>
 
@@ -849,14 +839,14 @@ section{
       <div class="card hero-main">
         <div class="kicker">
           <span class="kdot" aria-hidden="true"></span>
-          Change management for projects, made practical with AI
+          Governance and change architecture
         </div>
 
-        <h2 class="hero-title">Make change land cleanly, without the theatre</h2>
+        <h2 class="hero-title">Calm models for governing change in complex systems</h2>
 
         <p class="hero-sub">
-          eMote is my hub for change management in project delivery. I combine AI-assisted delivery, academic thinking,
-          MBA research and leadership skills so projects move from plan to adoption with less friction, less noise and better outcomes.
+          eMote sets out working models, essays and practical tools for leaders responsible for delivery.
+          The approach is deliberate: structured reasoning, clear governance paths and proportionate use of AI where it reduces avoidable effort.
         </p>
 
         <div class="hero-actions">
@@ -864,14 +854,14 @@ section{
             Read governance essays
           </a>
           <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">
-            LinkedIn
+            Review Martin Fry on LinkedIn
           </a>
           <button class="btn" id="copyEmailBtn" type="button">Copy email</button>
-          <a class="btn" href="#models">Review governance models</a>
+          <a class="btn" href="#models">Open the change governance models</a>
         </div>
 
         <div class="mini">
-          Focus areas: adoption, stakeholder alignment, proportionate governance and measurable outcomes.
+          Focus: adoption, stakeholder alignment, proportionate governance and measurable outcomes.
         </div>
       </div>
 
@@ -906,7 +896,7 @@ section{
                 <strong>Articles</strong>
                 <div class="desc">Long-form writing on AI, change, leadership and delivery.</div>
               </div>
-              <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open essay library</a>
+              <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open the governance essay library</a>
             </div>
             <div class="item">
               <div>
@@ -928,28 +918,28 @@ section{
     </div>
 
 <section id="models" class="section">
-  <h2>How I make change effortless</h2>
+  <h2>Models</h2>
   <div class="grid4">
     <article class="pill">
-<img class="pillImg" src="/assets/images/card-clarity-governance.png" width="960" height="640" decoding="async" fetchpriority="high" alt="Illustration: clarity and governance" loading="lazy">
+<img class="pillImg" src="/assets/images/card-compass-governance.png" width="960" height="640" decoding="async" alt="Illustration: clarity and governance" loading="lazy">
       <h3>Clarity and governance</h3>
       <p>Decision points, risks, outcomes, and next actions written so people actually act on them.</p>
     </article>
 
     <article class="pill">
-<img class="pillImg" src="/assets/images/card-stakeholders-together.png" width="960" height="640" decoding="async" alt="Illustration: stakeholders moving together" loading="lazy">
+<img class="pillImg" src="/assets/images/card-bridge-collaboration.png" width="960" height="640" decoding="async" alt="Illustration: stakeholders moving together" loading="lazy">
       <h3>Stakeholders moving together</h3>
       <p>One shared story across sponsor, delivery, BA, and service teams, without extra bureaucracy.</p>
     </article>
 
     <article class="pill">
-<img class="pillImg" src="/assets/images/card-safety-change.png" width="960" height="640" decoding="async" alt="Illustration: safety to change" loading="lazy">
+<img class="pillImg" src="/assets/images/card-lighthouse-safety.png" width="960" height="640" decoding="async" alt="Illustration: safety to change" loading="lazy">
       <h3>Safety to change</h3>
       <p>Confidence, reinforcement, and practical support so adoption is steady not fragile.</p>
     </article>
 
     <article class="pill">
-<img class="pillImg" src="/assets/images/card-momentum-freedom.png" width="960" height="640" decoding="async" alt="Illustration: momentum and freedom" loading="lazy">
+<img class="pillImg" src="/assets/images/card-kite-freedom.png" width="960" height="640" decoding="async" alt="Illustration: momentum and freedom" loading="lazy">
       <h3>Momentum and freedom</h3>
       <p>AI-assisted drafting, analysis, and comms that reduce effort while keeping rigour.</p>
     </article>
@@ -961,8 +951,8 @@ section{
 
         <section id="tools">
       <div class="section-head">
-        <h2>How I make change effortless</h2>
-        <p>Practical delivery, not paperwork.</p>
+        <h2>Tools</h2>
+        <p>Interactive checks that expose system structure and decision pressure.</p>
       </div>
 
       <div class="grid">
@@ -1007,8 +997,8 @@ section{
 
           <div class="dial" role="group" aria-label="Change effort dial">
             <div class="dial-row">
-              <div class="chip">More manual</div>
-              <div class="chip">More automated</div>
+            <div class="chip">Human-led drafting</div>
+              <div class="chip">AI-assisted synthesis</div>
             </div>
 
             <div style="margin-top:10px">
@@ -1024,7 +1014,7 @@ section{
     <section id="structure">
       <div class="section-head">
         <h2>System structure</h2>
-        <p>Interactive tools you can use immediately.</p>
+        <p>Interactivity is used to make assumptions, dependencies and governance thresholds explicit.</p>
       </div>
 
       <div class="grid">
@@ -1065,7 +1055,7 @@ section{
             <div class="result" id="quizResult" aria-live="polite"></div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;">
-              <button class="btn btn-primary" id="emailSizingBtn" type="button">Email me this result</button>
+              <button class="btn btn-primary" id="emailSizingBtn" type="button">Email this sizing result</button>
               <button class="btn" id="copySizingBtn" type="button">Copy summary</button>
             </div>
           </div>
@@ -1118,10 +1108,10 @@ Style:
   <div class="list" style="margin-top:12px;">
     <div class="item">
       <div>
-        <strong>Browse the resources</strong>
+        <strong>Reading map by domain</strong>
         <div class="desc">Curated links for change, AI, leadership, evidence and public sector delivery.</div>
       </div>
-      <a class="chip" href="/reading.html">Open reading map</a>
+      <a class="chip" href="/reading.html">View the structured reading map</a>
     </div>
 
     <div class="item">
@@ -1160,7 +1150,7 @@ Style:
               <strong>Open the full article library</strong>
               <div class="desc">Hosted on Blogger: essays, models, prompts and reflections.</div>
             </div>
-            <a class="btn btn-primary" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Browse full essay archive</a>
+            <a class="btn btn-primary" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Review the full governance essay archive</a>
           </div>
 
           <div class="dial" style="margin-top:12px;">
@@ -1172,7 +1162,7 @@ Style:
 
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
               <button class="btn" id="nextSpotlightBtn" type="button">New spotlight</button>
-              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Read current essays</a>
+              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open recent governance essays</a>
             </div>
 
             <div class="list" id="latestPosts"></div>
@@ -1211,7 +1201,7 @@ Style:
     <section id="contact">
       <div class="section-head">
         <h2>Contact</h2>
-        <p>For collaboration, speaking, delivery support.</p>
+        <p>For delivery support, governance design and speaking enquiries.</p>
       </div>
 
       <div class="grid">
@@ -1222,10 +1212,10 @@ Style:
               <div class="desc mono">martin@emote.ltd</div>
             </div>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <a class="btn btn-primary" href="mailto:martin@emote.ltd?subject=eMote%20-%20Change%20support&body=Hi%20Martin%2C%0A%0AI%27d%20like%20to%20talk%20about%20project%20change%20management.%20Context%3A%20%5Bbrief%5D%0A%0AThanks%2C%0A%5Bname%5D">Email me</a>
+              <a class="btn btn-primary" href="mailto:martin@emote.ltd?subject=eMote%20-%20Change%20support&body=Hi%20Martin%2C%0A%0AI%27d%20like%20to%20talk%20about%20project%20change%20management.%20Context%3A%20%5Bbrief%5D%0A%0AThanks%2C%0A%5Bname%5D">Email Martin Fry about a change programme</a>
               <button class="btn" id="copyEmailBtn3" type="button">Copy email</button>
-              <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Governance essays</a>
+              <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">View governance background on LinkedIn</a>
+              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Read the governance and change essay archive</a>
             </div>
           </div>
 
@@ -1237,7 +1227,7 @@ Style:
     </section>
 
     <footer>
-      <div>© <span id="year"></span> eMote. Making Change Effortless.</div>
+      <div>© <span id="year"></span> eMote. Models for change and governance.</div>
       <div class="muted">Company number: 14127916</div>
       <div class="muted">Designed as a calm, low-friction static site.</div>
     </footer>
@@ -1387,7 +1377,7 @@ async function fetchLatestPosts(){
             <strong>No posts found</strong>
             <div class="desc">Open the full library on Blogger.</div>
           </div>
-          <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open essay library</a>
+          <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open the governance essay library</a>
         </div>`;
       return;
     }
@@ -1429,7 +1419,7 @@ async function fetchLatestPosts(){
               <div class="postMeta">${escapeHtml(formatDate(published))}</div>
             </div>
           </div>
-          <a class="chip" href="${href}" target="_blank" rel="noopener noreferrer">Read essay</a>
+          <a class="chip" href="${href}" target="_blank" rel="noopener noreferrer">Open this essay on governance and change</a>
         </div>`;
     }).join("");
 
@@ -1440,7 +1430,7 @@ async function fetchLatestPosts(){
           <strong>Latest posts unavailable</strong>
           <div class="desc">The site can not reach the feed endpoint right now.</div>
         </div>
-        <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open essay library</a>
+        <a class="chip" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open the governance essay library</a>
       </div>`;
   }
 }
@@ -1468,9 +1458,13 @@ async function fetchLatestPosts(){
     // ---------- Background animation (soft particles) ----------
     function initBackground(){
       const c = $("#bg");
-      const ctx = c.getContext("2d", { alpha: true });
-
       const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const isMobileViewport = window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
+      if(prefersReduced || isMobileViewport){
+        c.style.display = "none";
+        return;
+      }
+      const ctx = c.getContext("2d", { alpha: true });
 
       const state = {
         w: 0, h: 0, dpr: Math.min(window.devicePixelRatio || 1, 2),

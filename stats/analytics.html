@@ -1,54 +1,265 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Emote Analytics</title>
 <style>
-body { font-family: Arial, sans-serif; margin: 40px; }
-h2 { margin-top: 40px; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-th, td { border: 1px solid #ddd; padding: 8px; }
-th { background: #f4f4f4; text-align: left; }
-tr:nth-child(even) { background: #fafafa; }
+  :root {
+    color-scheme: light dark;
+    --bg: #0b1020;
+    --card: #131b33;
+    --muted: #98a2b3;
+    --text: #e5e7eb;
+    --accent: #5b8cff;
+    --line: rgba(255, 255, 255, 0.12);
+    --good: #1f9d55;
+    --warn: #f59e0b;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --muted: #475467;
+      --text: #101828;
+      --accent: #375dfb;
+      --line: #d0d5dd;
+      --good: #067647;
+      --warn: #b54708;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 20px 44px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.4rem, 1.8vw + 1rem, 2rem);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .grid {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .card .label { color: var(--muted); font-size: .82rem; margin-bottom: 5px; }
+  .card .value { font-weight: 700; font-size: 1.2rem; }
+
+  .sections {
+    margin-top: 24px;
+    display: grid;
+    gap: 18px;
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel h2 {
+    margin: 0;
+    padding: 12px 14px;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--card), var(--accent) 8%);
+  }
+
+  .table-wrap {
+    width: 100%;
+    overflow: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 560px;
+  }
+
+  th, td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: .84rem;
+    letter-spacing: .01em;
+  }
+
+  .metric { white-space: nowrap; }
+  .metric .count { font-weight: 600; }
+  .metric .pct { color: var(--muted); font-size: .85em; margin-left: 6px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+  .ok { color: var(--good); }
+  .warn { color: var(--warn); }
+
+  .empty, .error {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px dashed var(--line);
+    color: var(--muted);
+    background: var(--card);
+  }
 </style>
 </head>
 <body>
+  <main class="container">
+    <header>
+      <h1>Emote Analytics</h1>
+      <div class="subtitle" id="range">Loading…</div>
+    </header>
 
-<h1>Emote Analytics</h1>
+    <section class="grid" id="summary"></section>
 
-<div id="top-pages"></div>
-<div id="referrers"></div>
-<div id="not-found"></div>
+    <section class="sections" id="sections"></section>
+
+    <div id="message"></div>
+  </main>
 
 <script>
-fetch('emote.json')
-  .then(res => res.json())
-  .then(data => {
+  const el = {
+    range: document.getElementById('range'),
+    summary: document.getElementById('summary'),
+    sections: document.getElementById('sections'),
+    message: document.getElementById('message')
+  };
 
-    function renderTable(title, dataset, containerId) {
-      const container = document.getElementById(containerId);
-      if (!dataset || !dataset.data) return;
+  const numberFmt = new Intl.NumberFormat();
+  const byteFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
-      let html = `<h2>${title}</h2><table><tr><th>Item</th><th>Hits</th><th>Visitors</th></tr>`;
+  const safe = (v) => String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  const value = (obj) => typeof obj === 'object' && obj ? (obj.count ?? obj.value ?? obj) : obj;
+  const pct = (obj) => (obj && typeof obj === 'object' ? obj.percent : null);
 
-      dataset.data.slice(0, 15).forEach(row => {
-        html += `<tr>
-                   <td>${row.data}</td>
-                   <td>${row.hits}</td>
-                   <td>${row.visitors}</td>
-                 </tr>`;
-      });
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes)) return '-';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let i = 0;
+    while (size >= 1024 && i < units.length - 1) { size /= 1024; i += 1; }
+    return `${byteFmt.format(size)} ${units[i]}`;
+  }
 
-      html += `</table>`;
-      container.innerHTML = html;
-    }
+  function metricCell(metric) {
+    const count = value(metric);
+    const percent = pct(metric);
+    const countText = Number.isFinite(count) ? numberFmt.format(count) : safe(count ?? '-');
+    return `<span class="count">${countText}</span>${percent ? `<span class="pct">${safe(percent)}%</span>` : ''}`;
+  }
 
-    renderTable("Top Pages", data.requests, "top-pages");
-    renderTable("Referrers", data.referrers, "referrers");
-    renderTable("404 Errors", data.not_found, "not-found");
+  function addSummaryCard(label, val, extraClass = '') {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.innerHTML = `<div class="label">${safe(label)}</div><div class="value ${extraClass}">${safe(val)}</div>`;
+    el.summary.appendChild(card);
+  }
 
-  });
+  function renderTablePanel(title, dataset, opts = {}) {
+    if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) return;
+
+    const rows = dataset.data.slice(0, opts.limit || 15).map((row) => `
+      <tr>
+        <td class="mono">${safe(row.data ?? '-')}</td>
+        <td class="metric">${metricCell(row.hits)}</td>
+        <td class="metric">${metricCell(row.visitors)}</td>
+        <td class="metric">${metricCell(row.bytes)}</td>
+        <td class="mono">${safe([row.method, row.protocol].filter(Boolean).join(' ') || '-')}</td>
+      </tr>
+    `).join('');
+
+    const panel = document.createElement('section');
+    panel.className = 'panel';
+    panel.innerHTML = `
+      <h2>${safe(title)} <span class="subtitle">(top ${Math.min(dataset.data.length, opts.limit || 15)})</span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Hits</th>
+              <th>Visitors</th>
+              <th>Bandwidth</th>
+              <th>Method / Protocol</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    el.sections.appendChild(panel);
+  }
+
+  fetch('emote.json')
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      const g = data.general || {};
+      el.range.textContent = `${g.start_date || '-'} → ${g.end_date || '-'} • Generated ${g.date_time || '-'}`;
+
+      addSummaryCard('Total Requests', numberFmt.format(g.total_requests || 0));
+      addSummaryCard('Valid Requests', numberFmt.format(g.valid_requests || 0), 'ok');
+      addSummaryCard('404 / Not Found', numberFmt.format(g.unique_not_found || 0), (g.unique_not_found || 0) > 0 ? 'warn' : '');
+      addSummaryCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
+      addSummaryCard('Bandwidth', formatBytes(g.bandwidth || 0));
+      addSummaryCard('Log Size', formatBytes(g.log_size || 0));
+
+      renderTablePanel('Top Requested Paths', data.requests, { limit: 20 });
+      renderTablePanel('Top 404 Paths', data.not_found, { limit: 20 });
+      renderTablePanel('Top Hosts', data.hosts, { limit: 20 });
+      renderTablePanel('Referring Sites', data.referring_sites, { limit: 20 });
+
+      if (!el.sections.children.length) {
+        el.message.innerHTML = '<div class="empty">No analytics sections available in <code>emote.json</code>.</div>';
+      }
+    })
+    .catch((err) => {
+      el.range.textContent = 'Unable to load analytics data';
+      el.message.innerHTML = `<div class="error">Could not load <code>emote.json</code>: ${safe(err.message)}</div>`;
+    });
 </script>
-
 </body>
 </html>

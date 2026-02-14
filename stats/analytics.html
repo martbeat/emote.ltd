@@ -122,14 +122,28 @@ function tablePanel(title, dataset, limit = 20) {
   el.sections.appendChild(section);
 }
 
+async function fetchJsonSafely(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+
+  const body = await res.text();
+  const trimmed = body.trimStart();
+  if (!trimmed) throw new Error(`${url}: Empty response body`);
+  if (trimmed.startsWith('<')) {
+    throw new Error(`${url}: Received HTML instead of JSON`);
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch (_err) {
+    throw new Error(`${url}: Invalid JSON response`);
+  }
+}
+
 function fetchFirstValidJson(urls) {
   const errors = [];
   return urls.reduce((promise, url) => {
-    return promise.catch(() => fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-        return res.json();
-      })
+    return promise.catch(() => fetchJsonSafely(url)
       .catch((err) => {
         errors.push(err.message);
         throw new Error(errors.join(' | '));

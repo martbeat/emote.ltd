@@ -30,6 +30,7 @@
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.92em; }
   .pct { color: var(--muted); margin-left: 6px; font-size: .84em; }
   .message { margin-top: 12px; padding: 10px 12px; border:1px dashed var(--line); border-radius:10px; background:var(--card); color:var(--muted); }
+  .subitem { color: var(--muted); font-size: .86em; margin-left: 8px; }
 </style>
 </head>
 <body>
@@ -107,13 +108,25 @@
     el.cards.appendChild(node);
   }
 
+
+  function hostLocationLabel(row) {
+    if (!row || typeof row !== 'object') return '';
+    const city = row.city || (row.geoip && row.geoip.city) || (row.location && row.location.city) || '';
+    const country = row.country || (row.geoip && row.geoip.country) || (row.location && row.location.country) || '';
+    const parts = [city, country].filter(Boolean).map(String);
+    return parts.join(', ');
+  }
+
   function addTable(title, dataset, limit) {
     if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) return;
     const rows = dataset.data.slice(0, limit || 20).map(function (row) {
       const methodProtocol = [row.method, row.protocol].filter(Boolean).join(' ') || '—';
       const item = row._itemText || row.data || '—';
+      const isHostsTable = title === 'Top Hosts';
+      const hostLocation = isHostsTable ? hostLocationLabel(row) : '';
+      const itemHtml = safe(item) + (hostLocation ? '<span class="subitem">' + safe(hostLocation) + '</span>' : '');
       return '<tr>' +
-        '<td class="mono">' + safe(item) + '</td>' +
+        '<td class="mono">' + itemHtml + '</td>' +
         '<td>' + formatMetric(row.hits) + '</td>' +
         '<td>' + formatMetric(row.visitors) + '</td>' +
         '<td>' + formatMetric(row.bytes) + '</td>' +

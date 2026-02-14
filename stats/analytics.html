@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Emote Analytics</title>
 <style>
   :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#475569; --line:#e2e8f0; }
@@ -129,34 +132,39 @@
   }
 
   async function fetchJsonSafely(url) {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(url + ': HTTP ' + res.status);
-
-    const body = await res.text();
-    const trimmed = body.trimStart();
-    if (!trimmed) throw new Error(url + ': Empty response body');
-    if (trimmed[0] === '<') throw new Error(url + ': Received HTML instead of JSON');
-
     try {
-      return JSON.parse(body);
-    } catch (_) {
-      throw new Error(url + ': Invalid JSON response');
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        return { ok: false, error: url + ': HTTP ' + res.status };
+      }
+
+      const body = await res.text();
+      const trimmed = body.trimStart();
+      if (!trimmed) return { ok: false, error: url + ': Empty response body' };
+      if (trimmed[0] === '<') return { ok: false, error: url + ': Received HTML instead of JSON' };
+
+      try {
+        return { ok: true, data: JSON.parse(body) };
+      } catch (_) {
+        return { ok: false, error: url + ': Invalid JSON response' };
+      }
+    } catch (err) {
+      return { ok: false, error: url + ': Network error (' + (err && err.message ? err.message : 'unknown') + ')' };
     }
   }
 
   async function fetchFirstValidJson(urls) {
     const errors = [];
     for (const url of urls) {
-      try {
-        return await fetchJsonSafely(url);
-      } catch (err) {
-        errors.push(err.message);
-      }
+      const result = await fetchJsonSafely(url);
+      if (result.ok) return { data: result.data, errors: [] };
+      errors.push(result.error);
     }
-    throw new Error(errors.join(' | '));
+    return { data: null, errors: errors };
   }
 
   window.addEventListener('unhandledrejection', function (event) {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
     showMessage('Unexpected error: ' + safe(String(event.reason)));
   });
 
@@ -167,36 +175,38 @@
   });
 
   (async function init() {
-    try {
-      const data = await fetchFirstValidJson([
-        'emote.json',
-        './emote.json',
-        '/stats/emote.json',
-        '/emote.json'
-      ]);
+    const result = await fetchFirstValidJson([
+      'emote.json',
+      './emote.json',
+      '/stats/emote.json',
+      '/emote.json'
+    ]);
 
-      const g = data.general || {};
-      el.range.textContent = (g.start_date || '-') + ' → ' + (g.end_date || '-') + ' • Generated ' + (g.date_time || '-');
-
-      addCard('Total Requests', numberFmt.format(g.total_requests || 0));
-      addCard('Valid Requests', numberFmt.format(g.valid_requests || 0));
-      addCard('404 Not Found', numberFmt.format(g.unique_not_found || 0));
-      addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
-      addCard('Bandwidth', formatBytes(g.bandwidth || 0));
-
-      addTable('Top Pages', data.requests || data.top_pages, 20);
-      addTable('Referrers', data.referring_sites || data.referrers, 20);
-      addTable('404 Errors', data.not_found, 20);
-      addTable('Top Hosts', data.hosts, 20);
-
-      if (!el.sections.children.length) {
-        showMessage('Loaded JSON but found no compatible sections.');
-      } else {
-        el.message.remove();
-      }
-    } catch (err) {
+    if (!result.data) {
       el.range.textContent = 'Unable to load analytics data';
-      showMessage('Could not load <code>emote.json</code>: ' + safe(err.message));
+      showMessage('Could not load <code>emote.json</code>: ' + safe(result.errors.join(' | ') || 'Unknown error'));
+      return;
+    }
+
+    const data = result.data;
+    const g = data.general || {};
+    el.range.textContent = (g.start_date || '-') + ' → ' + (g.end_date || '-') + ' • Generated ' + (g.date_time || '-');
+
+    addCard('Total Requests', numberFmt.format(g.total_requests || 0));
+    addCard('Valid Requests', numberFmt.format(g.valid_requests || 0));
+    addCard('404 Not Found', numberFmt.format(g.unique_not_found || 0));
+    addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
+    addCard('Bandwidth', formatBytes(g.bandwidth || 0));
+
+    addTable('Top Pages', data.requests || data.top_pages, 20);
+    addTable('Referrers', data.referring_sites || data.referrers, 20);
+    addTable('404 Errors', data.not_found, 20);
+    addTable('Top Hosts', data.hosts, 20);
+
+    if (!el.sections.children.length) {
+      showMessage('Loaded JSON but found no compatible sections.');
+    } else {
+      el.message.remove();
     }
   })();
 })();

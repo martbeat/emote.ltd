@@ -39,10 +39,15 @@
       backdrop-filter: blur(12px);
       box-shadow: 0 14px 28px rgba(0,0,0,.35);
       z-index:5;
+      transition:transform .35s ease, opacity .35s ease;
     }
-    .brand{margin-right:auto; min-width: 190px;}
+    .hud.minimized{transform:translateY(-62%); opacity:.72;}
+    .hud.minimized .group,
+    .hud.minimized .brand span{display:none}
+    .brand{margin-right:auto; min-width: 230px;}
     .brand strong{display:block; font-size:15px}
     .brand span{display:block; color:var(--muted); font-size:12px}
+    .mini-toggle{font-size:12px; padding:5px 10px}
     .group{display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.06); border-radius:10px; padding:6px}
     label{font-size:12px; color:var(--muted)}
     input[type="range"]{width:96px}
@@ -63,25 +68,42 @@
   <div class="hud">
     <div class="brand">
       <strong>Aurora Canvas</strong>
-      <span>Drag to paint with living light · Tap for bursts · Press Space for pulse</span>
+      <span>Drag to paint · Tap for bursts · Space for pulse · Shift for supernova</span>
     </div>
+    <button id="hudToggle" class="mini-toggle" type="button" aria-expanded="true">Minimise</button>
     <div class="group">
       <label for="mode">Mode</label>
       <select id="mode">
         <option value="nebula">Nebula</option>
         <option value="kaleido">Kaleidoscope</option>
         <option value="ribbons">Ribbons</option>
+        <option value="comets">Comets</option>
+        <option value="petals">Petals</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="palette">Palette</label>
+      <select id="palette">
+        <option value="aurora">Aurora</option>
+        <option value="sunset">Sunset</option>
+        <option value="ocean">Ocean</option>
+        <option value="ultraviolet">Ultraviolet</option>
       </select>
     </div>
     <div class="group">
       <label for="size">Brush</label>
-      <input id="size" type="range" min="4" max="28" value="12" />
+      <input id="size" type="range" min="4" max="34" value="12" />
     </div>
     <div class="group">
       <label for="gravity">Flow</label>
       <input id="gravity" type="range" min="0" max="100" value="38" />
     </div>
     <div class="group">
+      <label for="intensity">Energy</label>
+      <input id="intensity" type="range" min="40" max="200" value="100" />
+    </div>
+    <div class="group">
+      <button id="ambient" type="button">Ambient: On</button>
       <button id="pulse" class="cta" type="button">Pulse</button>
       <button id="clear" type="button">Clear</button>
       <button id="save" type="button">Save PNG</button>
@@ -93,16 +115,34 @@
   const canvas = document.getElementById('paint');
   const ctx = canvas.getContext('2d', { alpha: true });
   const modeEl = document.getElementById('mode');
+  const hudEl = document.querySelector('.hud');
+  const hudToggle = document.getElementById('hudToggle');
+  const paletteEl = document.getElementById('palette');
   const sizeEl = document.getElementById('size');
   const gravityEl = document.getElementById('gravity');
+  const intensityEl = document.getElementById('intensity');
+  const ambientBtn = document.getElementById('ambient');
   const pulseBtn = document.getElementById('pulse');
   const clearBtn = document.getElementById('clear');
   const saveBtn = document.getElementById('save');
 
+  const palettes = {
+    aurora: [170, 195, 220, 268],
+    sunset: [10, 28, 45, 340],
+    ocean: [175, 195, 210, 230],
+    ultraviolet: [248, 270, 296, 324],
+  };
+
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   let w = 0, h = 0;
-  let pointer = { x: 0, y: 0, down: false, moved: false };
+  let ambientEnabled = true;
+  let hudMinimized = false;
+  let hudIdleTimer = null;
+  let lastBurst = performance.now();
+  const pointer = { x: 0, y: 0, px: 0, py: 0, down: false, moved: false, speed: 0 };
   const particles = [];
+  const waves = [];
+  const stars = [];
   let hueBase = 180;
 
   function resize(){
@@ -114,20 +154,60 @@
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);
+    makeStars();
   }
 
-  function spawn(x, y, power = 1){
+  function setHudMinimized(minimized) {
+    hudMinimized = minimized;
+    hudEl.classList.toggle('minimized', minimized);
+    hudToggle.textContent = minimized ? 'Expand' : 'Minimise';
+    hudToggle.setAttribute('aria-expanded', String(!minimized));
+  }
+
+  function scheduleHudMinimize() {
+    clearTimeout(hudIdleTimer);
+    hudIdleTimer = setTimeout(() => setHudMinimized(true), 10000);
+  }
+
+  function noteHudUse() {
+    if (hudMinimized) setHudMinimized(false);
+    scheduleHudMinimize();
+  }
+
+  function makeStars() {
+    stars.length = 0;
+    const count = Math.floor((w * h) / 18000);
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        size: Math.random() * 1.8 + 0.4,
+        twinkle: Math.random() * Math.PI * 2,
+        speed: 0.01 + Math.random() * 0.03,
+      });
+    }
+  }
+
+  function pickHue(mode, idx) {
+    const set = palettes[paletteEl.value] || palettes.aurora;
+    const offset = set[idx % set.length];
+    if (mode === 'comets') return (offset + 26) % 360;
+    if (mode === 'petals') return (offset + 320) % 360;
+    return (offset + hueBase * 0.2) % 360;
+  }
+
+  function spawn(x, y, power = 1, momentum = 1){
     const brush = Number(sizeEl.value);
+    const energy = Number(intensityEl.value) / 100;
     const mode = modeEl.value;
-    const count = Math.floor((brush * 1.2 + 5) * power);
+    const count = Math.floor((brush * 1.25 + 6) * power * energy);
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = Math.random() * 2.8 + 0.5;
-      const life = 70 + Math.random() * 80;
-      const spread = brush * (0.2 + Math.random() * 1.8);
-      const t = Math.random();
-      const hue = (hueBase + (mode === 'nebula' ? 60 * t : mode === 'kaleido' ? 160 * t : 260 * t)) % 360;
+      const speed = (Math.random() * 2.8 + 0.5) * (0.85 + momentum * 0.5);
+      const life = (60 + Math.random() * 95) * (0.8 + energy * 0.35);
+      const spread = brush * (0.2 + Math.random() * 2.2);
+      const hue = pickHue(mode, i + Math.floor(Math.random() * 4));
       particles.push({
         x: x + Math.cos(angle) * spread,
         y: y + Math.sin(angle) * spread,
@@ -135,32 +215,53 @@
         vy: Math.sin(angle) * speed,
         life,
         age: 0,
-        size: 1.4 + Math.random() * brush * 0.5,
+        size: 1.2 + Math.random() * brush * 0.5,
         hue,
         sparkle: Math.random() * 0.8 + 0.2,
+        drift: (Math.random() - 0.5) * 0.6,
       });
     }
   }
 
-  function pulse(){
-    spawn(w * 0.5, h * 0.5, 5);
-    hueBase = (hueBase + 45) % 360;
+  function explode(x = w * 0.5, y = h * 0.5, power = 5) {
+    spawn(x, y, power, 1.8);
+    waves.push({ x, y, r: 6, max: 300, alpha: 0.4 });
+    hueBase = (hueBase + 38) % 360;
+  }
+
+  function drawStars(time){
+    if (!ambientEnabled) return;
+    ctx.globalCompositeOperation = 'source-over';
+    for (const star of stars) {
+      const pulse = 0.2 + (Math.sin(time * star.speed + star.twinkle) + 1) * 0.35;
+      ctx.fillStyle = `rgba(190,220,255,${pulse})`;
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function draw(){
     requestAnimationFrame(draw);
+    const now = performance.now();
 
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(5,8,16,0.12)';
+    ctx.fillStyle = 'rgba(4,7,14,0.14)';
     ctx.fillRect(0, 0, w, h);
+    drawStars(now);
 
     const flow = Number(gravityEl.value) / 100;
     const mode = modeEl.value;
 
     if (pointer.down) {
-      spawn(pointer.x, pointer.y, pointer.moved ? 1.4 : 0.8);
+      spawn(pointer.x, pointer.y, pointer.moved ? 1.4 : 0.75, Math.min(2.2, pointer.speed * 0.06 + 1));
       pointer.moved = false;
-      hueBase = (hueBase + 0.8) % 360;
+      hueBase = (hueBase + 1.2) % 360;
+    } else if (ambientEnabled && now - lastBurst > 1700) {
+      const jitterX = w * (0.2 + Math.random() * 0.6);
+      const jitterY = h * (0.2 + Math.random() * 0.6);
+      spawn(jitterX, jitterY, 0.55, 0.8);
+      lastBurst = now;
     }
 
     ctx.globalCompositeOperation = 'lighter';
@@ -173,13 +274,19 @@
       }
 
       const lifeT = 1 - p.age / p.life;
-      const swirl = Math.sin((p.age + p.hue) * 0.05) * 0.04;
+      const swirl = Math.sin((p.age + p.hue) * 0.06) * 0.045;
       if (mode === 'kaleido') {
-        p.vx += Math.cos(p.y * 0.008) * 0.02;
-        p.vy += Math.sin(p.x * 0.008) * 0.02;
+        p.vx += Math.cos(p.y * 0.01) * 0.022;
+        p.vy += Math.sin(p.x * 0.01) * 0.022;
       } else if (mode === 'ribbons') {
-        p.vx += Math.sin(p.age * 0.05 + p.hue) * 0.03;
-        p.vy += Math.cos(p.age * 0.04 + p.hue) * 0.03;
+        p.vx += Math.sin(p.age * 0.05 + p.hue) * 0.033;
+        p.vy += Math.cos(p.age * 0.04 + p.hue) * 0.033;
+      } else if (mode === 'comets') {
+        p.vx += p.drift * 0.06;
+        p.vy -= 0.008;
+      } else if (mode === 'petals') {
+        p.vx += Math.sin(p.age * 0.1 + p.hue) * 0.05;
+        p.vy += Math.cos(p.age * 0.08 + p.hue) * 0.05;
       } else {
         p.vx += swirl;
         p.vy -= swirl;
@@ -192,54 +299,98 @@
 
       p.x += p.vx;
       p.y += p.vy;
-      p.vx *= 0.985;
-      p.vy *= 0.985;
+      p.vx *= mode === 'comets' ? 0.992 : 0.985;
+      p.vy *= mode === 'comets' ? 0.992 : 0.985;
 
-      const alpha = lifeT * (0.4 + p.sparkle * 0.6);
-      const radius = p.size * (0.5 + lifeT);
-      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3.2);
-      grad.addColorStop(0, `hsla(${p.hue},100%,72%,${alpha})`);
-      grad.addColorStop(0.6, `hsla(${(p.hue + 30) % 360},100%,55%,${alpha * 0.5})`);
+      const alpha = lifeT * (0.35 + p.sparkle * 0.7);
+      const radius = p.size * (0.45 + lifeT);
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3.6);
+      grad.addColorStop(0, `hsla(${p.hue},100%,74%,${alpha})`);
+      grad.addColorStop(0.6, `hsla(${(p.hue + 28) % 360},100%,55%,${alpha * 0.5})`);
       grad.addColorStop(1, 'rgba(0,0,0,0)');
 
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, radius * 3.2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, radius * 3.6, 0, Math.PI * 2);
       ctx.fill();
 
-      if (mode === 'kaleido') {
+      if (mode === 'comets') {
+        ctx.strokeStyle = `hsla(${p.hue}, 100%, 70%, ${alpha * 0.32})`;
+        ctx.lineWidth = radius * 1.1;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.vx * 8, p.y - p.vy * 8);
+        ctx.stroke();
+      } else if (mode === 'kaleido') {
         const mx = w - p.x;
         const my = h - p.y;
         ctx.beginPath();
-        ctx.arc(mx, my, radius * 2.3, 0, Math.PI * 2);
+        ctx.arc(mx, my, radius * 2.5, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = waves.length - 1; i >= 0; i--) {
+      const wave = waves[i];
+      wave.r += 3.6;
+      wave.alpha *= 0.975;
+      if (wave.r > wave.max || wave.alpha < 0.015) {
+        waves.splice(i, 1);
+        continue;
+      }
+      ctx.strokeStyle = `hsla(${(hueBase + wave.r * 0.25) % 360}, 100%, 72%, ${wave.alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(wave.x, wave.y, wave.r, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 
   function setPointer(ev){
     const rect = canvas.getBoundingClientRect();
-    pointer.x = ev.clientX - rect.left;
-    pointer.y = ev.clientY - rect.top;
+    const nx = ev.clientX - rect.left;
+    const ny = ev.clientY - rect.top;
+    const dx = nx - pointer.px;
+    const dy = ny - pointer.py;
+    pointer.speed = Math.hypot(dx, dy);
+    pointer.px = pointer.x = nx;
+    pointer.py = pointer.y = ny;
     pointer.moved = true;
   }
 
   canvas.addEventListener('pointerdown', (ev) => {
     pointer.down = true;
     setPointer(ev);
-    spawn(pointer.x, pointer.y, 2);
+    spawn(pointer.x, pointer.y, 2.2, 1.2);
   });
   window.addEventListener('pointermove', (ev) => { if (pointer.down) setPointer(ev); });
   window.addEventListener('pointerup', () => { pointer.down = false; });
 
   canvas.addEventListener('click', (ev) => {
     setPointer(ev);
-    spawn(pointer.x, pointer.y, 2.8);
+    spawn(pointer.x, pointer.y, 2.8, 1.5);
+    waves.push({ x: pointer.x, y: pointer.y, r: 4, max: 190, alpha: 0.28 });
   });
 
-  pulseBtn.addEventListener('click', pulse);
+  ambientBtn.addEventListener('click', () => {
+    ambientEnabled = !ambientEnabled;
+    ambientBtn.textContent = `Ambient: ${ambientEnabled ? 'On' : 'Off'}`;
+  });
+
+  hudToggle.addEventListener('click', () => {
+    setHudMinimized(!hudMinimized);
+    if (!hudMinimized) scheduleHudMinimize();
+  });
+
+  ['pointerdown', 'pointermove', 'input', 'change', 'focusin', 'keydown'].forEach((eventName) => {
+    hudEl.addEventListener(eventName, noteHudUse);
+  });
+
+  pulseBtn.addEventListener('click', () => explode());
   clearBtn.addEventListener('click', () => {
     particles.length = 0;
+    waves.length = 0;
     ctx.clearRect(0, 0, w, h);
   });
   saveBtn.addEventListener('click', () => {
@@ -252,12 +403,15 @@
   window.addEventListener('keydown', (ev) => {
     if (ev.code === 'Space') {
       ev.preventDefault();
-      pulse();
+      explode();
+    } else if (ev.key === 'Shift') {
+      explode(pointer.x || w * 0.5, pointer.y || h * 0.5, 8);
     }
   });
 
   window.addEventListener('resize', resize);
   resize();
+  scheduleHudMinimize();
   draw();
 })();
 </script>

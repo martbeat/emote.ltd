@@ -60,8 +60,11 @@ function metricValue(metric) {
   if (typeof metric === 'string') return Number(metric) || 0;
   if (typeof metric === 'object') {
     if (typeof metric.count === 'number') return metric.count;
+    if (typeof metric.count === 'string') return Number(metric.count) || 0;
     if (metric.count && typeof metric.count.value === 'number') return metric.count.value;
+    if (metric.count && typeof metric.count.value === 'string') return Number(metric.count.value) || 0;
     if (typeof metric.value === 'number') return metric.value;
+    if (typeof metric.value === 'string') return Number(metric.value) || 0;
   }
   return 0;
 }
@@ -119,11 +122,36 @@ function tablePanel(title, dataset, limit = 20) {
   el.sections.appendChild(section);
 }
 
-fetch('emote.json')
-  .then((res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
+async function fetchJsonSafely(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+
+  const body = await res.text();
+  const trimmed = body.trimStart();
+  if (!trimmed) throw new Error(`${url}: Empty response body`);
+  if (trimmed.startsWith('<')) {
+    throw new Error(`${url}: Received HTML instead of JSON`);
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch (_err) {
+    throw new Error(`${url}: Invalid JSON response`);
+  }
+}
+
+function fetchFirstValidJson(urls) {
+  const errors = [];
+  return urls.reduce((promise, url) => {
+    return promise.catch(() => fetchJsonSafely(url)
+      .catch((err) => {
+        errors.push(err.message);
+        throw new Error(errors.join(' | '));
+      }));
+  }, Promise.reject(new Error('No analytics URL configured')));
+}
+
+fetchFirstValidJson(['emote.json', './emote.json', '/stats/emote.json'])
   .then((data) => {
     const g = data.general || {};
     el.range.textContent = `${g.start_date || '-'} → ${g.end_date || '-'} • Generated ${g.date_time || '-'}`;

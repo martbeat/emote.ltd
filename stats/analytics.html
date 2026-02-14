@@ -5,176 +5,201 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Emote Analytics</title>
 <style>
-  :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#475569; --line:#e2e8f0; --accent:#2563eb; }
+  :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#475569; --line:#e2e8f0; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#0b1020; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --line:#1f2937; --accent:#60a5fa; }
+    :root { --bg:#0b1020; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --line:#1f2937; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { margin: 0 0 4px; }
-  .sub { color: var(--muted); margin-bottom: 16px; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px; margin-bottom: 18px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  .card small { color: var(--muted); display: block; margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-bottom: 12px; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin:14px 0 18px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .card small { color: var(--muted); display:block; margin-bottom:4px; }
   .card strong { font-size: 1.1rem; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-top: 14px; overflow: hidden; }
-  .panel h2 { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 1rem; }
+  .panel { background: var(--card); border:1px solid var(--line); border-radius:10px; margin-top:14px; overflow:hidden; }
+  .panel h2 { margin:0; padding:10px 12px; border-bottom:1px solid var(--line); font-size:1rem; }
   .table-wrap { overflow:auto; }
-  table { width: 100%; min-width: 520px; border-collapse: collapse; }
-  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
-  th { color: var(--muted); font-size: 0.85rem; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
-  .metric .pct { color: var(--muted); margin-left: 6px; font-size: .84em; }
-  .message { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); background: var(--card); }
+  table { width:100%; min-width:520px; border-collapse: collapse; }
+  th, td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; }
+  th { color: var(--muted); font-size: .85rem; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.92em; }
+  .pct { color: var(--muted); margin-left: 6px; font-size: .84em; }
+  .message { margin-top: 12px; padding: 10px 12px; border:1px dashed var(--line); border-radius:10px; background:var(--card); color:var(--muted); }
 </style>
 </head>
 <body>
 <main class="container">
   <h1>Emote Analytics</h1>
-  <div id="range" class="sub">Loading…</div>
-
+  <div id="range" class="sub">Loading analytics…</div>
+  <div id="message" class="message">Loading <code>emote.json</code>…</div>
   <section id="cards" class="cards"></section>
   <section id="sections"></section>
-  <div id="message"></div>
+  <noscript><div class="message">JavaScript is disabled; analytics requires JavaScript.</div></noscript>
 </main>
 
 <script>
-const el = {
-  range: document.getElementById('range'),
-  cards: document.getElementById('cards'),
-  sections: document.getElementById('sections'),
-  message: document.getElementById('message'),
-};
+(function () {
+  const el = {
+    range: document.getElementById('range'),
+    cards: document.getElementById('cards'),
+    sections: document.getElementById('sections'),
+    message: document.getElementById('message')
+  };
 
-const numberFmt = new Intl.NumberFormat();
-const byteFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+  const numberFmt = new Intl.NumberFormat();
+  const byteFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
-function safe(v) {
-  return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-}
-
-function metricValue(metric) {
-  if (metric == null) return 0;
-  if (typeof metric === 'number') return metric;
-  if (typeof metric === 'string') return Number(metric) || 0;
-  if (typeof metric === 'object') {
-    if (typeof metric.count === 'number') return metric.count;
-    if (typeof metric.count === 'string') return Number(metric.count) || 0;
-    if (metric.count && typeof metric.count.value === 'number') return metric.count.value;
-    if (metric.count && typeof metric.count.value === 'string') return Number(metric.count.value) || 0;
-    if (typeof metric.value === 'number') return metric.value;
-    if (typeof metric.value === 'string') return Number(metric.value) || 0;
-  }
-  return 0;
-}
-
-function metricPercent(metric) {
-  if (metric && typeof metric === 'object' && metric.percent != null) return String(metric.percent);
-  return '';
-}
-
-function formatMetric(metric) {
-  const value = metricValue(metric);
-  const percent = metricPercent(metric);
-  return `<span>${numberFmt.format(value)}</span>${percent ? `<span class="pct">${safe(percent)}%</span>` : ''}`;
-}
-
-function formatBytes(bytes) {
-  const value = Number(bytes) || 0;
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let size = value;
-  let i = 0;
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024;
-    i += 1;
-  }
-  return `${byteFmt.format(size)} ${units[i]}`;
-}
-
-function card(label, value) {
-  const article = document.createElement('article');
-  article.className = 'card';
-  article.innerHTML = `<small>${safe(label)}</small><strong>${safe(value)}</strong>`;
-  el.cards.appendChild(article);
-}
-
-function tablePanel(title, dataset, limit = 20) {
-  if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) return;
-  const rows = dataset.data.slice(0, limit).map((row) => {
-    const methodProtocol = [row.method, row.protocol].filter(Boolean).join(' ') || '—';
-    return `<tr>
-      <td class="mono">${safe(row.data ?? '—')}</td>
-      <td class="metric">${formatMetric(row.hits)}</td>
-      <td class="metric">${formatMetric(row.visitors)}</td>
-      <td class="metric">${formatMetric(row.bytes)}</td>
-      <td class="mono">${safe(methodProtocol)}</td>
-    </tr>`;
-  }).join('');
-
-  const section = document.createElement('section');
-  section.className = 'panel';
-  section.innerHTML = `<h2>${safe(title)}</h2>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Item</th><th>Hits</th><th>Visitors</th><th>Bytes</th><th>Method / Protocol</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
-  el.sections.appendChild(section);
-}
-
-async function fetchJsonSafely(url) {
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-
-  const body = await res.text();
-  const trimmed = body.trimStart();
-  if (!trimmed) throw new Error(`${url}: Empty response body`);
-  if (trimmed.startsWith('<')) {
-    throw new Error(`${url}: Received HTML instead of JSON`);
+  function safe(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
   }
 
-  try {
-    return JSON.parse(body);
-  } catch (_err) {
-    throw new Error(`${url}: Invalid JSON response`);
+  function showMessage(text) {
+    el.message.innerHTML = text;
   }
-}
 
-function fetchFirstValidJson(urls) {
-  const errors = [];
-  return urls.reduce((promise, url) => {
-    return promise.catch(() => fetchJsonSafely(url)
-      .catch((err) => {
-        errors.push(err.message);
-        throw new Error(errors.join(' | '));
-      }));
-  }, Promise.reject(new Error('No analytics URL configured')));
-}
-
-fetchFirstValidJson(['emote.json', './emote.json', '/stats/emote.json'])
-  .then((data) => {
-    const g = data.general || {};
-    el.range.textContent = `${g.start_date || '-'} → ${g.end_date || '-'} • Generated ${g.date_time || '-'}`;
-
-    card('Total Requests', numberFmt.format(g.total_requests || 0));
-    card('Valid Requests', numberFmt.format(g.valid_requests || 0));
-    card('404 Not Found', numberFmt.format(g.unique_not_found || 0));
-    card('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
-    card('Bandwidth', formatBytes(g.bandwidth || 0));
-
-    tablePanel('Top Pages', data.requests || data.top_pages, 20);
-    tablePanel('Referrers', data.referring_sites || data.referrers, 20);
-    tablePanel('404 Errors', data.not_found, 20);
-    tablePanel('Top Hosts', data.hosts, 20);
-
-    if (!el.sections.children.length) {
-      el.message.innerHTML = '<div class="message">No compatible analytics sections found in <code>emote.json</code>.</div>';
+  function metricValue(metric) {
+    if (metric == null) return 0;
+    if (typeof metric === 'number') return metric;
+    if (typeof metric === 'string') return Number(metric) || 0;
+    if (typeof metric === 'object') {
+      if (typeof metric.count === 'number') return metric.count;
+      if (typeof metric.count === 'string') return Number(metric.count) || 0;
+      if (metric.count && typeof metric.count.value === 'number') return metric.count.value;
+      if (metric.count && typeof metric.count.value === 'string') return Number(metric.count.value) || 0;
+      if (typeof metric.value === 'number') return metric.value;
+      if (typeof metric.value === 'string') return Number(metric.value) || 0;
     }
-  })
-  .catch((error) => {
-    el.range.textContent = 'Unable to load analytics data';
-    el.message.innerHTML = `<div class="message">Could not load <code>emote.json</code>: ${safe(error.message)}</div>`;
+    return 0;
+  }
+
+  function metricPercent(metric) {
+    if (metric && typeof metric === 'object' && metric.percent != null) return String(metric.percent);
+    return '';
+  }
+
+  function formatMetric(metric) {
+    const value = metricValue(metric);
+    const percent = metricPercent(metric);
+    return '<span>' + numberFmt.format(value) + '</span>' + (percent ? '<span class="pct">' + safe(percent) + '%</span>' : '');
+  }
+
+  function formatBytes(bytes) {
+    const value = Number(bytes) || 0;
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = value;
+    let i = 0;
+    while (size >= 1024 && i < units.length - 1) {
+      size /= 1024;
+      i += 1;
+    }
+    return byteFmt.format(size) + ' ' + units[i];
+  }
+
+  function addCard(label, value) {
+    const node = document.createElement('article');
+    node.className = 'card';
+    node.innerHTML = '<small>' + safe(label) + '</small><strong>' + safe(value) + '</strong>';
+    el.cards.appendChild(node);
+  }
+
+  function addTable(title, dataset, limit) {
+    if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) return;
+    const rows = dataset.data.slice(0, limit || 20).map(function (row) {
+      const methodProtocol = [row.method, row.protocol].filter(Boolean).join(' ') || '—';
+      return '<tr>' +
+        '<td class="mono">' + safe(row.data || '—') + '</td>' +
+        '<td>' + formatMetric(row.hits) + '</td>' +
+        '<td>' + formatMetric(row.visitors) + '</td>' +
+        '<td>' + formatMetric(row.bytes) + '</td>' +
+        '<td class="mono">' + safe(methodProtocol) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    const panel = document.createElement('section');
+    panel.className = 'panel';
+    panel.innerHTML = '<h2>' + safe(title) + '</h2>' +
+      '<div class="table-wrap"><table>' +
+      '<thead><tr><th>Item</th><th>Hits</th><th>Visitors</th><th>Bytes</th><th>Method / Protocol</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+    el.sections.appendChild(panel);
+  }
+
+  async function fetchJsonSafely(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(url + ': HTTP ' + res.status);
+
+    const body = await res.text();
+    const trimmed = body.trimStart();
+    if (!trimmed) throw new Error(url + ': Empty response body');
+    if (trimmed[0] === '<') throw new Error(url + ': Received HTML instead of JSON');
+
+    try {
+      return JSON.parse(body);
+    } catch (_) {
+      throw new Error(url + ': Invalid JSON response');
+    }
+  }
+
+  async function fetchFirstValidJson(urls) {
+    const errors = [];
+    for (const url of urls) {
+      try {
+        return await fetchJsonSafely(url);
+      } catch (err) {
+        errors.push(err.message);
+      }
+    }
+    throw new Error(errors.join(' | '));
+  }
+
+  window.addEventListener('unhandledrejection', function (event) {
+    showMessage('Unexpected error: ' + safe(String(event.reason)));
   });
+
+  window.addEventListener('error', function (event) {
+    if (event && event.message) {
+      showMessage('Script error: ' + safe(event.message));
+    }
+  });
+
+  (async function init() {
+    try {
+      const data = await fetchFirstValidJson([
+        'emote.json',
+        './emote.json',
+        '/stats/emote.json',
+        '/emote.json'
+      ]);
+
+      const g = data.general || {};
+      el.range.textContent = (g.start_date || '-') + ' → ' + (g.end_date || '-') + ' • Generated ' + (g.date_time || '-');
+
+      addCard('Total Requests', numberFmt.format(g.total_requests || 0));
+      addCard('Valid Requests', numberFmt.format(g.valid_requests || 0));
+      addCard('404 Not Found', numberFmt.format(g.unique_not_found || 0));
+      addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
+      addCard('Bandwidth', formatBytes(g.bandwidth || 0));
+
+      addTable('Top Pages', data.requests || data.top_pages, 20);
+      addTable('Referrers', data.referring_sites || data.referrers, 20);
+      addTable('404 Errors', data.not_found, 20);
+      addTable('Top Hosts', data.hosts, 20);
+
+      if (!el.sections.children.length) {
+        showMessage('Loaded JSON but found no compatible sections.');
+      } else {
+        el.message.remove();
+      }
+    } catch (err) {
+      el.range.textContent = 'Unable to load analytics data';
+      showMessage('Could not load <code>emote.json</code>: ' + safe(err.message));
+    }
+  })();
+})();
 </script>
 </body>
 </html>

@@ -1,0 +1,16 @@
+{
+  "general": {
+    "start_date": "-",
+    "end_date": "-",
+    "date_time": "-",
+    "total_requests": 0,
+    "valid_requests": 0,
+    "unique_visitors": 0,
+    "unique_not_found": 0,
+    "bandwidth": 0
+  },
+  "requests": { "data": [] },
+  "referring_sites": { "data": [] },
+  "not_found": { "data": [] },
+  "hosts": { "data": [] }
+}

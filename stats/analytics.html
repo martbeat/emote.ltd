@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Emote Analytics</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 40px; }
+h2 { margin-top: 40px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #ddd; padding: 8px; }
+th { background: #f4f4f4; text-align: left; }
+tr:nth-child(even) { background: #fafafa; }
+</style>
+</head>
+<body>
+
+<h1>Emote Analytics</h1>
+
+<div id="top-pages"></div>
+<div id="referrers"></div>
+<div id="not-found"></div>
+
+<script>
+fetch('emote.json')
+  .then(res => res.json())
+  .then(data => {
+
+    function renderTable(title, dataset, containerId) {
+      const container = document.getElementById(containerId);
+      if (!dataset || !dataset.data) return;
+
+      let html = `<h2>${title}</h2><table><tr><th>Item</th><th>Hits</th><th>Visitors</th></tr>`;
+
+      dataset.data.slice(0, 15).forEach(row => {
+        html += `<tr>
+                   <td>${row.data}</td>
+                   <td>${row.hits}</td>
+                   <td>${row.visitors}</td>
+                 </tr>`;
+      });
+
+      html += `</table>`;
+      container.innerHTML = html;
+    }
+
+    renderTable("Top Pages", data.requests, "top-pages");
+    renderTable("Referrers", data.referrers, "referrers");
+    renderTable("404 Errors", data.not_found, "not-found");
+
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+:root{
+  --sky-day-bg:#eef5ff;
+  --sky-day-text:#182236;
+  --sky-night-bg:#060914;
+  --sky-night-text:#ecf2ff;
+  --sky-link-day:#154ad6;
+  --sky-link-night:#8db2ff;
+}
+
+html[data-sky-theme="day"] body{
+  background: var(--sky-day-bg) !important;
+  color: var(--sky-day-text);
+}
+
+html[data-sky-theme="night"] body{
+  background: var(--sky-night-bg) !important;
+  color: var(--sky-night-text);
+}
+
+html[data-sky-theme="day"] a{ color: var(--sky-link-day); }
+html[data-sky-theme="night"] a{ color: var(--sky-link-night); }
+
+html[data-sky-theme="day"][data-sky-weather="rain"] body,
+html[data-sky-theme="day"][data-sky-weather="snow"] body,
+html[data-sky-theme="day"][data-sky-weather="storm"] body{
+  background-image: linear-gradient(180deg, rgba(207,223,255,.55), rgba(248,252,255,.8)) !important;
+}
+
+html[data-sky-theme="night"][data-sky-weather="rain"] body,
+html[data-sky-theme="night"][data-sky-weather="storm"] body{
+  background-image: linear-gradient(180deg, rgba(17,28,58,.68), rgba(6,10,24,.92)) !important;
+}

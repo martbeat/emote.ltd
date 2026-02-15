@@ -1450,13 +1450,83 @@ async function fetchLatestPosts(){
       localStorage.setItem(THEME_KEY, theme);
       toast(theme === "light" ? "Light theme" : "Dark theme");
     }
-    function initTheme(){
+    function sunAltitudeDeg(date, latDeg, lonDeg){
+      const rad = Math.PI / 180;
+      const dayMs = 86400000;
+      const julianDay = date.getTime() / dayMs + 2440587.5;
+      const julianCentury = (julianDay - 2451545.0) / 36525.0;
+
+      const geomMeanLong = (280.46646 + julianCentury * (36000.76983 + julianCentury * 0.0003032)) % 360;
+      const geomMeanAnomaly = 357.52911 + julianCentury * (35999.05029 - 0.0001537 * julianCentury);
+      const eccEarthOrbit = 0.016708634 - julianCentury * (0.000042037 + 0.0000001267 * julianCentury);
+
+      const sunEqOfCenter =
+        Math.sin(geomMeanAnomaly * rad) * (1.914602 - julianCentury * (0.004817 + 0.000014 * julianCentury)) +
+        Math.sin(2 * geomMeanAnomaly * rad) * (0.019993 - 0.000101 * julianCentury) +
+        Math.sin(3 * geomMeanAnomaly * rad) * 0.000289;
+
+      const sunTrueLong = geomMeanLong + sunEqOfCenter;
+      const omega = 125.04 - 1934.136 * julianCentury;
+      const sunAppLong = sunTrueLong - 0.00569 - 0.00478 * Math.sin(omega * rad);
+      const meanObliqEcliptic = 23 + (26 + ((21.448 - julianCentury * (46.815 + julianCentury * (0.00059 - julianCentury * 0.001813))) / 60)) / 60;
+      const obliqCorr = meanObliqEcliptic + 0.00256 * Math.cos(omega * rad);
+
+      const sunDecl = Math.asin(Math.sin(obliqCorr * rad) * Math.sin(sunAppLong * rad));
+
+      const varY = Math.tan((obliqCorr / 2) * rad) ** 2;
+      const eqTime = 4 * ((
+        varY * Math.sin(2 * geomMeanLong * rad)
+        - 2 * eccEarthOrbit * Math.sin(geomMeanAnomaly * rad)
+        + 4 * eccEarthOrbit * varY * Math.sin(geomMeanAnomaly * rad) * Math.cos(2 * geomMeanLong * rad)
+        - 0.5 * varY * varY * Math.sin(4 * geomMeanLong * rad)
+        - 1.25 * eccEarthOrbit * eccEarthOrbit * Math.sin(2 * geomMeanAnomaly * rad)
+      ) / rad);
+
+      const minutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
+      const trueSolarTime = (minutes + eqTime + 4 * lonDeg + 1440) % 1440;
+      const hourAngle = (trueSolarTime / 4 < 0 ? trueSolarTime / 4 + 180 : trueSolarTime / 4 - 180) * rad;
+      const latRad = latDeg * rad;
+
+      const cosZenith =
+        Math.sin(latRad) * Math.sin(sunDecl)
+        + Math.cos(latRad) * Math.cos(sunDecl) * Math.cos(hourAngle);
+      const zenith = Math.acos(Math.min(1, Math.max(-1, cosZenith)));
+      return 90 - (zenith / rad);
+    }
+
+    function getCurrentPosition(opts){
+      return new Promise((resolve, reject) => {
+        if(!navigator.geolocation){
+          reject(new Error("Geolocation unavailable"));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
+      });
+    }
+
+    async function getSunBasedTheme(){
+      try{
+        const pos = await getCurrentPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 15 * 60 * 1000 });
+        const { latitude, longitude } = pos.coords;
+        const altitude = sunAltitudeDeg(new Date(), latitude, longitude);
+        return altitude > 0 ? "light" : "dark";
+      }catch{
+        return null;
+      }
+    }
+
+    async function initTheme(){
       const saved = localStorage.getItem(THEME_KEY);
       if(saved){
         document.documentElement.setAttribute("data-theme", saved);
       }else{
-        const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-        document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
+        const sunTheme = await getSunBasedTheme();
+        if(sunTheme){
+          document.documentElement.setAttribute("data-theme", sunTheme);
+        }else{
+          const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+          document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
+        }
       }
     }
 

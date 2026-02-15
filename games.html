@@ -837,32 +837,52 @@ function fallbackSkyTheme(reason){
   applySkyTheme(isDay, isDay ? 1 : 0, reason);
 }
 
-function updateSkyTheme(){
-  if (!("geolocation" in navigator)){
-    fallbackSkyTheme("no geolocation");
-    return;
+async function getApproxCoordsByIp(){
+  const ipapi = await fetch("https://ipapi.co/json/", { cache: "no-store" });
+  if (ipapi.ok){
+    const data = await ipapi.json();
+    if (Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
+      return {
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        source: "IP weather"
+      };
+    }
   }
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
-    try {
-      const latitude = Number(position.coords.latitude).toFixed(4);
-      const longitude = Number(position.coords.longitude).toFixed(4);
-      const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=is_day,weather_code&timezone=auto`;
-
-      const response = await fetch(endpoint);
-      if (!response.ok) throw new Error("weather request failed");
-      const data = await response.json();
-      const current = data && data.current ? data.current : {};
-      const isDay = Number(current.is_day) === 1;
-      const weatherCode = Number(current.weather_code);
-
-      applySkyTheme(isDay, weatherCode, "live weather");
-    } catch {
-      fallbackSkyTheme("weather unavailable");
+  const ipwhois = await fetch("https://ipwho.is/", { cache: "no-store" });
+  if (ipwhois.ok){
+    const data = await ipwhois.json();
+    if (data.success && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
+      return {
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        source: "IP weather"
+      };
     }
-  }, () => {
-    fallbackSkyTheme("location denied");
-  }, { enableHighAccuracy: false, timeout: 5000, maximumAge: 1800000 });
+  }
+
+  throw new Error("ip lookup failed");
+}
+
+async function updateSkyTheme(){
+  try {
+    const coords = await getApproxCoordsByIp();
+    const latitude = coords.latitude.toFixed(4);
+    const longitude = coords.longitude.toFixed(4);
+    const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=is_day,weather_code&timezone=auto`;
+
+    const response = await fetch(endpoint, { cache: "no-store" });
+    if (!response.ok) throw new Error("weather request failed");
+    const data = await response.json();
+    const current = data && data.current ? data.current : {};
+    const isDay = Number(current.is_day) === 1;
+    const weatherCode = Number(current.weather_code);
+
+    applySkyTheme(isDay, weatherCode, coords.source);
+  } catch {
+    fallbackSkyTheme("local time fallback");
+  }
 }
 
     // z-index management so clicked/dragged cards come to front

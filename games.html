@@ -827,7 +827,23 @@ let chromeMetrics = measureChrome();
       uiMinimizeTimer = setTimeout(() => setUiMinimized(true), inactivityDelayMs);
     }
 
-    function registerUiActivity(){
+    function shouldPreserveMinimizedLayout(event){
+      if (!event || !uiIsMinimized) return false;
+      if (event.type !== "pointerdown" && event.type !== "touchstart") return false;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return false;
+
+      // Keep card interactions stable on compact mobile UI so taps don't jump.
+      return Boolean(target.closest(".stage .card"));
+    }
+
+    function registerUiActivity(event){
+      if (shouldPreserveMinimizedLayout(event)){
+        scheduleUiMinimize();
+        return;
+      }
+
       if (uiIsMinimized){
         setUiMinimized(false);
       }

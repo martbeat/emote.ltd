@@ -31,6 +31,10 @@
       --radius: 18px;
       --ring: 0 0 0 2px rgba(122,167,255,.20), 0 0 0 6px rgba(122,167,255,.10);
       --grid: rgba(255,255,255,.06);
+      --ambient-a:#15214a;
+      --ambient-b:#123a2d;
+      --ambient-c:#3a1730;
+      --surface: rgba(10,14,28,.55);
     }
 :root{
   --safeB: env(safe-area-inset-bottom, 0px);
@@ -44,11 +48,45 @@
       margin:0;
       color:var(--ink);
       font: 15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
-      background: radial-gradient(1200px 900px at 20% 10%, #15214a 0%, transparent 60%),
-                  radial-gradient(900px 700px at 80% 30%, #123a2d 0%, transparent 62%),
-                  radial-gradient(900px 900px at 50% 95%, #3a1730 0%, transparent 60%),
+      background: radial-gradient(1200px 900px at 20% 10%, var(--ambient-a) 0%, transparent 60%),
+                  radial-gradient(900px 700px at 80% 30%, var(--ambient-b) 0%, transparent 62%),
+                  radial-gradient(900px 900px at 50% 95%, var(--ambient-c) 0%, transparent 60%),
                   linear-gradient(180deg, var(--bg0), var(--bg1));
       overflow:hidden;
+      transition: background .5s ease, color .35s ease;
+    }
+
+    body[data-theme="day"]{
+      --bg0:#e7f2ff;
+      --bg1:#fff6db;
+      --card:#ffffffcf;
+      --card2:#eef4ffd9;
+      --ink:#19213b;
+      --muted:#516286;
+      --accent:#2f69ff;
+      --accent2:#16b37b;
+      --danger:#b84265;
+      --grid: rgba(13,29,73,.10);
+      --ambient-a:#a7d7ff;
+      --ambient-b:#fff1ac;
+      --ambient-c:#ffd9d9;
+      --surface: rgba(255,255,255,.72);
+      --shadow: 0 12px 30px rgba(41,78,155,.18);
+      --ring: 0 0 0 2px rgba(47,105,255,.20), 0 0 0 6px rgba(47,105,255,.10);
+    }
+
+    body[data-weather="rain"]{
+      --ambient-b:#8cb4c9;
+      --ambient-c:#95a2cf;
+    }
+    body[data-weather="storm"]{
+      --ambient-a:#2f3766;
+      --ambient-b:#34456f;
+      --ambient-c:#35284e;
+    }
+    body[data-weather="snow"]{
+      --ambient-a:#d9ebff;
+      --ambient-b:#dce3fb;
     }
 
     /* subtle animated grid */
@@ -97,6 +135,7 @@
       gap: 14px;
       max-width: 1100px;
       margin: 0 auto;
+      transition: padding .25s ease, opacity .25s ease;
     }
     .brand{
       display:flex;
@@ -113,6 +152,7 @@
       margin:0;
       color: var(--muted);
       max-width: 62ch;
+      transition: max-height .25s ease, opacity .25s ease;
     }
 
     .controls{
@@ -122,6 +162,7 @@
       gap:10px;
       align-items:center;
       margin-top: 2px;
+      transition: max-height .25s ease, opacity .25s ease, margin .25s ease;
     }
 
     .pill{
@@ -349,12 +390,13 @@
       justify-content:space-between;
       padding: 10px 12px;
       border-radius: 16px;
-      background: rgba(10,14,28,.55);
+      background: var(--surface);
       border: 1px solid rgba(255,255,255,.10);
       backdrop-filter: blur(10px);
       box-shadow: 0 10px 28px rgba(0,0,0,.25);
       color: var(--muted);
       font-size: 13px;
+      transition: padding .25s ease, opacity .25s ease;
     }
     .footer .bar .stat{
       display:flex;
@@ -362,10 +404,59 @@
       align-items:center;
       flex-wrap:wrap;
     }
+
+    body.ui-minimized header{
+      padding-top: 12px;
+      padding-bottom: 4px;
+      opacity: .86;
+    }
+
+    body.ui-minimized .brand h1{
+      font-size: clamp(19px, 2.6vw, 24px);
+    }
+
+    body.ui-minimized .brand p,
+    body.ui-minimized .controls{
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    body.ui-minimized .footer .bar{
+      padding-top: 6px;
+      padding-bottom: 6px;
+      opacity: .82;
+    }
+
+    body.ui-minimized .footer .bar .stat:last-child{
+      display: none;
+    }
     .dot{
       width:9px; height:9px; border-radius:50%;
       background: rgba(125,255,178,.75);
       box-shadow: 0 0 0 3px rgba(125,255,178,.12);
+    }
+
+    body[data-theme="day"] .pill,
+    body[data-theme="day"] button,
+    body[data-theme="day"] .ghost,
+    body[data-theme="day"] .tag,
+    body[data-theme="day"] .kbd,
+    body[data-theme="day"] a.play,
+    body[data-theme="day"] .footer .bar{
+      border-color: rgba(47,105,255,.18);
+      box-shadow: 0 10px 24px rgba(24,53,112,.12);
+    }
+
+    body[data-theme="day"] .toggle input{
+      background: rgba(47,105,255,.12);
+      border-color: rgba(47,105,255,.26);
+    }
+
+    body[data-theme="day"] .toggle input::after{
+      background: #fff;
     }
 
     /* reduced motion support */
@@ -481,7 +572,7 @@
       <div class="stat">
         <span id="count">0 games</span>
         <span>•</span>
-        <span id="updated">Edit the list in the script to add new games</span>
+        <span id="updated">Detecting local sky + weather…</span>
       </div>
     </div>
   </div>
@@ -715,7 +806,142 @@ const GAMES = [
     const autopilotToggle = document.getElementById("autopilot");
     const statusEl = document.getElementById("status");
     const countEl = document.getElementById("count");
+    const updatedEl = document.getElementById("updated");
 let chromeMetrics = measureChrome();
+
+
+    const inactivityDelayMs = 15000;
+    const uiActivityEvents = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"];
+    let uiMinimizeTimer = null;
+    let uiIsMinimized = false;
+
+    function setUiMinimized(minimized){
+      uiIsMinimized = minimized;
+      document.body.classList.toggle("ui-minimized", minimized);
+      chromeMetrics = measureChrome();
+      cards.forEach((s) => { if (!s.dragging) keepInBounds(s); sync(s); });
+    }
+
+    function scheduleUiMinimize(){
+      clearTimeout(uiMinimizeTimer);
+      uiMinimizeTimer = setTimeout(() => setUiMinimized(true), inactivityDelayMs);
+    }
+
+    function registerUiActivity(){
+      if (uiIsMinimized){
+        setUiMinimized(false);
+      }
+      scheduleUiMinimize();
+    }
+
+function weatherBucket(code){
+  if (code === 0) return "clear";
+  if ([1, 2, 3].includes(code)) return "cloudy";
+  if ([45, 48].includes(code)) return "fog";
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "rain";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
+  if ([95, 96, 99].includes(code)) return "storm";
+  return "clear";
+}
+
+function weatherLabel(code){
+  const map = {
+    0: "clear sky",
+    1: "mostly clear",
+    2: "partly cloudy",
+    3: "overcast",
+    45: "foggy",
+    48: "icy fog",
+    51: "light drizzle",
+    53: "drizzle",
+    55: "dense drizzle",
+    56: "freezing drizzle",
+    57: "dense freezing drizzle",
+    61: "light rain",
+    63: "rain",
+    65: "heavy rain",
+    66: "freezing rain",
+    67: "heavy freezing rain",
+    71: "light snow",
+    73: "snow",
+    75: "heavy snow",
+    77: "snow grains",
+    80: "rain showers",
+    81: "rain showers",
+    82: "heavy rain showers",
+    85: "snow showers",
+    86: "heavy snow showers",
+    95: "thunderstorm",
+    96: "thunderstorm + hail",
+    99: "severe thunderstorm + hail"
+  };
+  return map[code] || "mixed weather";
+}
+
+function applySkyTheme(isDay, weatherCode, sourceText){
+  const theme = isDay ? "day" : "night";
+  const bucket = weatherBucket(weatherCode);
+  document.body.dataset.theme = theme;
+  document.body.dataset.weather = bucket;
+
+  const period = isDay ? "Day mode" : "Night mode";
+  const weather = weatherLabel(weatherCode);
+  updatedEl.textContent = `${period} • ${weather} (${sourceText})`;
+}
+
+function fallbackSkyTheme(reason){
+  const hour = new Date().getHours();
+  const isDay = hour >= 7 && hour < 19;
+  applySkyTheme(isDay, isDay ? 1 : 0, reason);
+}
+
+async function getApproxCoordsByIp(){
+  const ipapi = await fetch("https://ipapi.co/json/", { cache: "no-store" });
+  if (ipapi.ok){
+    const data = await ipapi.json();
+    if (Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
+      return {
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        source: "IP weather"
+      };
+    }
+  }
+
+  const ipwhois = await fetch("https://ipwho.is/", { cache: "no-store" });
+  if (ipwhois.ok){
+    const data = await ipwhois.json();
+    if (data.success && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
+      return {
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        source: "IP weather"
+      };
+    }
+  }
+
+  throw new Error("ip lookup failed");
+}
+
+async function updateSkyTheme(){
+  try {
+    const coords = await getApproxCoordsByIp();
+    const latitude = coords.latitude.toFixed(4);
+    const longitude = coords.longitude.toFixed(4);
+    const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=is_day,weather_code&timezone=auto`;
+
+    const response = await fetch(endpoint, { cache: "no-store" });
+    if (!response.ok) throw new Error("weather request failed");
+    const data = await response.json();
+    const current = data && data.current ? data.current : {};
+    const isDay = Number(current.is_day) === 1;
+    const weatherCode = Number(current.weather_code);
+
+    applySkyTheme(isDay, weatherCode, coords.source);
+  } catch {
+    fallbackSkyTheme("local time fallback");
+  }
+}
 
     // z-index management so clicked/dragged cards come to front
     const baseZ = 1;
@@ -1178,10 +1404,19 @@ shuffleArray(GAMES);
 });
 
 
+
+    uiActivityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, registerUiActivity, { passive: true });
+    });
+
+
     // start with a little motion, then settle
 shuffle();
 autopilotToggle.checked = true;
 setAutopilot(true);
+scheduleUiMinimize();
+updateSkyTheme();
+setInterval(updateSkyTheme, 20 * 60 * 1000);
   </script>
   <div class="emote-copyright" style="position:fixed;bottom:8px;right:10px;font-size:11px;font-family:system-ui, -apple-system, Segoe UI, sans-serif;color:rgba(255,255,255,0.7);mix-blend-mode:difference;pointer-events:none;z-index:9999;">© eMote Systems</div>
 </body>

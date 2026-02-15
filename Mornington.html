@@ -516,6 +516,54 @@
     showToast._t = setTimeout(() => els.toast.classList.remove('show'), 1800);
   }
 
+  const announcerSpeech = {
+    queue: [],
+    speaking: false
+  };
+
+  function normalizeAnnouncerSpeech(text){
+    return String(text || "")
+      .replace(/\bvowel levy\b/ig, "vowel lev-ee")
+      .replace(/\blevy\b/ig, "lev-ee")
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function pumpAnnouncerSpeechQueue(){
+    if(!('speechSynthesis' in window)) return;
+    if(announcerSpeech.speaking) return;
+    const next = announcerSpeech.queue.shift();
+    if(!next) return;
+
+    const utter = new SpeechSynthesisUtterance(next);
+    utter.lang = "en-GB";
+    utter.rate = 1;
+    utter.pitch = 0.95;
+    utter.onend = utter.onerror = () => {
+      announcerSpeech.speaking = false;
+      pumpAnnouncerSpeechQueue();
+    };
+
+    announcerSpeech.speaking = true;
+    window.speechSynthesis.speak(utter);
+  }
+
+  function speakAnnouncer(text){
+    if(!('speechSynthesis' in window)) return;
+    const spoken = normalizeAnnouncerSpeech(text);
+    if(!spoken) return;
+    announcerSpeech.queue.push(spoken);
+    pumpAnnouncerSpeechQueue();
+  }
+
+  function clearAnnouncerSpeech(){
+    announcerSpeech.queue.length = 0;
+    announcerSpeech.speaking = false;
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+    }
+  }
+
   function log(who, text, tone=""){
     const e = document.createElement('div');
     e.className = 'entry';
@@ -533,6 +581,11 @@
       e.style.borderColor = "rgba(122,167,255,.40)";
     }
     els.log.prepend(e);
+  }
+
+  function narrateAnnouncer(text, tone="info"){
+    log("Announcer", text, tone);
+    speakAnnouncer(text);
   }
 
   function bfsDistance(from){
@@ -599,7 +652,7 @@
     const table = Announcer[kind] || [];
     const base = table.length ? choice(table) : "";
     const msg = extra ? `${base} ${extra}`.trim() : base;
-    log("Announcer", msg, tone);
+    narrateAnnouncer(msg, tone);
   }
 
   // Faux rules
@@ -758,7 +811,7 @@
     } else if(Math.random() < (drama + (dist <= 3 ? 0.18 : 0.0))){
       sayAnnouncer("compliance", verdict.flavour || "The move is entered into the register using ink that smells faintly of authority.", "info");
     } else if(verdict.flavour){
-      log("Announcer", verdict.flavour, verdict.severity === "danger" ? "danger" : "info");
+      narrateAnnouncer(verdict.flavour, verdict.severity === "danger" ? "danger" : "info");
     }
 
     if(target === MC){
@@ -1028,12 +1081,14 @@
     populateStationPick();
     render();
 
+    clearAnnouncerSpeech();
+
     // Commentary opening
     sayAnnouncer("openers", `New game. Ruleset: ${RULESETS[rsKey].name}.`, "info");
     const startMsg = players.map(p => `${p.name} at ${state.pos[p.id]}`).join(" | ");
-    log("Announcer", `Starting positions allocated by ceremonial shuffle: ${startMsg}.`, "info");
-    log("Announcer", `Objective filed in triplicate: land on ${MC}. Saying it early is not winning. Saying it early is paperwork.`, "info");
-    log("Announcer", `Regulations for Round 1: ${state.rules.map(prettyRule).join(", ")}.`, "info");
+    narrateAnnouncer(`Starting positions allocated by ceremonial shuffle: ${startMsg}.`, "info");
+    narrateAnnouncer(`Objective filed in triplicate: land on ${MC}. Saying it early is not winning. Saying it early is paperwork.`, "info");
+    narrateAnnouncer(`Regulations for Round 1: ${state.rules.map(prettyRule).join(", ")}.`, "info");
 
     showToast("New game started");
 

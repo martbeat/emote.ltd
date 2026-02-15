@@ -1,0 +1,29 @@
+:root{
+  --sky-day-bg:#eef5ff;
+  --sky-night-bg:#060914;
+}
+
+/*
+  Non-destructive theming layer:
+  - never force text/link colors globally
+  - never replace authored background gradients/images
+  - only set a fallback background-color for pages that rely on body background
+*/
+html[data-sky-theme="day"] body{
+  background-color: var(--sky-day-bg);
+}
+
+html[data-sky-theme="night"] body{
+  background-color: var(--sky-night-bg);
+}
+
+html[data-sky-theme="day"][data-sky-weather="rain"] body,
+html[data-sky-theme="day"][data-sky-weather="snow"] body,
+html[data-sky-theme="day"][data-sky-weather="storm"] body{
+  background-color: #e7eefb;
+}
+
+html[data-sky-theme="night"][data-sky-weather="rain"] body,
+html[data-sky-theme="night"][data-sky-weather="storm"] body{
+  background-color: #050b18;
+}

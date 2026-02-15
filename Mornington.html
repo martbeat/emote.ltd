@@ -516,16 +516,52 @@
     showToast._t = setTimeout(() => els.toast.classList.remove('show'), 1800);
   }
 
-  function speakAnnouncer(text){
+  const announcerSpeech = {
+    queue: [],
+    speaking: false
+  };
+
+  function normalizeAnnouncerSpeech(text){
+    return String(text || "")
+      .replace(/\bvowel levy\b/ig, "vowel lev-ee")
+      .replace(/\blevy\b/ig, "lev-ee")
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function pumpAnnouncerSpeechQueue(){
     if(!('speechSynthesis' in window)) return;
-    const spoken = String(text || "").replace(/\s+/g, ' ').trim();
-    if(!spoken) return;
-    const utter = new SpeechSynthesisUtterance(spoken);
+    if(announcerSpeech.speaking) return;
+    const next = announcerSpeech.queue.shift();
+    if(!next) return;
+
+    const utter = new SpeechSynthesisUtterance(next);
     utter.lang = "en-GB";
     utter.rate = 1;
     utter.pitch = 0.95;
-    window.speechSynthesis.cancel();
+    utter.onend = utter.onerror = () => {
+      announcerSpeech.speaking = false;
+      pumpAnnouncerSpeechQueue();
+    };
+
+    announcerSpeech.speaking = true;
     window.speechSynthesis.speak(utter);
+  }
+
+  function speakAnnouncer(text){
+    if(!('speechSynthesis' in window)) return;
+    const spoken = normalizeAnnouncerSpeech(text);
+    if(!spoken) return;
+    announcerSpeech.queue.push(spoken);
+    pumpAnnouncerSpeechQueue();
+  }
+
+  function clearAnnouncerSpeech(){
+    announcerSpeech.queue.length = 0;
+    announcerSpeech.speaking = false;
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+    }
   }
 
   function log(who, text, tone=""){
@@ -1044,6 +1080,8 @@
     syncCurrentPlayerPick();
     populateStationPick();
     render();
+
+    clearAnnouncerSpeech();
 
     // Commentary opening
     sayAnnouncer("openers", `New game. Ruleset: ${RULESETS[rsKey].name}.`, "info");

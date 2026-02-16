@@ -287,7 +287,141 @@
     const rows = Array.from(grouped.values()).sort(function (a, b) {
       return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
     });
+
     return rows.length ? { data: rows } : null;
+  }
+
+  function datasetTotal(dataset, field) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return 0;
+    return normalized.data.reduce(function (sum, row) {
+      return sum + rowMetric(row, field, field === 'hits' ? ['downloads', 'requests', 'count', 'value'] : []);
+    }, 0);
+  }
+
+  function rowCountry(row) {
+    if (!row || typeof row !== 'object') return '';
+    return String(row.country || (row.geoip && row.geoip.country) || (row.location && row.location.country) || '').trim();
+  }
+
+  function rowCity(row) {
+    if (!row || typeof row !== 'object') return '';
+    return String(row.city || (row.geoip && row.geoip.city) || (row.location && row.location.city) || '').trim();
+  }
+
+  function buildPdfLocationDataset(pdfDataset, dimension) {
+    const normalized = normalizeDataset(pdfDataset);
+    if (!normalized) return null;
+
+    const grouped = new Map();
+    normalized.data.forEach(function (row) {
+      const country = rowCountry(row);
+      const city = rowCity(row);
+      const key = dimension === 'city'
+        ? ([city, country].filter(Boolean).join(', ') || 'Unknown city')
+        : (country || 'Unknown country');
+
+      const entry = grouped.get(key) || { data: key, hits: 0, visitors: 0, bytes: 0 };
+      entry.hits += rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value']);
+      entry.visitors += rowMetric(row, 'visitors', ['unique_visitors', 'users']);
+      entry.bytes += rowMetric(row, 'bytes', ['bandwidth', 'size']);
+      grouped.set(key, entry);
+    });
+
+    const rows = Array.from(grouped.values()).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+    return rows.length ? { data: rows } : null;
+  }
+
+  function isPdfPath(value) {
+    if (typeof value !== 'string') return false;
+    return /\.pdf(?:$|[?#])/i.test(value.trim());
+  }
+
+  function buildPdfDownloadsDataset(sourceDataset) {
+    const normalized = normalizeDataset(sourceDataset);
+    if (!normalized) return null;
+
+    const rows = normalized.data.filter(function (row) {
+      const item = rowItemText(row);
+      return isPdfPath(item);
+    }).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+
+    return rows.length ? { data: rows } : null;
+  }
+
+  function datasetTotal(dataset, field) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return 0;
+    return normalized.data.reduce(function (sum, row) {
+      return sum + rowMetric(row, field, field === 'hits' ? ['downloads', 'requests', 'count', 'value'] : []);
+    }, 0);
+  }
+
+  function rowCountry(row) {
+    if (!row || typeof row !== 'object') return '';
+    return String(row.country || (row.geoip && row.geoip.country) || (row.location && row.location.country) || '').trim();
+  }
+
+  function rowCity(row) {
+    if (!row || typeof row !== 'object') return '';
+    return String(row.city || (row.geoip && row.geoip.city) || (row.location && row.location.city) || '').trim();
+  }
+
+  function buildPdfLocationDataset(pdfDataset, dimension) {
+    const normalized = normalizeDataset(pdfDataset);
+    if (!normalized) return null;
+
+    const grouped = new Map();
+    normalized.data.forEach(function (row) {
+      const country = rowCountry(row);
+      const city = rowCity(row);
+      const key = dimension === 'city'
+        ? [city, country].filter(Boolean).join(', ')
+        : country;
+      if (!key) return;
+
+      const entry = grouped.get(key) || { data: key, hits: 0, visitors: 0, bytes: 0 };
+      entry.hits += rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value']);
+      entry.visitors += rowMetric(row, 'visitors', ['unique_visitors', 'users']);
+      entry.bytes += rowMetric(row, 'bytes', ['bandwidth', 'size']);
+      grouped.set(key, entry);
+    });
+
+    const rows = Array.from(grouped.values()).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+    return rows.length ? { data: rows } : null;
+  }
+
+  function isPdfPath(value) {
+    if (typeof value !== 'string') return false;
+    return /\.pdf(?:$|[?#])/i.test(value.trim());
+  }
+
+  function buildPdfDownloadsDataset(sourceDataset) {
+    const normalized = normalizeDataset(sourceDataset);
+    if (!normalized) return null;
+
+    const rows = normalized.data.filter(function (row) {
+      const item = rowItemText(row);
+      return isPdfPath(item);
+    }).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+
+    return rows.length ? { data: rows } : null;
+  }
+
+  function datasetTotal(dataset, field) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return 0;
+    return normalized.data.reduce(function (sum, row) {
+      return sum + rowMetric(row, field, field === 'hits' ? ['downloads', 'requests', 'count', 'value'] : []);
+    }, 0);
   }
 
 

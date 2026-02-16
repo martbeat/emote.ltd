@@ -305,7 +305,7 @@
     addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
     addCard('Bandwidth', formatBytes(g.bandwidth || 0));
 
-    const pdfDownloads = normalizeDataset(data.pdf_downloads || data.downloads) || buildPdfDownloadsDataset(data.requests || data.top_pages);
+    const pdfDownloads = normalizeDataset(data.pdf_downloads || data.downloads) || buildPdfDownloadsDataset(data.static_requests || data.requests || data.top_pages);
     addCard('PDF Downloads', numberFmt.format(datasetTotal(pdfDownloads, 'hits')));
 
     addTable('Top Pages', data.requests || data.top_pages, 20);

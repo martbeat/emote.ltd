@@ -288,6 +288,33 @@
     return rows.length ? { data: rows } : null;
   }
 
+  function isPdfPath(value) {
+    if (typeof value !== 'string') return false;
+    return /\.pdf(?:$|[?#])/i.test(value.trim());
+  }
+
+  function buildPdfDownloadsDataset(sourceDataset) {
+    const normalized = normalizeDataset(sourceDataset);
+    if (!normalized) return null;
+
+    const rows = normalized.data.filter(function (row) {
+      const item = rowItemText(row);
+      return isPdfPath(item);
+    }).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+
+    return rows.length ? { data: rows } : null;
+  }
+
+  function datasetTotal(dataset, field) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return 0;
+    return normalized.data.reduce(function (sum, row) {
+      return sum + rowMetric(row, field, field === 'hits' ? ['downloads', 'requests', 'count', 'value'] : []);
+    }, 0);
+  }
+
 
   async function fetchJsonSafely(url) {
     try {

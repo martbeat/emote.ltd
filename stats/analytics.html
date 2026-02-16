@@ -192,6 +192,31 @@
     return rows.length ? { data: rows } : null;
   }
 
+  function isPdfPath(value) {
+    if (typeof value !== 'string') return false;
+    return /\.pdf(?:$|[?#])/i.test(value.trim());
+  }
+
+  function buildPdfDownloadsDataset(sourceDataset) {
+    if (!sourceDataset || !Array.isArray(sourceDataset.data) || sourceDataset.data.length === 0) return null;
+
+    const rows = sourceDataset.data.filter(function (row) {
+      const item = row && (row.data || row._itemText || '');
+      return isPdfPath(item);
+    }).sort(function (a, b) {
+      return metricValue(b.hits) - metricValue(a.hits);
+    });
+
+    return rows.length ? { data: rows } : null;
+  }
+
+  function datasetTotal(dataset, field) {
+    if (!dataset || !Array.isArray(dataset.data)) return 0;
+    return dataset.data.reduce(function (sum, row) {
+      return sum + metricValue(row && row[field]);
+    }, 0);
+  }
+
 
   async function fetchJsonSafely(url) {
     try {
@@ -245,9 +270,13 @@
     addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
     addCard('Bandwidth', formatBytes(g.bandwidth || 0));
 
+    const pdfDownloads = data.pdf_downloads || data.downloads || buildPdfDownloadsDataset(data.requests || data.top_pages);
+    addCard('PDF Downloads', numberFmt.format(datasetTotal(pdfDownloads, 'hits')));
+
     addTable('Top Pages', data.requests || data.top_pages, 20);
     addTable('Referrers', data.referring_sites || data.referrers, 20);
     addTable('404 Errors', data.not_found, 20);
+    addTable('PDF Downloads', pdfDownloads, 20);
     addTable('Top Hosts', data.hosts, 20);
 
     const successfulLocations = groupedLocationTable(data.hosts, 'success');

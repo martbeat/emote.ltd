@@ -321,7 +321,7 @@
 
     .desc{
       margin:0;
-      color: rgba(233,238,252,.92);
+      color: color-mix(in srgb, var(--ink) 88%, transparent);
       font-size: 13.5px;
     }
 
@@ -1179,15 +1179,20 @@ function visibilityOpacity(phase){
   return 0;
 }
 
+function setAllVisible(){
+  cards.forEach((s) => {
+    s.isVisible = true;
+    s.el.style.opacity = "1";
+    s.el.style.pointerEvents = "auto";
+    s.el.setAttribute("aria-hidden", "false");
+    s.wasVisible = true;
+  });
+}
+
 function updateVisibility(t){
   const elapsed = t - visibilityStart;
   if (elapsed < 0){
-    cards.forEach((s) => {
-      s.el.style.opacity = "1";
-      s.el.style.pointerEvents = "auto";
-      s.el.setAttribute("aria-hidden", "false");
-      s.wasVisible = true;
-    });
+    setAllVisible();
     return;
   }
 
@@ -1295,6 +1300,11 @@ function sync(s){
     }
 
     function tick(t){
+      if (!autopilot){
+        raf = null;
+        return;
+      }
+
       const dt = Math.min(0.033, (t - lastT) / 1000);
       lastT = t;
 
@@ -1356,6 +1366,15 @@ if (s.isVisible) sync(s);
       statusEl.textContent = `Autopilot: ${autopilot ? "On" : "Off"}`;
       document.querySelector(".dot").style.background = autopilot ? "rgba(125,255,178,.75)" : "rgba(255,255,255,.35)";
       document.querySelector(".dot").style.boxShadow = autopilot ? "0 0 0 3px rgba(125,255,178,.12)" : "0 0 0 3px rgba(255,255,255,.10)";
+
+      if (!autopilot){
+        if (raf){
+          cancelAnimationFrame(raf);
+          raf = null;
+        }
+        setAllVisible();
+        return;
+      }
 
       if (!raf){
         lastT = performance.now();

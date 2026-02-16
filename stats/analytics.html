@@ -117,11 +117,31 @@
     return parts.join(', ');
   }
 
+  function rowItemText(row) {
+    if (!row || typeof row !== 'object') return '';
+    return row._itemText || row.data || row.item || row.path || row.url || row.file || row.filename || row.name || '';
+  }
+
+  function datasetRows(dataset) {
+    if (!dataset) return [];
+    if (Array.isArray(dataset)) return dataset;
+    if (Array.isArray(dataset.data)) return dataset.data;
+    if (Array.isArray(dataset.items)) return dataset.items;
+    if (Array.isArray(dataset.rows)) return dataset.rows;
+    return [];
+  }
+
+  function normalizeDataset(dataset) {
+    const rows = datasetRows(dataset);
+    return rows.length ? { data: rows } : null;
+  }
+
   function addTable(title, dataset, limit) {
-    if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) return;
-    const rows = dataset.data.slice(0, limit || 20).map(function (row) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return;
+    const rows = normalized.data.slice(0, limit || 20).map(function (row) {
       const methodProtocol = [row.method, row.protocol].filter(Boolean).join(' ') || '—';
-      const item = row._itemText || row.data || '—';
+      const item = rowItemText(row) || '—';
       const isHostsTable = title === 'Top Hosts';
       const hostLocation = isHostsTable ? hostLocationLabel(row) : '';
       const itemHtml = safe(item) + (hostLocation ? '<span class="subitem">' + safe(hostLocation) + '</span>' : '');
@@ -168,10 +188,11 @@
   }
 
   function groupedLocationTable(hostsDataset, bucket) {
-    if (!hostsDataset || !Array.isArray(hostsDataset.data) || hostsDataset.data.length === 0) return null;
+    const normalizedHosts = normalizeDataset(hostsDataset);
+    if (!normalizedHosts) return null;
     const grouped = new Map();
 
-    hostsDataset.data.forEach(function (row) {
+    normalizedHosts.data.forEach(function (row) {
       const statusCode = getStatusCode(row);
       const inSuccessBucket = statusCode >= 200 && statusCode < 400;
       const inErrorBucket = statusCode >= 400;
@@ -198,10 +219,11 @@
   }
 
   function buildPdfDownloadsDataset(sourceDataset) {
-    if (!sourceDataset || !Array.isArray(sourceDataset.data) || sourceDataset.data.length === 0) return null;
+    const normalized = normalizeDataset(sourceDataset);
+    if (!normalized) return null;
 
-    const rows = sourceDataset.data.filter(function (row) {
-      const item = row && (row.data || row._itemText || '');
+    const rows = normalized.data.filter(function (row) {
+      const item = rowItemText(row);
       return isPdfPath(item);
     }).sort(function (a, b) {
       return metricValue(b.hits) - metricValue(a.hits);
@@ -211,8 +233,9 @@
   }
 
   function datasetTotal(dataset, field) {
-    if (!dataset || !Array.isArray(dataset.data)) return 0;
-    return dataset.data.reduce(function (sum, row) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return 0;
+    return normalized.data.reduce(function (sum, row) {
       return sum + metricValue(row && row[field]);
     }, 0);
   }
@@ -270,7 +293,7 @@
     addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
     addCard('Bandwidth', formatBytes(g.bandwidth || 0));
 
-    const pdfDownloads = data.pdf_downloads || data.downloads || buildPdfDownloadsDataset(data.requests || data.top_pages);
+    const pdfDownloads = normalizeDataset(data.pdf_downloads || data.downloads) || buildPdfDownloadsDataset(data.requests || data.top_pages);
     addCard('PDF Downloads', numberFmt.format(datasetTotal(pdfDownloads, 'hits')));
 
     addTable('Top Pages', data.requests || data.top_pages, 20);

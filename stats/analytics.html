@@ -136,6 +136,18 @@
     return rows.length ? { data: rows } : null;
   }
 
+  function rowMetric(row, primaryKey, fallbackKeys) {
+    if (!row || typeof row !== 'object') return 0;
+    const keys = [primaryKey].concat(fallbackKeys || []);
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = keys[i];
+      if (!key) continue;
+      const value = metricValue(row[key]);
+      if (value) return value;
+    }
+    return 0;
+  }
+
   function addTable(title, dataset, limit) {
     const normalized = normalizeDataset(dataset);
     if (!normalized) return;
@@ -147,9 +159,9 @@
       const itemHtml = safe(item) + (hostLocation ? '<span class="subitem">' + safe(hostLocation) + '</span>' : '');
       return '<tr>' +
         '<td class="mono">' + itemHtml + '</td>' +
-        '<td>' + formatMetric(row.hits) + '</td>' +
-        '<td>' + formatMetric(row.visitors) + '</td>' +
-        '<td>' + formatMetric(row.bytes) + '</td>' +
+        '<td>' + formatMetric(rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value'])) + '</td>' +
+        '<td>' + formatMetric(rowMetric(row, 'visitors', ['unique_visitors', 'users'])) + '</td>' +
+        '<td>' + formatMetric(rowMetric(row, 'bytes', ['bandwidth', 'size'])) + '</td>' +
         '<td class="mono">' + safe(methodProtocol) + '</td>' +
       '</tr>';
     }).join('');
@@ -201,14 +213,14 @@
 
       const location = hostLocationLabel(row) || 'Unknown location';
       const entry = grouped.get(location) || { data: location, hits: 0, visitors: 0, bytes: 0 };
-      entry.hits += metricValue(row.hits);
-      entry.visitors += metricValue(row.visitors);
-      entry.bytes += metricValue(row.bytes);
+      entry.hits += rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value']);
+      entry.visitors += rowMetric(row, 'visitors', ['unique_visitors', 'users']);
+      entry.bytes += rowMetric(row, 'bytes', ['bandwidth', 'size']);
       grouped.set(location, entry);
     });
 
     const rows = Array.from(grouped.values()).sort(function (a, b) {
-      return metricValue(b.hits) - metricValue(a.hits);
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
     });
     return rows.length ? { data: rows } : null;
   }
@@ -226,7 +238,7 @@
       const item = rowItemText(row);
       return isPdfPath(item);
     }).sort(function (a, b) {
-      return metricValue(b.hits) - metricValue(a.hits);
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
     });
 
     return rows.length ? { data: rows } : null;
@@ -236,7 +248,7 @@
     const normalized = normalizeDataset(dataset);
     if (!normalized) return 0;
     return normalized.data.reduce(function (sum, row) {
-      return sum + metricValue(row && row[field]);
+      return sum + rowMetric(row, field, field === 'hits' ? ['downloads', 'requests', 'count', 'value'] : []);
     }, 0);
   }
 

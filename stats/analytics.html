@@ -117,19 +117,54 @@
     return parts.join(', ');
   }
 
-  function addTable(title, dataset, limit) {
-    if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) return;
-    const rows = dataset.data.slice(0, limit || 20).map(function (row) {
+  function rowItemText(row) {
+    if (!row || typeof row !== 'object') return '';
+    return row._itemText || row.data || row.item || row.path || row.url || row.file || row.filename || row.name || '';
+  }
+
+  function datasetRows(dataset) {
+    if (!dataset) return [];
+    if (Array.isArray(dataset)) return dataset;
+    if (Array.isArray(dataset.data)) return dataset.data;
+    if (Array.isArray(dataset.items)) return dataset.items;
+    if (Array.isArray(dataset.rows)) return dataset.rows;
+    return [];
+  }
+
+  function normalizeDataset(dataset) {
+    const rows = datasetRows(dataset);
+    return rows.length ? { data: rows } : null;
+  }
+
+  function rowMetric(row, primaryKey, fallbackKeys) {
+    if (!row || typeof row !== 'object') return 0;
+    const keys = [primaryKey].concat(fallbackKeys || []);
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = keys[i];
+      if (!key) continue;
+      const value = metricValue(row[key]);
+      if (value) return value;
+    }
+    return 0;
+  }
+
+  function addTable(title, dataset, limit, emptyItemLabel) {
+    let normalized = normalizeDataset(dataset);
+    if (!normalized && emptyItemLabel) {
+      normalized = { data: [{ data: emptyItemLabel, hits: 0, visitors: 0, bytes: 0, method: '—', protocol: '' }] };
+    }
+    if (!normalized) return;
+    const rows = normalized.data.slice(0, limit || 20).map(function (row) {
       const methodProtocol = [row.method, row.protocol].filter(Boolean).join(' ') || '—';
-      const item = row._itemText || row.data || '—';
+      const item = rowItemText(row) || '—';
       const isHostsTable = title === 'Top Hosts';
       const hostLocation = isHostsTable ? hostLocationLabel(row) : '';
       const itemHtml = safe(item) + (hostLocation ? '<span class="subitem">' + safe(hostLocation) + '</span>' : '');
       return '<tr>' +
         '<td class="mono">' + itemHtml + '</td>' +
-        '<td>' + formatMetric(row.hits) + '</td>' +
-        '<td>' + formatMetric(row.visitors) + '</td>' +
-        '<td>' + formatMetric(row.bytes) + '</td>' +
+        '<td>' + formatMetric(rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value'])) + '</td>' +
+        '<td>' + formatMetric(rowMetric(row, 'visitors', ['unique_visitors', 'users'])) + '</td>' +
+        '<td>' + formatMetric(rowMetric(row, 'bytes', ['bandwidth', 'size'])) + '</td>' +
         '<td class="mono">' + safe(methodProtocol) + '</td>' +
       '</tr>';
     }).join('');
@@ -168,10 +203,11 @@
   }
 
   function groupedLocationTable(hostsDataset, bucket) {
-    if (!hostsDataset || !Array.isArray(hostsDataset.data) || hostsDataset.data.length === 0) return null;
+    const normalizedHosts = normalizeDataset(hostsDataset);
+    if (!normalizedHosts) return null;
     const grouped = new Map();
 
-    hostsDataset.data.forEach(function (row) {
+    normalizedHosts.data.forEach(function (row) {
       const statusCode = getStatusCode(row);
       const inSuccessBucket = statusCode >= 200 && statusCode < 400;
       const inErrorBucket = statusCode >= 400;
@@ -180,14 +216,76 @@
 
       const location = hostLocationLabel(row) || 'Unknown location';
       const entry = grouped.get(location) || { data: location, hits: 0, visitors: 0, bytes: 0 };
-      entry.hits += metricValue(row.hits);
-      entry.visitors += metricValue(row.visitors);
-      entry.bytes += metricValue(row.bytes);
+      entry.hits += rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value']);
+      entry.visitors += rowMetric(row, 'visitors', ['unique_visitors', 'users']);
+      entry.bytes += rowMetric(row, 'bytes', ['bandwidth', 'size']);
       grouped.set(location, entry);
     });
 
     const rows = Array.from(grouped.values()).sort(function (a, b) {
-      return metricValue(b.hits) - metricValue(a.hits);
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+    return rows.length ? { data: rows } : null;
+  }
+
+  function isPdfPath(value) {
+    if (typeof value !== 'string') return false;
+    return /\.pdf(?:$|[?#])/i.test(value.trim());
+  }
+
+  function buildPdfDownloadsDataset(sourceDataset) {
+    const normalized = normalizeDataset(sourceDataset);
+    if (!normalized) return null;
+
+    const rows = normalized.data.filter(function (row) {
+      const item = rowItemText(row);
+      return isPdfPath(item);
+    }).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
+    });
+
+    return rows.length ? { data: rows } : null;
+  }
+
+  function datasetTotal(dataset, field) {
+    const normalized = normalizeDataset(dataset);
+    if (!normalized) return 0;
+    return normalized.data.reduce(function (sum, row) {
+      return sum + rowMetric(row, field, field === 'hits' ? ['downloads', 'requests', 'count', 'value'] : []);
+    }, 0);
+  }
+
+  function rowCountry(row) {
+    if (!row || typeof row !== 'object') return '';
+    return String(row.country || (row.geoip && row.geoip.country) || (row.location && row.location.country) || '').trim();
+  }
+
+  function rowCity(row) {
+    if (!row || typeof row !== 'object') return '';
+    return String(row.city || (row.geoip && row.geoip.city) || (row.location && row.location.city) || '').trim();
+  }
+
+  function buildPdfLocationDataset(pdfDataset, dimension) {
+    const normalized = normalizeDataset(pdfDataset);
+    if (!normalized) return null;
+
+    const grouped = new Map();
+    normalized.data.forEach(function (row) {
+      const country = rowCountry(row);
+      const city = rowCity(row);
+      const key = dimension === 'city'
+        ? ([city, country].filter(Boolean).join(', ') || 'Unknown city')
+        : (country || 'Unknown country');
+
+      const entry = grouped.get(key) || { data: key, hits: 0, visitors: 0, bytes: 0 };
+      entry.hits += rowMetric(row, 'hits', ['downloads', 'requests', 'count', 'value']);
+      entry.visitors += rowMetric(row, 'visitors', ['unique_visitors', 'users']);
+      entry.bytes += rowMetric(row, 'bytes', ['bandwidth', 'size']);
+      grouped.set(key, entry);
+    });
+
+    const rows = Array.from(grouped.values()).sort(function (a, b) {
+      return rowMetric(b, 'hits', ['downloads', 'requests', 'count', 'value']) - rowMetric(a, 'hits', ['downloads', 'requests', 'count', 'value']);
     });
     return rows.length ? { data: rows } : null;
   }
@@ -245,9 +343,15 @@
     addCard('Unique Visitors', numberFmt.format(g.unique_visitors || 0));
     addCard('Bandwidth', formatBytes(g.bandwidth || 0));
 
+    const pdfDownloads = normalizeDataset(data.pdf_downloads || data.downloads) || buildPdfDownloadsDataset(data.static_requests || data.requests || data.top_pages);
+    addCard('PDF Downloads', numberFmt.format(datasetTotal(pdfDownloads, 'hits')));
+
     addTable('Top Pages', data.requests || data.top_pages, 20);
     addTable('Referrers', data.referring_sites || data.referrers, 20);
     addTable('404 Errors', data.not_found, 20);
+    addTable('PDF Downloads', pdfDownloads, 20);
+    addTable('PDF Downloads by Country', buildPdfLocationDataset(pdfDownloads, 'country'), 20, 'Unknown country');
+    addTable('PDF Downloads by City', buildPdfLocationDataset(pdfDownloads, 'city'), 20, 'Unknown city');
     addTable('Top Hosts', data.hosts, 20);
 
     const successfulLocations = groupedLocationTable(data.hosts, 'success');

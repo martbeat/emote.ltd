@@ -966,6 +966,7 @@ async function updateSkyTheme(){
 
     // visibility cycling (show up to 7 cards at once, rotating over time)
     const visibilityCycleMs = 60000;
+    const visibilityRampMs = visibilityCycleMs; // backwards compatibility for older visibility logic references
     const visibilityStartDelayMs = 1200;
     const maxVisibleCards = 7;
     const initialVisibleCards = maxVisibleCards; // backwards compatibility for older visibility logic references

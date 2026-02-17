@@ -1059,7 +1059,6 @@ const state = {
 };
 
       state.visibilityOrder = idx;
-      state.visibilityOffset = 0;
       state.wasVisible = true;
 
       el.style.left = state.x + "px";
@@ -1192,10 +1191,11 @@ function visibilityOpacity(phase, visibleFraction){
 
 function updateVisibility(t){
   const elapsed = t - visibilityStart;
-  if (elapsed < 0){
-    setAllVisible();
-    return;
-  }
+  const clampedElapsed = Math.max(0, elapsed);
+  const startVisible = Math.min(initialVisibleCards, cards.length);
+  const revealProgress = clamp(clampedElapsed / visibilityRampMs, 0, 1);
+  const easedProgress = 1 - Math.pow(1 - revealProgress, 1.5);
+  const revealTarget = Math.round(startVisible + (cards.length - startVisible) * easedProgress);
 
   const cyclePos = (elapsed % visibilityCycleMs) / visibilityCycleMs;
   const visibleFraction = Math.min(1, maxVisibleCards / Math.max(1, cards.length));
@@ -1224,7 +1224,7 @@ function updateVisibility(t){
     const isVisible = opacity > 0.02;
 
     s.isVisible = isVisible;
-    s.el.style.opacity = opacity.toFixed(3);
+    s.el.style.opacity = isVisible ? "1" : "0";
     s.el.style.pointerEvents = isVisible ? "auto" : "none";
     s.el.setAttribute("aria-hidden", isVisible ? "false" : "true");
 

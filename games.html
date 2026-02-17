@@ -964,10 +964,11 @@ async function updateSkyTheme(){
     const baseZ = 1;
     let topZ = baseZ + GAMES.length + 5;
 
-    // gentle reveal (start small, then gradually show more cards)
-    const visibilityRampMs = 60000;
+    // visibility cycling (show up to 7 cards at once, rotating over time)
+    const visibilityCycleMs = 60000;
     const visibilityStartDelayMs = 1200;
-    const initialVisibleCards = 3;
+    const maxVisibleCards = 7;
+    const fadeFraction = 0.08;
     let visibilityStart = performance.now() + visibilityStartDelayMs;
 
     // motion state
@@ -1174,6 +1175,20 @@ function setAllVisible(){
   });
 }
 
+function visibilityOpacity(phase, visibleFraction){
+  const local = ((phase % 1) + 1) % 1;
+  if (local < visibleFraction){
+    if (local < fadeFraction){
+      return local / fadeFraction;
+    }
+    if (local > visibleFraction - fadeFraction){
+      return (visibleFraction - local) / fadeFraction;
+    }
+    return 1;
+  }
+  return 0;
+}
+
 function updateVisibility(t){
   const elapsed = t - visibilityStart;
   const clampedElapsed = Math.max(0, elapsed);
@@ -1182,16 +1197,32 @@ function updateVisibility(t){
   const easedProgress = 1 - Math.pow(1 - revealProgress, 1.5);
   const revealTarget = Math.round(startVisible + (cards.length - startVisible) * easedProgress);
 
+  const cyclePos = (elapsed % visibilityCycleMs) / visibilityCycleMs;
+  const visibleFraction = Math.min(1, maxVisibleCards / Math.max(1, cards.length));
+  const candidates = [];
+
   cards.forEach((s) => {
     if (s.dragging){
-      s.el.style.opacity = "1";
-      s.el.style.pointerEvents = "auto";
-      s.el.setAttribute("aria-hidden", "false");
-      s.wasVisible = true;
+      s.pendingOpacity = 1;
       return;
     }
+    s.pendingOpacity = visibilityOpacity(cyclePos + s.visibilityOffset, visibleFraction);
+    candidates.push(s);
+  });
 
-    const isVisible = s.visibilityOrder < revealTarget;
+  const visibleNonDraggingLimit = Math.max(0, maxVisibleCards - cards.filter((s) => s.dragging).length);
+  const keepVisible = new Set(
+    candidates
+      .filter((s) => s.pendingOpacity > 0.02)
+      .sort((a, b) => b.pendingOpacity - a.pendingOpacity)
+      .slice(0, visibleNonDraggingLimit)
+  );
+
+  cards.forEach((s) => {
+    const isDragged = s.dragging;
+    const opacity = isDragged ? 1 : (keepVisible.has(s) ? s.pendingOpacity : 0);
+    const isVisible = opacity > 0.02;
+
     s.isVisible = isVisible;
     s.el.style.opacity = isVisible ? "1" : "0";
     s.el.style.pointerEvents = isVisible ? "auto" : "none";
@@ -1389,6 +1420,7 @@ function shuffleArray(arr){
     );
     ordered.forEach((s, i) => {
       s.visibilityOrder = i;
+      s.visibilityOffset = i / Math.max(1, cards.length);
     });
   }
 

@@ -1369,7 +1369,7 @@ async function fetchLatestPosts(){
     </div>`;
 
   try{
-    const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "force-cache" });
+    const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "no-store" });
     if(!res.ok) throw new Error("Feed request failed: " + res.status);
 
     const data = await res.json();
@@ -1450,66 +1450,44 @@ async function fetchLatestPosts(){
       localStorage.setItem(THEME_KEY, theme);
       toast(theme === "light" ? "Light theme" : "Dark theme");
     }
-    function sunAltitudeDeg(date, latDeg, lonDeg){
-      const rad = Math.PI / 180;
-      const dayMs = 86400000;
-      const julianDay = date.getTime() / dayMs + 2440587.5;
-      const julianCentury = (julianDay - 2451545.0) / 36525.0;
-
-      const geomMeanLong = (280.46646 + julianCentury * (36000.76983 + julianCentury * 0.0003032)) % 360;
-      const geomMeanAnomaly = 357.52911 + julianCentury * (35999.05029 - 0.0001537 * julianCentury);
-      const eccEarthOrbit = 0.016708634 - julianCentury * (0.000042037 + 0.0000001267 * julianCentury);
-
-      const sunEqOfCenter =
-        Math.sin(geomMeanAnomaly * rad) * (1.914602 - julianCentury * (0.004817 + 0.000014 * julianCentury)) +
-        Math.sin(2 * geomMeanAnomaly * rad) * (0.019993 - 0.000101 * julianCentury) +
-        Math.sin(3 * geomMeanAnomaly * rad) * 0.000289;
-
-      const sunTrueLong = geomMeanLong + sunEqOfCenter;
-      const omega = 125.04 - 1934.136 * julianCentury;
-      const sunAppLong = sunTrueLong - 0.00569 - 0.00478 * Math.sin(omega * rad);
-      const meanObliqEcliptic = 23 + (26 + ((21.448 - julianCentury * (46.815 + julianCentury * (0.00059 - julianCentury * 0.001813))) / 60)) / 60;
-      const obliqCorr = meanObliqEcliptic + 0.00256 * Math.cos(omega * rad);
-
-      const sunDecl = Math.asin(Math.sin(obliqCorr * rad) * Math.sin(sunAppLong * rad));
-
-      const varY = Math.tan((obliqCorr / 2) * rad) ** 2;
-      const eqTime = 4 * ((
-        varY * Math.sin(2 * geomMeanLong * rad)
-        - 2 * eccEarthOrbit * Math.sin(geomMeanAnomaly * rad)
-        + 4 * eccEarthOrbit * varY * Math.sin(geomMeanAnomaly * rad) * Math.cos(2 * geomMeanLong * rad)
-        - 0.5 * varY * varY * Math.sin(4 * geomMeanLong * rad)
-        - 1.25 * eccEarthOrbit * eccEarthOrbit * Math.sin(2 * geomMeanAnomaly * rad)
-      ) / rad);
-
-      const minutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
-      const trueSolarTime = (minutes + eqTime + 4 * lonDeg + 1440) % 1440;
-      const hourAngle = (trueSolarTime / 4 < 0 ? trueSolarTime / 4 + 180 : trueSolarTime / 4 - 180) * rad;
-      const latRad = latDeg * rad;
-
-      const cosZenith =
-        Math.sin(latRad) * Math.sin(sunDecl)
-        + Math.cos(latRad) * Math.cos(sunDecl) * Math.cos(hourAngle);
-      const zenith = Math.acos(Math.min(1, Math.max(-1, cosZenith)));
-      return 90 - (zenith / rad);
-    }
-
-    function getCurrentPosition(opts){
-      return new Promise((resolve, reject) => {
-        if(!navigator.geolocation){
-          reject(new Error("Geolocation unavailable"));
-          return;
+    async function getApproxCoordsByIp(){
+      const ipapi = await fetch("https://ipapi.co/json/", { cache: "no-store" });
+      if(ipapi.ok){
+        const data = await ipapi.json();
+        if(Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
+          return {
+            latitude: Number(data.latitude),
+            longitude: Number(data.longitude)
+          };
         }
-        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
-      });
+      }
+
+      const ipwhois = await fetch("https://ipwho.is/", { cache: "no-store" });
+      if(ipwhois.ok){
+        const data = await ipwhois.json();
+        if(data.success && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
+          return {
+            latitude: Number(data.latitude),
+            longitude: Number(data.longitude)
+          };
+        }
+      }
+
+      throw new Error("ip lookup failed");
     }
 
-    async function getSunBasedTheme(){
+    async function getWeatherBasedTheme(){
       try{
-        const pos = await getCurrentPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 15 * 60 * 1000 });
-        const { latitude, longitude } = pos.coords;
-        const altitude = sunAltitudeDeg(new Date(), latitude, longitude);
-        return altitude > 0 ? "light" : "dark";
+        const coords = await getApproxCoordsByIp();
+        const latitude = coords.latitude.toFixed(4);
+        const longitude = coords.longitude.toFixed(4);
+        const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=is_day&timezone=auto`;
+        const response = await fetch(endpoint, { cache: "no-store" });
+        if(!response.ok) throw new Error("weather request failed");
+
+        const data = await response.json();
+        const isDay = Number(data?.current?.is_day) === 1;
+        return isDay ? "light" : "dark";
       }catch{
         return null;
       }
@@ -1520,9 +1498,9 @@ async function fetchLatestPosts(){
       if(saved){
         document.documentElement.setAttribute("data-theme", saved);
       }else{
-        const sunTheme = await getSunBasedTheme();
-        if(sunTheme){
-          document.documentElement.setAttribute("data-theme", sunTheme);
+        const weatherTheme = await getWeatherBasedTheme();
+        if(weatherTheme){
+          document.documentElement.setAttribute("data-theme", weatherTheme);
         }else{
           const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
           document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");

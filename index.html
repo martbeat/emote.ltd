@@ -1369,7 +1369,7 @@ async function fetchLatestPosts(){
     </div>`;
 
   try{
-    const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "force-cache" });
+    const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "no-store" });
     if(!res.ok) throw new Error("Feed request failed: " + res.status);
 
     const data = await res.json();

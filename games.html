@@ -258,6 +258,7 @@
     .card{
       position:absolute;
     /*  width: min(320px, 78vw); */
+      transition: opacity .35s ease;
       border-radius: var(--radius);
       background: linear-gradient(180deg, var(--card), var(--card2));
       border: 1px solid rgba(255,255,255,.12);
@@ -963,11 +964,11 @@ async function updateSkyTheme(){
     const baseZ = 1;
     let topZ = baseZ + GAMES.length + 5;
 
-    // visibility cycling (fade out ~50% of cards over a minute)
+    // visibility cycling (show up to 7 cards at once, rotating over time)
     const visibilityCycleMs = 60000;
-    const visibilityStartDelayMs = 1500;
-    const visibleFraction = 0.5;
-    const fadeFraction = 0.1;
+    const visibilityStartDelayMs = 1200;
+    const maxVisibleCards = 7;
+    const fadeFraction = 0.08;
     let visibilityStart = performance.now() + visibilityStartDelayMs;
 
     // motion state
@@ -1142,7 +1143,6 @@ function separationForce(self, all){
   let fy = 0;
 
 all.forEach(other => {
-  if (!other.isVisible) return;
     if (other === self) return;
 
     const dx = self.x - other.x;
@@ -1165,7 +1165,17 @@ const strength = (sepRadius - d) / sepRadius;
   return { fx, fy };
 }
 
-function visibilityOpacity(phase){
+function setAllVisible(){
+  cards.forEach((s) => {
+    s.isVisible = true;
+    s.el.style.opacity = "1";
+    s.el.style.pointerEvents = "auto";
+    s.el.setAttribute("aria-hidden", "false");
+    s.wasVisible = true;
+  });
+}
+
+function visibilityOpacity(phase, visibleFraction){
   const local = ((phase % 1) + 1) % 1;
   if (local < visibleFraction){
     if (local < fadeFraction){
@@ -1179,16 +1189,6 @@ function visibilityOpacity(phase){
   return 0;
 }
 
-function setAllVisible(){
-  cards.forEach((s) => {
-    s.isVisible = true;
-    s.el.style.opacity = "1";
-    s.el.style.pointerEvents = "auto";
-    s.el.setAttribute("aria-hidden", "false");
-    s.wasVisible = true;
-  });
-}
-
 function updateVisibility(t){
   const elapsed = t - visibilityStart;
   if (elapsed < 0){
@@ -1197,17 +1197,31 @@ function updateVisibility(t){
   }
 
   const cyclePos = (elapsed % visibilityCycleMs) / visibilityCycleMs;
+  const visibleFraction = Math.min(1, maxVisibleCards / Math.max(1, cards.length));
+  const candidates = [];
+
   cards.forEach((s) => {
     if (s.dragging){
-      s.el.style.opacity = "1";
-      s.el.style.pointerEvents = "auto";
-      s.el.setAttribute("aria-hidden", "false");
-      s.wasVisible = true;
+      s.pendingOpacity = 1;
       return;
     }
+    s.pendingOpacity = visibilityOpacity(cyclePos + s.visibilityOffset, visibleFraction);
+    candidates.push(s);
+  });
 
-    const opacity = visibilityOpacity(cyclePos + s.visibilityOffset);
+  const visibleNonDraggingLimit = Math.max(0, maxVisibleCards - cards.filter((s) => s.dragging).length);
+  const keepVisible = new Set(
+    candidates
+      .filter((s) => s.pendingOpacity > 0.02)
+      .sort((a, b) => b.pendingOpacity - a.pendingOpacity)
+      .slice(0, visibleNonDraggingLimit)
+  );
+
+  cards.forEach((s) => {
+    const isDragged = s.dragging;
+    const opacity = isDragged ? 1 : (keepVisible.has(s) ? s.pendingOpacity : 0);
     const isVisible = opacity > 0.02;
+
     s.isVisible = isVisible;
     s.el.style.opacity = opacity.toFixed(3);
     s.el.style.pointerEvents = isVisible ? "auto" : "none";
@@ -1312,7 +1326,6 @@ function sync(s){
 
 if (autopilot){
   cards.forEach((s) => {
-    if (!s.isVisible) return;      // ✅ invisible = frozen
     if (s.pinned || s.dragging) return;
 
     // advance internal phase
@@ -1353,7 +1366,7 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
     s.y += s.vy * dt;
 
     keepInBounds(s);
-if (s.isVisible) sync(s);
+    if (s.isVisible) sync(s);
   });
 }
 
@@ -1400,13 +1413,14 @@ function shuffleArray(arr){
     }
 
     function assignVisibilityOffsets(){
-      const ordered = [...cards].sort(
-        (a, b) => Number(b.el.style.zIndex) - Number(a.el.style.zIndex)
-      );
-      ordered.forEach((s, i) => {
-        s.visibilityOffset = i / Math.max(1, cards.length);
-      });
-    }
+    const ordered = [...cards].sort(
+      (a, b) => Number(b.el.style.zIndex) - Number(a.el.style.zIndex)
+    );
+    ordered.forEach((s, i) => {
+      s.visibilityOrder = i;
+      s.visibilityOffset = i / Math.max(1, cards.length);
+    });
+  }
 
     // create all cards
 shuffleArray(GAMES);

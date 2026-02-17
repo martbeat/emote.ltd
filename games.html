@@ -258,6 +258,7 @@
     .card{
       position:absolute;
     /*  width: min(320px, 78vw); */
+      transition: opacity .35s ease;
       border-radius: var(--radius);
       background: linear-gradient(180deg, var(--card), var(--card2));
       border: 1px solid rgba(255,255,255,.12);
@@ -963,11 +964,10 @@ async function updateSkyTheme(){
     const baseZ = 1;
     let topZ = baseZ + GAMES.length + 5;
 
-    // visibility cycling (fade out ~50% of cards over a minute)
-    const visibilityCycleMs = 60000;
-    const visibilityStartDelayMs = 1500;
-    const visibleFraction = 0.5;
-    const fadeFraction = 0.1;
+    // gentle reveal (start small, then gradually show more cards)
+    const visibilityRampMs = 60000;
+    const visibilityStartDelayMs = 1200;
+    const initialVisibleCards = 3;
     let visibilityStart = performance.now() + visibilityStartDelayMs;
 
     // motion state
@@ -1058,7 +1058,6 @@ const state = {
 };
 
       state.visibilityOrder = idx;
-      state.visibilityOffset = 0;
       state.wasVisible = true;
 
       el.style.left = state.x + "px";
@@ -1165,20 +1164,6 @@ const strength = (sepRadius - d) / sepRadius;
   return { fx, fy };
 }
 
-function visibilityOpacity(phase){
-  const local = ((phase % 1) + 1) % 1;
-  if (local < visibleFraction){
-    if (local < fadeFraction){
-      return local / fadeFraction;
-    }
-    if (local > visibleFraction - fadeFraction){
-      return (visibleFraction - local) / fadeFraction;
-    }
-    return 1;
-  }
-  return 0;
-}
-
 function setAllVisible(){
   cards.forEach((s) => {
     s.isVisible = true;
@@ -1191,12 +1176,12 @@ function setAllVisible(){
 
 function updateVisibility(t){
   const elapsed = t - visibilityStart;
-  if (elapsed < 0){
-    setAllVisible();
-    return;
-  }
+  const clampedElapsed = Math.max(0, elapsed);
+  const startVisible = Math.min(initialVisibleCards, cards.length);
+  const revealProgress = clamp(clampedElapsed / visibilityRampMs, 0, 1);
+  const easedProgress = 1 - Math.pow(1 - revealProgress, 1.5);
+  const revealTarget = Math.round(startVisible + (cards.length - startVisible) * easedProgress);
 
-  const cyclePos = (elapsed % visibilityCycleMs) / visibilityCycleMs;
   cards.forEach((s) => {
     if (s.dragging){
       s.el.style.opacity = "1";
@@ -1206,10 +1191,9 @@ function updateVisibility(t){
       return;
     }
 
-    const opacity = visibilityOpacity(cyclePos + s.visibilityOffset);
-    const isVisible = opacity > 0.02;
+    const isVisible = s.visibilityOrder < revealTarget;
     s.isVisible = isVisible;
-    s.el.style.opacity = opacity.toFixed(3);
+    s.el.style.opacity = isVisible ? "1" : "0";
     s.el.style.pointerEvents = isVisible ? "auto" : "none";
     s.el.setAttribute("aria-hidden", isVisible ? "false" : "true");
 
@@ -1400,13 +1384,13 @@ function shuffleArray(arr){
     }
 
     function assignVisibilityOffsets(){
-      const ordered = [...cards].sort(
-        (a, b) => Number(b.el.style.zIndex) - Number(a.el.style.zIndex)
-      );
-      ordered.forEach((s, i) => {
-        s.visibilityOffset = i / Math.max(1, cards.length);
-      });
-    }
+    const ordered = [...cards].sort(
+      (a, b) => Number(b.el.style.zIndex) - Number(a.el.style.zIndex)
+    );
+    ordered.forEach((s, i) => {
+      s.visibilityOrder = i;
+    });
+  }
 
     // create all cards
 shuffleArray(GAMES);

@@ -1142,7 +1142,6 @@ function separationForce(self, all){
   let fy = 0;
 
 all.forEach(other => {
-  if (!other.isVisible) return;
     if (other === self) return;
 
     const dx = self.x - other.x;
@@ -1327,7 +1326,6 @@ function sync(s){
 
 if (autopilot){
   cards.forEach((s) => {
-    if (!s.isVisible) return;      // ✅ invisible = frozen
     if (s.pinned || s.dragging) return;
 
     // advance internal phase
@@ -1368,7 +1366,7 @@ s.vy += (swoopY + driftY + sep.fy) * dt;
     s.y += s.vy * dt;
 
     keepInBounds(s);
-if (s.isVisible) sync(s);
+    if (s.isVisible) sync(s);
   });
 }
 

@@ -968,6 +968,7 @@ async function updateSkyTheme(){
     const visibilityCycleMs = 60000;
     const visibilityStartDelayMs = 1200;
     const maxVisibleCards = 7;
+    const initialVisibleCards = maxVisibleCards; // backwards compatibility for older visibility logic references
     const fadeFraction = 0.08;
     let visibilityStart = performance.now() + visibilityStartDelayMs;
 

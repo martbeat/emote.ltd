@@ -117,6 +117,7 @@
   </div>
 
   <h3>PDF files downloaded</h3>
+  <div class="hint">Only successful HTTP 200 downloads are counted.</div>
   <ul class="list" id="weekly-pdf-files"></ul>
 
   <h3>PDF download geolocations</h3>
@@ -272,6 +273,29 @@ function getHits(row) {
   return numberValue(row?.hits ?? row?.requests ?? row?.count);
 }
 
+function statusCodeFromRow(row) {
+  const candidates = [
+    row?.status,
+    row?.status_code,
+    row?.statusCode,
+    row?.code,
+    row?.http_status,
+    row?._status,
+    row?._statusText
+  ];
+
+  for (const candidate of candidates) {
+    const match = String(candidate ?? "").match(/\b(\d{3})\b/);
+    if (match) return Number(match[1]);
+  }
+
+  return NaN;
+}
+
+function isSuccessful200(row) {
+  return statusCodeFromRow(row) === 200;
+}
+
 function setText(id, value) {
   const node = document.getElementById(id);
   if (node) node.innerText = value;
@@ -377,6 +401,7 @@ function collectPdfInsights(weekly) {
     getRows(dataset).forEach((row) => {
       const rawPath = rowLabel(row);
       if (!isPdfPath(rawPath)) return;
+      if (!isSuccessful200(row)) return;
 
       const fileKey = normalizePath(rawPath);
       const fileRow = files.get(fileKey) || {

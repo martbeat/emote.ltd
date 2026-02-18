@@ -24,6 +24,11 @@
     padding-bottom: 6px;
   }
 
+  h3 {
+    font-size: 1rem;
+    margin: 18px 0 6px;
+  }
+
   .metric {
     margin: 12px 0;
   }
@@ -36,6 +41,16 @@
   .value {
     font-size: 1.8rem;
     font-weight: 600;
+  }
+
+  .value-prominent {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .label-muted {
+    color: #888;
   }
 
   .range {
@@ -52,6 +67,21 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
   }
+
+  .hint {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+
+  .list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+  }
+
+  .list li {
+    margin: 4px 0;
+  }
 </style>
 </head>
 <body>
@@ -67,14 +97,58 @@
       <div class="value" id="weekly-requests">–</div>
     </div>
     <div class="metric">
-      <div class="label">Unique Visitors</div>
+      <div class="label label-muted">Unique Visitors (raw)</div>
       <div class="value" id="weekly-visitors">–</div>
     </div>
     <div class="metric">
       <div class="label">Bandwidth (MB)</div>
       <div class="value" id="weekly-bandwidth">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Likely Engaged Visitors</div>
+      <div class="value" id="weekly-engaged-visitors">–</div>
+      <div class="hint">Visitors with >1 request</div>
+    </div>
+    <div class="metric">
+      <div class="label">PDF Downloads This Week</div>
+      <div class="value" id="weekly-pdf-downloads">–</div>
+    </div>
+
   </div>
+
+  <h3>PDF files downloaded</h3>
+  <div class="hint">Only successful HTTP 200 downloads are counted.</div>
+  <ul class="list" id="weekly-pdf-files"></ul>
+
+  <h3>PDF download geolocations</h3>
+  <ul class="list" id="weekly-pdf-locations"></ul>
+
+  <h3>Where visitors come from</h3>
+  <ul class="list" id="weekly-referrers"></ul>
+
+  <h3>Where visitors browse from</h3>
+  <ul class="list" id="weekly-locations"></ul>
+
+  <h3>Bot signals</h3>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Direct / Unknown Referrer Share</div>
+      <div class="value" id="weekly-direct-share">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Invalid / Error Traffic Share</div>
+      <div class="value" id="weekly-invalid-share">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Requests per Visitor</div>
+      <div class="value value-prominent" id="weekly-requests-per-visitor">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Top Host Concentration</div>
+      <div class="value" id="weekly-top-host-share">–</div>
+    </div>
+  </div>
+  <div class="hint" id="weekly-rpv-note">High direct traffic, high invalid traffic, high requests-per-visitor, and heavy concentration from one host can indicate bot activity.</div>
 </div>
 
 <div id="games">
@@ -89,7 +163,61 @@
       <div class="label">Unique Visitors</div>
       <div class="value" id="games-visitors">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="games-share">–</div>
+    </div>
   </div>
+  <ul class="list" id="games-top-pages"></ul>
+
+  <h3>Games being run</h3>
+  <ul class="list" id="games-top-titles"></ul>
+  <div class="hint">Tip: keep <code>games.json</code> as a rolling 7-day export so this panel is decision-useful.</div>
+</div>
+
+<div id="reading">
+  <h2>Reading</h2>
+  <div class="range" id="reading-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Reading Requests</div>
+      <div class="value" id="reading-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Reading Visitors</div>
+      <div class="value" id="reading-visitors">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="reading-share">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Blogger Feed Pulls</div>
+      <div class="value" id="reading-blogger-pulls">–</div>
+    </div>
+  </div>
+  <div class="hint">Includes pages/feeds that look like essays/reading content. If essays live on Blogger, track click-throughs/feed pulls for meaningful signal.</div>
+  <ul class="list" id="reading-top-pages"></ul>
+</div>
+
+<div id="humans">
+  <h2>Humans</h2>
+  <div class="range" id="humans-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Valid Requests</div>
+      <div class="value" id="humans-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Unique Visitors</div>
+      <div class="value" id="humans-visitors">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="humans-share">–</div>
+    </div>
+  </div>
+  <ul class="list" id="humans-top-pages"></ul>
 </div>
 
 <div id="debug">
@@ -112,45 +240,376 @@ function formatMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
 }
 
-function loadStats(path, prefix) {
-  fetch(path)
-    .then(res => res.json())
-    .then(data => {
-      const g = data.general;
+function numberValue(input) {
+  if (typeof input === "number") return input;
+  if (typeof input === "string") return Number(input.replace(/[^\d.-]/g, "")) || 0;
+  if (input && typeof input === "object") {
+    return numberValue(input.count ?? input.value ?? 0);
+  }
+  return 0;
+}
 
-      if (document.getElementById(prefix + "-range")) {
-        document.getElementById(prefix + "-range").innerText =
-          g.start_date + " – " + g.end_date;
+function percent(part, total) {
+  const base = numberValue(total);
+  if (!base) return "0%";
+  return ((numberValue(part) / base) * 100).toFixed(1) + "%";
+}
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
+
+function getRows(dataset) {
+  if (!dataset) return [];
+  if (Array.isArray(dataset)) return dataset;
+  if (Array.isArray(dataset.data)) return dataset.data;
+  if (Array.isArray(dataset.rows)) return dataset.rows;
+  return [];
+}
+
+function rowLabel(row) {
+  return String(row?.data ?? row?.path ?? row?.url ?? row?._itemText ?? row?.item ?? "Unknown");
+}
+
+function getRowPath(row) {
+  return rowLabel(row).toLowerCase();
+}
+
+function normalizePath(path) {
+  return String(path || "").split(/[?#]/)[0].toLowerCase();
+}
+
+function getVisitors(row) {
+  return numberValue(row?.visitors);
+}
+
+function getHits(row) {
+  return numberValue(row?.hits ?? row?.requests ?? row?.count);
+}
+
+function statusCodeFromRow(row) {
+  const candidates = [
+    row?.status,
+    row?.status_code,
+    row?.statusCode,
+    row?.code,
+    row?.http_status,
+    row?._status,
+    row?._statusText
+  ];
+
+  for (const candidate of candidates) {
+    const match = String(candidate ?? "").match(/\b(\d{3})\b/);
+    if (match) return Number(match[1]);
+  }
+
+  return NaN;
+}
+
+function isSuccessful200(row) {
+  return statusCodeFromRow(row) === 200;
+}
+
+function setText(id, value) {
+  const node = document.getElementById(id);
+  if (node) node.innerText = value;
+}
+
+function setRange(prefix, general) {
+  setText(prefix + "-range", `${general.start_date ?? "-"} – ${general.end_date ?? "-"}`);
+}
+
+function renderTopPages(listId, rows) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+
+  if (!rows.length) {
+    list.innerHTML = "<li>No matching pages in this period.</li>";
+    return;
+  }
+
+  list.innerHTML = rows.slice(0, 3).map((row) => {
+    const label = escapeHtml(rowLabel(row));
+    return `<li><strong>${label}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`;
+  }).join("");
+}
+
+function renderSummaryList(listId, rows, emptyMessage, rowHtml, limit = 5) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  if (!rows.length) {
+    list.innerHTML = `<li>${escapeHtml(emptyMessage)}</li>`;
+    return;
+  }
+  const shownRows = Number.isFinite(limit) ? rows.slice(0, limit) : rows;
+  list.innerHTML = shownRows.map(rowHtml).join("");
+}
+
+function populateBasicStats(prefix, data) {
+  const g = data.general || {};
+  setRange(prefix, g);
+
+  if (document.getElementById(prefix + "-requests")) {
+    setText(prefix + "-requests", numberValue(g.valid_requests ?? g.total_requests).toLocaleString());
+  }
+
+  if (document.getElementById(prefix + "-visitors")) {
+    setText(prefix + "-visitors", numberValue(g.unique_visitors).toLocaleString());
+  }
+
+  if (document.getElementById(prefix + "-bandwidth")) {
+    setText(prefix + "-bandwidth", formatMB(numberValue(g.bandwidth)));
+  }
+}
+
+function isPdfPath(path) {
+  return /\.pdf(?:$|[?#])/i.test(path);
+}
+
+function isBloggerRelatedPath(path) {
+  return /(blog-feed|blogger|martymcfry)/.test(String(path || "").toLowerCase());
+}
+
+function isReadingPath(path) {
+  return /(reading|blog|essay|governance|influences|library|article|feed)/.test(path);
+}
+
+function looksLikeGamePath(path) {
+  return /\.html?(?:$|[?#])/.test(path) && !/games\.html?(?:$|[?#])/.test(path);
+}
+
+function formatGameTitleFromPath(path) {
+  const clean = String(path || "").split(/[?#]/)[0];
+  const parts = clean.split("/").filter(Boolean);
+  const file = parts.length ? parts[parts.length - 1] : clean;
+  const base = file.replace(/\.html?$/i, "");
+  if (!base) return "Unknown game";
+  return base
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function buildGamesByTitle(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const path = rowLabel(row);
+    if (!looksLikeGamePath(path)) return;
+    const title = formatGameTitleFromPath(path);
+    const current = grouped.get(title) || { title, hits: 0, visitors: 0 };
+    current.hits += getHits(row);
+    current.visitors += getVisitors(row);
+    grouped.set(title, current);
+  });
+  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+}
+
+function collectPdfInsights(weekly) {
+  const files = new Map();
+  const locations = new Map();
+  const sources = [weekly?.requests, weekly?.static_requests, weekly?.static, weekly?.files, weekly?.downloads];
+
+  sources.forEach((dataset) => {
+    getRows(dataset).forEach((row) => {
+      const rawPath = rowLabel(row);
+      if (!isPdfPath(rawPath)) return;
+      if (!isSuccessful200(row)) return;
+
+      const fileKey = normalizePath(rawPath);
+      const fileRow = files.get(fileKey) || {
+        label: rawPath.split(/[?#]/)[0],
+        hits: 0,
+        visitors: 0
+      };
+      fileRow.hits += getHits(row);
+      fileRow.visitors += getVisitors(row);
+      files.set(fileKey, fileRow);
+
+      const location = rowLocation(row);
+      const locationRow = locations.get(location) || {
+        label: location,
+        hits: 0,
+        visitors: 0
+      };
+      locationRow.hits += getHits(row);
+      locationRow.visitors += getVisitors(row);
+      locations.set(location, locationRow);
+    });
+  });
+
+  return {
+    files: Array.from(files.values()).sort((a, b) => b.hits - a.hits),
+    locations: Array.from(locations.values()).sort((a, b) => b.hits - a.hits)
+  };
+}
+
+function isDirectReferrer(text) {
+  const value = String(text || "").trim().toLowerCase();
+  return !value || /direct|unknown|none|bookmark|typed|\(-\)|^-$/.test(value);
+}
+
+function rowLocation(row) {
+  const city = row?.city || row?.geoip?.city || row?.location?.city || "";
+  const country = row?.country || row?.geoip?.country || row?.location?.country || "";
+  const label = [city, country].filter(Boolean).join(", ");
+  return label || "Unknown location";
+}
+
+function buildLocationRows(hostRows) {
+  const grouped = new Map();
+  hostRows.forEach((row) => {
+    const location = rowLocation(row);
+    const existing = grouped.get(location) || { label: location, hits: 0, visitors: 0 };
+    existing.hits += getHits(row);
+    existing.visitors += getVisitors(row);
+    grouped.set(location, existing);
+  });
+  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+}
+
+async function loadJson(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+  return response.json();
+}
+
+async function loadJsonOptional(path, fallback = null) {
+  try {
+    return await loadJson(path);
+  } catch (err) {
+    console.warn(`Optional data file not available: ${path}`, err);
+    return fallback;
+  }
+}
+
+async function init() {
+  try {
+    const [weekly, games, debug, humans] = await Promise.all([
+      loadJson("weekly.json"),
+      loadJson("games.json"),
+      loadJson("debug.json"),
+      loadJsonOptional("humans.json")
+    ]);
+
+    populateBasicStats("weekly", weekly);
+    populateBasicStats("games", games);
+    populateBasicStats("debug", debug);
+    populateBasicStats("humans", humans || {});
+
+    const weeklyRequests = numberValue(weekly?.general?.valid_requests ?? weekly?.general?.total_requests);
+    const weeklyVisitors = numberValue(weekly?.general?.unique_visitors);
+    const gamesRequests = numberValue(games?.general?.valid_requests ?? games?.general?.total_requests);
+
+    const weeklyRequestRows = getRows(weekly.requests);
+    const hostRows = getRows(weekly.hosts);
+    const engagedVisitors = hostRows.reduce((sum, row) => sum + (getHits(row) > 1 ? getVisitors(row) : 0), 0);
+    const pdfInsights = collectPdfInsights(weekly);
+    const pdfRows = pdfInsights.files;
+    const pdfDownloads = pdfRows.reduce((sum, row) => sum + row.hits, 0);
+    const bloggerPulls = weeklyRequestRows.reduce((sum, row) => sum + (isBloggerRelatedPath(getRowPath(row)) ? getHits(row) : 0), 0);
+
+    const gameRequestRows = getRows(games.requests).sort((a, b) => getHits(b) - getHits(a));
+    const gamesByTitle = buildGamesByTitle(gameRequestRows);
+
+    setText("games-share", percent(gamesRequests, weeklyRequests));
+    renderTopPages("games-top-pages", gameRequestRows);
+    renderSummaryList(
+      "games-top-titles",
+      gamesByTitle,
+      "No game page data available.",
+      (row) => `<li><strong>${escapeHtml(row.title)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
+    );
+
+    const humansRequests = numberValue(humans?.general?.valid_requests ?? humans?.general?.total_requests);
+    const humansRequestRows = getRows(humans?.requests).sort((a, b) => getHits(b) - getHits(a));
+    setText("humans-share", percent(humansRequests, weeklyRequests));
+    renderTopPages("humans-top-pages", humansRequestRows);
+
+    const readingRows = weeklyRequestRows.filter((row) => isReadingPath(getRowPath(row)));
+    const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);
+    const readingVisitors = readingRows.reduce((sum, row) => sum + getVisitors(row), 0);
+
+    setRange("reading", weekly.general || {});
+    setText("reading-requests", readingRequests.toLocaleString());
+    setText("reading-visitors", readingVisitors.toLocaleString());
+    setText("reading-share", percent(readingRequests, weeklyRequests));
+    renderTopPages("reading-top-pages", readingRows.sort((a, b) => getHits(b) - getHits(a)));
+
+    const referrerRows = getRows(weekly.referring_sites).sort((a, b) => getHits(b) - getHits(a));
+    renderSummaryList(
+      "weekly-referrers",
+      referrerRows,
+      "No referrer data available.",
+      (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`
+    );
+
+    const locationRows = buildLocationRows(hostRows);
+    renderSummaryList(
+      "weekly-locations",
+      locationRows,
+      "No location data available.",
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
+    );
+
+    const directRequests = referrerRows
+      .filter((row) => isDirectReferrer(rowLabel(row)))
+      .reduce((sum, row) => sum + getHits(row), 0);
+    setText("weekly-direct-share", percent(directRequests, weeklyRequests));
+
+    const debugTotalRequests = numberValue(debug?.general?.total_requests ?? debug?.general?.valid_requests);
+    const invalidRequests = Math.max(0, debugTotalRequests - weeklyRequests);
+    setText("weekly-invalid-share", percent(invalidRequests, debugTotalRequests));
+
+    setText("weekly-engaged-visitors", engagedVisitors.toLocaleString());
+    setText("weekly-pdf-downloads", pdfDownloads.toLocaleString());
+    renderSummaryList(
+      "weekly-pdf-files",
+      pdfRows,
+      "No PDF download rows found.",
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
+      Number.POSITIVE_INFINITY
+    );
+    renderSummaryList(
+      "weekly-pdf-locations",
+      pdfInsights.locations,
+      "No PDF geolocation data available.",
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
+      Number.POSITIVE_INFINITY
+    );
+    setText("reading-blogger-pulls", bloggerPulls.toLocaleString());
+
+    const requestsPerVisitor = weeklyVisitors ? (weeklyRequests / weeklyVisitors).toFixed(2) : "0.00";
+    setText("weekly-requests-per-visitor", requestsPerVisitor);
+    const rpvNote = document.getElementById("weekly-rpv-note");
+    if (rpvNote) {
+      if (Number(requestsPerVisitor) < 1.5) {
+        rpvNote.innerText = "Requests per Visitor is below 1.5 — this can indicate a bot-heavy week.";
+        rpvNote.style.color = "#b00020";
       }
+    }
 
-      if (document.getElementById(prefix + "-requests")) {
-        document.getElementById(prefix + "-requests").innerText =
-          g.valid_requests ?? g.total_requests;
-      }
-
-      if (document.getElementById(prefix + "-visitors")) {
-        document.getElementById(prefix + "-visitors").innerText =
-          g.unique_visitors;
-      }
-
-      if (document.getElementById(prefix + "-bandwidth")) {
-        document.getElementById(prefix + "-bandwidth").innerText =
-          formatMB(g.bandwidth);
-      }
-
-    })
-    .catch(err => {
-      console.error("Error loading", path, err);
+    const topHostHits = hostRows.reduce((maxHits, row) => Math.max(maxHits, getHits(row)), 0);
+    setText("weekly-top-host-share", percent(topHostHits, weeklyRequests));
+  } catch (err) {
+    console.error("Error loading analytics", err);
+    ["weekly", "games", "humans", "debug", "reading"].forEach((prefix) => {
       const section = document.getElementById(prefix);
       if (section) {
         section.innerHTML += "<p class='error'>Could not load data.</p>";
       }
     });
+  }
 }
 
-loadStats("weekly.json", "weekly");
-loadStats("games.json", "games");
-loadStats("debug.json", "debug");
+init();
 </script>
 
 </body>

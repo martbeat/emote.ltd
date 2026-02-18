@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>emote analytics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.5;
+    background: #fafafa;
+  }
+
+  h1 {
+    margin-bottom: 10px;
+  }
+
+  h2 {
+    margin-top: 40px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 6px;
+  }
+
+  .metric {
+    margin: 12px 0;
+  }
+
+  .label {
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  .value {
+    font-size: 1.8rem;
+    font-weight: 600;
+  }
+
+  .range {
+    color: #888;
+    font-size: 0.9rem;
+  }
+
+  .error {
+    color: #b00020;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1>emote analytics</h1>
+
+<div id="weekly">
+  <h2>Weekly Overview</h2>
+  <div class="range" id="weekly-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Valid Requests</div>
+      <div class="value" id="weekly-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Unique Visitors</div>
+      <div class="value" id="weekly-visitors">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Bandwidth (MB)</div>
+      <div class="value" id="weekly-bandwidth">–</div>
+    </div>
+  </div>
+</div>
+
+<div id="games">
+  <h2>Games</h2>
+  <div class="range" id="games-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Valid Requests</div>
+      <div class="value" id="games-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Unique Visitors</div>
+      <div class="value" id="games-visitors">–</div>
+    </div>
+  </div>
+</div>
+
+<div id="debug">
+  <h2>Debug</h2>
+  <div class="range" id="debug-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Total Requests</div>
+      <div class="value" id="debug-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Unique Visitors</div>
+      <div class="value" id="debug-visitors">–</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatMB(bytes) {
+  return (bytes / 1024 / 1024).toFixed(2);
+}
+
+function loadStats(path, prefix) {
+  fetch(path)
+    .then(res => res.json())
+    .then(data => {
+      const g = data.general;
+
+      if (document.getElementById(prefix + "-range")) {
+        document.getElementById(prefix + "-range").innerText =
+          g.start_date + " – " + g.end_date;
+      }
+
+      if (document.getElementById(prefix + "-requests")) {
+        document.getElementById(prefix + "-requests").innerText =
+          g.valid_requests ?? g.total_requests;
+      }
+
+      if (document.getElementById(prefix + "-visitors")) {
+        document.getElementById(prefix + "-visitors").innerText =
+          g.unique_visitors;
+      }
+
+      if (document.getElementById(prefix + "-bandwidth")) {
+        document.getElementById(prefix + "-bandwidth").innerText =
+          formatMB(g.bandwidth);
+      }
+
+    })
+    .catch(err => {
+      console.error("Error loading", path, err);
+      const section = document.getElementById(prefix);
+      if (section) {
+        section.innerHTML += "<p class='error'>Could not load data.</p>";
+      }
+    });
+}
+
+loadStats("weekly.json", "weekly");
+loadStats("games.json", "games");
+loadStats("debug.json", "debug");
+</script>
+
+</body>
+</html>

@@ -200,6 +200,26 @@
   <ul class="list" id="reading-top-pages"></ul>
 </div>
 
+<div id="humans">
+  <h2>Humans</h2>
+  <div class="range" id="humans-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Valid Requests</div>
+      <div class="value" id="humans-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Unique Visitors</div>
+      <div class="value" id="humans-visitors">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="humans-share">–</div>
+    </div>
+  </div>
+  <ul class="list" id="humans-top-pages"></ul>
+</div>
+
 <div id="debug">
   <h2>Debug</h2>
   <div class="range" id="debug-range"></div>
@@ -461,17 +481,28 @@ async function loadJson(path) {
   return response.json();
 }
 
+async function loadJsonOptional(path, fallback = null) {
+  try {
+    return await loadJson(path);
+  } catch (err) {
+    console.warn(`Optional data file not available: ${path}`, err);
+    return fallback;
+  }
+}
+
 async function init() {
   try {
-    const [weekly, games, debug] = await Promise.all([
+    const [weekly, games, debug, humans] = await Promise.all([
       loadJson("weekly.json"),
       loadJson("games.json"),
-      loadJson("debug.json")
+      loadJson("debug.json"),
+      loadJsonOptional("humans.json")
     ]);
 
     populateBasicStats("weekly", weekly);
     populateBasicStats("games", games);
     populateBasicStats("debug", debug);
+    populateBasicStats("humans", humans || {});
 
     const weeklyRequests = numberValue(weekly?.general?.valid_requests ?? weekly?.general?.total_requests);
     const weeklyVisitors = numberValue(weekly?.general?.unique_visitors);
@@ -496,6 +527,11 @@ async function init() {
       "No game page data available.",
       (row) => `<li><strong>${escapeHtml(row.title)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
     );
+
+    const humansRequests = numberValue(humans?.general?.valid_requests ?? humans?.general?.total_requests);
+    const humansRequestRows = getRows(humans?.requests).sort((a, b) => getHits(b) - getHits(a));
+    setText("humans-share", percent(humansRequests, weeklyRequests));
+    renderTopPages("humans-top-pages", humansRequestRows);
 
     const readingRows = weeklyRequestRows.filter((row) => isReadingPath(getRowPath(row)));
     const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);
@@ -564,7 +600,7 @@ async function init() {
     setText("weekly-top-host-share", percent(topHostHits, weeklyRequests));
   } catch (err) {
     console.error("Error loading analytics", err);
-    ["weekly", "games", "debug", "reading"].forEach((prefix) => {
+    ["weekly", "games", "humans", "debug", "reading"].forEach((prefix) => {
       const section = document.getElementById(prefix);
       if (section) {
         section.innerHTML += "<p class='error'>Could not load data.</p>";

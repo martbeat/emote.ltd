@@ -52,6 +52,21 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
   }
+
+  .hint {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+
+  .list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+  }
+
+  .list li {
+    margin: 4px 0;
+  }
 </style>
 </head>
 <body>
@@ -89,7 +104,33 @@
       <div class="label">Unique Visitors</div>
       <div class="value" id="games-visitors">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="games-share">–</div>
+    </div>
   </div>
+  <ul class="list" id="games-top-pages"></ul>
+</div>
+
+<div id="reading">
+  <h2>Reading</h2>
+  <div class="range" id="reading-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Reading Requests</div>
+      <div class="value" id="reading-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Reading Visitors</div>
+      <div class="value" id="reading-visitors">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="reading-share">–</div>
+    </div>
+  </div>
+  <div class="hint">Includes pages and feeds that look like essays/reading content.</div>
+  <ul class="list" id="reading-top-pages"></ul>
 </div>
 
 <div id="debug">
@@ -112,45 +153,133 @@ function formatMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
 }
 
-function loadStats(path, prefix) {
-  fetch(path)
-    .then(res => res.json())
-    .then(data => {
-      const g = data.general;
+function numberValue(input) {
+  if (typeof input === "number") return input;
+  if (typeof input === "string") return Number(input.replace(/[^\d.-]/g, "")) || 0;
+  if (input && typeof input === "object") {
+    return numberValue(input.count ?? input.value ?? 0);
+  }
+  return 0;
+}
 
-      if (document.getElementById(prefix + "-range")) {
-        document.getElementById(prefix + "-range").innerText =
-          g.start_date + " – " + g.end_date;
-      }
+function percent(part, total) {
+  const base = numberValue(total);
+  if (!base) return "0%";
+  return ((numberValue(part) / base) * 100).toFixed(1) + "%";
+}
 
-      if (document.getElementById(prefix + "-requests")) {
-        document.getElementById(prefix + "-requests").innerText =
-          g.valid_requests ?? g.total_requests;
-      }
+function getRows(dataset) {
+  if (!dataset) return [];
+  if (Array.isArray(dataset)) return dataset;
+  if (Array.isArray(dataset.data)) return dataset.data;
+  if (Array.isArray(dataset.rows)) return dataset.rows;
+  return [];
+}
 
-      if (document.getElementById(prefix + "-visitors")) {
-        document.getElementById(prefix + "-visitors").innerText =
-          g.unique_visitors;
-      }
+function getRowPath(row) {
+  return String(
+    row?.data ?? row?.path ?? row?.url ?? row?._itemText ?? row?.item ?? ""
+  ).toLowerCase();
+}
 
-      if (document.getElementById(prefix + "-bandwidth")) {
-        document.getElementById(prefix + "-bandwidth").innerText =
-          formatMB(g.bandwidth);
-      }
+function getVisitors(row) {
+  return numberValue(row?.visitors);
+}
 
-    })
-    .catch(err => {
-      console.error("Error loading", path, err);
+function getHits(row) {
+  return numberValue(row?.hits ?? row?.requests ?? row?.count);
+}
+
+function setText(id, value) {
+  const node = document.getElementById(id);
+  if (node) node.innerText = value;
+}
+
+function setRange(prefix, general) {
+  setText(prefix + "-range", `${general.start_date ?? "-"} – ${general.end_date ?? "-"}`);
+}
+
+function renderTopPages(listId, rows) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+
+  if (!rows.length) {
+    list.innerHTML = "<li>No matching pages in this period.</li>";
+    return;
+  }
+
+  list.innerHTML = rows.slice(0, 3).map((row) => {
+    const label = row?.data ?? row?.path ?? row?.url ?? "Unknown";
+    return `<li><strong>${label}</strong> — ${getHits(row)} requests, ${getVisitors(row)} visitors</li>`;
+  }).join("");
+}
+
+function populateBasicStats(prefix, data) {
+  const g = data.general || {};
+  setRange(prefix, g);
+
+  if (document.getElementById(prefix + "-requests")) {
+    setText(prefix + "-requests", numberValue(g.valid_requests ?? g.total_requests).toLocaleString());
+  }
+
+  if (document.getElementById(prefix + "-visitors")) {
+    setText(prefix + "-visitors", numberValue(g.unique_visitors).toLocaleString());
+  }
+
+  if (document.getElementById(prefix + "-bandwidth")) {
+    setText(prefix + "-bandwidth", formatMB(numberValue(g.bandwidth)));
+  }
+}
+
+function isReadingPath(path) {
+  return /(reading|blog|essay|governance|influences|library|article|feed)/.test(path);
+}
+
+async function loadJson(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+  return response.json();
+}
+
+async function init() {
+  try {
+    const [weekly, games, debug] = await Promise.all([
+      loadJson("weekly.json"),
+      loadJson("games.json"),
+      loadJson("debug.json")
+    ]);
+
+    populateBasicStats("weekly", weekly);
+    populateBasicStats("games", games);
+    populateBasicStats("debug", debug);
+
+    const weeklyRequests = numberValue(weekly?.general?.valid_requests ?? weekly?.general?.total_requests);
+    const gamesRequests = numberValue(games?.general?.valid_requests ?? games?.general?.total_requests);
+
+    setText("games-share", percent(gamesRequests, weeklyRequests));
+    renderTopPages("games-top-pages", getRows(games.requests));
+
+    const readingRows = getRows(weekly.requests).filter((row) => isReadingPath(getRowPath(row)));
+    const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);
+    const readingVisitors = readingRows.reduce((sum, row) => sum + getVisitors(row), 0);
+
+    setRange("reading", weekly.general || {});
+    setText("reading-requests", readingRequests.toLocaleString());
+    setText("reading-visitors", readingVisitors.toLocaleString());
+    setText("reading-share", percent(readingRequests, weeklyRequests));
+    renderTopPages("reading-top-pages", readingRows.sort((a, b) => getHits(b) - getHits(a)));
+  } catch (err) {
+    console.error("Error loading analytics", err);
+    ["weekly", "games", "debug", "reading"].forEach((prefix) => {
       const section = document.getElementById(prefix);
       if (section) {
         section.innerHTML += "<p class='error'>Could not load data.</p>";
       }
     });
+  }
 }
 
-loadStats("weekly.json", "weekly");
-loadStats("games.json", "games");
-loadStats("debug.json", "debug");
+init();
 </script>
 
 </body>

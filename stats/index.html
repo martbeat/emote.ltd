@@ -142,6 +142,9 @@
     </div>
   </div>
   <ul class="list" id="games-top-pages"></ul>
+
+  <h3>Games being run</h3>
+  <ul class="list" id="games-top-titles"></ul>
 </div>
 
 <div id="reading">
@@ -289,6 +292,38 @@ function isReadingPath(path) {
   return /(reading|blog|essay|governance|influences|library|article|feed)/.test(path);
 }
 
+function looksLikeGamePath(path) {
+  return /\.html?(?:$|[?#])/.test(path) && !/games\.html?(?:$|[?#])/.test(path);
+}
+
+function formatGameTitleFromPath(path) {
+  const clean = String(path || "").split(/[?#]/)[0];
+  const parts = clean.split("/").filter(Boolean);
+  const file = parts.length ? parts[parts.length - 1] : clean;
+  const base = file.replace(/\.html?$/i, "");
+  if (!base) return "Unknown game";
+  return base
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function buildGamesByTitle(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const path = rowLabel(row);
+    if (!looksLikeGamePath(path)) return;
+    const title = formatGameTitleFromPath(path);
+    const current = grouped.get(title) || { title, hits: 0, visitors: 0 };
+    current.hits += getHits(row);
+    current.visitors += getVisitors(row);
+    grouped.set(title, current);
+  });
+  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+}
+
 function isDirectReferrer(text) {
   const value = String(text || "").trim().toLowerCase();
   return !value || /direct|unknown|none|bookmark|typed|\(-\)|^-$/.test(value);
@@ -335,8 +370,17 @@ async function init() {
     const weeklyVisitors = numberValue(weekly?.general?.unique_visitors);
     const gamesRequests = numberValue(games?.general?.valid_requests ?? games?.general?.total_requests);
 
+    const gameRequestRows = getRows(games.requests).sort((a, b) => getHits(b) - getHits(a));
+    const gamesByTitle = buildGamesByTitle(gameRequestRows);
+
     setText("games-share", percent(gamesRequests, weeklyRequests));
-    renderTopPages("games-top-pages", getRows(games.requests).sort((a, b) => getHits(b) - getHits(a)));
+    renderTopPages("games-top-pages", gameRequestRows);
+    renderSummaryList(
+      "games-top-titles",
+      gamesByTitle,
+      "No game page data available.",
+      (row) => `<li><strong>${escapeHtml(row.title)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
+    );
 
     const readingRows = getRows(weekly.requests).filter((row) => isReadingPath(getRowPath(row)));
     const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);

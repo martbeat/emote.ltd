@@ -119,6 +119,9 @@
   <h3>PDF files downloaded</h3>
   <ul class="list" id="weekly-pdf-files"></ul>
 
+  <h3>PDF download geolocations</h3>
+  <ul class="list" id="weekly-pdf-locations"></ul>
+
   <h3>Where visitors come from</h3>
   <ul class="list" id="weekly-referrers"></ul>
 
@@ -365,8 +368,9 @@ function buildGamesByTitle(rows) {
   return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
 }
 
-function collectPdfRows(weekly) {
-  const grouped = new Map();
+function collectPdfInsights(weekly) {
+  const files = new Map();
+  const locations = new Map();
   const sources = [weekly?.requests, weekly?.static_requests, weekly?.static, weekly?.files, weekly?.downloads];
 
   sources.forEach((dataset) => {
@@ -374,19 +378,32 @@ function collectPdfRows(weekly) {
       const rawPath = rowLabel(row);
       if (!isPdfPath(rawPath)) return;
 
-      const key = normalizePath(rawPath);
-      const existing = grouped.get(key) || {
+      const fileKey = normalizePath(rawPath);
+      const fileRow = files.get(fileKey) || {
         label: rawPath.split(/[?#]/)[0],
         hits: 0,
         visitors: 0
       };
-      existing.hits += getHits(row);
-      existing.visitors += getVisitors(row);
-      grouped.set(key, existing);
+      fileRow.hits += getHits(row);
+      fileRow.visitors += getVisitors(row);
+      files.set(fileKey, fileRow);
+
+      const location = rowLocation(row);
+      const locationRow = locations.get(location) || {
+        label: location,
+        hits: 0,
+        visitors: 0
+      };
+      locationRow.hits += getHits(row);
+      locationRow.visitors += getVisitors(row);
+      locations.set(location, locationRow);
     });
   });
 
-  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+  return {
+    files: Array.from(files.values()).sort((a, b) => b.hits - a.hits),
+    locations: Array.from(locations.values()).sort((a, b) => b.hits - a.hits)
+  };
 }
 
 function isDirectReferrer(text) {
@@ -438,7 +455,8 @@ async function init() {
     const weeklyRequestRows = getRows(weekly.requests);
     const hostRows = getRows(weekly.hosts);
     const engagedVisitors = hostRows.reduce((sum, row) => sum + (getHits(row) > 1 ? getVisitors(row) : 0), 0);
-    const pdfRows = collectPdfRows(weekly);
+    const pdfInsights = collectPdfInsights(weekly);
+    const pdfRows = pdfInsights.files;
     const pdfDownloads = pdfRows.reduce((sum, row) => sum + row.hits, 0);
     const bloggerPulls = weeklyRequestRows.reduce((sum, row) => sum + (isBloggerRelatedPath(getRowPath(row)) ? getHits(row) : 0), 0);
 
@@ -495,6 +513,13 @@ async function init() {
       "weekly-pdf-files",
       pdfRows,
       "No PDF download rows found.",
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
+      Number.POSITIVE_INFINITY
+    );
+    renderSummaryList(
+      "weekly-pdf-locations",
+      pdfInsights.locations,
+      "No PDF geolocation data available.",
       (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
       Number.POSITIVE_INFINITY
     );

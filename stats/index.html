@@ -24,6 +24,11 @@
     padding-bottom: 6px;
   }
 
+  h3 {
+    font-size: 1rem;
+    margin: 18px 0 6px;
+  }
+
   .metric {
     margin: 12px 0;
   }
@@ -52,6 +57,21 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
   }
+
+  .hint {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+
+  .list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+  }
+
+  .list li {
+    margin: 4px 0;
+  }
 </style>
 </head>
 <body>
@@ -75,6 +95,33 @@
       <div class="value" id="weekly-bandwidth">–</div>
     </div>
   </div>
+
+  <h3>Where visitors come from</h3>
+  <ul class="list" id="weekly-referrers"></ul>
+
+  <h3>Where visitors browse from</h3>
+  <ul class="list" id="weekly-locations"></ul>
+
+  <h3>Bot signals</h3>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Direct / Unknown Referrer Share</div>
+      <div class="value" id="weekly-direct-share">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Invalid / Error Traffic Share</div>
+      <div class="value" id="weekly-invalid-share">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Requests per Visitor</div>
+      <div class="value" id="weekly-requests-per-visitor">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Top Host Concentration</div>
+      <div class="value" id="weekly-top-host-share">–</div>
+    </div>
+  </div>
+  <div class="hint">High direct traffic, high invalid traffic, high requests-per-visitor, and heavy concentration from one host can indicate bot activity.</div>
 </div>
 
 <div id="games">
@@ -89,7 +136,36 @@
       <div class="label">Unique Visitors</div>
       <div class="value" id="games-visitors">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="games-share">–</div>
+    </div>
   </div>
+  <ul class="list" id="games-top-pages"></ul>
+
+  <h3>Games being run</h3>
+  <ul class="list" id="games-top-titles"></ul>
+</div>
+
+<div id="reading">
+  <h2>Reading</h2>
+  <div class="range" id="reading-range"></div>
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Reading Requests</div>
+      <div class="value" id="reading-requests">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Reading Visitors</div>
+      <div class="value" id="reading-visitors">–</div>
+    </div>
+    <div class="metric">
+      <div class="label">Share of Weekly Requests</div>
+      <div class="value" id="reading-share">–</div>
+    </div>
+  </div>
+  <div class="hint">Includes pages and feeds that look like essays/reading content.</div>
+  <ul class="list" id="reading-top-pages"></ul>
 </div>
 
 <div id="debug">
@@ -112,45 +188,252 @@ function formatMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
 }
 
-function loadStats(path, prefix) {
-  fetch(path)
-    .then(res => res.json())
-    .then(data => {
-      const g = data.general;
+function numberValue(input) {
+  if (typeof input === "number") return input;
+  if (typeof input === "string") return Number(input.replace(/[^\d.-]/g, "")) || 0;
+  if (input && typeof input === "object") {
+    return numberValue(input.count ?? input.value ?? 0);
+  }
+  return 0;
+}
 
-      if (document.getElementById(prefix + "-range")) {
-        document.getElementById(prefix + "-range").innerText =
-          g.start_date + " – " + g.end_date;
-      }
+function percent(part, total) {
+  const base = numberValue(total);
+  if (!base) return "0%";
+  return ((numberValue(part) / base) * 100).toFixed(1) + "%";
+}
 
-      if (document.getElementById(prefix + "-requests")) {
-        document.getElementById(prefix + "-requests").innerText =
-          g.valid_requests ?? g.total_requests;
-      }
+function escapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
 
-      if (document.getElementById(prefix + "-visitors")) {
-        document.getElementById(prefix + "-visitors").innerText =
-          g.unique_visitors;
-      }
+function getRows(dataset) {
+  if (!dataset) return [];
+  if (Array.isArray(dataset)) return dataset;
+  if (Array.isArray(dataset.data)) return dataset.data;
+  if (Array.isArray(dataset.rows)) return dataset.rows;
+  return [];
+}
 
-      if (document.getElementById(prefix + "-bandwidth")) {
-        document.getElementById(prefix + "-bandwidth").innerText =
-          formatMB(g.bandwidth);
-      }
+function rowLabel(row) {
+  return String(row?.data ?? row?.path ?? row?.url ?? row?._itemText ?? row?.item ?? "Unknown");
+}
 
-    })
-    .catch(err => {
-      console.error("Error loading", path, err);
+function getRowPath(row) {
+  return rowLabel(row).toLowerCase();
+}
+
+function getVisitors(row) {
+  return numberValue(row?.visitors);
+}
+
+function getHits(row) {
+  return numberValue(row?.hits ?? row?.requests ?? row?.count);
+}
+
+function setText(id, value) {
+  const node = document.getElementById(id);
+  if (node) node.innerText = value;
+}
+
+function setRange(prefix, general) {
+  setText(prefix + "-range", `${general.start_date ?? "-"} – ${general.end_date ?? "-"}`);
+}
+
+function renderTopPages(listId, rows) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+
+  if (!rows.length) {
+    list.innerHTML = "<li>No matching pages in this period.</li>";
+    return;
+  }
+
+  list.innerHTML = rows.slice(0, 3).map((row) => {
+    const label = escapeHtml(rowLabel(row));
+    return `<li><strong>${label}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`;
+  }).join("");
+}
+
+function renderSummaryList(listId, rows, emptyMessage, rowHtml) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  if (!rows.length) {
+    list.innerHTML = `<li>${escapeHtml(emptyMessage)}</li>`;
+    return;
+  }
+  list.innerHTML = rows.slice(0, 5).map(rowHtml).join("");
+}
+
+function populateBasicStats(prefix, data) {
+  const g = data.general || {};
+  setRange(prefix, g);
+
+  if (document.getElementById(prefix + "-requests")) {
+    setText(prefix + "-requests", numberValue(g.valid_requests ?? g.total_requests).toLocaleString());
+  }
+
+  if (document.getElementById(prefix + "-visitors")) {
+    setText(prefix + "-visitors", numberValue(g.unique_visitors).toLocaleString());
+  }
+
+  if (document.getElementById(prefix + "-bandwidth")) {
+    setText(prefix + "-bandwidth", formatMB(numberValue(g.bandwidth)));
+  }
+}
+
+function isReadingPath(path) {
+  return /(reading|blog|essay|governance|influences|library|article|feed)/.test(path);
+}
+
+function looksLikeGamePath(path) {
+  return /\.html?(?:$|[?#])/.test(path) && !/games\.html?(?:$|[?#])/.test(path);
+}
+
+function formatGameTitleFromPath(path) {
+  const clean = String(path || "").split(/[?#]/)[0];
+  const parts = clean.split("/").filter(Boolean);
+  const file = parts.length ? parts[parts.length - 1] : clean;
+  const base = file.replace(/\.html?$/i, "");
+  if (!base) return "Unknown game";
+  return base
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function buildGamesByTitle(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const path = rowLabel(row);
+    if (!looksLikeGamePath(path)) return;
+    const title = formatGameTitleFromPath(path);
+    const current = grouped.get(title) || { title, hits: 0, visitors: 0 };
+    current.hits += getHits(row);
+    current.visitors += getVisitors(row);
+    grouped.set(title, current);
+  });
+  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+}
+
+function isDirectReferrer(text) {
+  const value = String(text || "").trim().toLowerCase();
+  return !value || /direct|unknown|none|bookmark|typed|\(-\)|^-$/.test(value);
+}
+
+function rowLocation(row) {
+  const city = row?.city || row?.geoip?.city || row?.location?.city || "";
+  const country = row?.country || row?.geoip?.country || row?.location?.country || "";
+  const label = [city, country].filter(Boolean).join(", ");
+  return label || "Unknown location";
+}
+
+function buildLocationRows(hostRows) {
+  const grouped = new Map();
+  hostRows.forEach((row) => {
+    const location = rowLocation(row);
+    const existing = grouped.get(location) || { label: location, hits: 0, visitors: 0 };
+    existing.hits += getHits(row);
+    existing.visitors += getVisitors(row);
+    grouped.set(location, existing);
+  });
+  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+}
+
+async function loadJson(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+  return response.json();
+}
+
+async function init() {
+  try {
+    const [weekly, games, debug] = await Promise.all([
+      loadJson("weekly.json"),
+      loadJson("games.json"),
+      loadJson("debug.json")
+    ]);
+
+    populateBasicStats("weekly", weekly);
+    populateBasicStats("games", games);
+    populateBasicStats("debug", debug);
+
+    const weeklyRequests = numberValue(weekly?.general?.valid_requests ?? weekly?.general?.total_requests);
+    const weeklyVisitors = numberValue(weekly?.general?.unique_visitors);
+    const gamesRequests = numberValue(games?.general?.valid_requests ?? games?.general?.total_requests);
+
+    const gameRequestRows = getRows(games.requests).sort((a, b) => getHits(b) - getHits(a));
+    const gamesByTitle = buildGamesByTitle(gameRequestRows);
+
+    setText("games-share", percent(gamesRequests, weeklyRequests));
+    renderTopPages("games-top-pages", gameRequestRows);
+    renderSummaryList(
+      "games-top-titles",
+      gamesByTitle,
+      "No game page data available.",
+      (row) => `<li><strong>${escapeHtml(row.title)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
+    );
+
+    const readingRows = getRows(weekly.requests).filter((row) => isReadingPath(getRowPath(row)));
+    const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);
+    const readingVisitors = readingRows.reduce((sum, row) => sum + getVisitors(row), 0);
+
+    setRange("reading", weekly.general || {});
+    setText("reading-requests", readingRequests.toLocaleString());
+    setText("reading-visitors", readingVisitors.toLocaleString());
+    setText("reading-share", percent(readingRequests, weeklyRequests));
+    renderTopPages("reading-top-pages", readingRows.sort((a, b) => getHits(b) - getHits(a)));
+
+    const referrerRows = getRows(weekly.referring_sites).sort((a, b) => getHits(b) - getHits(a));
+    renderSummaryList(
+      "weekly-referrers",
+      referrerRows,
+      "No referrer data available.",
+      (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`
+    );
+
+    const locationRows = buildLocationRows(getRows(weekly.hosts));
+    renderSummaryList(
+      "weekly-locations",
+      locationRows,
+      "No location data available.",
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
+    );
+
+    const directRequests = referrerRows
+      .filter((row) => isDirectReferrer(rowLabel(row)))
+      .reduce((sum, row) => sum + getHits(row), 0);
+    setText("weekly-direct-share", percent(directRequests, weeklyRequests));
+
+    const debugTotalRequests = numberValue(debug?.general?.total_requests ?? debug?.general?.valid_requests);
+    const invalidRequests = Math.max(0, debugTotalRequests - weeklyRequests);
+    setText("weekly-invalid-share", percent(invalidRequests, debugTotalRequests));
+
+    const requestsPerVisitor = weeklyVisitors ? (weeklyRequests / weeklyVisitors).toFixed(2) : "0.00";
+    setText("weekly-requests-per-visitor", requestsPerVisitor);
+
+    const topHostHits = getRows(weekly.hosts).reduce((maxHits, row) => Math.max(maxHits, getHits(row)), 0);
+    setText("weekly-top-host-share", percent(topHostHits, weeklyRequests));
+  } catch (err) {
+    console.error("Error loading analytics", err);
+    ["weekly", "games", "debug", "reading"].forEach((prefix) => {
       const section = document.getElementById(prefix);
       if (section) {
         section.innerHTML += "<p class='error'>Could not load data.</p>";
       }
     });
+  }
 }
 
-loadStats("weekly.json", "weekly");
-loadStats("games.json", "games");
-loadStats("debug.json", "debug");
+init();
 </script>
 
 </body>

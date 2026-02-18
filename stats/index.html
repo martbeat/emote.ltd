@@ -43,6 +43,16 @@
     font-weight: 600;
   }
 
+  .value-prominent {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .label-muted {
+    color: #888;
+  }
+
   .range {
     color: #888;
     font-size: 0.9rem;
@@ -87,13 +97,23 @@
       <div class="value" id="weekly-requests">–</div>
     </div>
     <div class="metric">
-      <div class="label">Unique Visitors</div>
+      <div class="label label-muted">Unique Visitors (raw)</div>
       <div class="value" id="weekly-visitors">–</div>
     </div>
     <div class="metric">
       <div class="label">Bandwidth (MB)</div>
       <div class="value" id="weekly-bandwidth">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Likely Engaged Visitors</div>
+      <div class="value" id="weekly-engaged-visitors">–</div>
+      <div class="hint">Visitors with >1 request</div>
+    </div>
+    <div class="metric">
+      <div class="label">PDF Downloads This Week</div>
+      <div class="value" id="weekly-pdf-downloads">–</div>
+    </div>
+
   </div>
 
   <h3>Where visitors come from</h3>
@@ -114,14 +134,14 @@
     </div>
     <div class="metric">
       <div class="label">Requests per Visitor</div>
-      <div class="value" id="weekly-requests-per-visitor">–</div>
+      <div class="value value-prominent" id="weekly-requests-per-visitor">–</div>
     </div>
     <div class="metric">
       <div class="label">Top Host Concentration</div>
       <div class="value" id="weekly-top-host-share">–</div>
     </div>
   </div>
-  <div class="hint">High direct traffic, high invalid traffic, high requests-per-visitor, and heavy concentration from one host can indicate bot activity.</div>
+  <div class="hint" id="weekly-rpv-note">High direct traffic, high invalid traffic, high requests-per-visitor, and heavy concentration from one host can indicate bot activity.</div>
 </div>
 
 <div id="games">
@@ -145,6 +165,7 @@
 
   <h3>Games being run</h3>
   <ul class="list" id="games-top-titles"></ul>
+  <div class="hint">Tip: keep <code>games.json</code> as a rolling 7-day export so this panel is decision-useful.</div>
 </div>
 
 <div id="reading">
@@ -163,8 +184,12 @@
       <div class="label">Share of Weekly Requests</div>
       <div class="value" id="reading-share">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Blogger Feed Pulls</div>
+      <div class="value" id="reading-blogger-pulls">–</div>
+    </div>
   </div>
-  <div class="hint">Includes pages and feeds that look like essays/reading content.</div>
+  <div class="hint">Includes pages/feeds that look like essays/reading content. If essays live on Blogger, track click-throughs/feed pulls for meaningful signal.</div>
   <ul class="list" id="reading-top-pages"></ul>
 </div>
 
@@ -288,6 +313,14 @@ function populateBasicStats(prefix, data) {
   }
 }
 
+function isPdfPath(path) {
+  return /\.pdf(?:$|[?#])/i.test(path);
+}
+
+function isBloggerRelatedPath(path) {
+  return /(blog-feed|blogger|martymcfry)/.test(String(path || "").toLowerCase());
+}
+
 function isReadingPath(path) {
   return /(reading|blog|essay|governance|influences|library|article|feed)/.test(path);
 }
@@ -370,6 +403,12 @@ async function init() {
     const weeklyVisitors = numberValue(weekly?.general?.unique_visitors);
     const gamesRequests = numberValue(games?.general?.valid_requests ?? games?.general?.total_requests);
 
+    const weeklyRequestRows = getRows(weekly.requests);
+    const hostRows = getRows(weekly.hosts);
+    const engagedVisitors = hostRows.reduce((sum, row) => sum + (getHits(row) > 1 ? getVisitors(row) : 0), 0);
+    const pdfDownloads = weeklyRequestRows.reduce((sum, row) => sum + (isPdfPath(getRowPath(row)) ? getHits(row) : 0), 0);
+    const bloggerPulls = weeklyRequestRows.reduce((sum, row) => sum + (isBloggerRelatedPath(getRowPath(row)) ? getHits(row) : 0), 0);
+
     const gameRequestRows = getRows(games.requests).sort((a, b) => getHits(b) - getHits(a));
     const gamesByTitle = buildGamesByTitle(gameRequestRows);
 
@@ -382,7 +421,7 @@ async function init() {
       (row) => `<li><strong>${escapeHtml(row.title)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
     );
 
-    const readingRows = getRows(weekly.requests).filter((row) => isReadingPath(getRowPath(row)));
+    const readingRows = weeklyRequestRows.filter((row) => isReadingPath(getRowPath(row)));
     const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);
     const readingVisitors = readingRows.reduce((sum, row) => sum + getVisitors(row), 0);
 
@@ -400,7 +439,7 @@ async function init() {
       (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`
     );
 
-    const locationRows = buildLocationRows(getRows(weekly.hosts));
+    const locationRows = buildLocationRows(hostRows);
     renderSummaryList(
       "weekly-locations",
       locationRows,
@@ -417,10 +456,21 @@ async function init() {
     const invalidRequests = Math.max(0, debugTotalRequests - weeklyRequests);
     setText("weekly-invalid-share", percent(invalidRequests, debugTotalRequests));
 
+    setText("weekly-engaged-visitors", engagedVisitors.toLocaleString());
+    setText("weekly-pdf-downloads", pdfDownloads.toLocaleString());
+    setText("reading-blogger-pulls", bloggerPulls.toLocaleString());
+
     const requestsPerVisitor = weeklyVisitors ? (weeklyRequests / weeklyVisitors).toFixed(2) : "0.00";
     setText("weekly-requests-per-visitor", requestsPerVisitor);
+    const rpvNote = document.getElementById("weekly-rpv-note");
+    if (rpvNote) {
+      if (Number(requestsPerVisitor) < 1.5) {
+        rpvNote.innerText = "Requests per Visitor is below 1.5 — this can indicate a bot-heavy week.";
+        rpvNote.style.color = "#b00020";
+      }
+    }
 
-    const topHostHits = getRows(weekly.hosts).reduce((maxHits, row) => Math.max(maxHits, getHits(row)), 0);
+    const topHostHits = hostRows.reduce((maxHits, row) => Math.max(maxHits, getHits(row)), 0);
     setText("weekly-top-host-share", percent(topHostHits, weeklyRequests));
   } catch (err) {
     console.error("Error loading analytics", err);

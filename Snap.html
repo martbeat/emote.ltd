@@ -434,9 +434,18 @@ function addGdprButton() {
   button.type = 'button';
   button.textContent = 'GDPR';
   button.style.position = 'fixed';
-  button.style.right = '12px';
-  button.style.bottom = '12px';
+  button.style.right = '10px';
+  button.style.bottom = '24px';
   button.style.zIndex = '9999';
+  button.style.background = 'transparent';
+  button.style.border = 'none';
+  button.style.padding = '0';
+  button.style.fontSize = '11px';
+  button.style.fontFamily = 'system-ui, -apple-system, Segoe UI, sans-serif';
+  button.style.color = 'rgba(255,255,255,0.7)';
+  button.style.mixBlendMode = 'difference';
+  button.style.opacity = '0.8';
+  button.style.cursor = 'pointer';
   button.addEventListener('click', showGdprNotice);
   document.body.appendChild(button);
 }

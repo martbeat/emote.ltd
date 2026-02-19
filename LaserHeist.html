@@ -494,6 +494,32 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'laserheist',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'laserheist' });
+
 (() => {
   "use strict";
 
@@ -1332,6 +1358,7 @@ function simulateHazards(turnOffset = 1){
     persist();
     updateButtons();
     if(win){
+      logCompletion();
       showModal("You win", reason);
     }else{
       showModal("Caught", reason);

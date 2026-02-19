@@ -452,6 +452,32 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'sudoku',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'sudoku' });
+
 (() => {
   /* ---------- Configuration ---------- */
 
@@ -853,6 +879,7 @@
     if (state.completed) {
       stopTimer();
       setMessage("good", "<strong>Completed</strong> Puzzle solved.");
+      logCompletion();
       return;
     }
 
@@ -885,6 +912,7 @@
     if (state.completed) {
       stopTimer();
       setMessage("good", "<strong>Completed</strong> Puzzle solved.");
+      logCompletion();
     } else {
       setMessage("good", "<strong>Hint</strong> Filled the selected cell.");
     }
@@ -910,6 +938,7 @@
     if (state.completed) {
       stopTimer();
       setMessage("good", "<strong>Completed</strong> Puzzle solved.");
+      logCompletion();
       return;
     }
     if (wrong === 0 && conflictsCount === 0 && blanks > 0) {
@@ -1208,7 +1237,10 @@
     persist();
     startTimer();
 
-    if (state.completed) setMessage("good", "<strong>Completed</strong> You finished this puzzle.");
+    if (state.completed) {
+      setMessage("good", "<strong>Completed</strong> You finished this puzzle.");
+      logCompletion();
+    }
     else setMessage("warn", "<strong>Resumed</strong> Your saved game has been restored.");
   }
 

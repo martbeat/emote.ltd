@@ -408,6 +408,32 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'crib',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'crib' });
+
 (() => {
   // --------- Utilities ----------
   const $ = (id) => document.getElementById(id);
@@ -1159,6 +1185,7 @@ setPhase("show");
       setPhase("over");
       const winner = (state.scores[0] >= 121) ? 0 : 1;
       addLog(`<div style="margin-top:8px"><span class="t">Game over.</span> <span class="${winner===0?'g':'r'}"><b>${winner===0?"You win":"AI wins"}</b></span> <span class="t">(${state.scores[0]}–${state.scores[1]})</span></div>`);
+      logCompletion();
       state.waitingNext = false;
       $("discardBtn").disabled = true;
       $("playPegBtn").disabled = true;

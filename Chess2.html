@@ -479,6 +479,32 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'chess2',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'chess2' });
+
 (() => {
   "use strict";
 
@@ -2257,7 +2283,10 @@ function updateGameStatus(){
 
   if(moves.length === 0){
     S.gameOver = true;
-    if(chk) setStatus(`Checkmate: ${(S.turn==="w")?"White":"Black"} loses`, "bad");
+    if(chk) {
+      setStatus(`Checkmate: ${(S.turn==="w")?"White":"Black"} loses`, "bad");
+      logCompletion();
+    }
     else setStatus("Stalemate", "bad");
     return;
   }

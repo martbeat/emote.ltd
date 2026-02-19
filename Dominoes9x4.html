@@ -437,6 +437,32 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'dominoes9x4',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'dominoes9x4' });
+
   const handEl = document.getElementById("hand");
   const leftValueEl = document.getElementById("leftValue");
   const rightValueEl = document.getElementById("rightValue");
@@ -823,6 +849,7 @@
   }
 
   function finishDeal(winnerIndex, options = {}){
+    logCompletion();
     if (gameOver) return;
     const { includeWinner = false } = options;
     gameOver = true;

@@ -386,6 +386,32 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'othello',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'othello' });
+
 (() => {
   "use strict";
 
@@ -713,6 +739,7 @@
     if (isGameOver(b)){
       elStatusPill.innerHTML = "<b>Game</b> over";
       nowMsg(`<b>Game over.</b> ${winnerText(b)} <small>Final: Black ${black}, White ${white}.</small>`);
+      logCompletion();
     } else if (p === you){
       elStatusPill.innerHTML = "<b>Your</b> move";
       const lm = legalMoves(b, p).length;

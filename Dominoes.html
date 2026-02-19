@@ -557,6 +557,32 @@
 </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'dominoes',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'dominoes' });
+
 /* Dominoes vs AI
    - Double-six set (0..6)
    - 7 tiles each
@@ -1046,6 +1072,7 @@ function hideCelebration(){
   }
 
 function finish(message){
+  logCompletion();
   state.over = true;
   state.started = true;
   state.pendingChoice = null;

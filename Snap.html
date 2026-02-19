@@ -395,6 +395,32 @@
   <div id="snapToast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'snap',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'snap' });
+
     const botNamePool = [
       "Ada","Beau","Cass","Dex","Elliot","Faye","Gizmo","Harlow",
       "Iris","Juno","Koa","Luna","Milo","Nova","Orion","Piper",
@@ -847,6 +873,7 @@
         document.body.classList.remove("super-win");
       }, 4200);
       speak(`${winner.name} wins all fifty two cards! Super snap!`);
+      logCompletion();
     }
 
     function shoutSnap(player){

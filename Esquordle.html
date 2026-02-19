@@ -391,6 +391,32 @@ label{user-select:none}
 </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'esquordle',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'esquordle' });
+
 /*
   Squordle ES (two-team quordle-style).
   This version pulls across key mechanics from your English game:
@@ -869,6 +895,7 @@ function render(){
 
 /* ---------- GAME FLOW ---------- */
 function endGame(reason){
+  logCompletion();
   gameEnded = true;
 
   const submitBtn = document.getElementById("submit");

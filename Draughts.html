@@ -29,6 +29,32 @@
 <div id="status"></div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'draughts',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'draughts' });
+
 /* ------------------ Game Model ------------------ */
 const EMPTY = 0;
 const RED = 1;
@@ -75,6 +101,12 @@ function render() {
   boardDiv.innerHTML = "";
 
   legalMoves = getAllMoves(board, currentPlayer, forcedFrom);
+
+  if (!legalMoves.length){
+    statusDiv.textContent = currentPlayer===RED ? "No legal moves. You lose." : "AI has no legal moves. You win.";
+    logCompletion();
+    return;
+  }
 
   for (let r=0;r<8;r++){
     for (let c=0;c<8;c++){

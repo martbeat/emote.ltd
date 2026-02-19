@@ -383,6 +383,32 @@ input{
 
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'quordle',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'quordle' });
+
 /* ---------- WORD LIST (REMOTE + CACHE) ---------- */
 const REMOTE_URL =
   "https://gist.githubusercontent.com/shmookey/b28e342e1b1756c4700f42f17102c2ff/raw/ed4c33a168027aa1e448c579c8383fe20a3a6225/WORDS";
@@ -754,6 +780,7 @@ function loadGame(){
 let gameEnded = false;
 
 function endGame(reason){
+  logCompletion();
   gameEnded = true;
 
   // Stop further input

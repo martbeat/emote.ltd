@@ -168,6 +168,32 @@
   </main>
 
   <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'spanishcircle',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'spanishcircle' });
+
     const parseDeck = raw => raw.trim().split("\n").map(line => {
       const [prompt, answer, distract1, distract2, distract3, context, region] = line.split("|").map(x => x.trim());
       return { prompt, answer, options: [answer, distract1, distract2, distract3], context, region };
@@ -576,6 +602,7 @@ insulto suave: menso/mensa|dummy / silly person|best friend|teacher|artist|Mild 
     }
 
     function finishGame(){
+      logCompletion();
       optionsEl.innerHTML = '';
       promptEl.textContent = t('roundComplete');
       hintEl.textContent = t('switchDeck');

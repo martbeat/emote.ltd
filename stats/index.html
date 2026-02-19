@@ -473,10 +473,20 @@ function buildCountryRows(hostRows) {
     .sort((a, b) => b.visitors - a.visitors);
 }
 
-function isLikelyDataCentre(row) {
-  const asn = String(row?.asn || row?.geoip?.asn || "").toLowerCase();
+function rowAsnText(row) {
+  return String(row?.asn || row?.geoip?.asn || "");
+}
 
-  return /amazon|aws|google|microsoft|azure|cloudflare|digitalocean|ovh|alibaba|tencent/.test(asn);
+function isExcludedAsn(row) {
+  const asnText = rowAsnText(row).toUpperCase();
+  const excludedAsnIds = ["14618", "15169", "8075", "16509"];
+  return excludedAsnIds.some((asnId) => new RegExp(`\\bAS?${asnId}\\b`).test(asnText));
+}
+
+function isLikelyDataCentre(row) {
+  const asn = rowAsnText(row).toLowerCase();
+
+  return isExcludedAsn(row) || /amazon|aws|google|microsoft|azure|cloudflare|digitalocean|ovh|alibaba|tencent/.test(asn);
 }
 
 function sameDateRange(a, b) {
@@ -523,8 +533,9 @@ async function init() {
 
     const weeklyRequestRows = getRows(weekly.requests);
     const hostRows = getRows(weekly.hosts);
+    const nonExcludedHostRows = hostRows.filter((row) => !isExcludedAsn(row));
     const humanHostRows = getRows(humans?.hosts);
-    const engagedVisitors = hostRows.reduce((sum, row) => sum + (getHits(row) > 1 && getHits(row) < 10 ? getVisitors(row) : 0), 0);
+    const engagedVisitors = nonExcludedHostRows.reduce((sum, row) => sum + (getHits(row) > 1 && getHits(row) < 10 ? getVisitors(row) : 0), 0);
 
     const pdfRows = collectPdfRowsFromDataset(pdf?.requests);
     const pdfDownloadsFromRows = pdfRows.reduce((sum, row) => sum + row.hits, 0);

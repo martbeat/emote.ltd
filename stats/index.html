@@ -107,7 +107,7 @@
     <div class="metric">
       <div class="label">Likely Engaged Visitors</div>
       <div class="value" id="weekly-engaged-visitors">–</div>
-      <div class="hint">Visitors with >1 request</div>
+      <div class="hint">Visitors with >1 and <10 requests</div>
     </div>
     <div class="metric">
       <div class="label">PDF Downloads This Week</div>
@@ -126,7 +126,7 @@
   <h3>Where visitors come from</h3>
   <ul class="list" id="weekly-referrers"></ul>
 
-  <h3>Where visitors browse from</h3>
+  <h3>Where engaged visitors browse from</h3>
   <ul class="list" id="weekly-locations"></ul>
 
   <h3>Bot signals</h3>
@@ -469,6 +469,14 @@ function buildCountryRows(hostRows) {
     .sort((a, b) => b.visitors - a.visitors);
 }
 
+function sameDateRange(a, b) {
+  const aStart = a?.general?.start_date;
+  const aEnd = a?.general?.end_date;
+  const bStart = b?.general?.start_date;
+  const bEnd = b?.general?.end_date;
+  return Boolean(aStart && aEnd && bStart && bEnd && aStart === bStart && aEnd === bEnd);
+}
+
 async function loadJson(path) {
   const response = await fetch(path);
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -506,10 +514,11 @@ async function init() {
     const weeklyRequestRows = getRows(weekly.requests);
     const hostRows = getRows(weekly.hosts);
     const humanHostRows = getRows(humans?.hosts);
-    const engagedVisitors = humanHostRows.reduce((sum, row) => sum + getVisitors(row), 0);
+    const engagedVisitors = hostRows.reduce((sum, row) => sum + (getHits(row) > 1 && getHits(row) < 10 ? getVisitors(row) : 0), 0);
 
     const pdfRows = collectPdfRowsFromDataset(pdf?.requests);
-    const pdfDownloads = pdfRows.reduce((sum, row) => sum + row.hits, 0);
+    const pdfDownloadsFromRows = pdfRows.reduce((sum, row) => sum + row.hits, 0);
+    const pdfDownloads = pdfDownloadsFromRows || numberValue(pdf?.general?.valid_requests ?? pdf?.general?.total_requests);
     const bloggerPulls = weeklyRequestRows.reduce((sum, row) => sum + (isBloggerRelatedPath(getRowPath(row)) ? getHits(row) : 0), 0);
 
     const gameRequestRows = getRows(games.requests).sort((a, b) => getHits(b) - getHits(a));
@@ -526,7 +535,8 @@ async function init() {
 
     const humansRequests = numberValue(humans?.general?.valid_requests ?? humans?.general?.total_requests);
     const humansRequestRows = getRows(humans?.requests).sort((a, b) => getHits(b) - getHits(a));
-    setText("humans-share", percent(humansRequests, weeklyRequests));
+    const humansRangeMatchesWeekly = sameDateRange(humans, weekly);
+    setText("humans-share", humansRangeMatchesWeekly ? percent(humansRequests, weeklyRequests) : "Range mismatch");
     renderTopPages("humans-top-pages", humansRequestRows);
 
     const readingRows = weeklyRequestRows.filter((row) => isReadingPath(getRowPath(row)));
@@ -552,7 +562,7 @@ async function init() {
       "weekly-locations",
       humanLocationRows,
       "No human geography data available.",
-      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, weeklyVisitors)})</li>`
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, numberValue(humans?.general?.unique_visitors) || weeklyVisitors)})</li>`
     );
 
     const directRequests = referrerRows

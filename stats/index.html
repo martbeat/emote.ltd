@@ -412,43 +412,25 @@ function buildGamesByTitle(rows) {
   return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
 }
 
-function collectPdfInsights(weekly) {
-  const files = new Map();
-  const locations = new Map();
-  const sources = [weekly?.requests, weekly?.static_requests, weekly?.static, weekly?.files, weekly?.downloads];
+function collectPdfRowsFromDataset(dataset) {
+  const grouped = new Map();
 
-  sources.forEach((dataset) => {
-    getRows(dataset).forEach((row) => {
-      const rawPath = rowLabel(row);
-      if (!isPdfPath(rawPath)) return;
-      if (!isSuccessful200(row)) return;
+  getRows(dataset).forEach((row) => {
+    const rawPath = rowLabel(row);
+    if (!isPdfPath(rawPath)) return;
 
-      const fileKey = normalizePath(rawPath);
-      const fileRow = files.get(fileKey) || {
-        label: rawPath.split(/[?#]/)[0],
-        hits: 0,
-        visitors: 0
-      };
-      fileRow.hits += getHits(row);
-      fileRow.visitors += getVisitors(row);
-      files.set(fileKey, fileRow);
-
-      const location = rowLocation(row);
-      const locationRow = locations.get(location) || {
-        label: location,
-        hits: 0,
-        visitors: 0
-      };
-      locationRow.hits += getHits(row);
-      locationRow.visitors += getVisitors(row);
-      locations.set(location, locationRow);
-    });
+    const fileKey = normalizePath(rawPath);
+    const fileRow = grouped.get(fileKey) || {
+      label: rawPath.split(/[?#]/)[0],
+      hits: 0,
+      visitors: 0
+    };
+    fileRow.hits += getHits(row);
+    fileRow.visitors += getVisitors(row);
+    grouped.set(fileKey, fileRow);
   });
 
-  return {
-    files: Array.from(files.values()).sort((a, b) => b.hits - a.hits),
-    locations: Array.from(locations.values()).sort((a, b) => b.hits - a.hits)
-  };
+  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
 }
 
 function isDirectReferrer(text) {
@@ -456,23 +438,35 @@ function isDirectReferrer(text) {
   return !value || /direct|unknown|none|bookmark|typed|\(-\)|^-$/.test(value);
 }
 
-function rowLocation(row) {
-  const city = row?.city || row?.geoip?.city || row?.location?.city || "";
-  const country = row?.country || row?.geoip?.country || row?.location?.country || "";
-  const label = [city, country].filter(Boolean).join(", ");
-  return label || "Unknown location";
+function rowCountry(row) {
+  const country =
+    row?.country ||
+    row?.geoip?.country ||
+    row?.location?.country ||
+    "";
+
+  return country || "Unknown country";
 }
 
-function buildLocationRows(hostRows) {
+function buildCountryRows(hostRows) {
   const grouped = new Map();
+
   hostRows.forEach((row) => {
-    const location = rowLocation(row);
-    const existing = grouped.get(location) || { label: location, hits: 0, visitors: 0 };
+    const country = rowCountry(row);
+    const existing = grouped.get(country) || {
+      label: country,
+      hits: 0,
+      visitors: 0
+    };
+
     existing.hits += getHits(row);
     existing.visitors += getVisitors(row);
-    grouped.set(location, existing);
+
+    grouped.set(country, existing);
   });
-  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
+
+  return Array.from(grouped.values())
+    .sort((a, b) => b.visitors - a.visitors);
 }
 
 async function loadJson(path) {
@@ -492,11 +486,12 @@ async function loadJsonOptional(path, fallback = null) {
 
 async function init() {
   try {
-    const [weekly, games, debug, humans] = await Promise.all([
+    const [weekly, games, debug, humans, pdf] = await Promise.all([
       loadJson("weekly.json"),
       loadJson("games.json"),
       loadJson("debug.json"),
-      loadJsonOptional("humans.json")
+      loadJsonOptional("humans.json"),
+      loadJsonOptional("pdf.json")
     ]);
 
     populateBasicStats("weekly", weekly);
@@ -510,9 +505,10 @@ async function init() {
 
     const weeklyRequestRows = getRows(weekly.requests);
     const hostRows = getRows(weekly.hosts);
-    const engagedVisitors = hostRows.reduce((sum, row) => sum + (getHits(row) > 1 ? getVisitors(row) : 0), 0);
-    const pdfInsights = collectPdfInsights(weekly);
-    const pdfRows = pdfInsights.files;
+    const humanHostRows = getRows(humans?.hosts);
+    const engagedVisitors = humanHostRows.reduce((sum, row) => sum + getVisitors(row), 0);
+
+    const pdfRows = collectPdfRowsFromDataset(pdf?.requests);
     const pdfDownloads = pdfRows.reduce((sum, row) => sum + row.hits, 0);
     const bloggerPulls = weeklyRequestRows.reduce((sum, row) => sum + (isBloggerRelatedPath(getRowPath(row)) ? getHits(row) : 0), 0);
 
@@ -551,12 +547,12 @@ async function init() {
       (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`
     );
 
-    const locationRows = buildLocationRows(hostRows);
+    const humanLocationRows = buildCountryRows(humanHostRows);
     renderSummaryList(
       "weekly-locations",
-      locationRows,
-      "No location data available.",
-      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
+      humanLocationRows,
+      "No human geography data available.",
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, weeklyVisitors)})</li>`
     );
 
     const directRequests = referrerRows
@@ -577,11 +573,14 @@ async function init() {
       (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
       Number.POSITIVE_INFINITY
     );
+    const pdfHostRows = getRows(pdf?.hosts);
+    const pdfLocationRows = buildCountryRows(pdfHostRows);
+    const pdfLocationTotalVisitors = pdfLocationRows.reduce((sum, row) => sum + row.visitors, 0);
     renderSummaryList(
       "weekly-pdf-locations",
-      pdfInsights.locations,
+      pdfLocationRows,
       "No PDF geolocation data available.",
-      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
+      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, pdfLocationTotalVisitors)})</li>`,
       Number.POSITIVE_INFINITY
     );
     setText("reading-blogger-pulls", bloggerPulls.toLocaleString());

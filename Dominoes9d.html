@@ -453,6 +453,58 @@
   </div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'dominoes9d',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'dominoes9d' });
+
+const GDPR_NOTICE_TEXT = "This site logs basic server activity including page requests and anonymous game interaction events (start and completion duration categories). These logs are used solely to understand site usage and improve content. No cookies, tracking identifiers, or third-party analytics services are used.";
+
+function showGdprNotice() {
+  alert(GDPR_NOTICE_TEXT);
+}
+
+function addGdprButton() {
+  if (document.getElementById('gdpr-button')) return;
+  const button = document.createElement('button');
+  button.id = 'gdpr-button';
+  button.type = 'button';
+  button.textContent = 'GDPR';
+  button.style.position = 'fixed';
+  button.style.right = '12px';
+  button.style.bottom = '12px';
+  button.style.zIndex = '9999';
+  button.addEventListener('click', showGdprNotice);
+  document.body.appendChild(button);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', addGdprButton, { once: true });
+} else {
+  addGdprButton();
+}
+
   const chainEl = document.getElementById("chainTiles");
   const handEl = document.getElementById("hand");
   const leftValueEl = document.getElementById("leftValue");
@@ -864,6 +916,7 @@ if (earned > 0){
   }
 
   function finishDeal(winnerIndex, options = {}){
+    logCompletion();
     if (gameOver) return;
     const { includeWinner = false } = options;
     gameOver = true;

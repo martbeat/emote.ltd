@@ -29,6 +29,58 @@
 <div id="status"></div>
 
 <script>
+let gameStartTime = Date.now();
+let gameCompletionLogged = false;
+
+function logEvent(params) {
+  navigator.sendBeacon('/gping?' + new URLSearchParams(params));
+}
+
+function logCompletion() {
+  if (gameCompletionLogged) return;
+  gameCompletionLogged = true;
+
+  const durationSeconds = (Date.now() - gameStartTime) / 1000;
+
+  let bucket = 'short';
+  if (durationSeconds > 120) bucket = 'medium';
+  if (durationSeconds > 600) bucket = 'long';
+
+  logEvent({
+    event: 'complete',
+    game: 'draughts',
+    dur: bucket
+  });
+}
+
+logEvent({ event: 'start', game: 'draughts' });
+
+const GDPR_NOTICE_TEXT = "This site logs basic server activity including page requests and anonymous game interaction events (start and completion duration categories). These logs are used solely to understand site usage and improve content. No cookies, tracking identifiers, or third-party analytics services are used.";
+
+function showGdprNotice() {
+  alert(GDPR_NOTICE_TEXT);
+}
+
+function addGdprButton() {
+  if (document.getElementById('gdpr-button')) return;
+  const button = document.createElement('button');
+  button.id = 'gdpr-button';
+  button.type = 'button';
+  button.textContent = 'GDPR';
+  button.style.position = 'fixed';
+  button.style.right = '12px';
+  button.style.bottom = '12px';
+  button.style.zIndex = '9999';
+  button.addEventListener('click', showGdprNotice);
+  document.body.appendChild(button);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', addGdprButton, { once: true });
+} else {
+  addGdprButton();
+}
+
 /* ------------------ Game Model ------------------ */
 const EMPTY = 0;
 const RED = 1;
@@ -75,6 +127,12 @@ function render() {
   boardDiv.innerHTML = "";
 
   legalMoves = getAllMoves(board, currentPlayer, forcedFrom);
+
+  if (!legalMoves.length){
+    statusDiv.textContent = currentPlayer===RED ? "No legal moves. You lose." : "AI has no legal moves. You win.";
+    logCompletion();
+    return;
+  }
 
   for (let r=0;r<8;r++){
     for (let c=0;c<8;c++){

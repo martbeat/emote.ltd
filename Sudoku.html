@@ -478,6 +478,32 @@ function logCompletion() {
 
 logEvent({ event: 'start', game: 'sudoku' });
 
+const GDPR_NOTICE_TEXT = "This site logs basic server activity including page requests and anonymous game interaction events (start and completion duration categories). These logs are used solely to understand site usage and improve content. No cookies, tracking identifiers, or third-party analytics services are used.";
+
+function showGdprNotice() {
+  alert(GDPR_NOTICE_TEXT);
+}
+
+function addGdprButton() {
+  if (document.getElementById('gdpr-button')) return;
+  const button = document.createElement('button');
+  button.id = 'gdpr-button';
+  button.type = 'button';
+  button.textContent = 'GDPR';
+  button.style.position = 'fixed';
+  button.style.right = '12px';
+  button.style.bottom = '12px';
+  button.style.zIndex = '9999';
+  button.addEventListener('click', showGdprNotice);
+  document.body.appendChild(button);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', addGdprButton, { once: true });
+} else {
+  addGdprButton();
+}
+
 (() => {
   /* ---------- Configuration ---------- */
 

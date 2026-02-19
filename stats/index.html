@@ -147,8 +147,12 @@
       <div class="label">Top Host Concentration</div>
       <div class="value" id="weekly-top-host-share">–</div>
     </div>
+    <div class="metric">
+      <div class="label">Likely Data Centre Share</div>
+      <div class="value" id="weekly-datacentre-share">–</div>
+    </div>
   </div>
-  <div class="hint" id="weekly-rpv-note">High direct traffic, high invalid traffic, high requests-per-visitor, and heavy concentration from one host can indicate bot activity.</div>
+  <div class="hint" id="weekly-rpv-note">High direct traffic, high invalid traffic, high requests-per-visitor, heavy concentration from one host, and high likely data-centre share can indicate bot activity.</div>
 </div>
 
 <div id="games">
@@ -469,6 +473,12 @@ function buildCountryRows(hostRows) {
     .sort((a, b) => b.visitors - a.visitors);
 }
 
+function isLikelyDataCentre(row) {
+  const asn = String(row?.asn || row?.geoip?.asn || "").toLowerCase();
+
+  return /amazon|aws|google|microsoft|azure|cloudflare|digitalocean|ovh|alibaba|tencent/.test(asn);
+}
+
 function sameDateRange(a, b) {
   const aStart = a?.general?.start_date;
   const aEnd = a?.general?.end_date;
@@ -607,6 +617,11 @@ async function init() {
 
     const topHostHits = hostRows.reduce((maxHits, row) => Math.max(maxHits, getHits(row)), 0);
     setText("weekly-top-host-share", percent(topHostHits, weeklyRequests));
+
+    const dataCentreRequests = hostRows
+      .filter((row) => isLikelyDataCentre(row))
+      .reduce((sum, row) => sum + getHits(row), 0);
+    setText("weekly-datacentre-share", percent(dataCentreRequests, weeklyRequests));
   } catch (err) {
     console.error("Error loading analytics", err);
     ["weekly", "games", "humans", "debug", "reading"].forEach((prefix) => {

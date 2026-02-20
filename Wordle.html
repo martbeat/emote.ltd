@@ -214,12 +214,15 @@
       display:flex;
       gap:6px;
       justify-content:center;
-      flex-wrap:wrap;
+      flex-wrap:nowrap;
+      width:min(100%, 540px);
+      margin:0 auto;
     }
     .key{
-      min-width: 34px;
+      flex:1 1 0;
+      min-width:0;
       height: 44px;
-      padding:0 10px;
+      padding:0 6px;
       border-radius:12px;
       border:1px solid rgba(255,255,255,.12);
       background: rgba(0,0,0,.18);
@@ -229,7 +232,7 @@
       cursor:pointer;
       user-select:none;
     }
-    .key.wide{ min-width: 72px; font-weight:800; font-size:12px; }
+    .key.wide{ flex:1.65 1 0; min-width:0; font-weight:800; font-size:12px; }
 .key.g{
   background:#57c46a;
   color:#06130a;

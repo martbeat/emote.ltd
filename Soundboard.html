@@ -30,6 +30,7 @@
       align-items:center;
       justify-content:center;
       padding:18px;
+      overflow-y:auto;
     }
     .app{
       width:min(980px, 100%);
@@ -103,6 +104,10 @@
       gap:14px;
     }
     @media (max-width: 860px){
+      body{
+        align-items:flex-start;
+        padding:10px;
+      }
       main{ grid-template-columns: 1fr; }
     }
     .card{

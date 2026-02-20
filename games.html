@@ -1322,7 +1322,7 @@ function sync(s){
       });
     }
 
-    function tick(t){
+function tick(t){
       if (!autopilot){
         raf = null;
         return;
@@ -1334,8 +1334,9 @@ function sync(s){
       updateVisibility(t);
 
 if (autopilot){
-  cards.forEach((s) => {
-    if (s.pinned || s.dragging) return;
+  const activeCards = cards.filter((s) => s.isVisible && !s.pinned && !s.dragging);
+
+  activeCards.forEach((s) => {
 
     // advance internal phase
     s.curvePhase += s.curveSpeed * dt;
@@ -1360,7 +1361,7 @@ const swoopY =
   Math.sin(s.curvePhase * 0.27 + s.curveBiasY) * 28 * scale;
 
 // separation from other cards
-const sep = separationForce(s, cards);
+const sep = separationForce(s, activeCards);
 
 // combine forces
 s.vx += (swoopX + driftX + sep.fx) * dt;

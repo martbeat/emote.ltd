@@ -123,6 +123,9 @@
   <h3>PDF download geolocations</h3>
   <ul class="list" id="weekly-pdf-locations"></ul>
 
+  <h3>PDF download referrer URLs</h3>
+  <ul class="list" id="weekly-pdf-referrers"></ul>
+
   <h3>Where visitors come from</h3>
   <ul class="list" id="weekly-referrers"></ul>
 
@@ -291,6 +294,15 @@ function getRowPath(row) {
 
 function normalizePath(path) {
   return String(path || "").split(/[?#]/)[0].toLowerCase();
+}
+
+function decodeUrlPath(path) {
+  const value = String(path || "");
+  try {
+    return decodeURIComponent(value);
+  } catch (_err) {
+    return value;
+  }
 }
 
 function getVisitors(row) {
@@ -466,7 +478,7 @@ function collectPdfRowsFromDataset(dataset) {
 
     const fileKey = normalizePath(rawPath);
     const fileRow = grouped.get(fileKey) || {
-      label: rawPath.split(/[?#]/)[0],
+      label: decodeUrlPath(rawPath.split(/[?#]/)[0]),
       hits: 0,
       visitors: 0
     };
@@ -657,6 +669,16 @@ async function init() {
       (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, pdfLocationTotalVisitors)})</li>`,
       Number.POSITIVE_INFINITY
     );
+
+    const pdfReferrerRows = getRows(pdf?.referring_sites).sort((a, b) => getHits(b) - getHits(a));
+    renderSummaryList(
+      "weekly-pdf-referrers",
+      pdfReferrerRows,
+      "No PDF referrer URL data available.",
+      (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`,
+      Number.POSITIVE_INFINITY
+    );
+
     setText("reading-blogger-pulls", bloggerPulls.toLocaleString());
 
     const requestsPerVisitor = weeklyVisitors ? (weeklyRequests / weeklyVisitors).toFixed(2) : "0.00";

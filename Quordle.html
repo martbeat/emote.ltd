@@ -277,6 +277,22 @@ input{
   color:var(--accent);
 }
 
+/* On-screen keyboard */
+.kb{margin-top:10px;display:grid;gap:8px}
+.kbRow{display:flex;gap:8px;flex-wrap:nowrap;width:min(100%,560px);margin:0 auto}
+.kbKey{
+  flex:1 1 0;
+  min-width:0;
+  height:38px;
+  border-radius:10px;
+  border:1px solid #2f3d73;
+  background:#1a2550;
+  color:var(--text);
+  font-weight:900;
+  cursor:pointer;
+  padding:0 6px;
+}
+.kbKey.wide{flex:1.8 1 0;min-width:0}
 
 .tile{
   height:42px;
@@ -344,6 +360,7 @@ input{
     <button id="hint">Hint</button>
     <span id="msg" class="msg"></span>
     <div class="guessHint" id="guessHint"></div>
+    <div id="kb" class="kb" aria-label="On-screen keyboard"></div>
   </div>
 
   <div class="card" id="answersCard" style="display:none">
@@ -998,6 +1015,86 @@ function isValidGuess(w){
   return /^[A-Z]{5}$/.test(w) && WORDS.includes(w);
 }
 
+/* ---------- ON-SCREEN KEYBOARD ---------- */
+function canUseScreenKeyboard(){
+  const inp = document.getElementById("guess");
+  return !!inp && !inp.disabled && !gameEnded;
+}
+
+function insertKey(ch){
+  if(!canUseScreenKeyboard()) return;
+  const inp = document.getElementById("guess");
+  const cur = (inp.value || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0,5);
+  if(cur.length >= 5) return;
+  inp.value = cur + ch;
+  inp.focus();
+}
+
+function backspaceKey(){
+  if(!canUseScreenKeyboard()) return;
+  const inp = document.getElementById("guess");
+  const cur = (inp.value || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0,5);
+  inp.value = cur.slice(0, -1);
+  inp.focus();
+}
+
+function buildKeyboard(){
+  const kb = document.getElementById("kb");
+  if(!kb) return;
+
+  kb.innerHTML = "";
+  const rows = [
+    ["Q","W","E","R","T","Y","U","I","O","P"],
+    ["A","S","D","F","G","H","J","K","L"],
+    ["Z","X","C","V","B","N","M"]
+  ];
+
+  function makeRow(keys){
+    const row = document.createElement("div");
+    row.className = "kbRow";
+    for(const k of keys){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "kbKey";
+      btn.textContent = k;
+      btn.onclick = () => insertKey(k);
+      row.appendChild(btn);
+    }
+    return row;
+  }
+
+  kb.appendChild(makeRow(rows[0]));
+  kb.appendChild(makeRow(rows[1]));
+
+  const r3 = document.createElement("div");
+  r3.className = "kbRow";
+
+  const enter = document.createElement("button");
+  enter.type = "button";
+  enter.className = "kbKey wide";
+  enter.textContent = "ENTER";
+  enter.onclick = () => document.getElementById("submit").click();
+  r3.appendChild(enter);
+
+  for(const k of rows[2]){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "kbKey";
+    btn.textContent = k;
+    btn.onclick = () => insertKey(k);
+    r3.appendChild(btn);
+  }
+
+  const bk = document.createElement("button");
+  bk.type = "button";
+  bk.className = "kbKey wide";
+  bk.textContent = "BACK";
+  bk.onclick = backspaceKey;
+  r3.appendChild(bk);
+
+  kb.appendChild(r3);
+}
+
 /* ---------- EVENTS ---------- */
 document.getElementById("submit").onclick = () => {
   if(gameEnded) return;
@@ -1142,6 +1239,7 @@ document.getElementById("newGame").onclick = () => {
 
 /* ---------- INIT ---------- */
 (async function init(){
+  buildKeyboard();
   await loadWords();
 
   // Ensure score pills exist (in case you have not added them yet)

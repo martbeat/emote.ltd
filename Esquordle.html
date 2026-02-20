@@ -284,9 +284,10 @@ label{user-select:none}
 
 /* On-screen keyboard */
 .kb{margin-top:10px;display:grid;gap:8px}
-.kbRow{display:flex;gap:8px;flex-wrap:wrap}
+.kbRow{display:flex;gap:8px;flex-wrap:nowrap;width:min(100%,560px);margin:0 auto}
 .kbKey{
-  min-width:36px;
+  flex:1 1 0;
+  min-width:0;
   height:38px;
   border-radius:10px;
   border:1px solid #2f3d73;
@@ -294,9 +295,9 @@ label{user-select:none}
   color:var(--text);
   font-weight:900;
   cursor:pointer;
-  padding:0 10px;
+  padding:0 6px;
 }
-.kbKey.wide{min-width:72px}
+.kbKey.wide{flex:1.8 1 0;min-width:0}
 </style>
   <link rel="stylesheet" href="assets/css/sky-theme.css" />
 </head>

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23121a2b%27/%3E%3Crect x=%2716%27 y=%2718%27 width=%2732%27 height=%276%27 fill=%27%23fff%27/%3E%3Crect x=%2716%27 y=%2730%27 width=%2732%27 height=%276%27 fill=%27%237aa2ff%27/%3E%3Crect x=%2716%27 y=%2742%27 width=%2724%27 height=%276%27 fill=%27%233ddc97%27/%3E%3C/svg%3E" />
   <title>Local Redactor (PDF/DOCX) – Offline, Review, Export</title>
   <style>
     :root{
@@ -465,6 +466,16 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
   }
 
+  function hasPdfLib(){
+    return !!window.pdfjsLib;
+  }
+  function hasDocxLib(){
+    return !!window.JSZip;
+  }
+  function hasPdfExportLib(){
+    return !!(window.jspdf && window.jspdf.jsPDF);
+  }
+
   const els = {
     file: document.getElementById('file'),
     fileName: document.getElementById('fileName'),
@@ -580,11 +591,11 @@
 
     if (state.kind === "pdf"){
       await loadPdfForPreview();
+      if (hasPdfLib()) setStatus("File loaded. Click “Extract text”.", "ok");
     } else {
       hidePdfPreview();
+      setStatus("File loaded. Click “Extract text”.", "ok");
     }
-
-    setStatus("File loaded. Click “Extract text”.", "ok");
   });
 
   function hidePdfPreview(){
@@ -594,6 +605,12 @@
   }
 
   async function loadPdfForPreview(){
+    if (!hasPdfLib()){
+      state.pdfDoc = null;
+      hidePdfPreview();
+      setStatus("PDF features are unavailable because pdf.js failed to load (likely CDN/network blocking). DOCX still works.", "warn");
+      return;
+    }
     try{
       const buf = await state.file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({data: buf});
@@ -631,11 +648,12 @@
       setStatus("Text extracted. Click “Detect sensitive items”.", "ok");
     } catch(e){
       console.error(e);
-      setStatus("Text extraction failed. See console for details.", "warn");
+      setStatus(`Text extraction failed: ${e?.message || "unknown error"}.`, "warn");
     }
   });
 
   async function extractTextFromPdf(){
+    if (!hasPdfLib()) throw new Error("pdf.js is unavailable");
     if (!state.pdfDoc) await loadPdfForPreview();
     if (!state.pdfDoc) throw new Error("PDF not loaded");
 
@@ -658,6 +676,7 @@
   }
 
   async function extractTextFromDocx(){
+    if (!hasDocxLib()) throw new Error("JSZip is unavailable");
     const buf = await state.file.arrayBuffer();
     const zip = await JSZip.loadAsync(buf);
     const docXml = await zip.file("word/document.xml").async("string");
@@ -1025,6 +1044,7 @@
   els.btnExportDocx.addEventListener('click', async () => {
     clearStatus();
     if (state.kind !== "docx") return;
+    if (!hasDocxLib()) return setStatus("DOCX export is unavailable because JSZip failed to load.", "warn");
     if (!state.findings.length) return setStatus("Detect items first.", "warn");
 
     try{
@@ -1063,6 +1083,8 @@
   els.btnExportPdf.addEventListener('click', async () => {
     clearStatus();
     if (state.kind !== "pdf") return;
+    if (!hasPdfLib()) return setStatus("PDF export is unavailable because pdf.js failed to load.", "warn");
+    if (!hasPdfExportLib()) return setStatus("PDF export is unavailable because jsPDF failed to load.", "warn");
 
     try{
       if (!state.pdfDoc) await loadPdfForPreview();

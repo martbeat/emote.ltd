@@ -641,7 +641,8 @@
 
     try{
       if (state.kind === "pdf"){
-        await extractTextFromPdf();
+        const ok = await extractTextFromPdf();
+        if (!ok) return;
       } else {
         await extractTextFromDocx();
       }
@@ -653,9 +654,15 @@
   });
 
   async function extractTextFromPdf(){
-    if (!hasPdfLib()) throw new Error("pdf.js is unavailable");
+    if (!hasPdfLib()){
+      setStatus("PDF text extraction is unavailable because pdf.js failed to load. Check network/CDN access or use DOCX.", "warn");
+      return false;
+    }
     if (!state.pdfDoc) await loadPdfForPreview();
-    if (!state.pdfDoc) throw new Error("PDF not loaded");
+    if (!state.pdfDoc){
+      setStatus("PDF could not be loaded. The file may be invalid, protected, or blocked by browser policy.", "warn");
+      return false;
+    }
 
     const numPages = state.pdfDoc.numPages;
     const pages = [];
@@ -829,15 +836,17 @@
   });
 
   async function runExtractStep(){
-    if (state.kind === "pdf") await extractTextFromPdf();
-    else await extractTextFromDocx();
+    if (state.kind === "pdf") return await extractTextFromPdf();
+    await extractTextFromDocx();
+    return true;
   }
 
   els.btnRunAll.addEventListener('click', async () => {
     clearStatus();
     if (!state.file) return setStatus("Please upload a file first.", "warn");
     try{
-      await runExtractStep();
+      const extracted = await runExtractStep();
+      if (!extracted) return;
       state.findings = detectAll(state.extractedText, buildDetectors());
       renderFindings();
       renderHighlightedText();

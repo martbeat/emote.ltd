@@ -366,6 +366,12 @@
           <div class="check"><input id="chkVat" type="checkbox" /><div><b>VAT</b><small>GB123456789</small></div></div>
           <div class="check"><input id="chkAddress" type="checkbox" /><div><b>Address heuristic</b><small>basic keyword rules</small></div></div>
           <div class="check"><input id="chkRef" type="checkbox" /><div><b>Reference codes</b><small>custom regex</small></div></div>
+          <div class="check"><input id="chkDob" type="checkbox" checked /><div><b>Date of birth / dates</b><small>DOB and common date forms</small></div></div>
+          <div class="check"><input id="chkFinancial" type="checkbox" checked /><div><b>Financial IDs</b><small>IBAN, cards, sort+account</small></div></div>
+          <div class="check"><input id="chkIp" type="checkbox" checked /><div><b>IP addresses</b><small>IPv4 and IPv6</small></div></div>
+          <div class="check"><input id="chkGovId" type="checkbox" checked /><div><b>Gov IDs</b><small>passport / driving licence hints</small></div></div>
+          <div class="check"><input id="chkLabeled" type="checkbox" checked /><div><b>Labeled personal fields</b><small>Name:, Address:, Email:, Phone:</small></div></div>
+          <div class="check"><input id="chkGdprStrict" type="checkbox" checked /><div><b>GDPR strict mode</b><small>aggressive extra matching (more false positives)</small></div></div>
         </div>
 
         <label>Custom reference regex (optional)</label>
@@ -434,10 +440,10 @@
       <div class="card" style="margin-top:16px;">
         <div class="hd"><h2>Transparency and safety checklist</h2></div>
         <div class="bd">
-          <div class="small">This tool runs locally in your browser and does not upload your file automatically. Detection now includes broader patterns for phones, URLs, and name hints, but may still miss context-sensitive data—always do a manual review before sharing exports.</div>
+          <div class="small">This tool runs locally in your browser and does not upload your file automatically. Detection covers broader GDPR-relevant patterns (contact data, IDs, financial and network identifiers), but no browser-only regex system can guarantee 100% recall or legal compliance—always do a manual review before sharing exports.</div>
           <div class="checks" style="margin-top:12px;">
             <div class="check"><div><b>What this catches well</b><small>Emails, URLs, phones, NI numbers, UTRs</small></div></div>
-            <div class="check"><div><b>What needs human review</b><small>Unusual names, free-form addresses, embedded images</small></div></div>
+            <div class="check"><div><b>What needs human review</b><small>Context-only identifiers, free-form notes, embedded images</small></div></div>
           </div>
         </div>
       </div>
@@ -537,16 +543,6 @@
     return !!(window.jspdf && window.jspdf.jsPDF);
   }
 
-  function hasPdfLib(){
-    return !!window.pdfjsLib;
-  }
-  function hasDocxLib(){
-    return !!window.JSZip;
-  }
-  function hasPdfExportLib(){
-    return !!(window.jspdf && window.jspdf.jsPDF);
-  }
-
   const els = {
     file: document.getElementById('file'),
     fileName: document.getElementById('fileName'),
@@ -581,6 +577,12 @@
     chkVat: document.getElementById('chkVat'),
     chkAddress: document.getElementById('chkAddress'),
     chkRef: document.getElementById('chkRef'),
+    chkDob: document.getElementById('chkDob'),
+    chkFinancial: document.getElementById('chkFinancial'),
+    chkIp: document.getElementById('chkIp'),
+    chkGovId: document.getElementById('chkGovId'),
+    chkLabeled: document.getElementById('chkLabeled'),
+    chkGdprStrict: document.getElementById('chkGdprStrict'),
     refRegex: document.getElementById('refRegex'),
     maskToken: document.getElementById('maskToken'),
   };
@@ -892,6 +894,78 @@
           setStatus("Custom reference regex is invalid. Fix it or untick “Reference codes”.", "warn");
         }
       }
+    }
+
+    if (els.chkDob.checked){
+      detectors.push({
+        type: "dob",
+        label: "Date of birth / date",
+        className: "id",
+        regex: /\b(?:DOB|Date\s*of\s*Birth)\s*[:\-]?\s*(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/ig
+      });
+      detectors.push({
+        type: "date",
+        label: "Date",
+        className: "id",
+        regex: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/g
+      });
+    }
+
+    if (els.chkFinancial.checked){
+      detectors.push({
+        type: "iban",
+        label: "IBAN",
+        className: "id",
+        regex: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g
+      });
+      detectors.push({
+        type: "card",
+        label: "Card number",
+        className: "id",
+        regex: /\b(?:\d[ -]*?){13,19}\b/g
+      });
+      detectors.push({
+        type: "bank",
+        label: "Sort/account",
+        className: "id",
+        regex: /\b\d{2}-\d{2}-\d{2}\b(?:\s*\d{6,8})?|\bSort\s*Code\s*[:\-]?\s*\d{2}-\d{2}-\d{2}\b|\bAccount\s*(?:No|Number)?\s*[:\-]?\s*\d{6,10}\b/ig
+      });
+    }
+
+    if (els.chkIp.checked){
+      detectors.push({
+        type: "ip",
+        label: "IP address",
+        className: "id",
+        regex: /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b|\b(?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{1,4}\b/ig
+      });
+    }
+
+    if (els.chkGovId.checked){
+      detectors.push({
+        type: "govid",
+        label: "Passport / driving licence",
+        className: "id",
+        regex: /\b(?:Passport|Driving\s*Licence|Driver\s*License|National\s*ID)\s*(?:No|Number|#)?\s*[:\-]?\s*[A-Z0-9]{6,20}\b/ig
+      });
+    }
+
+    if (els.chkLabeled.checked){
+      detectors.push({
+        type: "labeled",
+        label: "Labeled personal field",
+        className: "addr",
+        regex: /\b(?:Full\s*Name|Name|Address|Email|E-?mail|Phone|Telephone|Mobile|DOB|Date\s*of\s*Birth|IP|Account\s*No|National\s*Insurance)\s*[:\-]\s*[^\n\r,;]{3,120}/ig
+      });
+    }
+
+    if (els.chkGdprStrict.checked){
+      detectors.push({
+        type: "strict-id",
+        label: "GDPR strict identifier",
+        className: "id",
+        regex: /\b[A-Z]{1,3}\d{4,12}[A-Z]?\b/g
+      });
     }
 
     return detectors;

@@ -118,9 +118,14 @@
   </section>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
 <script>
 (() => {
   'use strict';
+
+  if (window.pdfjsLib?.GlobalWorkerOptions){
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+  }
 
   const DOCX_TEXT_PART_PATTERNS = [
     /^word\/document\.xml$/,
@@ -224,47 +229,21 @@
   }
 
   async function extractPdfText(bytes){
-    const src = new TextDecoder('latin1').decode(bytes);
-    const chunks = [];
-    const streamRe = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
-    let m;
-    while ((m = streamRe.exec(src))){
-      const dict = m[1];
-      const raw = m[2];
-      let streamText = raw;
-      if (/\/Filter\s*\/FlateDecode/.test(dict) && typeof DecompressionStream !== 'undefined'){
-        try {
-          const stream = new Response(new Uint8Array(raw.split('').map(ch => ch.charCodeAt(0))).buffer)
-            .body
-            .pipeThrough(new DecompressionStream('deflate'));
-          const decompressed = await new Response(stream).arrayBuffer();
-          streamText = new TextDecoder('latin1').decode(new Uint8Array(decompressed));
-        } catch (_err){
-          streamText = raw;
-        }
-      }
-      chunks.push(streamText);
+    if (!window.pdfjsLib?.getDocument){
+      throw new Error('PDF.js failed to load; cannot extract PDF text.');
     }
-    const content = chunks.join('\n');
-    const textBits = [];
-    const litRe = /\((?:\\.|[^\\)])*\)/g;
-    let lit;
-    while ((lit = litRe.exec(content))){
-      textBits.push(decodePdfLiteral(lit[0].slice(1, -1)));
+
+    const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      fullText += content.items.map(i => i.str).join(' ') + '\n';
     }
-    const hexRe = /<([0-9A-Fa-f\s]{4,})>/g;
-    let hex;
-    while ((hex = hexRe.exec(content))){
-      const cleaned = hex[1].replace(/\s+/g, '');
-      if (!cleaned || cleaned.length % 2 !== 0) continue;
-      try {
-        const bytesArr = new Uint8Array(cleaned.match(/../g).map(pair => parseInt(pair, 16)));
-        textBits.push(new TextDecoder('latin1').decode(bytesArr));
-      } catch (_err){
-        // ignore malformed hex strings
-      }
-    }
-    return textBits.join(' ').replace(/\s+/g, ' ').trim();
+
+    return fullText;
   }
 
   function buildSimplePdf(text){

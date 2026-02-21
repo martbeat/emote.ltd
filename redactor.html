@@ -3,21 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23121a2b%27/%3E%3Crect x=%2716%27 y=%2718%27 width=%2732%27 height=%276%27 fill=%27%23fff%27/%3E%3Crect x=%2716%27 y=%2730%27 width=%2732%27 height=%276%27 fill=%27%237aa2ff%27/%3E%3Crect x=%2716%27 y=%2742%27 width=%2724%27 height=%276%27 fill=%27%233ddc97%27/%3E%3C/svg%3E" />
   <title>Local Redactor (PDF/DOCX) – Offline, Review, Export</title>
   <style>
     :root{
-      --bg:#0b0c10;
-      --panel:#141620;
-      --panel2:#0f111a;
+      --bg:#0a0d16;
+      --panel:rgba(20, 24, 38, .72);
+      --panel2:rgba(12, 16, 27, .78);
       --text:#e8eaf0;
       --muted:#a9b0c3;
-      --line:#2a2f43;
+      --line:rgba(138, 152, 196, .26);
       --accent:#7aa2ff;
       --warn:#ffcc66;
       --bad:#ff6b6b;
       --ok:#3ddc97;
       --chip:#1d2233;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --shadow: 0 10px 30px rgba(0,0,0,.28);
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
@@ -25,7 +26,10 @@
     body{
       margin:0;
       font-family:var(--sans);
-      background:linear-gradient(180deg, var(--bg), #07080b);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(122,162,255,.22), transparent 34%),
+        radial-gradient(circle at 86% 8%, rgba(61,220,151,.10), transparent 28%),
+        linear-gradient(180deg, var(--bg), #06070c 70%);
       color:var(--text);
     }
     header{
@@ -66,6 +70,7 @@
       border-radius:14px;
       box-shadow: var(--shadow);
       overflow:hidden;
+      backdrop-filter: blur(8px);
     }
     .card .hd{
       padding:14px 14px 12px 14px;
@@ -296,6 +301,33 @@
       color:var(--muted);
       line-height:1.35;
     }
+    .inline-input{
+      width:100%;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+    .toolbar .inline-input{
+      max-width: 220px;
+      font-size:12px;
+      padding:8px 10px;
+    }
+    .dropzone{
+      border:1px dashed rgba(122,162,255,.42) !important;
+      background: rgba(122,162,255,.08) !important;
+    }
+    .kbd{
+      padding:1px 6px;
+      border:1px solid var(--line);
+      border-bottom-width:2px;
+      border-radius:6px;
+      font-family:var(--mono);
+      font-size:11px;
+      color:var(--muted);
+    }
     .hidden{ display:none !important; }
     canvas{ max-width:100%; height:auto; border-radius:12px; border:1px solid var(--line); }
   </style>
@@ -312,36 +344,50 @@
     <div class="bd">
       <label>Choose a file (PDF or DOCX)</label>
       <input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <div class="small" style="margin-top:8px;">Tip: drag and drop a file anywhere on this page. Keyboard: <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> runs Extract → Detect.</div>
 
       <div class="footerline">
         <div class="row">
           <span class="pill">File: <b id="fileName">None</b></span>
           <span class="pill">Type: <b id="fileType">—</b></span>
           <span class="pill">Pages: <b id="pageCount">—</b></span>
+          <span class="pill">Selected for redaction: <b id="selectedCount">0</b></span>
         </div>
 
         <label>Detect</label>
         <div class="checks">
           <div class="check"><input id="chkEmail" type="checkbox" checked /><div><b>Email</b><small>name@domain</small></div></div>
-          <div class="check"><input id="chkPhone" type="checkbox" checked /><div><b>Phone</b><small>UK style patterns</small></div></div>
+          <div class="check"><input id="chkPhone" type="checkbox" checked /><div><b>Phone</b><small>UK + international styles</small></div></div>
+          <div class="check"><input id="chkUrl" type="checkbox" checked /><div><b>Web URL</b><small>https://..., www....</small></div></div>
+          <div class="check"><input id="chkName" type="checkbox" checked /><div><b>Person name (heuristic)</b><small>Mr/Ms/Dr + full name</small></div></div>
           <div class="check"><input id="chkPostcode" type="checkbox" checked /><div><b>Postcode</b><small>UK postcodes</small></div></div>
           <div class="check"><input id="chkNino" type="checkbox" checked /><div><b>NI number</b><small>AB123456C</small></div></div>
           <div class="check"><input id="chkUtr" type="checkbox" checked /><div><b>UTR</b><small>10 digits</small></div></div>
           <div class="check"><input id="chkVat" type="checkbox" /><div><b>VAT</b><small>GB123456789</small></div></div>
           <div class="check"><input id="chkAddress" type="checkbox" /><div><b>Address heuristic</b><small>basic keyword rules</small></div></div>
           <div class="check"><input id="chkRef" type="checkbox" /><div><b>Reference codes</b><small>custom regex</small></div></div>
+          <div class="check"><input id="chkDob" type="checkbox" checked /><div><b>Date of birth / dates</b><small>DOB and common date forms</small></div></div>
+          <div class="check"><input id="chkFinancial" type="checkbox" checked /><div><b>Financial IDs</b><small>IBAN, cards, sort+account</small></div></div>
+          <div class="check"><input id="chkIp" type="checkbox" checked /><div><b>IP addresses</b><small>IPv4 and IPv6</small></div></div>
+          <div class="check"><input id="chkGovId" type="checkbox" checked /><div><b>Gov IDs</b><small>passport / driving licence hints</small></div></div>
+          <div class="check"><input id="chkLabeled" type="checkbox" checked /><div><b>Labeled personal fields</b><small>Name:, Address:, Email:, Phone:</small></div></div>
+          <div class="check"><input id="chkGdprStrict" type="checkbox" checked /><div><b>GDPR strict mode</b><small>aggressive extra matching (more false positives)</small></div></div>
         </div>
 
         <label>Custom reference regex (optional)</label>
-        <input id="refRegex" type="text" placeholder="Example: \\b(PO|INV|CN)\\d{6,}\\b" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:var(--mono);"/>
+        <input id="refRegex" class="inline-input" type="text" placeholder="Example: \\b(PO|INV|CN)\\d{6,}\\b" style="font-family:var(--mono);"/>
+
+        <label>Redaction replacement token</label>
+        <input id="maskToken" class="inline-input" type="text" value="████████" maxlength="24" />
 
         <div class="row" style="margin-top:12px;">
           <button class="primary" id="btnExtract">Extract text</button>
           <button id="btnDetect">Detect sensitive items</button>
+          <button id="btnRunAll">Run all</button>
           <button class="danger" id="btnReset">Reset</button>
         </div>
 
-        <div id="status" class="note hidden"></div>
+      <div id="status" class="note hidden"></div>
 
         <div class="note" style="margin-top:12px;">
           PDF redaction note: In-browser “true” redaction of existing PDFs is hard. This app exports a <b>safe PDF</b> by rasterising pages and drawing redaction boxes, which removes selectable text. If you need selectable text preserved and truly removed, do it server-side or with a desktop tool.
@@ -362,6 +408,7 @@
           <div class="toolbar">
             <span class="pill">Extracted text (highlighted)</span>
             <span class="pill">Matches: <b id="matchCount">0</b></span>
+            <span class="pill">Visible findings: <b id="visibleCount">0</b></span>
           </div>
           <div class="content">
             <div id="textOut" class="text muted">No content extracted yet.</div>
@@ -371,6 +418,7 @@
         <div class="findings">
           <div class="toolbar">
             <span class="pill">Findings</span>
+            <input id="findingsFilter" class="inline-input" type="text" placeholder="Filter findings..." />
             <div class="right-actions">
               <button id="btnSelectAll">Select all</button>
               <button id="btnSelectNone">Select none</button>
@@ -390,6 +438,17 @@
       </div>
 
       <div class="card" style="margin-top:16px;">
+        <div class="hd"><h2>Transparency and safety checklist</h2></div>
+        <div class="bd">
+          <div class="small">This tool runs locally in your browser and does not upload your file automatically. Detection covers broader GDPR-relevant patterns (contact data, IDs, financial and network identifiers), but no browser-only regex system can guarantee 100% recall or legal compliance—always do a manual review before sharing exports.</div>
+          <div class="checks" style="margin-top:12px;">
+            <div class="check"><div><b>What this catches well</b><small>Emails, URLs, phones, NI numbers, UTRs</small></div></div>
+            <div class="check"><div><b>What needs human review</b><small>Context-only identifiers, free-form notes, embedded images</small></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
         <div class="hd"><h2>PDF preview (first page)</h2></div>
         <div class="bd">
           <div class="muted" style="margin-bottom:8px;">Shown only for PDFs and only for basic confidence checking.</div>
@@ -402,15 +461,86 @@
   </section>
 </main>
 
-<!-- CDN libs (swap to local files for full offline use) -->
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
+<!-- CDN libs are loaded with runtime fallback below -->
 <script>
-  // pdf.js worker config
-  if (window['pdfjsLib']) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
+
+  const LIB_SOURCES = {
+    pdfjs: [
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js",
+      "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"
+    ],
+    jspdf: [
+      "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
+      "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    ],
+    jszip: [
+      "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
+      "https://unpkg.com/jszip@3.10.1/dist/jszip.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+    ]
+  };
+
+  let depsReadyPromise = null;
+
+  function loadScriptOnce(src){
+    return new Promise((resolve, reject) => {
+      const existing = [...document.scripts].find(sc => sc.src === src);
+      if (existing){
+        if (existing.dataset.loaded === '1') return resolve();
+        existing.addEventListener('load', () => resolve(), { once:true });
+        existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once:true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.referrerPolicy = 'no-referrer';
+      script.onload = () => { script.dataset.loaded = '1'; resolve(); };
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function loadFromFallbacks(urls, isReady){
+    if (isReady()) return true;
+    for (const src of urls){
+      try{
+        await loadScriptOnce(src);
+        if (isReady()) return true;
+      } catch(_e){}
+    }
+    return isReady();
+  }
+
+  async function ensureDependencies(){
+    const [pdfOk, pdfExportOk, docxOk] = await Promise.all([
+      loadFromFallbacks(LIB_SOURCES.pdfjs, () => !!window.pdfjsLib),
+      loadFromFallbacks(LIB_SOURCES.jspdf, () => !!(window.jspdf && window.jspdf.jsPDF)),
+      loadFromFallbacks(LIB_SOURCES.jszip, () => !!window.JSZip),
+    ]);
+
+    if (pdfOk && window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
+    }
+
+    return { pdfOk, pdfExportOk, docxOk };
+  }
+
+  function initDependencies(){
+    if (!depsReadyPromise) depsReadyPromise = ensureDependencies();
+    return depsReadyPromise;
+  }
+
+  function hasPdfLib(){
+    return !!window.pdfjsLib;
+  }
+  function hasDocxLib(){
+    return !!window.JSZip;
+  }
+  function hasPdfExportLib(){
+    return !!(window.jspdf && window.jspdf.jsPDF);
   }
 
   const els = {
@@ -421,9 +551,13 @@
     status: document.getElementById('status'),
     textOut: document.getElementById('textOut'),
     matchCount: document.getElementById('matchCount'),
+    visibleCount: document.getElementById('visibleCount'),
+    selectedCount: document.getElementById('selectedCount'),
     findingsList: document.getElementById('findingsList'),
+    findingsFilter: document.getElementById('findingsFilter'),
     btnExtract: document.getElementById('btnExtract'),
     btnDetect: document.getElementById('btnDetect'),
+    btnRunAll: document.getElementById('btnRunAll'),
     btnReset: document.getElementById('btnReset'),
     btnSelectAll: document.getElementById('btnSelectAll'),
     btnSelectNone: document.getElementById('btnSelectNone'),
@@ -435,14 +569,25 @@
 
     chkEmail: document.getElementById('chkEmail'),
     chkPhone: document.getElementById('chkPhone'),
+    chkUrl: document.getElementById('chkUrl'),
+    chkName: document.getElementById('chkName'),
     chkPostcode: document.getElementById('chkPostcode'),
     chkNino: document.getElementById('chkNino'),
     chkUtr: document.getElementById('chkUtr'),
     chkVat: document.getElementById('chkVat'),
     chkAddress: document.getElementById('chkAddress'),
     chkRef: document.getElementById('chkRef'),
+    chkDob: document.getElementById('chkDob'),
+    chkFinancial: document.getElementById('chkFinancial'),
+    chkIp: document.getElementById('chkIp'),
+    chkGovId: document.getElementById('chkGovId'),
+    chkLabeled: document.getElementById('chkLabeled'),
+    chkGdprStrict: document.getElementById('chkGdprStrict'),
     refRegex: document.getElementById('refRegex'),
+    maskToken: document.getElementById('maskToken'),
   };
+
+  initDependencies();
 
   let state = {
     file: null,
@@ -474,6 +619,28 @@
     while(v>=1024 && i<units.length-1){ v/=1024; i++; }
     return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`;
   }
+  function getMaskToken(){
+    const token = (els.maskToken.value || '').trim();
+    return token || "████████";
+  }
+
+  function updateSelectionSummary(){
+    const selected = state.findings.filter(f => f.selected).length;
+    els.selectedCount.textContent = String(selected);
+    els.visibleCount.textContent = String(getFilteredFindings().length);
+  }
+
+  function getFilteredFindings(){
+    const q = (els.findingsFilter.value || '').trim().toLowerCase();
+    if (!q) return state.findings;
+    return state.findings.filter(f =>
+      f.value.toLowerCase().includes(q) ||
+      f.label.toLowerCase().includes(q) ||
+      f.context.toLowerCase().includes(q)
+    );
+  }
+
+
 
   els.file.addEventListener('change', async () => {
     clearStatus();
@@ -499,11 +666,11 @@
 
     if (state.kind === "pdf"){
       await loadPdfForPreview();
+      if (hasPdfLib()) setStatus("File loaded. Click “Extract text”.", "ok");
     } else {
       hidePdfPreview();
+      setStatus("File loaded. Click “Extract text”.", "ok");
     }
-
-    setStatus("File loaded. Click “Extract text”.", "ok");
   });
 
   function hidePdfPreview(){
@@ -513,6 +680,13 @@
   }
 
   async function loadPdfForPreview(){
+    if (!hasPdfLib()) await initDependencies();
+    if (!hasPdfLib()){
+      state.pdfDoc = null;
+      hidePdfPreview();
+      setStatus("PDF features are currently unavailable (library could not be loaded from fallback CDNs). DOCX still works.", "warn");
+      return;
+    }
     try{
       const buf = await state.file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({data: buf});
@@ -543,20 +717,28 @@
 
     try{
       if (state.kind === "pdf"){
-        await extractTextFromPdf();
+        const ok = await extractTextFromPdf();
+        if (!ok) return;
       } else {
         await extractTextFromDocx();
       }
       setStatus("Text extracted. Click “Detect sensitive items”.", "ok");
     } catch(e){
       console.error(e);
-      setStatus("Text extraction failed. See console for details.", "warn");
+      setStatus(`Text extraction failed: ${e?.message || "unknown error"}.`, "warn");
     }
   });
 
   async function extractTextFromPdf(){
+    if (!hasPdfLib()){
+      setStatus("PDF text extraction is unavailable right now (could not load pdf.js from fallback CDNs). Check network policy or use DOCX.", "warn");
+      return false;
+    }
     if (!state.pdfDoc) await loadPdfForPreview();
-    if (!state.pdfDoc) throw new Error("PDF not loaded");
+    if (!state.pdfDoc){
+      setStatus("PDF could not be loaded. The file may be invalid, protected, or blocked by browser policy.", "warn");
+      return false;
+    }
 
     const numPages = state.pdfDoc.numPages;
     const pages = [];
@@ -577,6 +759,8 @@
   }
 
   async function extractTextFromDocx(){
+    if (!hasDocxLib()) await initDependencies();
+    if (!hasDocxLib()) throw new Error("JSZip is unavailable");
     const buf = await state.file.arrayBuffer();
     const zip = await JSZip.loadAsync(buf);
     const docXml = await zip.file("word/document.xml").async("string");
@@ -614,12 +798,37 @@
     }
 
     if (els.chkPhone.checked){
-      // UK-ish phone patterns (mobile/landline) with spaces, +44, 0
+      // Broader phone patterns: UK + international formats with separators and optional extension.
       detectors.push({
         type: "phone",
         label: "Phone",
         className: "phone",
-        regex: /\b(?:\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}\b|\b(?:\+44\s?\(?0?\)?\s?\d{2,4}\s?\d{3,4}\s?\d{3,4})\b/ig
+        regex: /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?){2,4}\d{2,6}(?:\s?(?:x|ext\.?|extension)\s?\d{1,6})?/ig
+      });
+    }
+
+
+    if (els.chkUrl.checked){
+      detectors.push({
+        type: "url",
+        label: "Web URL",
+        className: "addr",
+        regex: /\b(?:https?:\/\/|www\.)[A-Z0-9][A-Z0-9._~:/?#\[\]@!$&'()*+,;=%-]{2,}\b/ig
+      });
+    }
+
+    if (els.chkName.checked){
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        regex: /\b(?:Mr|Mrs|Ms|Miss|Dr|Prof)\.? +[A-Z][a-z]{1,30}(?:[-' ][A-Z][a-z]{1,30}){0,3}\b/g
+      });
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        regex: /\b(?:Name|Contact|Client|Customer|Employee|Director)\s*[:\-]\s*[A-Z][a-z]{1,30}(?:[-' ][A-Z][a-z]{1,30}){1,3}\b/g
       });
     }
 
@@ -687,6 +896,78 @@
       }
     }
 
+    if (els.chkDob.checked){
+      detectors.push({
+        type: "dob",
+        label: "Date of birth / date",
+        className: "id",
+        regex: /\b(?:DOB|Date\s*of\s*Birth)\s*[:\-]?\s*(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/ig
+      });
+      detectors.push({
+        type: "date",
+        label: "Date",
+        className: "id",
+        regex: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/g
+      });
+    }
+
+    if (els.chkFinancial.checked){
+      detectors.push({
+        type: "iban",
+        label: "IBAN",
+        className: "id",
+        regex: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g
+      });
+      detectors.push({
+        type: "card",
+        label: "Card number",
+        className: "id",
+        regex: /\b(?:\d[ -]*?){13,19}\b/g
+      });
+      detectors.push({
+        type: "bank",
+        label: "Sort/account",
+        className: "id",
+        regex: /\b\d{2}-\d{2}-\d{2}\b(?:\s*\d{6,8})?|\bSort\s*Code\s*[:\-]?\s*\d{2}-\d{2}-\d{2}\b|\bAccount\s*(?:No|Number)?\s*[:\-]?\s*\d{6,10}\b/ig
+      });
+    }
+
+    if (els.chkIp.checked){
+      detectors.push({
+        type: "ip",
+        label: "IP address",
+        className: "id",
+        regex: /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b|\b(?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{1,4}\b/ig
+      });
+    }
+
+    if (els.chkGovId.checked){
+      detectors.push({
+        type: "govid",
+        label: "Passport / driving licence",
+        className: "id",
+        regex: /\b(?:Passport|Driving\s*Licence|Driver\s*License|National\s*ID)\s*(?:No|Number|#)?\s*[:\-]?\s*[A-Z0-9]{6,20}\b/ig
+      });
+    }
+
+    if (els.chkLabeled.checked){
+      detectors.push({
+        type: "labeled",
+        label: "Labeled personal field",
+        className: "addr",
+        regex: /\b(?:Full\s*Name|Name|Address|Email|E-?mail|Phone|Telephone|Mobile|DOB|Date\s*of\s*Birth|IP|Account\s*No|National\s*Insurance)\s*[:\-]\s*[^\n\r,;]{3,120}/ig
+      });
+    }
+
+    if (els.chkGdprStrict.checked){
+      detectors.push({
+        type: "strict-id",
+        label: "GDPR strict identifier",
+        className: "id",
+        regex: /\b[A-Z]{1,3}\d{4,12}[A-Z]?\b/g
+      });
+    }
+
     return detectors;
   }
 
@@ -699,8 +980,59 @@
     renderHighlightedText();
 
     els.matchCount.textContent = String(state.findings.length);
+    updateSelectionSummary();
     setStatus(`Detected ${state.findings.length} items. Review and untick anything you do not want to redact.`, "ok");
   });
+
+  async function runExtractStep(){
+    if (state.kind === "pdf") return await extractTextFromPdf();
+    await extractTextFromDocx();
+    return true;
+  }
+
+  els.btnRunAll.addEventListener('click', async () => {
+    clearStatus();
+    if (!state.file) return setStatus("Please upload a file first.", "warn");
+    try{
+      const extracted = await runExtractStep();
+      if (!extracted) return;
+      state.findings = detectAll(state.extractedText, buildDetectors());
+      renderFindings();
+      renderHighlightedText();
+      setStatus(`Extracted and detected ${state.findings.length} items.`, "ok");
+    } catch (e){
+      console.error(e);
+      setStatus("Could not run full pipeline. Try Extract then Detect manually.", "warn");
+    }
+  });
+
+  els.findingsFilter.addEventListener('input', () => {
+    renderFindings();
+    updateSelectionSummary();
+  });
+
+  document.addEventListener('keydown', async (e) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      if (!state.file) return;
+      els.btnRunAll.click();
+    }
+  });
+
+  ;['dragenter','dragover'].forEach(evt => document.addEventListener(evt, (e) => {
+    e.preventDefault();
+    els.file.classList.add('dropzone');
+  }));
+  ;['dragleave','drop'].forEach(evt => document.addEventListener(evt, (e) => {
+    e.preventDefault();
+    if (evt === 'drop' && e.dataTransfer?.files?.[0]) {
+      const dt = new DataTransfer();
+      dt.items.add(e.dataTransfer.files[0]);
+      els.file.files = dt.files;
+      els.file.dispatchEvent(new Event('change'));
+    }
+    els.file.classList.remove('dropzone');
+  }));
 
   function detectAll(text, detectors){
     const findings = [];
@@ -793,10 +1125,13 @@
     if (!state.findings.length){
       list.innerHTML = `<div class="muted">No findings yet.</div>`;
       els.matchCount.textContent = "0";
+      els.visibleCount.textContent = "0";
+      els.selectedCount.textContent = "0";
       return;
     }
 
-    for (const f of state.findings){
+    const filtered = getFilteredFindings();
+    for (const f of filtered){
       const div = document.createElement('div');
       div.className = "item";
       div.innerHTML = `
@@ -819,11 +1154,14 @@
         if (found){
           found.selected = e.target.checked;
           renderHighlightedText();
+          updateSelectionSummary();
         }
       });
     });
 
     els.matchCount.textContent = String(state.findings.length);
+    els.visibleCount.textContent = String(filtered.length);
+    updateSelectionSummary();
   }
 
   els.btnSelectAll.addEventListener('click', () => {
@@ -854,7 +1192,7 @@
     const sorted = [...findings].sort((a,b) => b.start - a.start);
     let out = text;
     for (const f of sorted){
-      out = out.slice(0, f.start) + "████████" + out.slice(f.end);
+      out = out.slice(0, f.start) + getMaskToken() + out.slice(f.end);
     }
     return out;
   }
@@ -864,6 +1202,8 @@
   els.btnExportDocx.addEventListener('click', async () => {
     clearStatus();
     if (state.kind !== "docx") return;
+    if (!hasDocxLib()) await initDependencies();
+    if (!hasDocxLib()) return setStatus("DOCX export is unavailable because JSZip could not be loaded from fallback CDNs.", "warn");
     if (!state.findings.length) return setStatus("Detect items first.", "warn");
 
     try{
@@ -879,7 +1219,7 @@
       // For more robust DOCX editing, a dedicated DOCX manipulation library or server-side processing is needed.
       for (const val of selected.sort((a,b)=>b.length-a.length)){
         const safeVal = escapeRegExp(val);
-        docXml = docXml.replace(new RegExp(safeVal, "g"), "████████");
+        docXml = docXml.replace(new RegExp(safeVal, "g"), getMaskToken());
       }
 
       zip.file("word/document.xml", docXml);
@@ -902,6 +1242,9 @@
   els.btnExportPdf.addEventListener('click', async () => {
     clearStatus();
     if (state.kind !== "pdf") return;
+    if (!hasPdfLib() || !hasPdfExportLib()) await initDependencies();
+    if (!hasPdfLib()) return setStatus("PDF export is unavailable because pdf.js could not be loaded from fallback CDNs.", "warn");
+    if (!hasPdfExportLib()) return setStatus("PDF export is unavailable because jsPDF could not be loaded from fallback CDNs.", "warn");
 
     try{
       if (!state.pdfDoc) await loadPdfForPreview();
@@ -977,6 +1320,9 @@
     els.textOut.classList.add('muted');
     els.findingsList.innerHTML = `<div class="muted">No findings yet.</div>`;
     els.matchCount.textContent = "0";
+    els.visibleCount.textContent = "0";
+    els.selectedCount.textContent = "0";
+    els.findingsFilter.value = "";
     els.btnExportDocx.classList.add('hidden');
     els.btnExportPdf.classList.add('hidden');
     if (clearFileInput){

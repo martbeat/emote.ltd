@@ -465,10 +465,14 @@
 <script>
 
   const LIB_SOURCES = {
+    // pdf.js pinned to 5.4.624 (latest requested).
     pdfjs: [
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js",
-      "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.min.js",
+      "https://unpkg.com/pdfjs-dist@5.4.624/build/pdf.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.624/pdf.min.js",
+      // compatibility fallback
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@2.7.570/build/pdf.min.js",
+      "https://unpkg.com/pdfjs-dist@2.7.570/build/pdf.min.js"
     ],
     jspdf: [
       "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
@@ -522,7 +526,8 @@
     ]);
 
     if (pdfOk && window.pdfjsLib) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
+      const v = pdfjsLib.version || "5.4.624";
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${v}/build/pdf.worker.min.js`;
     }
 
     return { pdfOk, pdfExportOk, docxOk };

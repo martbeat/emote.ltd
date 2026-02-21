@@ -1,1446 +1,502 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23121a2b%27/%3E%3Crect x=%2716%27 y=%2718%27 width=%2732%27 height=%276%27 fill=%27%23fff%27/%3E%3Crect x=%2716%27 y=%2730%27 width=%2732%27 height=%276%27 fill=%27%237aa2ff%27/%3E%3Crect x=%2716%27 y=%2742%27 width=%2724%27 height=%276%27 fill=%27%233ddc97%27/%3E%3C/svg%3E" />
-  <title>Local Redactor (PDF/DOCX) – Offline, Review, Export</title>
-  <style>
-    :root{
-      --bg:#0a0d16;
-      --panel:rgba(20, 24, 38, .72);
-      --panel2:rgba(12, 16, 27, .78);
-      --text:#e8eaf0;
-      --muted:#a9b0c3;
-      --line:rgba(138, 152, 196, .26);
-      --accent:#7aa2ff;
-      --warn:#ffcc66;
-      --bad:#ff6b6b;
-      --ok:#3ddc97;
-      --chip:#1d2233;
-      --shadow: 0 10px 30px rgba(0,0,0,.28);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family:var(--sans);
-      background:
-        radial-gradient(circle at 20% 10%, rgba(122,162,255,.22), transparent 34%),
-        radial-gradient(circle at 86% 8%, rgba(61,220,151,.10), transparent 28%),
-        linear-gradient(180deg, var(--bg), #06070c 70%);
-      color:var(--text);
-    }
-    header{
-      padding:18px 18px 10px 18px;
-      border-bottom:1px solid var(--line);
-      background:rgba(20,22,32,.8);
-      backdrop-filter: blur(8px);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    header h1{
-      margin:0;
-      font-size:18px;
-      font-weight:650;
-      letter-spacing:.2px;
-    }
-    header p{
-      margin:6px 0 0 0;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.35;
-    }
-    main{
-      padding:18px;
-      display:grid;
-      grid-template-columns: 420px 1fr;
-      gap:16px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    @media (max-width: 980px){
-      main{ grid-template-columns: 1fr; }
-    }
-    .card{
-      background:var(--panel);
-      border:1px solid var(--line);
-      border-radius:14px;
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      backdrop-filter: blur(8px);
-    }
-    .card .hd{
-      padding:14px 14px 12px 14px;
-      border-bottom:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(122,162,255,.08), rgba(0,0,0,0));
-    }
-    .card .hd h2{
-      margin:0;
-      font-size:14px;
-      font-weight:650;
-    }
-    .card .bd{
-      padding:14px;
-    }
-    label{
-      display:block;
-      font-size:12px;
-      color:var(--muted);
-      margin: 10px 0 6px 0;
-    }
-    input[type="file"]{
-      width:100%;
-      padding:10px;
-      background:var(--panel2);
-      border:1px dashed var(--line);
-      color:var(--text);
-      border-radius:12px;
-    }
-    .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    button{
-      appearance:none;
-      border:1px solid var(--line);
-      background: #1a1f2f;
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:12px;
-      font-weight:600;
-      font-size:13px;
-      cursor:pointer;
-      transition: transform .03s ease, background .15s ease, border-color .15s ease;
-      user-select:none;
-    }
-    button:hover{ background:#202743; border-color:#3a4262; }
-    button:active{ transform: translateY(1px); }
-    button.primary{
-      background: rgba(122,162,255,.18);
-      border-color: rgba(122,162,255,.35);
-    }
-    button.primary:hover{
-      background: rgba(122,162,255,.28);
-      border-color: rgba(122,162,255,.55);
-    }
-    button.danger{
-      background: rgba(255,107,107,.16);
-      border-color: rgba(255,107,107,.35);
-    }
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      background:var(--chip);
-      border:1px solid var(--line);
-      color:var(--muted);
-      font-size:12px;
-    }
-    .pill b{ color:var(--text); font-weight:650; }
-    .checks{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin-top:8px;
-    }
-    .check{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:10px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background: #101321;
-    }
-    .check input{ transform: scale(1.1); }
-    .check div{ line-height:1.2; }
-    .check small{ color:var(--muted); display:block; margin-top:2px; }
-    .note{
-      margin-top:10px;
-      padding:10px 12px;
-      border:1px solid rgba(255,204,102,.35);
-      background: rgba(255,204,102,.08);
-      color: #ffe8b5;
-      border-radius:12px;
-      font-size:12px;
-      line-height:1.35;
-    }
-    .ok{
-      border-color: rgba(61,220,151,.35);
-      background: rgba(61,220,151,.08);
-      color: #c8ffea;
-    }
-    .muted{
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.35;
-    }
-    .split{
-      display:grid;
-      grid-template-columns: 1fr 340px;
-      gap:16px;
-    }
-    @media (max-width: 1100px){
-      .split{ grid-template-columns: 1fr; }
-    }
-    .viewer{
-      background: #0c0f18;
-      border:1px solid var(--line);
-      border-radius:14px;
-      overflow:hidden;
-      min-height: 420px;
-      display:flex;
-      flex-direction:column;
-    }
-    .viewer .toolbar{
-      padding:10px 12px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      background: rgba(255,255,255,.02);
-    }
-    .viewer .content{
-      padding:12px;
-      overflow:auto;
-      flex:1;
-    }
-    .text{
-      font-family:var(--mono);
-      font-size:12px;
-      line-height:1.55;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    mark{
-      background: rgba(122,162,255,.28);
-      color: var(--text);
-      padding: 0 2px;
-      border-radius: 4px;
-      border:1px solid rgba(122,162,255,.35);
-    }
-    mark.email{ background: rgba(61,220,151,.22); border-color: rgba(61,220,151,.35); }
-    mark.phone{ background: rgba(255,204,102,.22); border-color: rgba(255,204,102,.35); }
-    mark.id{ background: rgba(255,107,107,.22); border-color: rgba(255,107,107,.35); }
-    mark.addr{ background: rgba(171,145,255,.22); border-color: rgba(171,145,255,.35); }
-    .findings{
-      background: #0c0f18;
-      border:1px solid var(--line);
-      border-radius:14px;
-      overflow:hidden;
-      display:flex;
-      flex-direction:column;
-      min-height: 420px;
-    }
-    .findings .toolbar{
-      padding:10px 12px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      background: rgba(255,255,255,.02);
-    }
-    .findings .list{
-      padding:10px 10px 14px 10px;
-      overflow:auto;
-      flex:1;
-    }
-    .item{
-      display:flex;
-      gap:10px;
-      padding:10px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background: #101321;
-      margin:10px 0;
-    }
-    .item input{ margin-top:3px; }
-    .item .meta{ flex:1; }
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      padding:3px 8px;
-      border-radius:999px;
-      font-size:11px;
-      background:var(--chip);
-      border:1px solid var(--line);
-      color:var(--muted);
-      margin-right:8px;
-    }
-    .snippet{
-      font-family:var(--mono);
-      font-size:11px;
-      color:#d9def0;
-      opacity:.95;
-      margin-top:6px;
-      line-height:1.35;
-      word-break: break-word;
-    }
-    .right-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:flex-end;
-    }
-    .footerline{
-      margin-top:10px;
-      border-top:1px solid var(--line);
-      padding-top:10px;
-    }
-    .small{
-      font-size:11px;
-      color:var(--muted);
-      line-height:1.35;
-    }
-    .inline-input{
-      width:100%;
-      padding:10px;
-      border-radius:12px;
-      border:1px solid var(--line);
-      background:var(--panel2);
-      color:var(--text);
-      font-family:var(--sans);
-    }
-    .toolbar .inline-input{
-      max-width: 220px;
-      font-size:12px;
-      padding:8px 10px;
-    }
-    .dropzone{
-      border:1px dashed rgba(122,162,255,.42) !important;
-      background: rgba(122,162,255,.08) !important;
-    }
-    .kbd{
-      padding:1px 6px;
-      border:1px solid var(--line);
-      border-bottom-width:2px;
-      border-radius:6px;
-      font-family:var(--mono);
-      font-size:11px;
-      color:var(--muted);
-    }
-    .hidden{ display:none !important; }
-    canvas{ max-width:100%; height:auto; border-radius:12px; border:1px solid var(--line); }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Offline GDPR CV Redactor</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
+  header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
+  main{padding:16px;display:grid;grid-template-columns:360px 1fr;gap:14px}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .card{background:#171d34;border:1px solid #2a3352;border-radius:12px;overflow:hidden}
+  .hd{padding:10px 12px;border-bottom:1px solid #2a3352;font-weight:700}
+  .bd{padding:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label{display:block;font-size:12px;color:#aeb8da;margin:8px 0 4px}
+  input[type=file],textarea,input,select{width:100%;background:#0e1324;color:#e9ecf6;border:1px solid #33406b;border-radius:8px;padding:8px}
+  textarea{min-height:72px}
+  button{background:#243159;color:#ecf1ff;border:1px solid #3c4f87;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
+  button:hover{background:#2c3b6f}
+  .warn{background:#3c2e10;border:1px solid #7b6330;color:#ffe8ac;padding:10px;border-radius:8px;font-size:12px;line-height:1.4}
+  pre,.pane{background:#0c1020;border:1px solid #2c3964;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border-bottom:1px solid #2a3352;padding:6px;text-align:left}
+  .ok{color:#90f7b6}.bad{color:#ff9f9f}.muted{color:#aeb8da;font-size:12px}
+  .pill{padding:3px 8px;background:#0d1328;border:1px solid #34426e;border-radius:999px;font-size:12px}
+</style>
 </head>
 <body>
 <header>
-  <h1>Local Redactor (HTML/CSS/JS)</h1>
-  <p>Runs locally in your browser. Upload PDF or DOCX, review detected sensitive items, export redacted DOCX or a “safe” rasterised PDF.</p>
+  <strong>Offline GDPR CV Redactor (.docx + text)</strong>
+  <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
 </header>
-
 <main>
   <section class="card">
-    <div class="hd"><h2>1) Upload and detect</h2></div>
+    <div class="hd">Controls</div>
     <div class="bd">
-      <label>Choose a file (PDF or DOCX)</label>
-      <input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-      <div class="small" style="margin-top:8px;">Tip: drag and drop a file anywhere on this page. Keyboard: <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> runs Extract → Detect.</div>
+      <label>Upload DOCX</label>
+      <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <label>Paste plain text (optional)</label>
+      <textarea id="plainInput" placeholder="Paste CV text here..."></textarea>
 
-      <div class="footerline">
-        <div class="row">
-          <span class="pill">File: <b id="fileName">None</b></span>
-          <span class="pill">Type: <b id="fileType">—</b></span>
-          <span class="pill">Pages: <b id="pageCount">—</b></span>
-          <span class="pill">Selected for redaction: <b id="selectedCount">0</b></span>
-        </div>
-
-        <label>Detect</label>
-        <div class="checks">
-          <div class="check"><input id="chkEmail" type="checkbox" checked /><div><b>Email</b><small>name@domain</small></div></div>
-          <div class="check"><input id="chkPhone" type="checkbox" checked /><div><b>Phone</b><small>UK + international styles</small></div></div>
-          <div class="check"><input id="chkUrl" type="checkbox" checked /><div><b>Web URL</b><small>https://..., www....</small></div></div>
-          <div class="check"><input id="chkName" type="checkbox" checked /><div><b>Person name (heuristic)</b><small>UK-diverse first+last patterns</small></div></div>
-          <div class="check"><input id="chkPostcode" type="checkbox" checked /><div><b>Postcode</b><small>UK postcodes</small></div></div>
-          <div class="check"><input id="chkNino" type="checkbox" checked /><div><b>NI number</b><small>AB123456C</small></div></div>
-          <div class="check"><input id="chkUtr" type="checkbox" checked /><div><b>UTR</b><small>10 digits</small></div></div>
-          <div class="check"><input id="chkVat" type="checkbox" /><div><b>VAT</b><small>GB123456789</small></div></div>
-          <div class="check"><input id="chkAddress" type="checkbox" /><div><b>Address heuristic</b><small>basic keyword rules</small></div></div>
-          <div class="check"><input id="chkRef" type="checkbox" /><div><b>Reference codes</b><small>custom regex</small></div></div>
-          <div class="check"><input id="chkDob" type="checkbox" checked /><div><b>Date of birth / dates</b><small>DOB and common date forms</small></div></div>
-          <div class="check"><input id="chkFinancial" type="checkbox" checked /><div><b>Financial IDs</b><small>IBAN, cards, sort+account</small></div></div>
-          <div class="check"><input id="chkIp" type="checkbox" checked /><div><b>IP addresses</b><small>IPv4 and IPv6</small></div></div>
-          <div class="check"><input id="chkGovId" type="checkbox" checked /><div><b>Gov IDs</b><small>passport / driving licence hints</small></div></div>
-          <div class="check"><input id="chkLabeled" type="checkbox" checked /><div><b>Labeled personal fields</b><small>Name:, Address:, Email:, Phone:</small></div></div>
-          <div class="check"><input id="chkGdprStrict" type="checkbox" checked /><div><b>GDPR strict mode</b><small>aggressive extra matching (more false positives)</small></div></div>
-        </div>
-
-        <label>Custom reference regex (optional)</label>
-        <input id="refRegex" class="inline-input" type="text" placeholder="Example: \\b(PO|INV|CN)\\d{6,}\\b" style="font-family:var(--mono);"/>
-
-        <label>Redaction replacement token</label>
-        <input id="maskToken" class="inline-input" type="text" value="████████" maxlength="24" />
-
-        <div class="row" style="margin-top:12px;">
-          <button class="primary" id="btnExtract">Extract text</button>
-          <button id="btnDetect">Detect sensitive items</button>
-          <button id="btnRunAll">Run all</button>
-          <button class="danger" id="btnReset">Reset</button>
-        </div>
-
-      <div id="status" class="note hidden"></div>
-
-        <div class="note" style="margin-top:12px;">
-          PDF redaction note: In-browser “true” redaction of existing PDFs is hard. This app exports a <b>safe PDF</b> by rasterising pages and drawing redaction boxes, which removes selectable text. If you need selectable text preserved and truly removed, do it server-side or with a desktop tool.
-        </div>
-
-        <div class="small" style="margin-top:10px;">
-          Libraries loaded via CDN for convenience. If you need fully offline operation, download the JS files and reference them locally.
-        </div>
+      <label>Redaction mode</label>
+      <select id="modeSel">
+        <option value="min" selected>A) LLM upload safe (minimise)</option>
+        <option value="custom">B) Custom rules</option>
+      </select>
+      <div class="row" style="margin-top:8px">
+        <label style="margin:0"><input id="useBlock" type="checkbox" checked /> use block chars</label>
+        <span class="pill">mask: <span id="maskPreview">████████</span></span>
       </div>
+      <label>Whitelist terms (one per line)</label>
+      <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
+      <label>Organisation terms for deterministic pseudonyms (one per line)</label>
+      <textarea id="orgDict" placeholder="Oxford City Council"></textarea>
+      <label>Client terms for deterministic pseudonyms (one per line)</label>
+      <textarea id="clientDict" placeholder="NHS Trust"></textarea>
+      <label>Custom regex rules (one per line: /pattern/flags => replacement)</label>
+      <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
+
+      <div class="row">
+        <button id="runBtn">Redact</button>
+        <button id="testsBtn">Run tests</button>
+        <button id="dlDocxBtn" disabled>Download redacted.docx</button>
+        <button id="dlTxtBtn" disabled>Download redacted.txt</button>
+      </div>
+      <div id="status" class="muted" style="margin-top:8px"></div>
+      <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
     </div>
   </section>
 
   <section class="card">
-    <div class="hd"><h2>2) Review and export</h2></div>
+    <div class="hd">Preview, leaks check, and document inspection</div>
     <div class="bd">
-      <div class="split">
-        <div class="viewer">
-          <div class="toolbar">
-            <span class="pill">Extracted text (highlighted)</span>
-            <span class="pill">Matches: <b id="matchCount">0</b></span>
-            <span class="pill">Visible findings: <b id="visibleCount">0</b></span>
-          </div>
-          <div class="content">
-            <div id="textOut" class="text muted">No content extracted yet.</div>
-          </div>
+      <div class="grid">
+        <div>
+          <label>Before (extracted plain text)</label>
+          <pre id="beforePane">—</pre>
         </div>
-
-        <div class="findings">
-          <div class="toolbar">
-            <span class="pill">Findings</span>
-            <input id="findingsFilter" class="inline-input" type="text" placeholder="Filter findings..." />
-            <div class="right-actions">
-              <button id="btnSelectAll">Select all</button>
-              <button id="btnSelectNone">Select none</button>
-            </div>
-          </div>
-          <div class="list" id="findingsList">
-            <div class="muted">No findings yet.</div>
-          </div>
-          <div class="toolbar">
-            <div class="right-actions">
-              <button class="primary" id="btnPreviewRedaction">Preview redacted text</button>
-              <button id="btnExportDocx" class="hidden">Export redacted DOCX</button>
-              <button id="btnExportPdf" class="hidden">Export safe PDF (rasterised)</button>
-            </div>
-          </div>
+        <div>
+          <label>After (redacted plain text)</label>
+          <pre id="afterPane">—</pre>
         </div>
       </div>
-
-      <div class="card" style="margin-top:16px;">
-        <div class="hd"><h2>Transparency and safety checklist</h2></div>
-        <div class="bd">
-          <div class="small">This tool runs locally in your browser and does not upload your file automatically. Detection covers broader GDPR-relevant patterns (contact data, IDs, financial and network identifiers), but no browser-only regex system can guarantee 100% recall or legal compliance—always do a manual review before sharing exports.</div>
-          <div class="checks" style="margin-top:12px;">
-            <div class="check"><div><b>What this catches well</b><small>Emails, URLs, phones, NI numbers, UTRs</small></div></div>
-            <div class="check"><div><b>What needs human review</b><small>Context-only identifiers, free-form notes, embedded images</small></div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:16px;">
-        <div class="hd"><h2>PDF preview (first page)</h2></div>
-        <div class="bd">
-          <div class="muted" style="margin-bottom:8px;">Shown only for PDFs and only for basic confidence checking.</div>
-          <canvas id="pdfCanvas" class="hidden"></canvas>
-          <div id="pdfPreviewNote" class="muted">No PDF loaded.</div>
-        </div>
-      </div>
-
+      <label>Leaks check report</label>
+      <div id="leaksPane" class="pane">No run yet.</div>
+      <label>Search in DOCX redaction surfaces</label>
+      <div class="row"><input id="searchTerm" placeholder="Search term" /><button id="searchBtn">Search</button></div>
+      <div id="searchPane" class="pane">Load a DOCX and run redaction to inspect parts.</div>
+      <label>Mini test harness output</label>
+      <div id="testsPane" class="pane">Not run.</div>
     </div>
   </section>
 </main>
 
-<!-- CDN libs are loaded with runtime fallback below -->
 <script>
+(() => {
+  'use strict';
 
-  const LIB_SOURCES = {
-    // pdf.js pinned to 5.4.624 (latest requested).
-    pdfjs: [
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.min.js",
-      "https://unpkg.com/pdfjs-dist@5.4.624/build/pdf.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.624/pdf.min.js",
-      // compatibility fallback
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@2.7.570/build/pdf.min.js",
-      "https://unpkg.com/pdfjs-dist@2.7.570/build/pdf.min.js"
-    ],
-    jspdf: [
-      "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
-      "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
-    ],
-    jszip: [
-      "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
-      "https://unpkg.com/jszip@3.10.1/dist/jszip.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
-    ]
+  const DOCX_TEXT_PART_PATTERNS = [
+    /^word\/document\.xml$/,
+    /^word\/header\d*\.xml$/,
+    /^word\/footer\d*\.xml$/,
+    /^word\/comments\.xml$/,
+    /^word\/footnotes\.xml$/,
+    /^word\/endnotes\.xml$/
+  ];
+
+  const REDACTION_PATTERNS = {
+    email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
+    mobileUk: /\b(?:\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}\b/g,
+    landlineUk: /\b(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
+    postcodeUk: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/ig,
+    urlHttp: /\bhttps?:\/\/[^\s<>"']+/ig,
+    urlWww: /\bwww\.[^\s<>"']+/ig,
+    username: /\b(?:@|user(?:name)?[:\s]+)[a-z0-9._-]{3,}\b/ig,
+    date: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4})\b/ig,
+    metric: /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s?(?:%|k|m|bn|hours?|yrs?|years?)\b/ig,
+    addressLine: /\b\d{1,4}\s+[A-Za-z0-9'\-\.\s]{2,40}\s(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Close|Way|Drive|Dr|Court|Ct)\b/ig
   };
 
-  let depsReadyPromise = null;
-
-  function loadScriptOnce(src){
-    return new Promise((resolve, reject) => {
-      const existing = [...document.scripts].find(sc => sc.src === src);
-      if (existing){
-        if (existing.dataset.loaded === '1') return resolve();
-        existing.addEventListener('load', () => resolve(), { once:true });
-        existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once:true });
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.referrerPolicy = 'no-referrer';
-      script.onload = () => { script.dataset.loaded = '1'; resolve(); };
-      script.onerror = () => reject(new Error(`Failed to load ${src}`));
-      document.head.appendChild(script);
-    });
-  }
-
-  async function loadFromFallbacks(urls, isReady){
-    if (isReady()) return true;
-    for (const src of urls){
-      try{
-        await loadScriptOnce(src);
-        if (isReady()) return true;
-      } catch(_e){}
-    }
-    return isReady();
-  }
-
-  async function ensureDependencies(){
-    const [pdfOk, pdfExportOk, docxOk] = await Promise.all([
-      loadFromFallbacks(LIB_SOURCES.pdfjs, () => !!window.pdfjsLib),
-      loadFromFallbacks(LIB_SOURCES.jspdf, () => !!(window.jspdf && window.jspdf.jsPDF)),
-      loadFromFallbacks(LIB_SOURCES.jszip, () => !!window.JSZip),
-    ]);
-
-    if (pdfOk && window.pdfjsLib) {
-      const v = pdfjsLib.version || "5.4.624";
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${v}/build/pdf.worker.min.js`;
-    }
-
-    return { pdfOk, pdfExportOk, docxOk };
-  }
-
-  function initDependencies(){
-    if (!depsReadyPromise) depsReadyPromise = ensureDependencies();
-    return depsReadyPromise;
-  }
-
-  function hasPdfLib(){
-    return !!window.pdfjsLib;
-  }
-  function hasDocxLib(){
-    return !!window.JSZip;
-  }
-  function hasPdfExportLib(){
-    return !!(window.jspdf && window.jspdf.jsPDF);
-  }
-
-  const els = {
-    file: document.getElementById('file'),
-    fileName: document.getElementById('fileName'),
-    fileType: document.getElementById('fileType'),
-    pageCount: document.getElementById('pageCount'),
-    status: document.getElementById('status'),
-    textOut: document.getElementById('textOut'),
-    matchCount: document.getElementById('matchCount'),
-    visibleCount: document.getElementById('visibleCount'),
-    selectedCount: document.getElementById('selectedCount'),
-    findingsList: document.getElementById('findingsList'),
-    findingsFilter: document.getElementById('findingsFilter'),
-    btnExtract: document.getElementById('btnExtract'),
-    btnDetect: document.getElementById('btnDetect'),
-    btnRunAll: document.getElementById('btnRunAll'),
-    btnReset: document.getElementById('btnReset'),
-    btnSelectAll: document.getElementById('btnSelectAll'),
-    btnSelectNone: document.getElementById('btnSelectNone'),
-    btnPreviewRedaction: document.getElementById('btnPreviewRedaction'),
-    btnExportDocx: document.getElementById('btnExportDocx'),
-    btnExportPdf: document.getElementById('btnExportPdf'),
-    pdfCanvas: document.getElementById('pdfCanvas'),
-    pdfPreviewNote: document.getElementById('pdfPreviewNote'),
-
-    chkEmail: document.getElementById('chkEmail'),
-    chkPhone: document.getElementById('chkPhone'),
-    chkUrl: document.getElementById('chkUrl'),
-    chkName: document.getElementById('chkName'),
-    chkPostcode: document.getElementById('chkPostcode'),
-    chkNino: document.getElementById('chkNino'),
-    chkUtr: document.getElementById('chkUtr'),
-    chkVat: document.getElementById('chkVat'),
-    chkAddress: document.getElementById('chkAddress'),
-    chkRef: document.getElementById('chkRef'),
-    chkDob: document.getElementById('chkDob'),
-    chkFinancial: document.getElementById('chkFinancial'),
-    chkIp: document.getElementById('chkIp'),
-    chkGovId: document.getElementById('chkGovId'),
-    chkLabeled: document.getElementById('chkLabeled'),
-    chkGdprStrict: document.getElementById('chkGdprStrict'),
-    refRegex: document.getElementById('refRegex'),
-    maskToken: document.getElementById('maskToken'),
+  const state = {
+    originalText: '',
+    redactedText: '',
+    inputDocxBytes: null,
+    redactedDocxBytes: null,
+    extractedPartText: new Map(),
+    redactedPartText: new Map(),
+    pseudonyms: { org: new Map(), client: new Map() }
   };
 
-  initDependencies();
+  const $ = id => document.getElementById(id);
+  const setStatus = msg => { $('status').textContent = msg; };
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
 
-  let state = {
-    file: null,
-    kind: null,            // "pdf" | "docx"
-    extractedText: "",
-    findings: [],          // { id, type, value, start, end, selected, context }
-    pdfDoc: null,
-    pdfPagesText: [],      // per-page string (for PDF export heuristics and preview only)
-  };
-
-  function setStatus(msg, tone="warn") {
-    els.status.classList.remove('hidden','ok');
-    els.status.textContent = msg;
-    if (tone === "ok") els.status.classList.add('ok');
-  }
-  function clearStatus(){
-    els.status.classList.add('hidden');
-    els.status.textContent = "";
-    els.status.classList.remove('ok');
-  }
-
-  function escapeHtml(s){
-    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-
+  $('useBlock').addEventListener('change', () => {
+    $('maskPreview').textContent = $('useBlock').checked ? '████████' : '[REDACTED]';
+  });
 
   function decodeXmlText(s){
-    return s
-      .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-      .replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&apos;/g,"'");
+    return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
   }
-
   function encodeXmlText(s){
-    return s
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
   }
 
-  function redactWordProcessingMlText(xml, selectedValues, maskToken){
-    if (!selectedValues.length) return xml;
-    const sorted = [...selectedValues].filter(Boolean).sort((a,b)=>b.length-a.length);
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-    try{
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(xml, "application/xml");
-      const parseErr = doc.getElementsByTagName("parsererror")[0];
-      if (parseErr) throw new Error("XML parse error");
-
-      // Only redact textual WordprocessingML nodes (<w:t>), never attributes/tags.
-      const textNodes = [...doc.getElementsByTagNameNS("*", "t")];
-      for (const node of textNodes){
-        let text = node.textContent || "";
-        for (const val of sorted){
-          if (!val) continue;
-          text = text.split(val).join(maskToken);
-        }
-        node.textContent = text;
-      }
-
-      return new XMLSerializer().serializeToString(doc);
-    } catch(_e){
-      // Fallback: text-node regex replacement only.
-      return xml.replace(/<w:t([^>]*)>([\s\S]*?)<\/w:t>/g, (full, attrs, textContent) => {
-        let text = decodeXmlText(textContent);
-        for (const val of sorted){
-          if (!val) continue;
-          text = text.split(val).join(maskToken);
-        }
-        return `<w:t${attrs}>${encodeXmlText(text)}</w:t>`;
-      });
-    }
+  function buildPseudonymMaps(){
+    state.pseudonyms.org.clear();
+    state.pseudonyms.client.clear();
+    const orgs = $('orgDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    const clients = $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    orgs.forEach((v,i)=>state.pseudonyms.org.set(v.toLowerCase(), `ORG_${i+1}`));
+    clients.forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
   }
 
-  function byteSize(bytes){
-    const units = ['B','KB','MB','GB'];
-    let v = bytes, i=0;
-    while(v>=1024 && i<units.length-1){ v/=1024; i++; }
-    return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`;
-  }
-  function getMaskToken(){
-    const token = (els.maskToken.value || '').trim();
-    return token || "████████";
+  function applyPseudonyms(text){
+    for (const [k,v] of state.pseudonyms.org){ text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v); }
+    for (const [k,v] of state.pseudonyms.client){ text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v); }
+    return text;
   }
 
-  function updateSelectionSummary(){
-    const selected = state.findings.filter(f => f.selected).length;
-    els.selectedCount.textContent = String(selected);
-    els.visibleCount.textContent = String(getFilteredFindings().length);
+  function parseCustomRules(){
+    const lines = $('customRules').value.split(/\n+/).map(v=>v.trim()).filter(Boolean);
+    const rules = [];
+    for (const line of lines){
+      const m = line.match(/^\/(.+)\/([gimsuy]*)\s*=>\s*(.*)$/);
+      if (!m) continue;
+      try { rules.push({ re: new RegExp(m[1], m[2]), rep: m[3] }); } catch(_e){}
+    }
+    return rules;
   }
 
-  function getFilteredFindings(){
-    const q = (els.findingsFilter.value || '').trim().toLowerCase();
-    if (!q) return state.findings;
-    return state.findings.filter(f =>
-      f.value.toLowerCase().includes(q) ||
-      f.label.toLowerCase().includes(q) ||
-      f.context.toLowerCase().includes(q)
-    );
-  }
-
-
-
-  els.file.addEventListener('change', async () => {
-    clearStatus();
-    resetOutputs(false);
-    const f = els.file.files?.[0];
-    if (!f) return;
-
-    state.file = f;
-    const name = f.name || "Unnamed";
-    const isPdf = name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf';
-    const isDocx = name.toLowerCase().endsWith('.docx') || f.type.includes('officedocument.wordprocessingml.document');
-
-    if (!isPdf && !isDocx){
-      setStatus("Unsupported file. Please upload a PDF or DOCX.", "warn");
-      state.file = null;
-      return;
-    }
-
-    state.kind = isPdf ? "pdf" : "docx";
-    els.fileName.textContent = name;
-    els.fileType.textContent = `${state.kind.toUpperCase()} · ${byteSize(f.size)}`;
-    els.pageCount.textContent = "—";
-
-    if (state.kind === "pdf"){
-      await loadPdfForPreview();
-      if (hasPdfLib()) setStatus("File loaded. Click “Extract text”.", "ok");
-    } else {
-      hidePdfPreview();
-      setStatus("File loaded. Click “Extract text”.", "ok");
-    }
-  });
-
-  function hidePdfPreview(){
-    els.pdfCanvas.classList.add('hidden');
-    els.pdfPreviewNote.textContent = "No PDF loaded.";
-    els.pdfPreviewNote.classList.remove('hidden');
-  }
-
-  async function loadPdfForPreview(){
-    if (!hasPdfLib()) await initDependencies();
-    if (!hasPdfLib()){
-      state.pdfDoc = null;
-      hidePdfPreview();
-      setStatus("PDF features are currently unavailable (library could not be loaded from fallback CDNs). DOCX still works.", "warn");
-      return;
-    }
-    try{
-      const buf = await state.file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({data: buf});
-      state.pdfDoc = await loadingTask.promise;
-      els.pageCount.textContent = String(state.pdfDoc.numPages);
-
-      // Render first page preview
-      const page = await state.pdfDoc.getPage(1);
-      const viewport = page.getViewport({scale: 1.2});
-      const canvas = els.pdfCanvas;
-      const ctx = canvas.getContext('2d');
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      await page.render({canvasContext: ctx, viewport}).promise;
-
-      els.pdfCanvas.classList.remove('hidden');
-      els.pdfPreviewNote.classList.add('hidden');
-    } catch(e){
-      console.error(e);
-      setStatus("Could not load PDF preview. The file may be protected or invalid.", "warn");
-      hidePdfPreview();
-    }
-  }
-
-  els.btnExtract.addEventListener('click', async () => {
-    clearStatus();
-    if (!state.file) return setStatus("Please upload a file first.", "warn");
-
-    try{
-      if (state.kind === "pdf"){
-        const ok = await extractTextFromPdf();
-        if (!ok) return;
-      } else {
-        await extractTextFromDocx();
-      }
-      setStatus("Text extracted. Click “Detect sensitive items”.", "ok");
-    } catch(e){
-      console.error(e);
-      setStatus(`Text extraction failed: ${e?.message || "unknown error"}.`, "warn");
-    }
-  });
-
-  async function extractTextFromPdf(){
-    if (!hasPdfLib()){
-      setStatus("PDF text extraction is unavailable right now (could not load pdf.js from fallback CDNs). Check network policy or use DOCX.", "warn");
-      return false;
-    }
-    if (!state.pdfDoc) await loadPdfForPreview();
-    if (!state.pdfDoc){
-      setStatus("PDF could not be loaded. The file may be invalid, protected, or blocked by browser policy.", "warn");
-      return false;
-    }
-
-    const numPages = state.pdfDoc.numPages;
-    const pages = [];
-    state.pdfPagesText = [];
-
-    for (let i=1; i<=numPages; i++){
-      const page = await state.pdfDoc.getPage(i);
-      const content = await page.getTextContent();
-      const strings = content.items.map(it => it.str).filter(Boolean);
-      const pageText = strings.join(' ');
-      state.pdfPagesText.push(pageText);
-      pages.push(`\n\n--- Page ${i} ---\n` + pageText);
-    }
-    state.extractedText = pages.join('\n');
-    renderHighlightedText();
-    els.btnExportPdf.classList.remove('hidden');
-    els.btnExportDocx.classList.add('hidden');
-  }
-
-  async function extractTextFromDocx(){
-    if (!hasDocxLib()) await initDependencies();
-    if (!hasDocxLib()) throw new Error("JSZip is unavailable");
-    const buf = await state.file.arrayBuffer();
-    const zip = await JSZip.loadAsync(buf);
-    const docXml = await zip.file("word/document.xml").async("string");
-
-    // Very simple text extraction from document.xml
-    // - This will not perfectly preserve paragraphs/tables, but works for detection/review.
-    const texts = [];
-    const re = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
-    let m;
-    while((m = re.exec(docXml)) !== null){
-      // XML entities in Word XML can include &amp; etc.
-      texts.push(decodeXmlText(m[1]));
-    }
-    state.extractedText = texts.join(' ');
-    renderHighlightedText();
-    els.btnExportDocx.classList.remove('hidden');
-    els.btnExportPdf.classList.add('hidden');
-    els.pageCount.textContent = "—";
-  }
-
-  function buildDetectors(){
-    // Note: These are intentionally conservative. You will likely tune for your corpus.
-    const detectors = [];
-
-    if (els.chkEmail.checked){
-      detectors.push({
-        type: "email",
-        label: "Email",
-        className: "email",
-        regex: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/ig
-      });
-    }
-
-    if (els.chkPhone.checked){
-      // Broader phone patterns: UK + international formats with separators and optional extension.
-      detectors.push({
-        type: "phone",
-        label: "Phone",
-        className: "phone",
-        regex: /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?){2,4}\d{2,6}(?:\s?(?:x|ext\.?|extension)\s?\d{1,6})?/ig
-      });
-    }
-
-
-    if (els.chkUrl.checked){
-      detectors.push({
-        type: "url",
-        label: "Web URL",
-        className: "addr",
-        regex: /\b(?:https?:\/\/|www\.)[A-Z0-9][A-Z0-9._~:/?#\[\]@!$&'()*+,;=%-]{2,}\b/ig
-      });
-    }
-
-    if (els.chkName.checked){
-      detectors.push({
-        type: "name",
-        label: "Person name (heuristic)",
-        className: "id",
-        // Honorific + full name (supports apostrophes/hyphens and accented latin letters)
-        regex: /\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Sir|Dame)\.?[ \t]+(?:[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})?[ \t]+){0,3}[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})\b/gu
-      });
-      detectors.push({
-        type: "name",
-        label: "Person name (heuristic)",
-        className: "id",
-        // Labeled name fields (captures many admin form styles)
-        regex: /\b(?:Name|Full[ \t]*Name|Contact|Client|Customer|Employee|Director|Applicant|Patient|Parent|Guardian)[ \t]*[:\-][ \t]*[A-Za-zÀ-ÿ'’.-]+(?:[ \t]+[A-Za-zÀ-ÿ'’.-]+){1,4}\b/gu
-      });
-      detectors.push({
-        type: "name",
-        label: "Person name (heuristic)",
-        className: "id",
-        // Standalone 2+ part names with common particles used across UK communities
-        regex: /\b[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})?(?:[ \t]+(?:al|el|bin|binti|ibn|da|de|del|della|di|du|la|le|van|von|der|den|ten|ter|mac|mc|st)\.?)?(?:[ \t]+[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})?){1,3}\b/gu
-      });
-      detectors.push({
-        type: "name",
-        label: "Person name (heuristic)",
-        className: "id",
-        // Initial + surname forms, e.g., "A. Rahman" or "J K Rowling"
-        regex: /\b(?:[A-Z]\.?[ \t]?){1,2}[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{2,30}(?:[ \t]+[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{2,30})?\b/gu
-      });
-      detectors.push({
-        type: "name",
-        label: "Person name (heuristic)",
-        className: "id",
-        // Surnames with apostrophe prefixes, e.g., Saoirse O'Neill
-        regex: /\b[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}[ 	]+[A-ZÀ-ÖØ-Þ](?:['’-][A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30})\b/gu
-      });
-      detectors.push({
-        type: "name",
-        label: "Person name (heuristic)",
-        className: "id",
-        // Particle-hyphen surnames, e.g., Amir al-Hassan
-        regex: /\b[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}[ 	]+(?:al|el|bin|binti|ibn)-[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}\b/giu
-      });
-    }
-
-    if (els.chkPostcode.checked){
-      detectors.push({
-        type: "postcode",
-        label: "Postcode",
-        className: "addr",
-        // UK postcode standard forms
-        regex: /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/ig
-      });
-    }
-
-    if (els.chkNino.checked){
-      detectors.push({
-        type: "nino",
-        label: "NI number",
-        className: "id",
-        // Excludes common invalid prefix letters not fully enforced here.
-        regex: /\b(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b/ig
-      });
-    }
-
-    if (els.chkUtr.checked){
-      detectors.push({
-        type: "utr",
-        label: "UTR (10 digits)",
-        className: "id",
-        regex: /\b\d{10}\b/g
-      });
-    }
-
-    if (els.chkVat.checked){
-      detectors.push({
-        type: "vat",
-        label: "VAT",
-        className: "id",
-        regex: /\bGB\s?\d{9}\b/ig
-      });
-    }
-
-    if (els.chkAddress.checked){
-      // Heuristic: picks up phrases like "Street", "Road", "Avenue", "Close", etc. plus a number near it.
-      detectors.push({
-        type: "address",
-        label: "Address (heuristic)",
-        className: "addr",
-        regex: /\b\d{1,4}\s+[A-Z][A-Za-z.'-]+\s+(?:Street|St|Road|Rd|Avenue|Ave|Close|Cl|Lane|Ln|Drive|Dr|Crescent|Cres|Place|Pl|Way|Court|Ct)\b/ig
-      });
-    }
-
-    if (els.chkRef.checked){
-      const r = els.refRegex.value.trim();
-      if (r){
-        try{
-          detectors.push({
-            type: "ref",
-            label: "Reference",
-            className: "id",
-            regex: new RegExp(r, "g")
-          });
-        } catch(e){
-          setStatus("Custom reference regex is invalid. Fix it or untick “Reference codes”.", "warn");
-        }
-      }
-    }
-
-    if (els.chkDob.checked){
-      detectors.push({
-        type: "dob",
-        label: "Date of birth / date",
-        className: "id",
-        regex: /\b(?:DOB|Date\s*of\s*Birth)\s*[:\-]?\s*(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/ig
-      });
-      detectors.push({
-        type: "date",
-        label: "Date",
-        className: "id",
-        regex: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/g
-      });
-    }
-
-    if (els.chkFinancial.checked){
-      detectors.push({
-        type: "iban",
-        label: "IBAN",
-        className: "id",
-        regex: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g
-      });
-      detectors.push({
-        type: "card",
-        label: "Card number",
-        className: "id",
-        regex: /\b(?:\d[ -]*?){13,19}\b/g
-      });
-      detectors.push({
-        type: "bank",
-        label: "Sort/account",
-        className: "id",
-        regex: /\b\d{2}-\d{2}-\d{2}\b(?:\s*\d{6,8})?|\bSort\s*Code\s*[:\-]?\s*\d{2}-\d{2}-\d{2}\b|\bAccount\s*(?:No|Number)?\s*[:\-]?\s*\d{6,10}\b/ig
-      });
-    }
-
-    if (els.chkIp.checked){
-      detectors.push({
-        type: "ip",
-        label: "IP address",
-        className: "id",
-        regex: /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b|\b(?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{1,4}\b/ig
-      });
-    }
-
-    if (els.chkGovId.checked){
-      detectors.push({
-        type: "govid",
-        label: "Passport / driving licence",
-        className: "id",
-        regex: /\b(?:Passport|Driving\s*Licence|Driver\s*License|National\s*ID)\s*(?:No|Number|#)?\s*[:\-]?\s*[A-Z0-9]{6,20}\b/ig
-      });
-    }
-
-    if (els.chkLabeled.checked){
-      detectors.push({
-        type: "labeled",
-        label: "Labeled personal field",
-        className: "addr",
-        regex: /\b(?:Full\s*Name|Name|Address|Email|E-?mail|Phone|Telephone|Mobile|DOB|Date\s*of\s*Birth|IP|Account\s*No|National\s*Insurance)\s*[:\-]\s*[^\n\r,;]{3,120}/ig
-      });
-    }
-
-    if (els.chkGdprStrict.checked){
-      detectors.push({
-        type: "strict-id",
-        label: "GDPR strict identifier",
-        className: "id",
-        regex: /\b[A-Z]{1,3}\d{4,12}[A-Z]?\b/g
-      });
-    }
-
-    return detectors;
-  }
-
-  els.btnDetect.addEventListener('click', () => {
-    clearStatus();
-    if (!state.extractedText) return setStatus("Extract text first.", "warn");
-
-    state.findings = detectAll(state.extractedText, buildDetectors());
-    renderFindings();
-    renderHighlightedText();
-
-    els.matchCount.textContent = String(state.findings.length);
-    updateSelectionSummary();
-    setStatus(`Detected ${state.findings.length} items. Review and untick anything you do not want to redact.`, "ok");
-  });
-
-  async function runExtractStep(){
-    if (state.kind === "pdf") return await extractTextFromPdf();
-    await extractTextFromDocx();
-    return true;
-  }
-
-  els.btnRunAll.addEventListener('click', async () => {
-    clearStatus();
-    if (!state.file) return setStatus("Please upload a file first.", "warn");
-    try{
-      const extracted = await runExtractStep();
-      if (!extracted) return;
-      state.findings = detectAll(state.extractedText, buildDetectors());
-      renderFindings();
-      renderHighlightedText();
-      setStatus(`Extracted and detected ${state.findings.length} items.`, "ok");
-    } catch (e){
-      console.error(e);
-      setStatus("Could not run full pipeline. Try Extract then Detect manually.", "warn");
-    }
-  });
-
-  els.findingsFilter.addEventListener('input', () => {
-    renderFindings();
-    updateSelectionSummary();
-  });
-
-  document.addEventListener('keydown', async (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
-      e.preventDefault();
-      if (!state.file) return;
-      els.btnRunAll.click();
-    }
-  });
-
-  ;['dragenter','dragover'].forEach(evt => document.addEventListener(evt, (e) => {
-    e.preventDefault();
-    els.file.classList.add('dropzone');
-  }));
-  ;['dragleave','drop'].forEach(evt => document.addEventListener(evt, (e) => {
-    e.preventDefault();
-    if (evt === 'drop' && e.dataTransfer?.files?.[0]) {
-      const dt = new DataTransfer();
-      dt.items.add(e.dataTransfer.files[0]);
-      els.file.files = dt.files;
-      els.file.dispatchEvent(new Event('change'));
-    }
-    els.file.classList.remove('dropzone');
-  }));
-
-
-  function isWordProcessingMlArtifact(det, value, context){
-    const v = String(value || "");
-    const c = String(context || "");
-    const hay = (v + " " + c).toLowerCase();
-
-    // Common WordprocessingML tokens/attributes that should never be treated as PII.
-    const xmlSignals = /(\bw:(?:rsid\w*|val|type|sz|ppr|rpr|tblpr|tcpr|trpr|tcw|jc|vmerge|spacing)\b|\bw14:paraid\b|\bmc:|xml:space|<\/?w:|wordprocessingml)/i;
-    if (xmlSignals.test(hay)) return true;
-
-    // Frequent technical IDs in DOCX internals (often zero-filled placeholders).
-    if (/\b(?:rsid\w*|paraid|id)\s*=\s*"?0{6,}"?/i.test(hay)) return true;
-
-    // Aggressive strict-id mode can catch all-zero structural tokens.
-    if (det?.type === 'strict-id' && /^0{6,}$/.test(v.trim())) return true;
-
-    return false;
-  }
-
-  function detectAll(text, detectors){
-    const findings = [];
-    const seen = new Set();
-
-    // Gather matches from each detector
-    for (const det of detectors){
-      if (!det.regex) continue;
-      det.regex.lastIndex = 0;
-      let m;
-      while((m = det.regex.exec(text)) !== null){
-        const value = m[0];
-        const start = m.index;
-        const end = start + value.length;
-
-        // Deduplicate by span+value+type
-        const key = `${det.type}:${start}:${end}:${value}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        const ctxStart = Math.max(0, start - 40);
-        const ctxEnd = Math.min(text.length, end + 40);
-        const context = text.slice(ctxStart, ctxEnd);
-
-        if (isWordProcessingMlArtifact(det, value, context)) continue;
-
-        findings.push({
-          id: crypto.randomUUID(),
-          type: det.type,
-          label: det.label,
-          className: det.className,
-          value,
-          start,
-          end,
-          selected: true,
-          context
-        });
-      }
-    }
-
-    // Sort by start position
-    findings.sort((a,b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
-    return findings;
-  }
-
-  function renderHighlightedText(){
-    if (!state.extractedText){
-      els.textOut.textContent = "No content extracted yet.";
-      els.textOut.classList.add('muted');
-      return;
-    }
-
-    // Build a list of selected findings only for highlight
-    const active = state.findings.filter(f => f.selected);
-    if (active.length === 0){
-      els.textOut.innerHTML = escapeHtml(state.extractedText);
-      els.textOut.classList.remove('muted');
-      return;
-    }
-
-    // Create non-overlapping spans by priority: longer matches win
-    const spans = [];
-    const taken = new Array(state.extractedText.length).fill(false);
-
-    for (const f of [...active].sort((a,b) => (b.end-b.start)-(a.end-a.start))){
-      let overlap = false;
-      for (let i=f.start; i<f.end; i++){
-        if (taken[i]) { overlap = true; break; }
-      }
-      if (overlap) continue;
-      for (let i=f.start; i<f.end; i++) taken[i] = true;
-      spans.push(f);
-    }
-    spans.sort((a,b) => a.start - b.start);
-
-    let out = "";
-    let idx = 0;
-    for (const s of spans){
-      out += escapeHtml(state.extractedText.slice(idx, s.start));
-      out += `<mark class="${s.className}">${escapeHtml(state.extractedText.slice(s.start, s.end))}</mark>`;
-      idx = s.end;
-    }
-    out += escapeHtml(state.extractedText.slice(idx));
-    els.textOut.innerHTML = out;
-    els.textOut.classList.remove('muted');
-  }
-
-  function renderFindings(){
-    const list = els.findingsList;
-    list.innerHTML = "";
-
-    if (!state.findings.length){
-      list.innerHTML = `<div class="muted">No findings yet.</div>`;
-      els.matchCount.textContent = "0";
-      els.visibleCount.textContent = "0";
-      els.selectedCount.textContent = "0";
-      return;
-    }
-
-    const filtered = getFilteredFindings();
-    for (const f of filtered){
-      const div = document.createElement('div');
-      div.className = "item";
-      div.innerHTML = `
-        <input type="checkbox" ${f.selected ? "checked" : ""} data-id="${f.id}" />
-        <div class="meta">
-          <div>
-            <span class="badge">${escapeHtml(f.label)}</span>
-            <span class="badge">${escapeHtml(f.type)}</span>
-          </div>
-          <div class="snippet"><b>${escapeHtml(f.value)}</b><br/><span style="opacity:.85">${escapeHtml(f.context)}</span></div>
-        </div>
-      `;
-      list.appendChild(div);
-    }
-
-    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener('change', (e) => {
-        const id = e.target.getAttribute('data-id');
-        const found = state.findings.find(x => x.id === id);
-        if (found){
-          found.selected = e.target.checked;
-          renderHighlightedText();
-          updateSelectionSummary();
-        }
-      });
+  function redactText(rawText){
+    const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    const mode = $('modeSel').value;
+    const maskBase = $('useBlock').checked ? '████████' : '[REDACTED]';
+    let text = rawText;
+
+    const protectedTokens = [];
+    whitelist.forEach((term,i)=>{
+      const tok = `__WL_${i}__`;
+      protectedTokens.push([tok, term]);
+      text = text.replace(new RegExp(escapeRegExp(term), 'ig'), tok);
     });
 
-    els.matchCount.textContent = String(state.findings.length);
-    els.visibleCount.textContent = String(filtered.length);
-    updateSelectionSummary();
+    const counts = {email:0, phone:0, postcode:0, url:0, username:0};
+    const replaceAndCount = (re, label) => {
+      text = text.replace(re, m => {
+        if (label in counts) counts[label]++;
+        return $('useBlock').checked ? maskBase : `[REDACTED_${label.toUpperCase()}]`;
+      });
+    };
+
+    if (mode === 'min'){
+      text = applyPseudonyms(text);
+      replaceAndCount(REDACTION_PATTERNS.email, 'email');
+      replaceAndCount(REDACTION_PATTERNS.mobileUk, 'phone');
+      replaceAndCount(REDACTION_PATTERNS.landlineUk, 'phone');
+      replaceAndCount(REDACTION_PATTERNS.postcodeUk, 'postcode');
+      replaceAndCount(REDACTION_PATTERNS.urlHttp, 'url');
+      replaceAndCount(REDACTION_PATTERNS.urlWww, 'url');
+      replaceAndCount(REDACTION_PATTERNS.username, 'username');
+      text = text.replace(REDACTION_PATTERNS.addressLine, maskBase);
+      text = text.replace(REDACTION_PATTERNS.date, '[DATE]');
+      text = text.replace(REDACTION_PATTERNS.metric, '[METRIC]');
+    } else {
+      for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
+    }
+
+    for (const [tok,term] of protectedTokens) text = text.replace(new RegExp(escapeRegExp(tok), 'g'), term);
+    return { text, counts };
   }
 
-  els.btnSelectAll.addEventListener('click', () => {
-    state.findings.forEach(f => f.selected = true);
-    renderFindings();
-    renderHighlightedText();
-  });
-  els.btnSelectNone.addEventListener('click', () => {
-    state.findings.forEach(f => f.selected = false);
-    renderFindings();
-    renderHighlightedText();
-  });
-
-  els.btnPreviewRedaction.addEventListener('click', () => {
-    if (!state.extractedText) return setStatus("Extract text first.", "warn");
-    if (!state.findings.length) return setStatus("Detect items first.", "warn");
-
-    const redacted = applyRedactionToText(state.extractedText, state.findings.filter(f=>f.selected));
-    els.textOut.innerHTML = escapeHtml(redacted);
-    els.textOut.classList.remove('muted');
-    setStatus("Preview shows redacted text. Re-run “Detect” to re-highlight.", "ok");
-  });
-
-  function applyRedactionToText(text, findings){
-    if (!findings.length) return text;
-
-    // Replace from end to start so indices remain valid
-    const sorted = [...findings].sort((a,b) => b.start - a.start);
-    let out = text;
-    for (const f of sorted){
-      out = out.slice(0, f.start) + getMaskToken() + out.slice(f.end);
+  function mapAndRewriteWT(xml){
+    const re = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
+    const nodes = [];
+    let m;
+    while ((m = re.exec(xml))){
+      nodes.push({ start: m.index, end: re.lastIndex, innerStart: m.index + m[0].indexOf('>') + 1, innerEnd: re.lastIndex - 6, text: decodeXmlText(m[1]) });
     }
+    if (!nodes.length) return { xml, before:'', after:'', counts:{} };
+
+    const logical = nodes.map(n=>n.text).join('');
+    const { text: redactedLogical, counts } = redactText(logical);
+
+    const segLens = nodes.map(n=>n.text.length);
+    const replacementTexts = [];
+    let ptr = 0;
+    for (let i=0;i<segLens.length;i++){
+      const len = (i === segLens.length - 1) ? (redactedLogical.length - ptr) : segLens[i];
+      replacementTexts.push(redactedLogical.slice(ptr, ptr + Math.max(0,len)));
+      ptr += Math.max(0,len);
+    }
+
+    let out = '';
+    let cursor = 0;
+    for (let i=0;i<nodes.length;i++){
+      const n = nodes[i];
+      out += xml.slice(cursor, n.innerStart);
+      out += encodeXmlText(replacementTexts[i]);
+      cursor = n.innerEnd;
+    }
+    out += xml.slice(cursor);
+
+    return { xml: out, before: logical, after: redactedLogical, counts };
+  }
+
+  function scrubSettingsXml(xml){
+    return xml
+      .replace(/<w:trackRevisions\b[^/>]*\/?>(?:<\/w:trackRevisions>)?/g, '<w:trackRevisions w:val="false"/>')
+      .replace(/<w:doNotTrackMoves\b[^/>]*\/?>(?:<\/w:doNotTrackMoves>)?/g, '<w:doNotTrackMoves w:val="false"/>');
+  }
+
+  function scrubCoreProps(xml){
+    xml = xml.replace(/<dc:creator>[\s\S]*?<\/dc:creator>/g, '<dc:creator></dc:creator>');
+    xml = xml.replace(/<cp:lastModifiedBy>[\s\S]*?<\/cp:lastModifiedBy>/g, '<cp:lastModifiedBy></cp:lastModifiedBy>');
+    return xml;
+  }
+
+  function scrubAppProps(xml){
+    xml = xml.replace(/<Company>[\s\S]*?<\/Company>/g, '<Company></Company>');
+    xml = xml.replace(/<Manager>[\s\S]*?<\/Manager>/g, '<Manager></Manager>');
+    return xml;
+  }
+
+  function scrubRelsXml(xml){
+    return xml.replace(/Target="([^"]+)"/g, (all, t) => {
+      const red = redactText(t).text;
+      return `Target="${red.replace(/"/g,'&quot;')}"`;
+    });
+  }
+
+  function scrubCommentsLike(xml){
+    xml = xml.replace(/<w:delText\b[^>]*>[\s\S]*?<\/w:delText>/g, '<w:delText></w:delText>');
+    xml = xml.replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, '<w:instrText></w:instrText>');
+    xml = xml.replace(/<w:vanish\b[^>]*\/?>(?:<\/w:vanish>)?/g, '');
+    return xml;
+  }
+
+  function findLeaks(text, extraTerms=[]){
+    const leakRules = [
+      ['email', REDACTION_PATTERNS.email],
+      ['phone', new RegExp(`${REDACTION_PATTERNS.mobileUk.source}|${REDACTION_PATTERNS.landlineUk.source}`, 'g')],
+      ['postcode', REDACTION_PATTERNS.postcodeUk]
+    ];
+    const lines = [];
+    for (const [name,re] of leakRules){
+      const ms = [...text.matchAll(re)].map(m=>m[0]);
+      lines.push(`${name}: ${ms.length}${ms.length?` -> ${ms.slice(0,6).join(', ')}`:''}`);
+    }
+    for (const term of extraTerms){
+      const re = new RegExp(escapeRegExp(term), 'ig');
+      const c = [...text.matchAll(re)].length;
+      lines.push(`term("${term}"): ${c}`);
+    }
+    return lines.join('\n');
+  }
+
+  // --- Minimal ZIP read/write (methods 0 and 8) ---
+  function u16(v,o){return v[o]|(v[o+1]<<8);} function u32(v,o){return (v[o]|(v[o+1]<<8)|(v[o+2]<<16)|(v[o+3]<<24))>>>0;}
+  function w16(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;} function w32(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;v[o+2]=(n>>>16)&255;v[o+3]=(n>>>24)&255;}
+
+  async function inflateRaw(bytes){
+    const ds = new DecompressionStream('deflate-raw');
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+  async function deflateRaw(bytes){
+    const cs = new CompressionStream('deflate-raw');
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+
+  const CRC_TABLE = (()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0;}return t;})();
+  function crc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=CRC_TABLE[(c^bytes[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+
+  async function unzipDocx(arrBuf){
+    const v = new Uint8Array(arrBuf);
+    let eocd = -1;
+    for (let i=v.length-22;i>=Math.max(0,v.length-66000);i--){ if (u32(v,i)===0x06054b50){ eocd=i; break; } }
+    if (eocd<0) throw new Error('Invalid zip: EOCD not found');
+    const cdSize = u32(v,eocd+12), cdOff = u32(v,eocd+16);
+    const files = new Map();
+    let p = cdOff;
+    while (p < cdOff + cdSize){
+      if (u32(v,p)!==0x02014b50) break;
+      const method = u16(v,p+10), compSize = u32(v,p+20), uncompSize = u32(v,p+24), nameLen=u16(v,p+28), extraLen=u16(v,p+30), commentLen=u16(v,p+32), lhoff=u32(v,p+42);
+      const name = textDecoder.decode(v.slice(p+46,p+46+nameLen));
+      const lp = lhoff;
+      const lfNameLen=u16(v,lp+26), lfExtraLen=u16(v,lp+28);
+      const dataStart = lp+30+lfNameLen+lfExtraLen;
+      const comp = v.slice(dataStart,dataStart+compSize);
+      let data;
+      if (method===0) data = comp;
+      else if (method===8) data = await inflateRaw(comp);
+      else throw new Error(`Unsupported ZIP compression method ${method} in ${name}`);
+      if (data.length !== uncompSize) { /* tolerate */ }
+      files.set(name,{name,data,method});
+      p += 46+nameLen+extraLen+commentLen;
+    }
+    return files;
+  }
+
+  async function zipDocx(filesMap){
+    const entries = [];
+    for (const [name, f] of filesMap){
+      const data = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+      const comp = await deflateRaw(data);
+      entries.push({name,data,comp,method:8,crc:crc32(data)});
+    }
+    let localTotal = 0, cdTotal = 0;
+    const nameBytes = entries.map(e=>textEncoder.encode(e.name));
+    entries.forEach((e,i)=>{ localTotal += 30 + nameBytes[i].length + e.comp.length; cdTotal += 46 + nameBytes[i].length; });
+    const out = new Uint8Array(localTotal + cdTotal + 22);
+    let p = 0;
+    const offsets = [];
+    entries.forEach((e,i)=>{
+      const nb = nameBytes[i]; offsets.push(p);
+      w32(out,p,0x04034b50); w16(out,p+4,20); w16(out,p+6,0); w16(out,p+8,e.method); w16(out,p+10,0); w16(out,p+12,0);
+      w32(out,p+14,e.crc); w32(out,p+18,e.comp.length); w32(out,p+22,e.data.length); w16(out,p+26,nb.length); w16(out,p+28,0);
+      out.set(nb,p+30); out.set(e.comp,p+30+nb.length); p += 30+nb.length+e.comp.length;
+    });
+    const cdStart = p;
+    entries.forEach((e,i)=>{
+      const nb = nameBytes[i];
+      w32(out,p,0x02014b50); w16(out,p+4,20); w16(out,p+6,20); w16(out,p+8,0); w16(out,p+10,e.method); w16(out,p+12,0); w16(out,p+14,0);
+      w32(out,p+16,e.crc); w32(out,p+20,e.comp.length); w32(out,p+24,e.data.length); w16(out,p+28,nb.length); w16(out,p+30,0); w16(out,p+32,0); w16(out,p+34,0); w16(out,p+36,0);
+      w32(out,p+38,0); w32(out,p+42,offsets[i]); out.set(nb,p+46); p += 46+nb.length;
+    });
+    const cdSize = p - cdStart;
+    w32(out,p,0x06054b50); w16(out,p+4,0); w16(out,p+6,0); w16(out,p+8,entries.length); w16(out,p+10,entries.length); w32(out,p+12,cdSize); w32(out,p+16,cdStart); w16(out,p+20,0);
     return out;
   }
 
-  // DOCX export: naive XML substitution within document.xml.
-  // Works best for items that appear as contiguous text in one <w:t> run.
-  els.btnExportDocx.addEventListener('click', async () => {
-    clearStatus();
-    if (state.kind !== "docx") return;
-    if (!hasDocxLib()) await initDependencies();
-    if (!hasDocxLib()) return setStatus("DOCX export is unavailable because JSZip could not be loaded from fallback CDNs.", "warn");
-    if (!state.findings.length) return setStatus("Detect items first.", "warn");
+  async function processDocx(bytes){
+    const files = await unzipDocx(bytes.buffer);
+    state.extractedPartText.clear();
+    state.redactedPartText.clear();
+    let beforeAll = [];
+    let afterAll = [];
 
-    try{
-      const buf = await state.file.arrayBuffer();
-      const zip = await JSZip.loadAsync(buf);
-      const selected = state.findings.filter(f=>f.selected).map(f=>f.value);
-      if (selected.length === 0) return setStatus("Nothing selected to redact.", "warn");
-
-      // Preserve WordprocessingML structure by only updating text nodes (<w:t>)
-      // in common content parts.
-      const xmlParts = Object.keys(zip.files).filter(name =>
-        /^word\/(document|header\d+|footer\d+|footnotes|endnotes|comments)\.xml$/i.test(name)
-      );
-
-      const mask = getMaskToken();
-      for (const part of xmlParts){
-        const xml = await zip.file(part).async("string");
-        const redacted = redactWordProcessingMlText(xml, selected, mask);
-        zip.file(part, redacted);
+    for (const [name,obj] of files){
+      let xml = textDecoder.decode(obj.data);
+      let changed = false;
+      if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
+        xml = scrubCommentsLike(xml);
+        const mapped = mapAndRewriteWT(xml);
+        xml = mapped.xml; changed = true;
+        if (mapped.before) { beforeAll.push(mapped.before); afterAll.push(mapped.after); }
+        state.extractedPartText.set(name, mapped.before);
+        state.redactedPartText.set(name, mapped.after);
+      } else if (/^word\/_rels\/.*\.rels$/.test(name)){
+        const before = xml; xml = scrubRelsXml(xml); changed = true;
+        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+      } else if (name === 'docProps/core.xml'){
+        const before = xml; xml = scrubCoreProps(xml); changed = true;
+        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+      } else if (name === 'docProps/app.xml'){
+        const before = xml; xml = scrubAppProps(xml); changed = true;
+        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+      } else if (name === 'word/settings.xml'){
+        const before = xml; xml = scrubSettingsXml(xml); changed = true;
+        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
       }
-
-      const outBlob = await zip.generateAsync({type:"blob"});
-      downloadBlob(outBlob, withSuffix(state.file.name, "-redacted"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      setStatus("Redacted DOCX exported with WordprocessingML preserved (w:t text-node redaction only). Spot-check split-run values.", "ok");
-    } catch(e){
-      console.error(e);
-      setStatus("DOCX export failed. See console for details.", "warn");
+      if (changed) files.set(name,{...obj,data:textEncoder.encode(xml)});
     }
+
+    state.originalText = beforeAll.join('\n');
+    state.redactedText = afterAll.join('\n');
+    state.redactedDocxBytes = await zipDocx(files);
+  }
+
+  async function runRedaction(){
+    try{
+      buildPseudonymMaps();
+      const plain = $('plainInput').value || '';
+      let combinedBefore = plain;
+      let combinedAfter = redactText(plain).text;
+      if (state.inputDocxBytes){
+        await processDocx(state.inputDocxBytes);
+        combinedBefore = [combinedBefore, state.originalText].filter(Boolean).join('\n');
+        combinedAfter = [combinedAfter, state.redactedText].filter(Boolean).join('\n');
+      }
+      state.originalText = combinedBefore;
+      state.redactedText = combinedAfter;
+
+      $('beforePane').textContent = state.originalText || '—';
+      $('afterPane').textContent = state.redactedText || '—';
+      const extra = [...state.pseudonyms.org.keys(), ...state.pseudonyms.client.keys()];
+      $('leaksPane').textContent = findLeaks(state.redactedText, extra);
+
+      $('dlTxtBtn').disabled = !state.redactedText;
+      $('dlDocxBtn').disabled = !state.redactedDocxBytes;
+      setStatus('Redaction complete. Review leaks check and search panel.');
+    } catch (err){
+      setStatus(`Error: ${err.message}`);
+    }
+  }
+
+  $('docxInput').addEventListener('change', async (e)=>{
+    const f = e.target.files[0];
+    if (!f) return;
+    state.inputDocxBytes = new Uint8Array(await f.arrayBuffer());
+    setStatus(`Loaded DOCX: ${f.name} (${Math.round(f.size/1024)} KB)`);
   });
 
-  // Safe PDF export: rasterise each page using pdf.js, draw redaction boxes heuristically, then write images into a new PDF.
-  // Limitation: mapping text coordinates precisely requires a full text-to-geometry pipeline. Here we provide a conservative option:
-  // - Rasterise pages
-  // - For the first version, we redact by drawing boxes over occurrences in the extracted page text using approximate placement is not feasible reliably.
-  // So we export a rasterised PDF WITHOUT redaction boxes unless you implement coordinate mapping.
-  // Practical approach: either accept "text removed by rasterisation" (safest), or implement a text-position lookup per item.
-  els.btnExportPdf.addEventListener('click', async () => {
-    clearStatus();
-    if (state.kind !== "pdf") return;
-    if (!hasPdfLib() || !hasPdfExportLib()) await initDependencies();
-    if (!hasPdfLib()) return setStatus("PDF export is unavailable because pdf.js could not be loaded from fallback CDNs.", "warn");
-    if (!hasPdfExportLib()) return setStatus("PDF export is unavailable because jsPDF could not be loaded from fallback CDNs.", "warn");
+  $('runBtn').addEventListener('click', runRedaction);
 
-    try{
-      if (!state.pdfDoc) await loadPdfForPreview();
-      if (!state.pdfDoc) throw new Error("PDF not loaded");
-
-      const numPages = state.pdfDoc.numPages;
-      const { jsPDF } = window.jspdf;
-      const pdfOut = new jsPDF({unit:"pt", format:"a4"});
-
-      // Render each page to an image and place into the output PDF.
-      // This creates a "safe" PDF by removing selectable text entirely.
-      for (let i=1; i<=numPages; i++){
-        const page = await state.pdfDoc.getPage(i);
-        const viewport = page.getViewport({scale: 2.0});
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-
-        await page.render({canvasContext: ctx, viewport}).promise;
-
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
-
-        // Fit image to A4, keep aspect ratio
-        const pageW = pdfOut.internal.pageSize.getWidth();
-        const pageH = pdfOut.internal.pageSize.getHeight();
-        const imgW = pageW;
-        const imgH = (canvas.height / canvas.width) * imgW;
-
-        if (i > 1) pdfOut.addPage();
-        // Center vertically if shorter than page
-        const y = imgH < pageH ? (pageH - imgH) / 2 : 0;
-        pdfOut.addImage(imgData, "JPEG", 0, y, imgW, imgH);
-      }
-
-      const outBlob = pdfOut.output("blob");
-      downloadBlob(outBlob, withSuffix(state.file.name, "-redacted-safe"), "application/pdf");
-      setStatus("Safe PDF exported (rasterised). Text is not selectable, reducing recovery risk.", "ok");
-    } catch(e){
-      console.error(e);
-      setStatus("PDF export failed. See console for details.", "warn");
-    }
+  $('dlTxtBtn').addEventListener('click', ()=>{
+    const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'redacted.txt'; a.click(); URL.revokeObjectURL(a.href);
+  });
+  $('dlDocxBtn').addEventListener('click', ()=>{
+    const blob = new Blob([state.redactedDocxBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'redacted.docx'; a.click(); URL.revokeObjectURL(a.href);
   });
 
-  function downloadBlob(blob, filenameBase, mime){
-    const a = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    a.href = url;
-    a.download = filenameBase;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
-  }
-
-  function withSuffix(name, suffix){
-    const dot = name.lastIndexOf(".");
-    if (dot === -1) return name + suffix;
-    return name.slice(0, dot) + suffix + name.slice(dot);
-  }
-
-  function escapeRegExp(s){
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  els.btnReset.addEventListener('click', () => resetAll());
-
-  function resetOutputs(clearFileInput){
-    state.extractedText = "";
-    state.findings = [];
-    state.pdfPagesText = [];
-    els.textOut.textContent = "No content extracted yet.";
-    els.textOut.classList.add('muted');
-    els.findingsList.innerHTML = `<div class="muted">No findings yet.</div>`;
-    els.matchCount.textContent = "0";
-    els.visibleCount.textContent = "0";
-    els.selectedCount.textContent = "0";
-    els.findingsFilter.value = "";
-    els.btnExportDocx.classList.add('hidden');
-    els.btnExportPdf.classList.add('hidden');
-    if (clearFileInput){
-      els.file.value = "";
-      els.fileName.textContent = "None";
-      els.fileType.textContent = "—";
-      els.pageCount.textContent = "—";
+  $('searchBtn').addEventListener('click', ()=>{
+    const term = $('searchTerm').value.trim();
+    if (!term){ $('searchPane').textContent = 'Enter a term.'; return; }
+    const re = new RegExp(escapeRegExp(term), 'ig');
+    const lines = [];
+    for (const [part,txt] of state.redactedPartText){
+      const c = [...txt.matchAll(re)].length;
+      lines.push(`${part}: ${c}`);
     }
+    $('searchPane').textContent = lines.length ? lines.join('\n') : 'No indexed docx parts. Run redaction first.';
+  });
+
+  function runHarness(){
+    const out = [];
+    const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
+    buildPseudonymMaps();
+
+    let t = 'Email martin@example.com and phone +44 7123 456 789 at SW1A 1AA';
+    t = redactText(t).text;
+    assert('emails removed', !REDACTION_PATTERNS.email.test(t));
+    assert('phone removed', !new RegExp(REDACTION_PATTERNS.mobileUk.source).test(t));
+    assert('postcode removed', !REDACTION_PATTERNS.postcodeUk.test(t));
+
+    const xml = '<w:document><w:p><w:r><w:t>martin</w:t></w:r><w:r><w:t>@</w:t></w:r><w:r><w:t>example.com</w:t></w:r></w:p></w:document>';
+    const mapped = mapAndRewriteWT(xml);
+    assert('split-run email removed', !REDACTION_PATTERNS.email.test(mapped.after));
+    const openBefore = (xml.match(/<w:t\b/g)||[]).length;
+    const openAfter = (mapped.xml.match(/<w:t\b/g)||[]).length;
+    const closeBefore = (xml.match(/<\/w:t>/g)||[]).length;
+    const closeAfter = (mapped.xml.match(/<\/w:t>/g)||[]).length;
+    assert('w:t opening tags unchanged', openBefore === openAfter);
+    assert('w:t closing tags unchanged', closeBefore === closeAfter);
+
+    $('testsPane').textContent = out.join('\n');
   }
 
-  function resetAll(){
-    clearStatus();
-    state = { file:null, kind:null, extractedText:"", findings:[], pdfDoc:null, pdfPagesText:[] };
-    resetOutputs(true);
-    hidePdfPreview();
-  }
+  $('testsBtn').addEventListener('click', runHarness);
+})();
 </script>
 </body>
 </html>

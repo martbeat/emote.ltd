@@ -1114,6 +1114,25 @@
     els.file.classList.remove('dropzone');
   }));
 
+
+  function isWordProcessingMlArtifact(det, value, context){
+    const v = String(value || "");
+    const c = String(context || "");
+    const hay = (v + " " + c).toLowerCase();
+
+    // Common WordprocessingML tokens/attributes that should never be treated as PII.
+    const xmlSignals = /(\bw:(?:rsid\w*|val|type|sz|ppr|rpr|tblpr|tcpr|trpr|tcw|jc|vmerge|spacing)\b|\bw14:paraid\b|\bmc:|xml:space|<\/?w:|wordprocessingml)/i;
+    if (xmlSignals.test(hay)) return true;
+
+    // Frequent technical IDs in DOCX internals (often zero-filled placeholders).
+    if (/\b(?:rsid\w*|paraid|id)\s*=\s*"?0{6,}"?/i.test(hay)) return true;
+
+    // Aggressive strict-id mode can catch all-zero structural tokens.
+    if (det?.type === 'strict-id' && /^0{6,}$/.test(v.trim())) return true;
+
+    return false;
+  }
+
   function detectAll(text, detectors){
     const findings = [];
     const seen = new Set();
@@ -1136,6 +1155,8 @@
         const ctxStart = Math.max(0, start - 40);
         const ctxEnd = Math.min(text.length, end + 40);
         const context = text.slice(ctxStart, ctxEnd);
+
+        if (isWordProcessingMlArtifact(det, value, context)) continue;
 
         findings.push({
           id: crypto.randomUUID(),

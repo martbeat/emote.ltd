@@ -47,8 +47,18 @@
         <option value="custom">B) Custom rules</option>
       </select>
       <div class="row" style="margin-top:8px">
-        <label style="margin:0"><input id="useBlock" type="checkbox" checked /> use block chars</label>
+        <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
         <span class="pill">mask: <span id="maskPreview">████████</span></span>
+      </div>
+      <label>Name redaction controls</label>
+      <div class="row">
+        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" checked /> Redact surname globally if high confidence</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
       </div>
       <label>Whitelist terms (one per line)</label>
       <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
@@ -85,6 +95,10 @@
       </div>
       <label>Leaks check report</label>
       <div id="leaksPane" class="pane">No run yet.</div>
+      <label>PII candidates</label>
+      <div id="candidatesPane" class="pane">No run yet.</div>
+      <label>Match log</label>
+      <div id="matchLogPane" class="pane">No run yet.</div>
       <label>Search in DOCX redaction surfaces</label>
       <div class="row"><input id="searchTerm" placeholder="Search term" /><button id="searchBtn">Search</button></div>
       <div id="searchPane" class="pane">Load a DOCX and run redaction to inspect parts.</div>
@@ -106,18 +120,22 @@
     /^word\/footnotes\.xml$/,
     /^word\/endnotes\.xml$/
   ];
+  const HEADER_SCAN_CHARS = 500;
+  const HEADER_SCAN_LINES = 30;
+  const NAME_STOPWORDS = new Set(['cv','curriculum','vitae','resume','profile','summary','experience','email','phone','address','contact','professional','linkedin','github','ltd','limited','uk','england','mba','msc','bsc']);
+  const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
-    mobileUk: /\b(?:\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}\b/g,
-    landlineUk: /\b(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
+    mobileUk: /\b(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
+    landlineUk: /(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
     postcodeUk: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/ig,
     urlHttp: /\bhttps?:\/\/[^\s<>"']+/ig,
     urlWww: /\bwww\.[^\s<>"']+/ig,
+    addressLine: /\b\d{1,4}\s+[A-Za-z0-9'\-\.\s]{2,40}\s(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Close|Way|Drive|Dr|Court|Ct)\b/ig,
     username: /\b(?:@|user(?:name)?[:\s]+)[a-z0-9._-]{3,}\b/ig,
     date: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4})\b/ig,
-    metric: /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s?(?:%|k|m|bn|hours?|yrs?|years?)\b/ig,
-    addressLine: /\b\d{1,4}\s+[A-Za-z0-9'\-\.\s]{2,40}\s(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Close|Way|Drive|Dr|Court|Ct)\b/ig
+    metric: /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s?(?:%|k|m|bn|hours?|yrs?|years?)\b/ig
   };
 
   const state = {
@@ -127,7 +145,9 @@
     redactedDocxBytes: null,
     extractedPartText: new Map(),
     redactedPartText: new Map(),
-    pseudonyms: { org: new Map(), client: new Map() }
+    pseudonyms: { org: new Map(), client: new Map() },
+    piiCandidates: null,
+    matchLog: []
   };
 
   const $ = id => document.getElementById(id);
@@ -139,27 +159,132 @@
     $('maskPreview').textContent = $('useBlock').checked ? '████████' : '[REDACTED]';
   });
 
-  function decodeXmlText(s){
-    return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
-  }
-  function encodeXmlText(s){
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  function decodeXmlText(s){ return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); }
+  function encodeXmlText(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function parseCoreProps(xml){
+    const creator = (xml.match(/<dc:creator>([\s\S]*?)<\/dc:creator>/i)?.[1] || '').trim();
+    const lastModifiedBy = (xml.match(/<cp:lastModifiedBy>([\s\S]*?)<\/cp:lastModifiedBy>/i)?.[1] || '').trim();
+    return { creator: decodeXmlText(creator), lastModifiedBy: decodeXmlText(lastModifiedBy) };
   }
 
-  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function splitNameTokens(raw){
+    const base = raw.replace(/[_\-.+]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[^A-Za-z\s']/g,' ')
+      .split(/\s+/)
+      .map(t=>t.trim().toLowerCase())
+      .filter(Boolean)
+      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t));
+    return [...new Set(base)];
+  }
+
+  function titleCase(token){ return token ? token[0].toUpperCase()+token.slice(1).toLowerCase() : ''; }
+
+  function extractHeaderNamePhrase(text){
+    const headerLines = text.split(/\r?\n/).slice(0, HEADER_SCAN_LINES);
+    const block = headerLines.join('\n').slice(0, HEADER_SCAN_CHARS);
+    const lines = block.split(/\r?\n/);
+    for (const line of lines){
+      const clean = line.replace(/[^A-Za-z\s']/g,' ').trim();
+      if (!clean) continue;
+      const words = clean.split(/\s+/).filter(Boolean);
+      if (words.length < 2 || words.length > 4) continue;
+      const caps = words.filter(w => /^[A-Z][a-z]+$/.test(w) || /^[A-Z]{2,}$/.test(w));
+      if (caps.length >= 2){
+        return { phrase: words.join(' '), tokens: splitNameTokens(words.join(' ')), headerBlock: block };
+      }
+    }
+    return { phrase: '', tokens: [], headerBlock: block };
+  }
+
+  function extractEmailLocalTokens(text){
+    const locals = [];
+    for (const m of text.matchAll(REDACTION_PATTERNS.email)) locals.push(m[0].split('@')[0]);
+    const tokens = [];
+    for (const local of locals) tokens.push(...splitNameTokens(local));
+    return { locals: [...new Set(locals)], tokens: [...new Set(tokens)] };
+  }
+
+  function extractAllCapsNearTop(text){
+    const top = text.slice(0, HEADER_SCAN_CHARS);
+    const words = [...top.matchAll(/\b[A-Z]{2,}\b/g)].map(m=>m[0]);
+    return [...new Set(words)];
+  }
+
+  function extractPhoneAndPostcodes(text){
+    return {
+      phones: [...new Set([...(text.match(REDACTION_PATTERNS.mobileUk)||[]), ...(text.match(REDACTION_PATTERNS.landlineUk)||[])])],
+      postcodes: [...new Set(text.match(REDACTION_PATTERNS.postcodeUk) || [])]
+    };
+  }
+
+  function buildPiiCandidates(inputs){
+    const tokenScores = new Map();
+    const tokenSources = new Map();
+    const addToken = (token, score, source) => {
+      const t = token?.trim().toLowerCase();
+      if (!t) return;
+      tokenScores.set(t, Math.max(tokenScores.get(t) || 0, score));
+      const src = tokenSources.get(t) || new Set();
+      src.add(source);
+      tokenSources.set(t, src);
+    };
+
+    splitNameTokens(`${inputs.creator} ${inputs.lastModifiedBy}`).forEach(t => addToken(t, 0.96, 'docProps'));
+
+    const emailData = extractEmailLocalTokens(inputs.fullText || '');
+    emailData.tokens.forEach(t => addToken(t, 0.9, 'emailLocalPart'));
+
+    const headerData = extractHeaderNamePhrase(inputs.fullText || '');
+    headerData.tokens.forEach(t => addToken(t, 0.88, 'header'));
+
+    const caps = extractAllCapsNearTop(inputs.fullText || '').map(w => w.toLowerCase());
+    caps.forEach(t => addToken(t, 0.75, 'allCapsTop'));
+
+    const tokenObjects = [...tokenScores.entries()].sort((a,b)=>b[1]-a[1]).map(([token, confidence]) => ({
+      token,
+      confidence: Number(confidence.toFixed(2)),
+      sources: [...(tokenSources.get(token) || [])]
+    }));
+
+    const first = tokenObjects[0]?.token || '';
+    const surname = tokenObjects.find(t => t.token !== first)?.token || '';
+    const fullNameVariants = [];
+    if (headerData.phrase) fullNameVariants.push(headerData.phrase);
+    if (first && surname){
+      fullNameVariants.push(`${titleCase(first)} ${titleCase(surname)}`);
+      fullNameVariants.push(`${titleCase(first)} ${surname.toUpperCase()}`);
+      fullNameVariants.push(`${first[0].toUpperCase()}. ${titleCase(surname)}`);
+    }
+
+    const phonePost = extractPhoneAndPostcodes(inputs.fullText || '');
+
+    return {
+      creator: inputs.creator || '',
+      lastModifiedBy: inputs.lastModifiedBy || '',
+      headerLine: headerData.phrase,
+      headerBlock: headerData.headerBlock,
+      emailLocalParts: emailData.locals,
+      allCapsTopWords: caps,
+      phones: phonePost.phones,
+      postcodes: phonePost.postcodes,
+      fullNameVariants: [...new Set(fullNameVariants)],
+      nameTokens: tokenObjects
+    };
+  }
 
   function buildPseudonymMaps(){
     state.pseudonyms.org.clear();
     state.pseudonyms.client.clear();
-    const orgs = $('orgDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-    const clients = $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-    orgs.forEach((v,i)=>state.pseudonyms.org.set(v.toLowerCase(), `ORG_${i+1}`));
-    clients.forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
+    $('orgDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.org.set(v.toLowerCase(), `ORG_${i+1}`));
+    $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
   }
 
   function applyPseudonyms(text){
-    for (const [k,v] of state.pseudonyms.org){ text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v); }
-    for (const [k,v] of state.pseudonyms.client){ text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v); }
+    for (const [k,v] of state.pseudonyms.org) text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v);
+    for (const [k,v] of state.pseudonyms.client) text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v);
     return text;
   }
 
@@ -174,10 +299,70 @@
     return rules;
   }
 
-  function redactText(rawText){
+  function logMatch(matchLog, type, match, part){
+    const existing = matchLog.find(m => m.type===type && m.match===match && m.part===part);
+    if (existing) existing.count += 1;
+    else matchLog.push({ type, match, part, count: 1 });
+  }
+
+  function replaceWithLabel(text, re, label, type, part, matchLog){
+    return text.replace(re, m => {
+      logMatch(matchLog, type, m, part);
+      return label;
+    });
+  }
+
+  function buildNameRules(candidates, text, opts){
+    const rules = [];
+    if (!candidates) return rules;
+
+    const tokens = [...(candidates.nameTokens || [])].sort((a,b)=>b.confidence-a.confidence);
+    const firstToken = tokens[0]?.token || '';
+    const headerSurname = splitNameTokens(candidates.headerLine || '').slice(-1)[0] || '';
+    const creatorSurname = splitNameTokens(candidates.creator || '').slice(-1)[0] || '';
+    const surname = headerSurname || creatorSurname || tokens.find(t => t.token !== firstToken)?.token || '';
+
+    if (opts.redactFullNameVariants){
+      for (const variant of candidates.fullNameVariants || []){
+        rules.push({ type:'name', label:'[REDACTED_NAME]', re:new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig') });
+      }
+    }
+
+    const safeToGlobalSurname = (() => {
+      if (!surname) return false;
+      if ((candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i'))) return true;
+      if ((candidates.creator || '').match(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i'))) return true;
+      if (firstToken){
+        const near = new RegExp(`\\b${escapeRegExp(firstToken)}\\b(?:\\W+\\w+){0,5}\\W+\\b${escapeRegExp(surname)}\\b|\\b${escapeRegExp(surname)}\\b(?:\\W+\\w+){0,5}\\W+\\b${escapeRegExp(firstToken)}\\b`, 'i');
+        return near.test(text);
+      }
+      return false;
+    })();
+
+    if (opts.redactSurnameGlobal && surname){
+      const score = tokens.find(t => t.token===surname)?.confidence || 0;
+      if (score >= 0.85 && safeToGlobalSurname){
+        rules.push({ type:'name', label:'[REDACTED_NAME]', re:new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig') });
+      }
+    }
+
+    if (opts.redactFirstNameGlobal && firstToken){
+      const score = tokens.find(t => t.token===firstToken)?.confidence || 0;
+      const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'i'));
+      const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(firstToken));
+      if (score >= 0.85 && (inHeader || inEmail)){
+        rules.push({ type:'name', label:'[REDACTED_NAME]', re:new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig') });
+      }
+    }
+
+    return rules;
+  }
+
+  function redactText(rawText, context = {}){
+    const part = context.part || 'plainText';
     const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
     const mode = $('modeSel').value;
-    const maskBase = $('useBlock').checked ? '████████' : '[REDACTED]';
+    const matchLog = context.matchLog || [];
     let text = rawText;
 
     const protectedTokens = [];
@@ -187,53 +372,63 @@
       text = text.replace(new RegExp(escapeRegExp(term), 'ig'), tok);
     });
 
-    const counts = {email:0, phone:0, postcode:0, url:0, username:0};
-    const replaceAndCount = (re, label) => {
-      text = text.replace(re, m => {
-        if (label in counts) counts[label]++;
-        return $('useBlock').checked ? maskBase : `[REDACTED_${label.toUpperCase()}]`;
-      });
-    };
-
     if (mode === 'min'){
       text = applyPseudonyms(text);
-      replaceAndCount(REDACTION_PATTERNS.email, 'email');
-      replaceAndCount(REDACTION_PATTERNS.mobileUk, 'phone');
-      replaceAndCount(REDACTION_PATTERNS.landlineUk, 'phone');
-      replaceAndCount(REDACTION_PATTERNS.postcodeUk, 'postcode');
-      replaceAndCount(REDACTION_PATTERNS.urlHttp, 'url');
-      replaceAndCount(REDACTION_PATTERNS.urlWww, 'url');
-      replaceAndCount(REDACTION_PATTERNS.username, 'username');
-      text = text.replace(REDACTION_PATTERNS.addressLine, maskBase);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.email, '[REDACTED_EMAIL]', 'email', part, matchLog);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.urlHttp, '[REDACTED_URL]', 'url', part, matchLog);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.urlWww, '[REDACTED_URL]', 'url', part, matchLog);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.mobileUk, '[REDACTED_PHONE]', 'phone', part, matchLog);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.landlineUk, '[REDACTED_PHONE]', 'phone', part, matchLog);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.postcodeUk, '[REDACTED_POSTCODE]', 'postcode', part, matchLog);
+      text = replaceWithLabel(text, REDACTION_PATTERNS.addressLine, '[REDACTED_POSTCODE]', 'address', part, matchLog);
+
+      const nameRules = buildNameRules(state.piiCandidates, rawText, {
+        redactFullNameVariants: $('redactFullNameVariants').checked,
+        redactSurnameGlobal: $('redactSurnameGlobal').checked,
+        redactFirstNameGlobal: $('redactFirstNameGlobal').checked
+      });
+      for (const rule of nameRules){
+        text = text.replace(rule.re, m => {
+          logMatch(matchLog, rule.type, m, part);
+          return rule.label;
+        });
+      }
+
+      text = text.replace(REDACTION_PATTERNS.username, '[REDACTED_USERNAME]');
       text = text.replace(REDACTION_PATTERNS.date, '[DATE]');
       text = text.replace(REDACTION_PATTERNS.metric, '[METRIC]');
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
+      if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z_]+\]/g, '████████');
     }
 
     for (const [tok,term] of protectedTokens) text = text.replace(new RegExp(escapeRegExp(tok), 'g'), term);
-    return { text, counts };
+    return { text, matchLog };
   }
 
-  function mapAndRewriteWT(xml){
+  function mapAndRewriteWT(xml, part){
     const re = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
     const nodes = [];
     let m;
     while ((m = re.exec(xml))){
-      nodes.push({ start: m.index, end: re.lastIndex, innerStart: m.index + m[0].indexOf('>') + 1, innerEnd: re.lastIndex - 6, text: decodeXmlText(m[1]) });
+      nodes.push({
+        innerStart: m.index + m[0].indexOf('>') + 1,
+        innerEnd: re.lastIndex - 6,
+        text: decodeXmlText(m[1])
+      });
     }
-    if (!nodes.length) return { xml, before:'', after:'', counts:{} };
+    if (!nodes.length) return { xml, before:'', after:'' };
 
     const logical = nodes.map(n=>n.text).join('');
-    const { text: redactedLogical, counts } = redactText(logical);
+    const redactedLogical = redactText(logical, { part, matchLog: state.matchLog }).text;
 
     const segLens = nodes.map(n=>n.text.length);
     const replacementTexts = [];
     let ptr = 0;
     for (let i=0;i<segLens.length;i++){
       const len = (i === segLens.length - 1) ? (redactedLogical.length - ptr) : segLens[i];
-      replacementTexts.push(redactedLogical.slice(ptr, ptr + Math.max(0,len)));
-      ptr += Math.max(0,len);
+      replacementTexts.push(redactedLogical.slice(ptr, ptr + Math.max(0, len)));
+      ptr += Math.max(0, len);
     }
 
     let out = '';
@@ -245,8 +440,7 @@
       cursor = n.innerEnd;
     }
     out += xml.slice(cursor);
-
-    return { xml: out, before: logical, after: redactedLogical, counts };
+    return { xml: out, before: logical, after: redactedLogical };
   }
 
   function scrubSettingsXml(xml){
@@ -256,51 +450,37 @@
   }
 
   function scrubCoreProps(xml){
-    xml = xml.replace(/<dc:creator>[\s\S]*?<\/dc:creator>/g, '<dc:creator></dc:creator>');
-    xml = xml.replace(/<cp:lastModifiedBy>[\s\S]*?<\/cp:lastModifiedBy>/g, '<cp:lastModifiedBy></cp:lastModifiedBy>');
-    return xml;
+    return xml.replace(/<dc:creator>[\s\S]*?<\/dc:creator>/g, '<dc:creator></dc:creator>')
+      .replace(/<cp:lastModifiedBy>[\s\S]*?<\/cp:lastModifiedBy>/g, '<cp:lastModifiedBy></cp:lastModifiedBy>');
   }
-
   function scrubAppProps(xml){
-    xml = xml.replace(/<Company>[\s\S]*?<\/Company>/g, '<Company></Company>');
-    xml = xml.replace(/<Manager>[\s\S]*?<\/Manager>/g, '<Manager></Manager>');
-    return xml;
+    return xml.replace(/<Company>[\s\S]*?<\/Company>/g, '<Company></Company>').replace(/<Manager>[\s\S]*?<\/Manager>/g, '<Manager></Manager>');
   }
-
   function scrubRelsXml(xml){
     return xml.replace(/Target="([^"]+)"/g, (all, t) => {
-      const red = redactText(t).text;
+      const red = redactText(t, { part: 'rels', matchLog: state.matchLog }).text;
       return `Target="${red.replace(/"/g,'&quot;')}"`;
     });
   }
-
   function scrubCommentsLike(xml){
-    xml = xml.replace(/<w:delText\b[^>]*>[\s\S]*?<\/w:delText>/g, '<w:delText></w:delText>');
-    xml = xml.replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, '<w:instrText></w:instrText>');
-    xml = xml.replace(/<w:vanish\b[^>]*\/?>(?:<\/w:vanish>)?/g, '');
-    return xml;
+    return xml
+      .replace(/<w:delText\b[^>]*>[\s\S]*?<\/w:delText>/g, '<w:delText></w:delText>')
+      .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, '<w:instrText></w:instrText>')
+      .replace(/<w:vanish\b[^>]*\/?>(?:<\/w:vanish>)?/g, '');
   }
 
-  function findLeaks(text, extraTerms=[]){
+  function findLeaks(text){
     const leakRules = [
       ['email', REDACTION_PATTERNS.email],
       ['phone', new RegExp(`${REDACTION_PATTERNS.mobileUk.source}|${REDACTION_PATTERNS.landlineUk.source}`, 'g')],
       ['postcode', REDACTION_PATTERNS.postcodeUk]
     ];
-    const lines = [];
-    for (const [name,re] of leakRules){
+    return leakRules.map(([name,re]) => {
       const ms = [...text.matchAll(re)].map(m=>m[0]);
-      lines.push(`${name}: ${ms.length}${ms.length?` -> ${ms.slice(0,6).join(', ')}`:''}`);
-    }
-    for (const term of extraTerms){
-      const re = new RegExp(escapeRegExp(term), 'ig');
-      const c = [...text.matchAll(re)].length;
-      lines.push(`term("${term}"): ${c}`);
-    }
-    return lines.join('\n');
+      return `${name}: ${ms.length}${ms.length ? ` -> ${ms.slice(0,6).join(', ')}` : ''}`;
+    }).join('\n');
   }
 
-  // --- Minimal ZIP read/write (methods 0 and 8) ---
   function u16(v,o){return v[o]|(v[o+1]<<8);} function u32(v,o){return (v[o]|(v[o+1]<<8)|(v[o+2]<<16)|(v[o+3]<<24))>>>0;}
   function w16(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;} function w32(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;v[o+2]=(n>>>16)&255;v[o+3]=(n>>>24)&255;}
 
@@ -330,15 +510,14 @@
       if (u32(v,p)!==0x02014b50) break;
       const method = u16(v,p+10), compSize = u32(v,p+20), uncompSize = u32(v,p+24), nameLen=u16(v,p+28), extraLen=u16(v,p+30), commentLen=u16(v,p+32), lhoff=u32(v,p+42);
       const name = textDecoder.decode(v.slice(p+46,p+46+nameLen));
-      const lp = lhoff;
-      const lfNameLen=u16(v,lp+26), lfExtraLen=u16(v,lp+28);
-      const dataStart = lp+30+lfNameLen+lfExtraLen;
+      const lfNameLen=u16(v,lhoff+26), lfExtraLen=u16(v,lhoff+28);
+      const dataStart = lhoff+30+lfNameLen+lfExtraLen;
       const comp = v.slice(dataStart,dataStart+compSize);
       let data;
       if (method===0) data = comp;
       else if (method===8) data = await inflateRaw(comp);
       else throw new Error(`Unsupported ZIP compression method ${method} in ${name}`);
-      if (data.length !== uncompSize) { /* tolerate */ }
+      if (data.length !== uncompSize) {}
       files.set(name,{name,data,method});
       p += 46+nameLen+extraLen+commentLen;
     }
@@ -380,31 +559,63 @@
     const files = await unzipDocx(bytes.buffer);
     state.extractedPartText.clear();
     state.redactedPartText.clear();
-    let beforeAll = [];
-    let afterAll = [];
+    const beforeAll = [];
+    const afterAll = [];
+
+    let creator = '';
+    let lastModifiedBy = '';
+    let docTextForCandidates = '';
+    for (const [name,obj] of files){
+      const xml = textDecoder.decode(obj.data);
+      if (name === 'docProps/core.xml'){
+        const props = parseCoreProps(xml);
+        creator = props.creator;
+        lastModifiedBy = props.lastModifiedBy;
+      }
+      if (name === 'word/document.xml'){
+        const textBits = [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m=>decodeXmlText(m[1]));
+        docTextForCandidates += textBits.join('');
+      }
+    }
+
+    const plain = $('plainInput').value || '';
+    state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
 
     for (const [name,obj] of files){
       let xml = textDecoder.decode(obj.data);
       let changed = false;
       if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
         xml = scrubCommentsLike(xml);
-        const mapped = mapAndRewriteWT(xml);
-        xml = mapped.xml; changed = true;
+        const mapped = mapAndRewriteWT(xml, name);
+        xml = mapped.xml;
+        changed = true;
         if (mapped.before) { beforeAll.push(mapped.before); afterAll.push(mapped.after); }
         state.extractedPartText.set(name, mapped.before);
         state.redactedPartText.set(name, mapped.after);
       } else if (/^word\/_rels\/.*\.rels$/.test(name)){
-        const before = xml; xml = scrubRelsXml(xml); changed = true;
-        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+        const before = xml;
+        xml = scrubRelsXml(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
       } else if (name === 'docProps/core.xml'){
-        const before = xml; xml = scrubCoreProps(xml); changed = true;
-        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+        const before = xml;
+        xml = scrubCoreProps(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
       } else if (name === 'docProps/app.xml'){
-        const before = xml; xml = scrubAppProps(xml); changed = true;
-        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+        const before = xml;
+        xml = scrubAppProps(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
       } else if (name === 'word/settings.xml'){
-        const before = xml; xml = scrubSettingsXml(xml); changed = true;
-        state.extractedPartText.set(name, before); state.redactedPartText.set(name, xml);
+        const before = xml;
+        xml = scrubSettingsXml(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
       }
       if (changed) files.set(name,{...obj,data:textEncoder.encode(xml)});
     }
@@ -414,28 +625,41 @@
     state.redactedDocxBytes = await zipDocx(files);
   }
 
+  function renderMatchLog(){
+    $('matchLogPane').textContent = state.matchLog.length ? JSON.stringify(state.matchLog, null, 2) : 'No matches recorded.';
+  }
+
+  function renderCandidates(){
+    $('candidatesPane').textContent = state.piiCandidates ? JSON.stringify(state.piiCandidates, null, 2) : 'No candidates discovered.';
+  }
+
   async function runRedaction(){
     try{
+      state.matchLog = [];
       buildPseudonymMaps();
       const plain = $('plainInput').value || '';
+
+      state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain });
+
       let combinedBefore = plain;
-      let combinedAfter = redactText(plain).text;
+      let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog }).text;
       if (state.inputDocxBytes){
         await processDocx(state.inputDocxBytes);
         combinedBefore = [combinedBefore, state.originalText].filter(Boolean).join('\n');
         combinedAfter = [combinedAfter, state.redactedText].filter(Boolean).join('\n');
       }
+
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
       $('beforePane').textContent = state.originalText || '—';
       $('afterPane').textContent = state.redactedText || '—';
-      const extra = [...state.pseudonyms.org.keys(), ...state.pseudonyms.client.keys()];
-      $('leaksPane').textContent = findLeaks(state.redactedText, extra);
-
+      $('leaksPane').textContent = findLeaks(state.redactedText);
+      renderCandidates();
+      renderMatchLog();
       $('dlTxtBtn').disabled = !state.redactedText;
       $('dlDocxBtn').disabled = !state.redactedDocxBytes;
-      setStatus('Redaction complete. Review leaks check and search panel.');
+      setStatus('Redaction complete. Review leaks check, candidates, and match log.');
     } catch (err){
       setStatus(`Error: ${err.message}`);
     }
@@ -445,6 +669,7 @@
     const f = e.target.files[0];
     if (!f) return;
     state.inputDocxBytes = new Uint8Array(await f.arrayBuffer());
+    state.piiCandidates = null;
     setStatus(`Loaded DOCX: ${f.name} (${Math.round(f.size/1024)} KB)`);
   });
 
@@ -452,11 +677,20 @@
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'redacted.txt'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
   });
+
   $('dlDocxBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedDocxBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'redacted.docx'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
   });
 
   $('searchBtn').addEventListener('click', ()=>{
@@ -464,33 +698,30 @@
     if (!term){ $('searchPane').textContent = 'Enter a term.'; return; }
     const re = new RegExp(escapeRegExp(term), 'ig');
     const lines = [];
-    for (const [part,txt] of state.redactedPartText){
-      const c = [...txt.matchAll(re)].length;
-      lines.push(`${part}: ${c}`);
-    }
+    for (const [part,txt] of state.redactedPartText) lines.push(`${part}: ${[...txt.matchAll(re)].length}`);
     $('searchPane').textContent = lines.length ? lines.join('\n') : 'No indexed docx parts. Run redaction first.';
   });
 
   function runHarness(){
     const out = [];
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
-    buildPseudonymMaps();
 
-    let t = 'Email martin@example.com and phone +44 7123 456 789 at SW1A 1AA';
-    t = redactText(t).text;
-    assert('emails removed', !REDACTION_PATTERNS.email.test(t));
-    assert('phone removed', !new RegExp(REDACTION_PATTERNS.mobileUk.source).test(t));
-    assert('postcode removed', !REDACTION_PATTERNS.postcodeUk.test(t));
+    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: 'Martin FRY\nEmail Martin@eMote.Ltd\n+44 77 202 89063\nRG6 1AA' });
+    state.matchLog = [];
 
-    const xml = '<w:document><w:p><w:r><w:t>martin</w:t></w:r><w:r><w:t>@</w:t></w:r><w:r><w:t>example.com</w:t></w:r></w:p></w:document>';
-    const mapped = mapAndRewriteWT(xml);
-    assert('split-run email removed', !REDACTION_PATTERNS.email.test(mapped.after));
-    const openBefore = (xml.match(/<w:t\b/g)||[]).length;
-    const openAfter = (mapped.xml.match(/<w:t\b/g)||[]).length;
-    const closeBefore = (xml.match(/<\/w:t>/g)||[]).length;
-    const closeAfter = (mapped.xml.match(/<\/w:t>/g)||[]).length;
-    assert('w:t opening tags unchanged', openBefore === openAfter);
-    assert('w:t closing tags unchanged', closeBefore === closeAfter);
+    const red = redactText('Martin FRY +44 77 202 89063 Martin@eMote.Ltd RG6 1AA', { part: 'test', matchLog: state.matchLog }).text;
+    assert('Martin FRY replaced with [REDACTED_NAME]', red.includes('[REDACTED_NAME]'));
+    assert('phone replaced with [REDACTED_PHONE]', red.includes('[REDACTED_PHONE]'));
+    assert('phone not replaced with [REDACTED_EMAIL]', !red.includes('[REDACTED_EMAIL] [REDACTED_EMAIL]'));
+    assert('email replaced with [REDACTED_EMAIL]', red.includes('[REDACTED_EMAIL]'));
+    assert('postcode replaced with [REDACTED_POSTCODE]', red.includes('[REDACTED_POSTCODE]'));
+
+    const fryVariants = redactText('FRY Fry fry', { part: 'test', matchLog: [] }).text;
+    assert('case-insensitive FRY/Fry/fry redaction', fryVariants === '[REDACTED_NAME] [REDACTED_NAME] [REDACTED_NAME]');
+
+    const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
+    const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
+    assert('split-token redaction across DOCX runs', mapped.after.includes('[REDACTED_NAME]'));
 
     $('testsPane').textContent = out.join('\n');
   }

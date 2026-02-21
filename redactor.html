@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Offline GDPR CV Redactor</title>
+<title>Offline Identity Anonymisation Engine</title>
 <style>
   body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
   header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
@@ -29,7 +29,7 @@
 </head>
 <body>
 <header>
-  <strong>Offline GDPR CV Redactor (.docx + text)</strong>
+  <strong>Offline Identity Anonymisation Engine (.docx + text)</strong>
   <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
 </header>
 <main>
@@ -39,12 +39,13 @@
       <label>Upload DOCX</label>
       <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
       <label>Paste plain text (optional)</label>
-      <textarea id="plainInput" placeholder="Paste CV text here..."></textarea>
+      <textarea id="plainInput" placeholder="Paste document text here..."></textarea>
 
       <label>Redaction mode</label>
       <select id="modeSel">
-        <option value="min" selected>A) LLM upload safe (minimise)</option>
-        <option value="custom">B) Custom rules</option>
+        <option value="identity" selected>A) Identity removal (deterministic identifiers)</option>
+        <option value="aggressive">B) Aggressive identity inference (CV / HR)</option>
+        <option value="custom">C) Custom rules</option>
       </select>
       <div class="row" style="margin-top:8px">
         <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
@@ -55,7 +56,7 @@
         <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" checked /> Redact surname globally if high confidence</label>
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact surname globally if high confidence</label>
       </div>
       <div class="row">
         <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
@@ -172,6 +173,18 @@
   };
 
   const $ = id => document.getElementById(id);
+
+
+  function isInferenceMode(){
+    return $('modeSel').value === 'aggressive';
+  }
+
+  function updateInferenceControls(){
+    const enabled = isInferenceMode();
+    ['redactFullNameVariants', 'redactSurnameGlobal', 'redactFirstNameGlobal'].forEach(id => {
+      $(id).disabled = !enabled;
+    });
+  }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
@@ -415,7 +428,9 @@
     addPatternMatches(REDACTION_PATTERNS.urlWww, 'URL', 0.95);
     addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
 
-    for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+    if (opts.enableIdentityInference) {
+      for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+    }
     return matches;
   }
 
@@ -466,9 +481,10 @@
       text = text.replace(new RegExp(escapeRegExp(term), 'ig'), tok);
     });
 
-    if (mode === 'min'){
+    if (mode === 'identity' || mode === 'aggressive'){
       text = applyPseudonyms(text);
       const detections = detectEntities(text, state.piiCandidates, {
+        enableIdentityInference: mode === 'aggressive',
         redactFullNameVariants: $('redactFullNameVariants').checked,
         redactSurnameGlobal: $('redactSurnameGlobal').checked,
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
@@ -665,7 +681,9 @@
     }
 
     const plain = $('plainInput').value || '';
-    state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
+    state.piiCandidates = isInferenceMode()
+      ? buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() })
+      : null;
 
     for (const [name,obj] of files){
       let xml = textDecoder.decode(obj.data);
@@ -723,7 +741,9 @@
   }
 
   function renderCandidates(){
-    $('candidatesPane').textContent = state.piiCandidates ? JSON.stringify(state.piiCandidates, null, 2) : 'No candidates discovered.';
+    $('candidatesPane').textContent = state.piiCandidates
+      ? JSON.stringify(state.piiCandidates, null, 2)
+      : (isInferenceMode() ? 'No candidates discovered.' : 'Candidate-based name inference is disabled in this mode.');
   }
 
   async function runRedaction(){
@@ -732,7 +752,9 @@
       buildPseudonymMaps();
       const plain = $('plainInput').value || '';
 
-      state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain });
+      state.piiCandidates = isInferenceMode()
+        ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
+        : null;
 
       let combinedBefore = plain;
       let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
@@ -767,6 +789,7 @@
   });
 
   $('runBtn').addEventListener('click', runRedaction);
+  $('modeSel').addEventListener('change', updateInferenceControls);
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
@@ -798,17 +821,29 @@
   function runHarness(){
     const out = [];
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
+    const previousMode = $('modeSel').value;
 
-    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY\nEmail Martin@eMote.Ltd\n+44 77 202 89063\nRG6 1AA` });
+    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
+Email Martin@eMote.Ltd
++44 77 202 89063
+RG6 1AA` });
     state.matchLog = [];
 
     const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
-    const sampleExpected = '[REDACTED_NAME] MBA [REDACTED_URL] [REDACTED_PHONE] [REDACTED_EMAIL]';
-    const red = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
-    assert('3-phase replacement output matches expected', red === sampleExpected);
+
+    $('modeSel').value = 'aggressive';
+    const aggressiveExpected = '[REDACTED_NAME] MBA [REDACTED_URL] [REDACTED_PHONE] [REDACTED_EMAIL]';
+    const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
+    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
+
+    $('modeSel').value = 'identity';
+    state.piiCandidates = null;
+    const identityExpected = 'Martin FRY MBA [REDACTED_URL] [REDACTED_PHONE] [REDACTED_EMAIL]';
+    const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
+    assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
     const protectedToken = redactText('[REDACTED_NAME] Martin FRY', { part: 'test', matchLog: [] }).text;
-    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME] [REDACTED_NAME]');
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME] Martin FRY');
 
     const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
@@ -818,10 +853,13 @@
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
 
+    $('modeSel').value = previousMode;
+    updateInferenceControls();
     $('testsPane').textContent = out.join('\n');
   }
 
   $('testsBtn').addEventListener('click', runHarness);
+  updateInferenceControls();
 })();
 </script>
 </body>

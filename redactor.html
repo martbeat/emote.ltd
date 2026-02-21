@@ -359,7 +359,7 @@
           <div class="check"><input id="chkEmail" type="checkbox" checked /><div><b>Email</b><small>name@domain</small></div></div>
           <div class="check"><input id="chkPhone" type="checkbox" checked /><div><b>Phone</b><small>UK + international styles</small></div></div>
           <div class="check"><input id="chkUrl" type="checkbox" checked /><div><b>Web URL</b><small>https://..., www....</small></div></div>
-          <div class="check"><input id="chkName" type="checkbox" checked /><div><b>Person name (heuristic)</b><small>Mr/Ms/Dr + full name</small></div></div>
+          <div class="check"><input id="chkName" type="checkbox" checked /><div><b>Person name (heuristic)</b><small>UK-diverse first+last patterns</small></div></div>
           <div class="check"><input id="chkPostcode" type="checkbox" checked /><div><b>Postcode</b><small>UK postcodes</small></div></div>
           <div class="check"><input id="chkNino" type="checkbox" checked /><div><b>NI number</b><small>AB123456C</small></div></div>
           <div class="check"><input id="chkUtr" type="checkbox" checked /><div><b>UTR</b><small>10 digits</small></div></div>
@@ -827,13 +827,43 @@
         type: "name",
         label: "Person name (heuristic)",
         className: "id",
-        regex: /\b(?:Mr|Mrs|Ms|Miss|Dr|Prof)\.? +[A-Z][a-z]{1,30}(?:[-' ][A-Z][a-z]{1,30}){0,3}\b/g
+        // Honorific + full name (supports apostrophes/hyphens and accented latin letters)
+        regex: /\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Sir|Dame)\.?[ \t]+(?:[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})?[ \t]+){0,3}[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})\b/gu
       });
       detectors.push({
         type: "name",
         label: "Person name (heuristic)",
         className: "id",
-        regex: /\b(?:Name|Contact|Client|Customer|Employee|Director)\s*[:\-]\s*[A-Z][a-z]{1,30}(?:[-' ][A-Z][a-z]{1,30}){1,3}\b/g
+        // Labeled name fields (captures many admin form styles)
+        regex: /\b(?:Name|Full[ \t]*Name|Contact|Client|Customer|Employee|Director|Applicant|Patient|Parent|Guardian)[ \t]*[:\-][ \t]*[A-Za-zÀ-ÿ'’.-]+(?:[ \t]+[A-Za-zÀ-ÿ'’.-]+){1,4}\b/gu
+      });
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        // Standalone 2+ part names with common particles used across UK communities
+        regex: /\b[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})?(?:[ \t]+(?:al|el|bin|binti|ibn|da|de|del|della|di|du|la|le|van|von|der|den|ten|ter|mac|mc|st)\.?)?(?:[ \t]+[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}(?:['’-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]{1,30})?){1,3}\b/gu
+      });
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        // Initial + surname forms, e.g., "A. Rahman" or "J K Rowling"
+        regex: /\b(?:[A-Z]\.?[ \t]?){1,2}[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{2,30}(?:[ \t]+[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{2,30})?\b/gu
+      });
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        // Surnames with apostrophe prefixes, e.g., Saoirse O'Neill
+        regex: /\b[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}[ 	]+[A-ZÀ-ÖØ-Þ](?:['’-][A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30})\b/gu
+      });
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        // Particle-hyphen surnames, e.g., Amir al-Hassan
+        regex: /\b[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}[ 	]+(?:al|el|bin|binti|ibn)-[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{1,30}\b/giu
       });
     }
 

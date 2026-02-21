@@ -51,6 +51,7 @@
         <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
         <span class="pill">mask: <span id="maskPreview">████████</span></span>
       </div>
+      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), Org anonymisation: Off, Client anonymisation: Off</div>
       <label>Name redaction controls</label>
       <div class="row">
         <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
@@ -78,6 +79,7 @@
         <button id="testsBtn">Run tests</button>
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
+        <button id="dlReportBtn" disabled>Download report.json</button>
       </div>
       <div id="status" class="muted" style="margin-top:8px"></div>
       <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
@@ -99,6 +101,8 @@
       </div>
       <label>Leaks check report</label>
       <div id="leaksPane" class="pane">No run yet.</div>
+      <label>Run summary</label>
+      <div id="summaryPane" class="pane">No run yet.</div>
       <label>PII candidates</label>
       <div id="candidatesPane" class="pane">No run yet.</div>
       <label>Match log</label>
@@ -151,13 +155,18 @@
     NAME_TOKEN: 1
   };
 
-  const ENTITY_TOKEN = {
-    FULL_NAME: '[REDACTED_NAME]',
-    NAME_TOKEN: '[REDACTED_NAME]',
-    EMAIL: '[REDACTED_EMAIL]',
-    PHONE: '[REDACTED_PHONE]',
-    URL: '[REDACTED_URL]',
-    POSTCODE: '[REDACTED_POSTCODE]'
+  const TOKEN_LABELS = {
+    FULL_NAME: 'NAME',
+    NAME_TOKEN: 'NAME_TOKEN',
+    EMAIL: 'EMAIL',
+    PHONE: 'PHONE',
+    URL: 'URL',
+    POSTCODE: 'POSTCODE',
+    USERNAME: 'USERNAME',
+    DATE: 'DATE',
+    METRIC: 'METRIC',
+    ORG: 'ORG',
+    CLIENT: 'CLIENT'
   };
 
   const state = {
@@ -169,7 +178,11 @@
     redactedPartText: new Map(),
     pseudonyms: { org: new Map(), client: new Map() },
     piiCandidates: null,
-    matchLog: []
+    matchLog: [],
+    manifest: [],
+    counters: {},
+    report: null,
+    processedParts: new Set()
   };
 
   const $ = id => document.getElementById(id);
@@ -184,6 +197,15 @@
     ['redactFullNameVariants', 'redactSurnameGlobal', 'redactFirstNameGlobal'].forEach(id => {
       $(id).disabled = !enabled;
     });
+  }
+  function updatePolicyLine(){
+    const mode = $('modeSel').value;
+    const modeLabel = mode === 'aggressive'
+      ? 'Aggressive identity inference'
+      : (mode === 'custom' ? 'Custom rules' : 'Identity removal (no inference)');
+    const orgOn = $('orgDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
+    const clientOn = $('clientDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
+    $('policyLine').textContent = `Policy: ${modeLabel}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
   }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
@@ -316,9 +338,16 @@
     $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
   }
 
-  function applyPseudonyms(text){
-    for (const [k,v] of state.pseudonyms.org) text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v);
-    for (const [k,v] of state.pseudonyms.client) text = text.replace(new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig'), v);
+  function applyPseudonyms(text, context){
+    const part = context.part || 'plainText';
+    for (const [k] of state.pseudonyms.org){
+      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length));
+    }
+    for (const [k] of state.pseudonyms.client){
+      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length));
+    }
     return text;
   }
 
@@ -333,6 +362,25 @@
     return rules;
   }
 
+  function resetAuditState(){
+    state.manifest = [];
+    state.report = null;
+    state.processedParts = new Set();
+    state.counters = Object.fromEntries(Object.values(TOKEN_LABELS).map(v => [v, 0]));
+  }
+
+  function allocToken(type, rule, part, start, end, confidence){
+    const label = TOKEN_LABELS[type];
+    if (!label) return '';
+    state.counters[label] = (state.counters[label] || 0) + 1;
+    const index = String(state.counters[label]).padStart(3, '0');
+    const token = `[REDACTED_${label}_${index}]`;
+    const item = { id: `${label}_${index}`, type: label, rule, part, start, end, token };
+    if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
+    state.manifest.push(item);
+    return token;
+  }
+
   function buildNameDetections(candidates, text, opts){
     const matches = [];
     if (!candidates) return matches;
@@ -340,7 +388,7 @@
     const addRegexMatches = (re, type, confidence) => {
       const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
       for (const m of text.matchAll(rgx)){
-        matches.push({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0] });
+        matches.push({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: 'inference.name' });
       }
     };
 
@@ -400,7 +448,7 @@
   }
 
   function findProtectedRanges(text){
-    return [...text.matchAll(/\[REDACTED_[A-Z_]+\]/g)].map(m => ({ start: m.index, end: m.index + m[0].length }));
+    return [...text.matchAll(/\[REDACTED_[A-Z0-9_]+\]/g)].map(m => ({ start: m.index, end: m.index + m[0].length }));
   }
 
   function overlaps(a, b){
@@ -418,7 +466,7 @@
 
     const addPatternMatches = (re, type, confidence) => {
       const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
-      for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0] });
+      for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: `regex.${type.toLowerCase()}` });
     };
 
     addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
@@ -456,11 +504,12 @@
     return selected.sort((a,b)=>a.start-b.start);
   }
 
-  function applyEntityReplacements(text, matches){
+  function applyEntityReplacements(text, matches, context = {}){
+    const part = context.part || 'plainText';
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const token = ENTITY_TOKEN[m.type];
+      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence);
       if (!token) continue;
       out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
     }
@@ -482,7 +531,7 @@
     });
 
     if (mode === 'identity' || mode === 'aggressive'){
-      text = applyPseudonyms(text);
+      text = applyPseudonyms(text, { part });
       const detections = detectEntities(text, state.piiCandidates, {
         enableIdentityInference: mode === 'aggressive',
         redactFullNameVariants: $('redactFullNameVariants').checked,
@@ -490,7 +539,7 @@
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
       const resolved = resolveOverlaps(text, detections);
-      text = applyEntityReplacements(text, resolved);
+      text = applyEntityReplacements(text, resolved, { part });
 
       if (context.debugDetections){
         matchLog.push(...resolved.map(m => ({
@@ -503,12 +552,12 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, '[REDACTED_USERNAME]');
-      text = text.replace(REDACTION_PATTERNS.date, '[DATE]');
-      text = text.replace(REDACTION_PATTERNS.metric, '[METRIC]');
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
-      if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z_]+\]/g, '████████');
+      if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
     }
 
     for (const [tok,term] of protectedTokens) text = text.replace(new RegExp(escapeRegExp(tok), 'g'), term);
@@ -689,6 +738,7 @@
       let xml = textDecoder.decode(obj.data);
       let changed = false;
       if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
+        state.processedParts.add(name);
         xml = scrubCommentsLike(xml);
         const mapped = mapAndRewriteWT(xml, name);
         xml = mapped.xml;
@@ -697,24 +747,28 @@
         state.extractedPartText.set(name, mapped.before);
         state.redactedPartText.set(name, mapped.after);
       } else if (/^word\/_rels\/.*\.rels$/.test(name)){
+        state.processedParts.add(name);
         const before = xml;
         xml = scrubRelsXml(xml);
         changed = true;
         state.extractedPartText.set(name, before);
         state.redactedPartText.set(name, xml);
       } else if (name === 'docProps/core.xml'){
+        state.processedParts.add(name);
         const before = xml;
         xml = scrubCoreProps(xml);
         changed = true;
         state.extractedPartText.set(name, before);
         state.redactedPartText.set(name, xml);
       } else if (name === 'docProps/app.xml'){
+        state.processedParts.add(name);
         const before = xml;
         xml = scrubAppProps(xml);
         changed = true;
         state.extractedPartText.set(name, before);
         state.redactedPartText.set(name, xml);
       } else if (name === 'word/settings.xml'){
+        state.processedParts.add(name);
         const before = xml;
         xml = scrubSettingsXml(xml);
         changed = true;
@@ -746,10 +800,56 @@
       : (isInferenceMode() ? 'No candidates discovered.' : 'Candidate-based name inference is disabled in this mode.');
   }
 
+  function buildReport(){
+    const countsByType = {};
+    state.manifest.forEach(item => {
+      countsByType[item.type] = (countsByType[item.type] || 0) + 1;
+    });
+    const leakText = findLeaks(state.redactedText || '');
+    const leakPass = !/(email|phone|postcode):\s*[1-9]/.test(leakText);
+    const manifest = [...state.manifest].sort((a,b)=>{
+      const partCmp = String(a.part).localeCompare(String(b.part));
+      if (partCmp) return partCmp;
+      if (a.start !== b.start) return a.start - b.start;
+      if (a.end !== b.end) return a.end - b.end;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    return {
+      generatedAt: new Date().toISOString(),
+      policy: {
+        mode: $('modeSel').value,
+        inferenceEnabled: isInferenceMode(),
+        orgAnonymisationEnabled: state.pseudonyms.org.size > 0,
+        clientAnonymisationEnabled: state.pseudonyms.client.size > 0
+      },
+      countsByType,
+      partsTouched: [...state.processedParts].sort(),
+      leaksCheck: { pass: leakPass, details: leakText },
+      manifest
+    };
+  }
+
+  function renderSummary(report){
+    const lines = [];
+    lines.push(`Total replacements: ${report.manifest.length}`);
+    lines.push(`By type: ${Object.keys(report.countsByType).length ? JSON.stringify(report.countsByType) : 'none'}`);
+    lines.push(`Parts touched: ${report.partsTouched.length ? report.partsTouched.join(', ') : 'plainText only'}`);
+    lines.push(`Leaks check: ${report.leaksCheck.pass ? 'PASS' : 'FAIL'}`);
+    lines.push(`Inference enabled: ${report.policy.inferenceEnabled ? 'YES' : 'NO'}`);
+    const scrubParts = ['docProps/core.xml','docProps/app.xml','word/settings.xml'];
+    const relsTouched = report.partsTouched.some(p => /^word\/_rels\/.*\.rels$/.test(p));
+    const scrubbed = scrubParts.every(p => report.partsTouched.includes(p)) && relsTouched;
+    lines.push(`Parts scrubbed (core/app/settings + rels): ${scrubbed ? 'YES' : 'NO'}`);
+    lines.push('Review checklist: headers, tables, embedded images manually.');
+    $('summaryPane').textContent = lines.join('\n');
+  }
+
   async function runRedaction(){
     try{
       state.matchLog = [];
+      resetAuditState();
       buildPseudonymMaps();
+      updatePolicyLine();
       const plain = $('plainInput').value || '';
 
       state.piiCandidates = isInferenceMode()
@@ -770,10 +870,13 @@
       $('beforePane').textContent = state.originalText || '—';
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
+      state.report = buildReport();
+      renderSummary(state.report);
       renderCandidates();
       renderMatchLog();
       $('dlTxtBtn').disabled = !state.redactedText;
       $('dlDocxBtn').disabled = !state.redactedDocxBytes;
+      $('dlReportBtn').disabled = !(state.report && state.report.manifest.length);
       setStatus('Redaction complete. Review leaks check, candidates, and match log.');
     } catch (err){
       setStatus(`Error: ${err.message}`);
@@ -789,7 +892,9 @@
   });
 
   $('runBtn').addEventListener('click', runRedaction);
-  $('modeSel').addEventListener('change', updateInferenceControls);
+  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); });
+  $('orgDict').addEventListener('input', updatePolicyLine);
+  $('clientDict').addEventListener('input', updatePolicyLine);
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
@@ -805,6 +910,16 @@
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'redacted.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlReportBtn').addEventListener('click', ()=>{
+    if (!state.report) return;
+    const blob = new Blob([JSON.stringify(state.report, null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'report.json';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -832,18 +947,21 @@ RG6 1AA` });
     const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
 
     $('modeSel').value = 'aggressive';
-    const aggressiveExpected = '[REDACTED_NAME] MBA [REDACTED_URL] [REDACTED_PHONE] [REDACTED_EMAIL]';
+    resetAuditState();
+    const aggressiveExpected = '[REDACTED_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
     assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
 
     $('modeSel').value = 'identity';
     state.piiCandidates = null;
-    const identityExpected = 'Martin FRY MBA [REDACTED_URL] [REDACTED_PHONE] [REDACTED_EMAIL]';
+    resetAuditState();
+    const identityExpected = 'Martin FRY MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
-    const protectedToken = redactText('[REDACTED_NAME] Martin FRY', { part: 'test', matchLog: [] }).text;
-    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME] Martin FRY');
+    resetAuditState();
+    const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');
 
     const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
@@ -860,6 +978,7 @@ RG6 1AA` });
 
   $('testsBtn').addEventListener('click', runHarness);
   updateInferenceControls();
+  updatePolicyLine();
 })();
 </script>
 </body>

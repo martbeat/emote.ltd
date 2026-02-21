@@ -406,593 +406,275 @@
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</body>
 
 <script>
-  // pdf.js worker config
-  if (window['pdfjsLib']) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
-  }
 
-  const els = {
-    file: document.getElementById('file'),
-    fileName: document.getElementById('fileName'),
-    fileType: document.getElementById('fileType'),
-    pageCount: document.getElementById('pageCount'),
-    status: document.getElementById('status'),
-    textOut: document.getElementById('textOut'),
-    matchCount: document.getElementById('matchCount'),
-    findingsList: document.getElementById('findingsList'),
-    btnExtract: document.getElementById('btnExtract'),
-    btnDetect: document.getElementById('btnDetect'),
-    btnReset: document.getElementById('btnReset'),
-    btnSelectAll: document.getElementById('btnSelectAll'),
-    btnSelectNone: document.getElementById('btnSelectNone'),
-    btnPreviewRedaction: document.getElementById('btnPreviewRedaction'),
-    btnExportDocx: document.getElementById('btnExportDocx'),
-    btnExportPdf: document.getElementById('btnExportPdf'),
-    pdfCanvas: document.getElementById('pdfCanvas'),
-    pdfPreviewNote: document.getElementById('pdfPreviewNote'),
+/* =============================
+   STATE
+============================= */
 
-    chkEmail: document.getElementById('chkEmail'),
-    chkPhone: document.getElementById('chkPhone'),
-    chkPostcode: document.getElementById('chkPostcode'),
-    chkNino: document.getElementById('chkNino'),
-    chkUtr: document.getElementById('chkUtr'),
-    chkVat: document.getElementById('chkVat'),
-    chkAddress: document.getElementById('chkAddress'),
-    chkRef: document.getElementById('chkRef'),
-    refRegex: document.getElementById('refRegex'),
-  };
+let state = {
+  extractedText:"",
+  findings:[]
+};
 
-  let state = {
-    file: null,
-    kind: null,            // "pdf" | "docx"
-    extractedText: "",
-    findings: [],          // { id, type, value, start, end, selected, context }
-    pdfDoc: null,
-    pdfPagesText: [],      // per-page string (for PDF export heuristics and preview only)
-  };
+/* =============================
+   HELPERS
+============================= */
 
-  function setStatus(msg, tone="warn") {
-    els.status.classList.remove('hidden','ok');
-    els.status.textContent = msg;
-    if (tone === "ok") els.status.classList.add('ok');
-  }
-  function clearStatus(){
-    els.status.classList.add('hidden');
-    els.status.textContent = "";
-    els.status.classList.remove('ok');
-  }
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,m=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",
+    "\"":"&quot;","'":"&#39;"
+  }[m]));
+}
 
-  function escapeHtml(s){
-    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
+function downloadBlob(blob,name){
+  const a=document.createElement("a");
+  const url=URL.createObjectURL(blob);
+  a.href=url;
+  a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
 
-  function byteSize(bytes){
-    const units = ['B','KB','MB','GB'];
-    let v = bytes, i=0;
-    while(v>=1024 && i<units.length-1){ v/=1024; i++; }
-    return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`;
-  }
+/* =============================
+   DETECTION MODEL (UK ONLY)
+============================= */
 
-  els.file.addEventListener('change', async () => {
-    clearStatus();
-    resetOutputs(false);
-    const f = els.file.files?.[0];
-    if (!f) return;
+function detectors(){
 
-    state.file = f;
-    const name = f.name || "Unnamed";
-    const isPdf = name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf';
-    const isDocx = name.toLowerCase().endsWith('.docx') || f.type.includes('officedocument.wordprocessingml.document');
+  return [
 
-    if (!isPdf && !isDocx){
-      setStatus("Unsupported file. Please upload a PDF or DOCX.", "warn");
-      state.file = null;
-      return;
+    {
+      type:"email",
+      reason:"EMAIL ADDRESS",
+      confidence:"HIGH",
+      replacement:"[REDACTED:EMAIL | EMAIL ADDRESS]",
+      regex:/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/ig
+    },
+
+    {
+      type:"phone",
+      reason:"UK MOBILE",
+      confidence:"HIGH",
+      replacement:"[REDACTED:PHONE | UK MOBILE]",
+      regex:/\b(?:\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}\b/ig
+    },
+
+    {
+      type:"postcode",
+      reason:"UK POSTCODE",
+      confidence:"MEDIUM",
+      replacement:"[REDACTED:ADDRESS | UK POSTCODE]",
+      regex:/\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/ig
+    },
+
+    {
+      type:"nino",
+      reason:"NATIONAL INSURANCE NUMBER",
+      confidence:"HIGH",
+      replacement:"[REDACTED:ID | NI NUMBER]",
+      regex:/\b[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b/ig
+    },
+
+    {
+      type:"utr",
+      reason:"HMRC UTR",
+      confidence:"MEDIUM",
+      replacement:"[REDACTED:TAX | UTR]",
+      regex:/\b\d{10}\b/g
+    },
+
+    {
+      type:"ref",
+      reason:"CONTRACT CODE",
+      confidence:"MEDIUM",
+      replacement:"[REDACTED:REF | CONTRACT CODE]",
+      regex:/\b\d{4}\s\d{4}\b/g
     }
 
-    state.kind = isPdf ? "pdf" : "docx";
-    els.fileName.textContent = name;
-    els.fileType.textContent = `${state.kind.toUpperCase()} · ${byteSize(f.size)}`;
-    els.pageCount.textContent = "—";
+  ];
+}
 
-    if (state.kind === "pdf"){
-      await loadPdfForPreview();
-    } else {
-      hidePdfPreview();
-    }
+/* =============================
+   DETECT
+============================= */
 
-    setStatus("File loaded. Click “Extract text”.", "ok");
-  });
+function detect(text){
 
-  function hidePdfPreview(){
-    els.pdfCanvas.classList.add('hidden');
-    els.pdfPreviewNote.textContent = "No PDF loaded.";
-    els.pdfPreviewNote.classList.remove('hidden');
-  }
+  const out=[];
+  const seen=new Set();
 
-  async function loadPdfForPreview(){
-    try{
-      const buf = await state.file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({data: buf});
-      state.pdfDoc = await loadingTask.promise;
-      els.pageCount.textContent = String(state.pdfDoc.numPages);
+  for(const d of detectors()){
 
-      // Render first page preview
-      const page = await state.pdfDoc.getPage(1);
-      const viewport = page.getViewport({scale: 1.2});
-      const canvas = els.pdfCanvas;
-      const ctx = canvas.getContext('2d');
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      await page.render({canvasContext: ctx, viewport}).promise;
-
-      els.pdfCanvas.classList.remove('hidden');
-      els.pdfPreviewNote.classList.add('hidden');
-    } catch(e){
-      console.error(e);
-      setStatus("Could not load PDF preview. The file may be protected or invalid.", "warn");
-      hidePdfPreview();
-    }
-  }
-
-  els.btnExtract.addEventListener('click', async () => {
-    clearStatus();
-    if (!state.file) return setStatus("Please upload a file first.", "warn");
-
-    try{
-      if (state.kind === "pdf"){
-        await extractTextFromPdf();
-      } else {
-        await extractTextFromDocx();
-      }
-      setStatus("Text extracted. Click “Detect sensitive items”.", "ok");
-    } catch(e){
-      console.error(e);
-      setStatus("Text extraction failed. See console for details.", "warn");
-    }
-  });
-
-  async function extractTextFromPdf(){
-    if (!state.pdfDoc) await loadPdfForPreview();
-    if (!state.pdfDoc) throw new Error("PDF not loaded");
-
-    const numPages = state.pdfDoc.numPages;
-    const pages = [];
-    state.pdfPagesText = [];
-
-    for (let i=1; i<=numPages; i++){
-      const page = await state.pdfDoc.getPage(i);
-      const content = await page.getTextContent();
-      const strings = content.items.map(it => it.str).filter(Boolean);
-      const pageText = strings.join(' ');
-      state.pdfPagesText.push(pageText);
-      pages.push(`\n\n--- Page ${i} ---\n` + pageText);
-    }
-    state.extractedText = pages.join('\n');
-    renderHighlightedText();
-    els.btnExportPdf.classList.remove('hidden');
-    els.btnExportDocx.classList.add('hidden');
-  }
-
-  async function extractTextFromDocx(){
-    const buf = await state.file.arrayBuffer();
-    const zip = await JSZip.loadAsync(buf);
-    const docXml = await zip.file("word/document.xml").async("string");
-
-    // Very simple text extraction from document.xml
-    // - This will not perfectly preserve paragraphs/tables, but works for detection/review.
-    const texts = [];
-    const re = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    d.regex.lastIndex=0;
     let m;
-    while((m = re.exec(docXml)) !== null){
-      // XML entities in Word XML can include &amp; etc.
-      const raw = m[1]
-        .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-        .replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-      texts.push(raw);
+
+    while((m=d.regex.exec(text))!==null){
+
+      const value=m[0];
+      const start=m.index;
+      const end=start+value.length;
+
+      const key=`${d.type}:${start}:${end}`;
+      if(seen.has(key)) continue;
+      seen.add(key);
+
+      out.push({
+        id:crypto.randomUUID(),
+        type:d.type,
+        reason:d.reason,
+        confidence:d.confidence,
+        replacement:d.replacement,
+        value,
+        start,
+        end,
+        selected:true
+      });
     }
-    state.extractedText = texts.join(' ');
-    renderHighlightedText();
-    els.btnExportDocx.classList.remove('hidden');
-    els.btnExportPdf.classList.add('hidden');
-    els.pageCount.textContent = "—";
   }
 
-  function buildDetectors(){
-    // Note: These are intentionally conservative. You will likely tune for your corpus.
-    const detectors = [];
+  out.sort((a,b)=>a.start-b.start);
+  return out;
+}
 
-    if (els.chkEmail.checked){
-      detectors.push({
-        type: "email",
-        label: "Email",
-        className: "email",
-        regex: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/ig
-      });
-    }
+/* =============================
+   REDACTION
+============================= */
 
-    if (els.chkPhone.checked){
-      // UK-ish phone patterns (mobile/landline) with spaces, +44, 0
-      detectors.push({
-        type: "phone",
-        label: "Phone",
-        className: "phone",
-        regex: /\b(?:\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}\b|\b(?:\+44\s?\(?0?\)?\s?\d{2,4}\s?\d{3,4}\s?\d{3,4})\b/ig
-      });
-    }
+function redactText(text,findings){
 
-    if (els.chkPostcode.checked){
-      detectors.push({
-        type: "postcode",
-        label: "Postcode",
-        className: "addr",
-        // UK postcode standard forms
-        regex: /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/ig
-      });
-    }
+  const sorted=[...findings]
+    .filter(f=>f.selected)
+    .sort((a,b)=>b.start-a.start);
 
-    if (els.chkNino.checked){
-      detectors.push({
-        type: "nino",
-        label: "NI number",
-        className: "id",
-        // Excludes common invalid prefix letters not fully enforced here.
-        regex: /\b(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b/ig
-      });
-    }
+  let out=text;
 
-    if (els.chkUtr.checked){
-      detectors.push({
-        type: "utr",
-        label: "UTR (10 digits)",
-        className: "id",
-        regex: /\b\d{10}\b/g
-      });
-    }
-
-    if (els.chkVat.checked){
-      detectors.push({
-        type: "vat",
-        label: "VAT",
-        className: "id",
-        regex: /\bGB\s?\d{9}\b/ig
-      });
-    }
-
-    if (els.chkAddress.checked){
-      // Heuristic: picks up phrases like "Street", "Road", "Avenue", "Close", etc. plus a number near it.
-      detectors.push({
-        type: "address",
-        label: "Address (heuristic)",
-        className: "addr",
-        regex: /\b\d{1,4}\s+[A-Z][A-Za-z.'-]+\s+(?:Street|St|Road|Rd|Avenue|Ave|Close|Cl|Lane|Ln|Drive|Dr|Crescent|Cres|Place|Pl|Way|Court|Ct)\b/ig
-      });
-    }
-
-    if (els.chkRef.checked){
-      const r = els.refRegex.value.trim();
-      if (r){
-        try{
-          detectors.push({
-            type: "ref",
-            label: "Reference",
-            className: "id",
-            regex: new RegExp(r, "g")
-          });
-        } catch(e){
-          setStatus("Custom reference regex is invalid. Fix it or untick “Reference codes”.", "warn");
-        }
-      }
-    }
-
-    return detectors;
+  for(const f of sorted){
+    out =
+      out.slice(0,f.start) +
+      f.replacement +
+      out.slice(f.end);
   }
 
-  els.btnDetect.addEventListener('click', () => {
-    clearStatus();
-    if (!state.extractedText) return setStatus("Extract text first.", "warn");
+  return out;
+}
 
-    state.findings = detectAll(state.extractedText, buildDetectors());
-    renderFindings();
-    renderHighlightedText();
+/* =============================
+   RENDER REVIEW LIST
+============================= */
 
-    els.matchCount.textContent = String(state.findings.length);
-    setStatus(`Detected ${state.findings.length} items. Review and untick anything you do not want to redact.`, "ok");
-  });
+function renderFindings(){
 
-  function detectAll(text, detectors){
-    const findings = [];
-    const seen = new Set();
+  const list=document.getElementById("findingsList");
+  list.innerHTML="";
 
-    // Gather matches from each detector
-    for (const det of detectors){
-      if (!det.regex) continue;
-      det.regex.lastIndex = 0;
-      let m;
-      while((m = det.regex.exec(text)) !== null){
-        const value = m[0];
-        const start = m.index;
-        const end = start + value.length;
-
-        // Deduplicate by span+value+type
-        const key = `${det.type}:${start}:${end}:${value}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        const ctxStart = Math.max(0, start - 40);
-        const ctxEnd = Math.min(text.length, end + 40);
-        const context = text.slice(ctxStart, ctxEnd);
-
-        findings.push({
-          id: crypto.randomUUID(),
-          type: det.type,
-          label: det.label,
-          className: det.className,
-          value,
-          start,
-          end,
-          selected: true,
-          context
-        });
-      }
-    }
-
-    // Sort by start position
-    findings.sort((a,b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
-    return findings;
+  if(!state.findings.length){
+    list.innerHTML="<div>No findings</div>";
+    return;
   }
 
-  function renderHighlightedText(){
-    if (!state.extractedText){
-      els.textOut.textContent = "No content extracted yet.";
-      els.textOut.classList.add('muted');
-      return;
-    }
+  for(const f of state.findings){
 
-    // Build a list of selected findings only for highlight
-    const active = state.findings.filter(f => f.selected);
-    if (active.length === 0){
-      els.textOut.innerHTML = escapeHtml(state.extractedText);
-      els.textOut.classList.remove('muted');
-      return;
-    }
+    const div=document.createElement("div");
+    div.className="item";
 
-    // Create non-overlapping spans by priority: longer matches win
-    const spans = [];
-    const taken = new Array(state.extractedText.length).fill(false);
-
-    for (const f of [...active].sort((a,b) => (b.end-b.start)-(a.end-a.start))){
-      let overlap = false;
-      for (let i=f.start; i<f.end; i++){
-        if (taken[i]) { overlap = true; break; }
-      }
-      if (overlap) continue;
-      for (let i=f.start; i<f.end; i++) taken[i] = true;
-      spans.push(f);
-    }
-    spans.sort((a,b) => a.start - b.start);
-
-    let out = "";
-    let idx = 0;
-    for (const s of spans){
-      out += escapeHtml(state.extractedText.slice(idx, s.start));
-      out += `<mark class="${s.className}">${escapeHtml(state.extractedText.slice(s.start, s.end))}</mark>`;
-      idx = s.end;
-    }
-    out += escapeHtml(state.extractedText.slice(idx));
-    els.textOut.innerHTML = out;
-    els.textOut.classList.remove('muted');
-  }
-
-  function renderFindings(){
-    const list = els.findingsList;
-    list.innerHTML = "";
-
-    if (!state.findings.length){
-      list.innerHTML = `<div class="muted">No findings yet.</div>`;
-      els.matchCount.textContent = "0";
-      return;
-    }
-
-    for (const f of state.findings){
-      const div = document.createElement('div');
-      div.className = "item";
-      div.innerHTML = `
-        <input type="checkbox" ${f.selected ? "checked" : ""} data-id="${f.id}" />
-        <div class="meta">
-          <div>
-            <span class="badge">${escapeHtml(f.label)}</span>
-            <span class="badge">${escapeHtml(f.type)}</span>
-          </div>
-          <div class="snippet"><b>${escapeHtml(f.value)}</b><br/><span style="opacity:.85">${escapeHtml(f.context)}</span></div>
+    div.innerHTML=`
+      <input type="checkbox" checked data-id="${f.id}">
+      <div>
+        <b>${escapeHtml(f.type.toUpperCase())}</b>
+        <div style="font-size:12px;color:#aaa;">
+          ${escapeHtml(f.reason)}
         </div>
-      `;
-      list.appendChild(div);
-    }
+        <div style="font-size:11px;color:#7aa2ff;">
+          Confidence: ${f.confidence}
+        </div>
+        <div style="margin-top:6px;font-family:monospace;">
+          ${escapeHtml(f.value)}
+        </div>
+      </div>
+    `;
 
-    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener('change', (e) => {
-        const id = e.target.getAttribute('data-id');
-        const found = state.findings.find(x => x.id === id);
-        if (found){
-          found.selected = e.target.checked;
-          renderHighlightedText();
-        }
-      });
-    });
-
-    els.matchCount.textContent = String(state.findings.length);
+    list.appendChild(div);
   }
 
-  els.btnSelectAll.addEventListener('click', () => {
-    state.findings.forEach(f => f.selected = true);
-    renderFindings();
-    renderHighlightedText();
+  list.querySelectorAll("input").forEach(cb=>{
+    cb.onchange=e=>{
+      const id=e.target.dataset.id;
+      const found=state.findings.find(x=>x.id===id);
+      if(found) found.selected=e.target.checked;
+    };
   });
-  els.btnSelectNone.addEventListener('click', () => {
-    state.findings.forEach(f => f.selected = false);
-    renderFindings();
-    renderHighlightedText();
-  });
+}
 
-  els.btnPreviewRedaction.addEventListener('click', () => {
-    if (!state.extractedText) return setStatus("Extract text first.", "warn");
-    if (!state.findings.length) return setStatus("Detect items first.", "warn");
+/* =============================
+   CSV EXPORT (AUDIT)
+============================= */
 
-    const redacted = applyRedactionToText(state.extractedText, state.findings.filter(f=>f.selected));
-    els.textOut.innerHTML = escapeHtml(redacted);
-    els.textOut.classList.remove('muted');
-    setStatus("Preview shows redacted text. Re-run “Detect” to re-highlight.", "ok");
-  });
+function exportCSV(){
 
-  function applyRedactionToText(text, findings){
-    if (!findings.length) return text;
-
-    // Replace from end to start so indices remain valid
-    const sorted = [...findings].sort((a,b) => b.start - a.start);
-    let out = text;
-    for (const f of sorted){
-      out = out.slice(0, f.start) + "████████" + out.slice(f.end);
-    }
-    return out;
+  if(!state.findings.length){
+    alert("No findings.");
+    return;
   }
 
-  // DOCX export: naive XML substitution within document.xml.
-  // Works best for items that appear as contiguous text in one <w:t> run.
-  els.btnExportDocx.addEventListener('click', async () => {
-    clearStatus();
-    if (state.kind !== "docx") return;
-    if (!state.findings.length) return setStatus("Detect items first.", "warn");
+  const rows=[
+    ["type","reason","confidence","value","selected","start","end"]
+  ];
 
-    try{
-      const buf = await state.file.arrayBuffer();
-      const zip = await JSZip.loadAsync(buf);
-      let docXml = await zip.file("word/document.xml").async("string");
-
-      const selected = state.findings.filter(f=>f.selected).map(f=>f.value);
-      if (selected.length === 0) return setStatus("Nothing selected to redact.", "warn");
-
-      // Replace values in XML with block text.
-      // This does not guarantee perfect redaction if Word split the text across runs.
-      // For more robust DOCX editing, a dedicated DOCX manipulation library or server-side processing is needed.
-      for (const val of selected.sort((a,b)=>b.length-a.length)){
-        const safeVal = escapeRegExp(val);
-        docXml = docXml.replace(new RegExp(safeVal, "g"), "████████");
-      }
-
-      zip.file("word/document.xml", docXml);
-
-      const outBlob = await zip.generateAsync({type:"blob"});
-      downloadBlob(outBlob, withSuffix(state.file.name, "-redacted"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      setStatus("Redacted DOCX exported. Spot-check it, especially for items that may be split across runs.", "ok");
-    } catch(e){
-      console.error(e);
-      setStatus("DOCX export failed. See console for details.", "warn");
-    }
-  });
-
-  // Safe PDF export: rasterise each page using pdf.js, draw redaction boxes heuristically, then write images into a new PDF.
-  // Limitation: mapping text coordinates precisely requires a full text-to-geometry pipeline. Here we provide a conservative option:
-  // - Rasterise pages
-  // - For the first version, we redact by drawing boxes over occurrences in the extracted page text using approximate placement is not feasible reliably.
-  // So we export a rasterised PDF WITHOUT redaction boxes unless you implement coordinate mapping.
-  // Practical approach: either accept "text removed by rasterisation" (safest), or implement a text-position lookup per item.
-  els.btnExportPdf.addEventListener('click', async () => {
-    clearStatus();
-    if (state.kind !== "pdf") return;
-
-    try{
-      if (!state.pdfDoc) await loadPdfForPreview();
-      if (!state.pdfDoc) throw new Error("PDF not loaded");
-
-      const numPages = state.pdfDoc.numPages;
-      const { jsPDF } = window.jspdf;
-      const pdfOut = new jsPDF({unit:"pt", format:"a4"});
-
-      // Render each page to an image and place into the output PDF.
-      // This creates a "safe" PDF by removing selectable text entirely.
-      for (let i=1; i<=numPages; i++){
-        const page = await state.pdfDoc.getPage(i);
-        const viewport = page.getViewport({scale: 2.0});
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-
-        await page.render({canvasContext: ctx, viewport}).promise;
-
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
-
-        // Fit image to A4, keep aspect ratio
-        const pageW = pdfOut.internal.pageSize.getWidth();
-        const pageH = pdfOut.internal.pageSize.getHeight();
-        const imgW = pageW;
-        const imgH = (canvas.height / canvas.width) * imgW;
-
-        if (i > 1) pdfOut.addPage();
-        // Center vertically if shorter than page
-        const y = imgH < pageH ? (pageH - imgH) / 2 : 0;
-        pdfOut.addImage(imgData, "JPEG", 0, y, imgW, imgH);
-      }
-
-      const outBlob = pdfOut.output("blob");
-      downloadBlob(outBlob, withSuffix(state.file.name, "-redacted-safe"), "application/pdf");
-      setStatus("Safe PDF exported (rasterised). Text is not selectable, reducing recovery risk.", "ok");
-    } catch(e){
-      console.error(e);
-      setStatus("PDF export failed. See console for details.", "warn");
-    }
-  });
-
-  function downloadBlob(blob, filenameBase, mime){
-    const a = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    a.href = url;
-    a.download = filenameBase;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  for(const f of state.findings){
+    rows.push([
+      f.type,
+      f.reason,
+      f.confidence,
+      f.value,
+      f.selected,
+      f.start,
+      f.end
+    ]);
   }
 
-  function withSuffix(name, suffix){
-    const dot = name.lastIndexOf(".");
-    if (dot === -1) return name + suffix;
-    return name.slice(0, dot) + suffix + name.slice(dot);
+  const csv = rows.map(r =>
+    r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")
+  ).join("\n");
+
+  downloadBlob(
+    new Blob([csv],{type:"text/csv"}),
+    "redaction-report.csv"
+  );
+}
+
+/* =============================
+   BUTTON WIRING
+============================= */
+
+document.getElementById("btnDetect").onclick=()=>{
+  if(!state.extractedText){
+    alert("Extract text first.");
+    return;
   }
 
-  function escapeRegExp(s){
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
+  state.findings = detect(state.extractedText);
+  renderFindings();
+};
 
-  els.btnReset.addEventListener('click', () => resetAll());
+document.getElementById("btnPreviewRedaction").onclick=()=>{
+  document.getElementById("textOut").textContent =
+    redactText(state.extractedText,state.findings);
+};
 
-  function resetOutputs(clearFileInput){
-    state.extractedText = "";
-    state.findings = [];
-    state.pdfPagesText = [];
-    els.textOut.textContent = "No content extracted yet.";
-    els.textOut.classList.add('muted');
-    els.findingsList.innerHTML = `<div class="muted">No findings yet.</div>`;
-    els.matchCount.textContent = "0";
-    els.btnExportDocx.classList.add('hidden');
-    els.btnExportPdf.classList.add('hidden');
-    if (clearFileInput){
-      els.file.value = "";
-      els.fileName.textContent = "None";
-      els.fileType.textContent = "—";
-      els.pageCount.textContent = "—";
-    }
-  }
+/* Add CSV button */
+const csvBtn=document.createElement("button");
+csvBtn.textContent="Export CSV report";
+csvBtn.onclick=exportCSV;
+document.querySelector(".right-actions").appendChild(csvBtn);
 
-  function resetAll(){
-    clearStatus();
-    state = { file:null, kind:null, extractedText:"", findings:[], pdfDoc:null, pdfPagesText:[] };
-    resetOutputs(true);
-    hidePdfPreview();
-  }
 </script>
-</body>
+
+
+
 </html>

@@ -29,15 +29,15 @@
 </head>
 <body>
 <header>
-  <strong>Offline Identity Anonymisation Engine (.docx + text)</strong>
+  <strong>Offline Identity Anonymisation Engine (.docx, .pdf + text)</strong>
   <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
 </header>
 <main>
   <section class="card">
     <div class="hd">Controls</div>
     <div class="bd">
-      <label>Upload DOCX</label>
-      <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <label>Upload DOCX or PDF</label>
+      <input id="docInput" type="file" accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
       <label>Paste plain text (optional)</label>
       <textarea id="plainInput" placeholder="Paste document text here..."></textarea>
 
@@ -78,6 +78,7 @@
         <button id="runBtn">Redact</button>
         <button id="testsBtn">Run tests</button>
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
+        <button id="dlPdfBtn" disabled>Download redacted.pdf</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
         <button id="dlReportBtn" disabled>Download report.json</button>
         <button id="dlManifestBtn" disabled>Download redaction-report.json</button>
@@ -161,6 +162,7 @@
     redactedText: '',
     inputDocxBytes: null,
     redactedDocxBytes: null,
+    inputPdfBytes: null,
     extractedPartText: new Map(),
     redactedPartText: new Map(),
     pseudonyms: { org: new Map(), client: new Map() },
@@ -206,6 +208,97 @@
   function decodeXmlText(s){ return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); }
   function encodeXmlText(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
   function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function escapePdfText(value){
+    return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  }
+
+  function decodePdfLiteral(literal){
+    return literal
+      .replace(/\\([\\()])/g, '$1')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\b/g, '\b')
+      .replace(/\\f/g, '\f');
+  }
+
+  async function extractPdfText(bytes){
+    const src = new TextDecoder('latin1').decode(bytes);
+    const chunks = [];
+    const streamRe = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let m;
+    while ((m = streamRe.exec(src))){
+      const dict = m[1];
+      const raw = m[2];
+      let streamText = raw;
+      if (/\/Filter\s*\/FlateDecode/.test(dict) && typeof DecompressionStream !== 'undefined'){
+        try {
+          const stream = new Response(new Uint8Array(raw.split('').map(ch => ch.charCodeAt(0))).buffer)
+            .body
+            .pipeThrough(new DecompressionStream('deflate'));
+          const decompressed = await new Response(stream).arrayBuffer();
+          streamText = new TextDecoder('latin1').decode(new Uint8Array(decompressed));
+        } catch (_err){
+          streamText = raw;
+        }
+      }
+      chunks.push(streamText);
+    }
+    const content = chunks.join('\n');
+    const textBits = [];
+    const litRe = /\((?:\\.|[^\\)])*\)/g;
+    let lit;
+    while ((lit = litRe.exec(content))){
+      textBits.push(decodePdfLiteral(lit[0].slice(1, -1)));
+    }
+    const hexRe = /<([0-9A-Fa-f\s]{4,})>/g;
+    let hex;
+    while ((hex = hexRe.exec(content))){
+      const cleaned = hex[1].replace(/\s+/g, '');
+      if (!cleaned || cleaned.length % 2 !== 0) continue;
+      try {
+        const bytesArr = new Uint8Array(cleaned.match(/../g).map(pair => parseInt(pair, 16)));
+        textBits.push(new TextDecoder('latin1').decode(bytesArr));
+      } catch (_err){
+        // ignore malformed hex strings
+      }
+    }
+    return textBits.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function buildSimplePdf(text){
+    const lines = (text || '').split(/\r?\n/).map(line => line.slice(0, 110));
+    const pageLines = lines.length ? lines : [''];
+    const content = ['BT', '/F1 11 Tf', '50 780 Td', '14 TL'];
+    pageLines.forEach((line, idx) => {
+      content.push(`(${escapePdfText(line)}) Tj`);
+      if (idx < pageLines.length - 1) content.push('T*');
+    });
+    content.push('ET');
+    const contentStream = content.join('\n');
+    const objs = [
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+      '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+      `5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`
+    ];
+    let out = '%PDF-1.4\n';
+    const offsets = [0];
+    objs.forEach(obj => {
+      offsets.push(out.length);
+      out += obj;
+    });
+    const xrefStart = out.length;
+    out += `xref\n0 ${objs.length + 1}\n`;
+    out += '0000000000 65535 f \n';
+    offsets.slice(1).forEach(offset => {
+      out += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    return new Blob([new TextEncoder().encode(out)], { type: 'application/pdf' });
+  }
 
   function parseCoreProps(xml){
     const creator = (xml.match(/<dc:creator>([\s\S]*?)<\/dc:creator>/i)?.[1] || '').trim();
@@ -966,6 +1059,7 @@
       renderMatchLog();
       $('dlTxtBtn').disabled = !state.redactedText;
       $('dlDocxBtn').disabled = !state.redactedDocxBytes;
+      $('dlPdfBtn').disabled = !state.redactedText;
       $('dlReportBtn').disabled = !(state.report && state.report.manifest.length);
       $('dlManifestBtn').disabled = !state.manifest.length;
       setStatus('Redaction complete. Review leaks check, candidates, and match log.');
@@ -974,11 +1068,22 @@
     }
   }
 
-  $('docxInput').addEventListener('change', async (e)=>{
+  $('docInput').addEventListener('change', async (e)=>{
     const f = e.target.files[0];
     if (!f) return;
-    state.inputDocxBytes = new Uint8Array(await f.arrayBuffer());
+    const fileBytes = new Uint8Array(await f.arrayBuffer());
+    state.inputDocxBytes = null;
+    state.inputPdfBytes = null;
     state.piiCandidates = null;
+    const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    if (isPdf){
+      state.inputPdfBytes = fileBytes;
+      const extracted = await extractPdfText(fileBytes);
+      $('plainInput').value = extracted;
+      setStatus(`Loaded PDF: ${f.name} (${Math.round(f.size/1024)} KB). Extracted text into plain-text input for redaction.`);
+      return;
+    }
+    state.inputDocxBytes = fileBytes;
     setStatus(`Loaded DOCX: ${f.name} (${Math.round(f.size/1024)} KB)`);
   });
 
@@ -1001,6 +1106,16 @@
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'redacted.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlPdfBtn').addEventListener('click', ()=>{
+    if (!state.redactedText) return;
+    const blob = buildSimplePdf(state.redactedText);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.pdf';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1076,6 +1191,9 @@ RG6 1AA` });
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
+
+    const samplePdfBlob = buildSimplePdf('Alice Example\nEmail alice@example.com');
+    assert('simple PDF generator emits PDF mime type', samplePdfBlob.type === 'application/pdf');
 
     $('modeSel').value = previousMode;
     updateInferenceControls();

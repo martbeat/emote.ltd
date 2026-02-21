@@ -6,18 +6,18 @@
   <title>Local Redactor (PDF/DOCX) – Offline, Review, Export</title>
   <style>
     :root{
-      --bg:#0b0c10;
-      --panel:#141620;
-      --panel2:#0f111a;
+      --bg:#0a0d16;
+      --panel:rgba(20, 24, 38, .72);
+      --panel2:rgba(12, 16, 27, .78);
       --text:#e8eaf0;
       --muted:#a9b0c3;
-      --line:#2a2f43;
+      --line:rgba(138, 152, 196, .26);
       --accent:#7aa2ff;
       --warn:#ffcc66;
       --bad:#ff6b6b;
       --ok:#3ddc97;
       --chip:#1d2233;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --shadow: 0 10px 30px rgba(0,0,0,.28);
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
@@ -25,7 +25,10 @@
     body{
       margin:0;
       font-family:var(--sans);
-      background:linear-gradient(180deg, var(--bg), #07080b);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(122,162,255,.22), transparent 34%),
+        radial-gradient(circle at 86% 8%, rgba(61,220,151,.10), transparent 28%),
+        linear-gradient(180deg, var(--bg), #06070c 70%);
       color:var(--text);
     }
     header{
@@ -66,6 +69,7 @@
       border-radius:14px;
       box-shadow: var(--shadow);
       overflow:hidden;
+      backdrop-filter: blur(8px);
     }
     .card .hd{
       padding:14px 14px 12px 14px;
@@ -296,6 +300,33 @@
       color:var(--muted);
       line-height:1.35;
     }
+    .inline-input{
+      width:100%;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+    .toolbar .inline-input{
+      max-width: 220px;
+      font-size:12px;
+      padding:8px 10px;
+    }
+    .dropzone{
+      border:1px dashed rgba(122,162,255,.42) !important;
+      background: rgba(122,162,255,.08) !important;
+    }
+    .kbd{
+      padding:1px 6px;
+      border:1px solid var(--line);
+      border-bottom-width:2px;
+      border-radius:6px;
+      font-family:var(--mono);
+      font-size:11px;
+      color:var(--muted);
+    }
     .hidden{ display:none !important; }
     canvas{ max-width:100%; height:auto; border-radius:12px; border:1px solid var(--line); }
   </style>
@@ -312,18 +343,22 @@
     <div class="bd">
       <label>Choose a file (PDF or DOCX)</label>
       <input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <div class="small" style="margin-top:8px;">Tip: drag and drop a file anywhere on this page. Keyboard: <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> runs Extract → Detect.</div>
 
       <div class="footerline">
         <div class="row">
           <span class="pill">File: <b id="fileName">None</b></span>
           <span class="pill">Type: <b id="fileType">—</b></span>
           <span class="pill">Pages: <b id="pageCount">—</b></span>
+          <span class="pill">Selected for redaction: <b id="selectedCount">0</b></span>
         </div>
 
         <label>Detect</label>
         <div class="checks">
           <div class="check"><input id="chkEmail" type="checkbox" checked /><div><b>Email</b><small>name@domain</small></div></div>
-          <div class="check"><input id="chkPhone" type="checkbox" checked /><div><b>Phone</b><small>UK style patterns</small></div></div>
+          <div class="check"><input id="chkPhone" type="checkbox" checked /><div><b>Phone</b><small>UK + international styles</small></div></div>
+          <div class="check"><input id="chkUrl" type="checkbox" checked /><div><b>Web URL</b><small>https://..., www....</small></div></div>
+          <div class="check"><input id="chkName" type="checkbox" checked /><div><b>Person name (heuristic)</b><small>Mr/Ms/Dr + full name</small></div></div>
           <div class="check"><input id="chkPostcode" type="checkbox" checked /><div><b>Postcode</b><small>UK postcodes</small></div></div>
           <div class="check"><input id="chkNino" type="checkbox" checked /><div><b>NI number</b><small>AB123456C</small></div></div>
           <div class="check"><input id="chkUtr" type="checkbox" checked /><div><b>UTR</b><small>10 digits</small></div></div>
@@ -333,15 +368,19 @@
         </div>
 
         <label>Custom reference regex (optional)</label>
-        <input id="refRegex" type="text" placeholder="Example: \\b(PO|INV|CN)\\d{6,}\\b" style="width:100%; padding:10px; border-radius:12px; border:1px solid var(--line); background:var(--panel2); color:var(--text); font-family:var(--mono);"/>
+        <input id="refRegex" class="inline-input" type="text" placeholder="Example: \\b(PO|INV|CN)\\d{6,}\\b" style="font-family:var(--mono);"/>
+
+        <label>Redaction replacement token</label>
+        <input id="maskToken" class="inline-input" type="text" value="████████" maxlength="24" />
 
         <div class="row" style="margin-top:12px;">
           <button class="primary" id="btnExtract">Extract text</button>
           <button id="btnDetect">Detect sensitive items</button>
+          <button id="btnRunAll">Run all</button>
           <button class="danger" id="btnReset">Reset</button>
         </div>
 
-        <div id="status" class="note hidden"></div>
+      <div id="status" class="note hidden"></div>
 
         <div class="note" style="margin-top:12px;">
           PDF redaction note: In-browser “true” redaction of existing PDFs is hard. This app exports a <b>safe PDF</b> by rasterising pages and drawing redaction boxes, which removes selectable text. If you need selectable text preserved and truly removed, do it server-side or with a desktop tool.
@@ -362,6 +401,7 @@
           <div class="toolbar">
             <span class="pill">Extracted text (highlighted)</span>
             <span class="pill">Matches: <b id="matchCount">0</b></span>
+            <span class="pill">Visible findings: <b id="visibleCount">0</b></span>
           </div>
           <div class="content">
             <div id="textOut" class="text muted">No content extracted yet.</div>
@@ -371,6 +411,7 @@
         <div class="findings">
           <div class="toolbar">
             <span class="pill">Findings</span>
+            <input id="findingsFilter" class="inline-input" type="text" placeholder="Filter findings..." />
             <div class="right-actions">
               <button id="btnSelectAll">Select all</button>
               <button id="btnSelectNone">Select none</button>
@@ -385,6 +426,17 @@
               <button id="btnExportDocx" class="hidden">Export redacted DOCX</button>
               <button id="btnExportPdf" class="hidden">Export safe PDF (rasterised)</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="hd"><h2>Transparency and safety checklist</h2></div>
+        <div class="bd">
+          <div class="small">This tool runs locally in your browser and does not upload your file automatically. Detection now includes broader patterns for phones, URLs, and name hints, but may still miss context-sensitive data—always do a manual review before sharing exports.</div>
+          <div class="checks" style="margin-top:12px;">
+            <div class="check"><div><b>What this catches well</b><small>Emails, URLs, phones, NI numbers, UTRs</small></div></div>
+            <div class="check"><div><b>What needs human review</b><small>Unusual names, free-form addresses, embedded images</small></div></div>
           </div>
         </div>
       </div>
@@ -421,9 +473,13 @@
     status: document.getElementById('status'),
     textOut: document.getElementById('textOut'),
     matchCount: document.getElementById('matchCount'),
+    visibleCount: document.getElementById('visibleCount'),
+    selectedCount: document.getElementById('selectedCount'),
     findingsList: document.getElementById('findingsList'),
+    findingsFilter: document.getElementById('findingsFilter'),
     btnExtract: document.getElementById('btnExtract'),
     btnDetect: document.getElementById('btnDetect'),
+    btnRunAll: document.getElementById('btnRunAll'),
     btnReset: document.getElementById('btnReset'),
     btnSelectAll: document.getElementById('btnSelectAll'),
     btnSelectNone: document.getElementById('btnSelectNone'),
@@ -435,6 +491,8 @@
 
     chkEmail: document.getElementById('chkEmail'),
     chkPhone: document.getElementById('chkPhone'),
+    chkUrl: document.getElementById('chkUrl'),
+    chkName: document.getElementById('chkName'),
     chkPostcode: document.getElementById('chkPostcode'),
     chkNino: document.getElementById('chkNino'),
     chkUtr: document.getElementById('chkUtr'),
@@ -442,6 +500,7 @@
     chkAddress: document.getElementById('chkAddress'),
     chkRef: document.getElementById('chkRef'),
     refRegex: document.getElementById('refRegex'),
+    maskToken: document.getElementById('maskToken'),
   };
 
   let state = {
@@ -474,6 +533,28 @@
     while(v>=1024 && i<units.length-1){ v/=1024; i++; }
     return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`;
   }
+  function getMaskToken(){
+    const token = (els.maskToken.value || '').trim();
+    return token || "████████";
+  }
+
+  function updateSelectionSummary(){
+    const selected = state.findings.filter(f => f.selected).length;
+    els.selectedCount.textContent = String(selected);
+    els.visibleCount.textContent = String(getFilteredFindings().length);
+  }
+
+  function getFilteredFindings(){
+    const q = (els.findingsFilter.value || '').trim().toLowerCase();
+    if (!q) return state.findings;
+    return state.findings.filter(f =>
+      f.value.toLowerCase().includes(q) ||
+      f.label.toLowerCase().includes(q) ||
+      f.context.toLowerCase().includes(q)
+    );
+  }
+
+
 
   els.file.addEventListener('change', async () => {
     clearStatus();
@@ -614,12 +695,37 @@
     }
 
     if (els.chkPhone.checked){
-      // UK-ish phone patterns (mobile/landline) with spaces, +44, 0
+      // Broader phone patterns: UK + international formats with separators and optional extension.
       detectors.push({
         type: "phone",
         label: "Phone",
         className: "phone",
-        regex: /\b(?:\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}\b|\b(?:\+44\s?\(?0?\)?\s?\d{2,4}\s?\d{3,4}\s?\d{3,4})\b/ig
+        regex: /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?){2,4}\d{2,6}(?:\s?(?:x|ext\.?|extension)\s?\d{1,6})?/ig
+      });
+    }
+
+
+    if (els.chkUrl.checked){
+      detectors.push({
+        type: "url",
+        label: "Web URL",
+        className: "addr",
+        regex: /\b(?:https?:\/\/|www\.)[A-Z0-9][A-Z0-9._~:/?#\[\]@!$&'()*+,;=%-]{2,}\b/ig
+      });
+    }
+
+    if (els.chkName.checked){
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        regex: /\b(?:Mr|Mrs|Ms|Miss|Dr|Prof)\.? +[A-Z][a-z]{1,30}(?:[-' ][A-Z][a-z]{1,30}){0,3}\b/g
+      });
+      detectors.push({
+        type: "name",
+        label: "Person name (heuristic)",
+        className: "id",
+        regex: /\b(?:Name|Contact|Client|Customer|Employee|Director)\s*[:\-]\s*[A-Z][a-z]{1,30}(?:[-' ][A-Z][a-z]{1,30}){1,3}\b/g
       });
     }
 
@@ -699,8 +805,57 @@
     renderHighlightedText();
 
     els.matchCount.textContent = String(state.findings.length);
+    updateSelectionSummary();
     setStatus(`Detected ${state.findings.length} items. Review and untick anything you do not want to redact.`, "ok");
   });
+
+  async function runExtractStep(){
+    if (state.kind === "pdf") await extractTextFromPdf();
+    else await extractTextFromDocx();
+  }
+
+  els.btnRunAll.addEventListener('click', async () => {
+    clearStatus();
+    if (!state.file) return setStatus("Please upload a file first.", "warn");
+    try{
+      await runExtractStep();
+      state.findings = detectAll(state.extractedText, buildDetectors());
+      renderFindings();
+      renderHighlightedText();
+      setStatus(`Extracted and detected ${state.findings.length} items.`, "ok");
+    } catch (e){
+      console.error(e);
+      setStatus("Could not run full pipeline. Try Extract then Detect manually.", "warn");
+    }
+  });
+
+  els.findingsFilter.addEventListener('input', () => {
+    renderFindings();
+    updateSelectionSummary();
+  });
+
+  document.addEventListener('keydown', async (e) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      if (!state.file) return;
+      els.btnRunAll.click();
+    }
+  });
+
+  ;['dragenter','dragover'].forEach(evt => document.addEventListener(evt, (e) => {
+    e.preventDefault();
+    els.file.classList.add('dropzone');
+  }));
+  ;['dragleave','drop'].forEach(evt => document.addEventListener(evt, (e) => {
+    e.preventDefault();
+    if (evt === 'drop' && e.dataTransfer?.files?.[0]) {
+      const dt = new DataTransfer();
+      dt.items.add(e.dataTransfer.files[0]);
+      els.file.files = dt.files;
+      els.file.dispatchEvent(new Event('change'));
+    }
+    els.file.classList.remove('dropzone');
+  }));
 
   function detectAll(text, detectors){
     const findings = [];
@@ -793,10 +948,13 @@
     if (!state.findings.length){
       list.innerHTML = `<div class="muted">No findings yet.</div>`;
       els.matchCount.textContent = "0";
+      els.visibleCount.textContent = "0";
+      els.selectedCount.textContent = "0";
       return;
     }
 
-    for (const f of state.findings){
+    const filtered = getFilteredFindings();
+    for (const f of filtered){
       const div = document.createElement('div');
       div.className = "item";
       div.innerHTML = `
@@ -819,11 +977,14 @@
         if (found){
           found.selected = e.target.checked;
           renderHighlightedText();
+          updateSelectionSummary();
         }
       });
     });
 
     els.matchCount.textContent = String(state.findings.length);
+    els.visibleCount.textContent = String(filtered.length);
+    updateSelectionSummary();
   }
 
   els.btnSelectAll.addEventListener('click', () => {
@@ -854,7 +1015,7 @@
     const sorted = [...findings].sort((a,b) => b.start - a.start);
     let out = text;
     for (const f of sorted){
-      out = out.slice(0, f.start) + "████████" + out.slice(f.end);
+      out = out.slice(0, f.start) + getMaskToken() + out.slice(f.end);
     }
     return out;
   }
@@ -879,7 +1040,7 @@
       // For more robust DOCX editing, a dedicated DOCX manipulation library or server-side processing is needed.
       for (const val of selected.sort((a,b)=>b.length-a.length)){
         const safeVal = escapeRegExp(val);
-        docXml = docXml.replace(new RegExp(safeVal, "g"), "████████");
+        docXml = docXml.replace(new RegExp(safeVal, "g"), getMaskToken());
       }
 
       zip.file("word/document.xml", docXml);
@@ -977,6 +1138,9 @@
     els.textOut.classList.add('muted');
     els.findingsList.innerHTML = `<div class="muted">No findings yet.</div>`;
     els.matchCount.textContent = "0";
+    els.visibleCount.textContent = "0";
+    els.selectedCount.textContent = "0";
+    els.findingsFilter.value = "";
     els.btnExportDocx.classList.add('hidden');
     els.btnExportPdf.classList.add('hidden');
     if (clearFileInput){

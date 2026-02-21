@@ -512,22 +512,21 @@
     }
     if (!nodes.length) return { xml, before:'', after:'' };
 
-    const logical = nodes.map(n=>n.text).join('\u0001');
-    const redactedLogical = redactText(logical, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
-
-    const parts = redactedLogical.split('\u0001');
-    const replacementTexts = nodes.map((n, i) => parts[i] ?? n.text);
+    const before = nodes.map(n=>n.text).join('\u0001');
+    for (const n of nodes){
+      n.redacted = redactText(n.text, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+    }
 
     let out = '';
     let cursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
       out += xml.slice(cursor, n.innerStart);
-      out += encodeXmlText(replacementTexts[i]);
+      out += encodeXmlText(n.redacted);
       cursor = n.innerEnd;
     }
     out += xml.slice(cursor);
-    return { xml: out, before: logical, after: redactedLogical };
+    return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
   }
 
   function scrubSettingsXml(xml){
@@ -813,7 +812,7 @@
 
     const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
-    assert('split-token redaction across DOCX runs', mapped.after.includes('[REDACTED_NAME]'));
+    assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
 
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });

@@ -537,6 +537,16 @@
     return !!(window.jspdf && window.jspdf.jsPDF);
   }
 
+  function hasPdfLib(){
+    return !!window.pdfjsLib;
+  }
+  function hasDocxLib(){
+    return !!window.JSZip;
+  }
+  function hasPdfExportLib(){
+    return !!(window.jspdf && window.jspdf.jsPDF);
+  }
+
   const els = {
     file: document.getElementById('file'),
     fileName: document.getElementById('fileName'),

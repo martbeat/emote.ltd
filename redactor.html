@@ -634,14 +634,36 @@
   function redactWordProcessingMlText(xml, selectedValues, maskToken){
     if (!selectedValues.length) return xml;
     const sorted = [...selectedValues].filter(Boolean).sort((a,b)=>b.length-a.length);
-    return xml.replace(/<w:t([^>]*)>([\s\S]*?)<\/w:t>/g, (full, attrs, textContent) => {
-      let text = decodeXmlText(textContent);
-      for (const val of sorted){
-        if (!val) continue;
-        text = text.split(val).join(maskToken);
+
+    try{
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, "application/xml");
+      const parseErr = doc.getElementsByTagName("parsererror")[0];
+      if (parseErr) throw new Error("XML parse error");
+
+      // Only redact textual WordprocessingML nodes (<w:t>), never attributes/tags.
+      const textNodes = [...doc.getElementsByTagNameNS("*", "t")];
+      for (const node of textNodes){
+        let text = node.textContent || "";
+        for (const val of sorted){
+          if (!val) continue;
+          text = text.split(val).join(maskToken);
+        }
+        node.textContent = text;
       }
-      return `<w:t${attrs}>${encodeXmlText(text)}</w:t>`;
-    });
+
+      return new XMLSerializer().serializeToString(doc);
+    } catch(_e){
+      // Fallback: text-node regex replacement only.
+      return xml.replace(/<w:t([^>]*)>([\s\S]*?)<\/w:t>/g, (full, attrs, textContent) => {
+        let text = decodeXmlText(textContent);
+        for (const val of sorted){
+          if (!val) continue;
+          text = text.split(val).join(maskToken);
+        }
+        return `<w:t${attrs}>${encodeXmlText(text)}</w:t>`;
+      });
+    }
   }
 
   function byteSize(bytes){
@@ -1285,7 +1307,7 @@
 
       const outBlob = await zip.generateAsync({type:"blob"});
       downloadBlob(outBlob, withSuffix(state.file.name, "-redacted"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      setStatus("Redacted DOCX exported with WordprocessingML preserved (text-node redaction). Spot-check split-run values.", "ok");
+      setStatus("Redacted DOCX exported with WordprocessingML preserved (w:t text-node redaction only). Spot-check split-run values.", "ok");
     } catch(e){
       console.error(e);
       setStatus("DOCX export failed. See console for details.", "warn");

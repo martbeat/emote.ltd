@@ -80,6 +80,7 @@
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
         <button id="dlReportBtn" disabled>Download report.json</button>
+        <button id="dlManifestBtn" disabled>Download redaction-report.json</button>
       </div>
       <div id="status" class="muted" style="margin-top:8px"></div>
       <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
@@ -153,20 +154,6 @@
     URL: 3,
     POSTCODE: 2,
     NAME_TOKEN: 1
-  };
-
-  const TOKEN_LABELS = {
-    FULL_NAME: 'NAME',
-    NAME_TOKEN: 'NAME_TOKEN',
-    EMAIL: 'EMAIL',
-    PHONE: 'PHONE',
-    URL: 'URL',
-    POSTCODE: 'POSTCODE',
-    USERNAME: 'USERNAME',
-    DATE: 'DATE',
-    METRIC: 'METRIC',
-    ORG: 'ORG',
-    CLIENT: 'CLIENT'
   };
 
   const state = {
@@ -342,11 +329,11 @@
     const part = context.part || 'plainText';
     for (const [k] of state.pseudonyms.org){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length));
+      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length, match, 1));
     }
     for (const [k] of state.pseudonyms.client){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length));
+      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, match, 1));
     }
     return text;
   }
@@ -363,21 +350,35 @@
   }
 
   function resetAuditState(){
-    state.manifest = [];
+    resetManifest();
     state.report = null;
     state.processedParts = new Set();
-    state.counters = Object.fromEntries(Object.values(TOKEN_LABELS).map(v => [v, 0]));
   }
 
-  function allocToken(type, rule, part, start, end, confidence){
-    const label = TOKEN_LABELS[type];
-    if (!label) return '';
-    state.counters[label] = (state.counters[label] || 0) + 1;
-    const index = String(state.counters[label]).padStart(3, '0');
-    const token = `[REDACTED_${label}_${index}]`;
-    const item = { id: `${label}_${index}`, type: label, rule, part, start, end, token };
-    if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
-    state.manifest.push(item);
+  function resetManifest(){
+    state.manifest = [];
+    state.counters = {
+      EMAIL:0, PHONE:0, URL:0, POSTCODE:0,
+      FULL_NAME:0, NAME_TOKEN:0,
+      USERNAME:0, DATE:0, METRIC:0,
+      ORG:0, CLIENT:0
+    };
+  }
+
+  function allocToken(type, rule, part, start, end, match, confidence){
+    state.counters[type] = (state.counters[type] || 0) + 1;
+    const id = `${type}_${String(state.counters[type]).padStart(3,'0')}`;
+    const token = `[REDACTED_${id}]`;
+    state.manifest.push({
+      id,
+      type,
+      rule,
+      part,
+      start,
+      end,
+      confidence: Number(((confidence ?? 0)).toFixed(2)),
+      snippet: String(match || '').slice(0,20)
+    });
     return token;
   }
 
@@ -509,7 +510,7 @@
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence);
+      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.match, m.confidence);
       if (!token) continue;
       out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
     }
@@ -552,9 +553,9 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, match, 0.95));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length, match, 0.9));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, match, 0.9));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
@@ -830,16 +831,22 @@
   }
 
   function renderSummary(report){
+    const nameCount = (report.countsByType.FULL_NAME || 0) + (report.countsByType.NAME_TOKEN || 0);
     const lines = [];
+    lines.push('Redactions:');
+    lines.push(`EMAIL: ${report.countsByType.EMAIL || 0}`);
+    lines.push(`PHONE: ${report.countsByType.PHONE || 0}`);
+    lines.push(`URL: ${report.countsByType.URL || 0}`);
+    lines.push(`POSTCODE: ${report.countsByType.POSTCODE || 0}`);
+    lines.push(`NAME: ${nameCount}`);
     lines.push(`Total replacements: ${report.manifest.length}`);
-    lines.push(`By type: ${Object.keys(report.countsByType).length ? JSON.stringify(report.countsByType) : 'none'}`);
     lines.push(`Parts touched: ${report.partsTouched.length ? report.partsTouched.join(', ') : 'plainText only'}`);
     lines.push(`Leaks check: ${report.leaksCheck.pass ? 'PASS' : 'FAIL'}`);
-    lines.push(`Inference enabled: ${report.policy.inferenceEnabled ? 'YES' : 'NO'}`);
+    lines.push(`Inference mode: ${report.policy.inferenceEnabled ? 'ON' : 'OFF'}`);
     const scrubParts = ['docProps/core.xml','docProps/app.xml','word/settings.xml'];
     const relsTouched = report.partsTouched.some(p => /^word\/_rels\/.*\.rels$/.test(p));
     const scrubbed = scrubParts.every(p => report.partsTouched.includes(p)) && relsTouched;
-    lines.push(`Parts scrubbed (core/app/settings + rels): ${scrubbed ? 'YES' : 'NO'}`);
+    lines.push(`Metadata scrubbed: ${scrubbed ? 'YES' : 'NO'}`);
     lines.push('Review checklist: headers, tables, embedded images manually.');
     $('summaryPane').textContent = lines.join('\n');
   }
@@ -877,6 +884,7 @@
       $('dlTxtBtn').disabled = !state.redactedText;
       $('dlDocxBtn').disabled = !state.redactedDocxBytes;
       $('dlReportBtn').disabled = !(state.report && state.report.manifest.length);
+      $('dlManifestBtn').disabled = !state.manifest.length;
       setStatus('Redaction complete. Review leaks check, candidates, and match log.');
     } catch (err){
       setStatus(`Error: ${err.message}`);
@@ -924,6 +932,16 @@
     URL.revokeObjectURL(a.href);
   });
 
+  $('dlManifestBtn').addEventListener('click', ()=>{
+    if (!state.manifest.length) return;
+    const blob = new Blob([JSON.stringify(state.manifest, null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redaction-report.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
   $('searchBtn').addEventListener('click', ()=>{
     const term = $('searchTerm').value.trim();
     if (!term){ $('searchPane').textContent = 'Enter a term.'; return; }
@@ -948,7 +966,7 @@ RG6 1AA` });
 
     $('modeSel').value = 'aggressive';
     resetAuditState();
-    const aggressiveExpected = '[REDACTED_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const aggressiveExpected = '[REDACTED_FULL_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
     assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
 
@@ -960,8 +978,8 @@ RG6 1AA` });
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
     resetAuditState();
-    const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
-    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');
+    const protectedToken = redactText('[REDACTED_FULL_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_FULL_NAME_001] Martin FRY');
 
     const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');

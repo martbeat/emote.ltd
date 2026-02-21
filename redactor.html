@@ -168,6 +168,7 @@
     matchLog: [],
     manifest: [],
     counters: {},
+    tokenCache: new Map(),
     report: null,
     processedParts: new Set()
   };
@@ -329,11 +330,11 @@
     const part = context.part || 'plainText';
     for (const [k] of state.pseudonyms.org){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length, match, 1));
+      text = text.replace(re, (match, offset) => allocToken({ type: 'ORG', rule: 'dict.org', part, start: offset, end: offset + match.length, match, confidence: 1 }));
     }
     for (const [k] of state.pseudonyms.client){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, match, 1));
+      text = text.replace(re, (match, offset) => allocToken({ type: 'CLIENT', rule: 'dict.client', part, start: offset, end: offset + match.length, match, confidence: 1 }));
     }
     return text;
   }
@@ -357,27 +358,80 @@
 
   function resetManifest(){
     state.manifest = [];
-    state.counters = {
-      EMAIL:0, PHONE:0, URL:0, POSTCODE:0,
-      FULL_NAME:0, NAME_TOKEN:0,
-      USERNAME:0, DATE:0, METRIC:0,
-      ORG:0, CLIENT:0
-    };
+    state.counters = {};
+    state.tokenCache.clear();
   }
 
-  function allocToken(type, rule, part, start, end, match, confidence){
+  function friendlyPartName(part){
+    if (part === 'plainText') return 'Pasted text';
+    if (part === 'word/document.xml') return 'Body';
+
+    const hm = part.match(/^word\/header(\d+)\.xml$/);
+    if (hm) return `Header ${hm[1] || 1}`;
+
+    const fm = part.match(/^word\/footer(\d+)\.xml$/);
+    if (fm) return `Footer ${fm[1] || 1}`;
+
+    if (part === 'word/comments.xml') return 'Comments';
+    if (part === 'word/footnotes.xml') return 'Footnotes';
+    if (part === 'word/endnotes.xml') return 'Endnotes';
+
+    if (/^word\/_rels\/.*\.rels$/.test(part)) return 'Relationships';
+    if (part === 'docProps/core.xml') return 'Core properties';
+    if (part === 'docProps/app.xml') return 'App properties';
+    if (part === 'word/settings.xml') return 'Settings';
+
+    return part;
+  }
+
+  function normForKey(type, value){
+    const v = String(value || '').trim();
+
+    if (type === 'EMAIL') return v.toLowerCase();
+    if (type === 'PHONE') return v.replace(/\D/g, '');
+    if (type === 'URL') return v.toLowerCase();
+    if (type === 'POSTCODE') return v.toUpperCase().replace(/\s+/g, '');
+    if (type === 'FULL_NAME' || type === 'NAME_TOKEN') return v.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    return v.toLowerCase();
+  }
+
+  function allocToken({ type, rule, part, start, end, match, confidence }){
+    const partFriendly = friendlyPartName(part);
+    const key = `${type}::${normForKey(type, match)}`;
+    const cached = state.tokenCache.get(key);
+
+    if (cached){
+      state.manifest.push({
+        id: cached.id,
+        type,
+        rule,
+        part: partFriendly,
+        partRaw: part,
+        start,
+        end,
+        confidence: Number(((confidence ?? 0)).toFixed(2)),
+        snippet: String(match || '').slice(0,20),
+        occurrence: true
+      });
+      return cached.token;
+    }
+
     state.counters[type] = (state.counters[type] || 0) + 1;
     const id = `${type}_${String(state.counters[type]).padStart(3,'0')}`;
     const token = `[REDACTED_${id}]`;
+    state.tokenCache.set(key, { id, token });
     state.manifest.push({
       id,
       type,
       rule,
-      part,
+      part: partFriendly,
+      partRaw: part,
       start,
       end,
       confidence: Number(((confidence ?? 0)).toFixed(2)),
-      snippet: String(match || '').slice(0,20)
+      snippet: String(match || '').slice(0,20),
+      occurrence: false
     });
     return token;
   }
@@ -505,12 +559,11 @@
     return selected.sort((a,b)=>a.start-b.start);
   }
 
-  function applyEntityReplacements(text, matches, context = {}){
-    const part = context.part || 'plainText';
+  function applyEntityReplacements(text, matches, part = 'plainText'){
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.match, m.confidence);
+      const token = allocToken({ type: m.type, rule: 'entity-detection', part, start: m.start, end: m.end, match: m.match, confidence: m.confidence });
       if (!token) continue;
       out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
     }
@@ -540,7 +593,7 @@
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
       const resolved = resolveOverlaps(text, detections);
-      text = applyEntityReplacements(text, resolved, { part });
+      text = applyEntityReplacements(text, resolved, part);
 
       if (context.debugDetections){
         matchLog.push(...resolved.map(m => ({
@@ -553,9 +606,9 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, match, 0.95));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length, match, 0.9));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, match, 0.9));
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken({ type: 'USERNAME', rule: 'regex.username', part, start: offset, end: offset + match.length, match, confidence: 0.95 }));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken({ type: 'DATE', rule: 'regex.date', part, start: offset, end: offset + match.length, match, confidence: 0.9 }));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken({ type: 'METRIC', rule: 'regex.metric', part, start: offset, end: offset + match.length, match, confidence: 0.9 }));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
@@ -608,9 +661,9 @@
   function scrubAppProps(xml){
     return xml.replace(/<Company>[\s\S]*?<\/Company>/g, '<Company></Company>').replace(/<Manager>[\s\S]*?<\/Manager>/g, '<Manager></Manager>');
   }
-  function scrubRelsXml(xml){
+  function scrubRelsXml(xml, part){
     return xml.replace(/Target="([^"]+)"/g, (all, t) => {
-      const red = redactText(t, { part: 'rels', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+      const red = redactText(t, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
       return `Target="${red.replace(/"/g,'&quot;')}"`;
     });
   }
@@ -750,7 +803,7 @@
       } else if (/^word\/_rels\/.*\.rels$/.test(name)){
         state.processedParts.add(name);
         const before = xml;
-        xml = scrubRelsXml(xml);
+        xml = scrubRelsXml(xml, name);
         changed = true;
         state.extractedPartText.set(name, before);
         state.redactedPartText.set(name, xml);

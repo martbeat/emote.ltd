@@ -618,6 +618,32 @@
     return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
+
+  function decodeXmlText(s){
+    return s
+      .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+      .replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&apos;/g,"'");
+  }
+
+  function encodeXmlText(s){
+    return s
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function redactWordProcessingMlText(xml, selectedValues, maskToken){
+    if (!selectedValues.length) return xml;
+    const sorted = [...selectedValues].filter(Boolean).sort((a,b)=>b.length-a.length);
+    return xml.replace(/<w:t([^>]*)>([\s\S]*?)<\/w:t>/g, (full, attrs, textContent) => {
+      let text = decodeXmlText(textContent);
+      for (const val of sorted){
+        if (!val) continue;
+        text = text.split(val).join(maskToken);
+      }
+      return `<w:t${attrs}>${encodeXmlText(text)}</w:t>`;
+    });
+  }
+
   function byteSize(bytes){
     const units = ['B','KB','MB','GB'];
     let v = bytes, i=0;
@@ -777,10 +803,7 @@
     let m;
     while((m = re.exec(docXml)) !== null){
       // XML entities in Word XML can include &amp; etc.
-      const raw = m[1]
-        .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-        .replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-      texts.push(raw);
+      texts.push(decodeXmlText(m[1]));
     }
     state.extractedText = texts.join(' ');
     renderHighlightedText();
@@ -1244,24 +1267,25 @@
     try{
       const buf = await state.file.arrayBuffer();
       const zip = await JSZip.loadAsync(buf);
-      let docXml = await zip.file("word/document.xml").async("string");
-
       const selected = state.findings.filter(f=>f.selected).map(f=>f.value);
       if (selected.length === 0) return setStatus("Nothing selected to redact.", "warn");
 
-      // Replace values in XML with block text.
-      // This does not guarantee perfect redaction if Word split the text across runs.
-      // For more robust DOCX editing, a dedicated DOCX manipulation library or server-side processing is needed.
-      for (const val of selected.sort((a,b)=>b.length-a.length)){
-        const safeVal = escapeRegExp(val);
-        docXml = docXml.replace(new RegExp(safeVal, "g"), getMaskToken());
-      }
+      // Preserve WordprocessingML structure by only updating text nodes (<w:t>)
+      // in common content parts.
+      const xmlParts = Object.keys(zip.files).filter(name =>
+        /^word\/(document|header\d+|footer\d+|footnotes|endnotes|comments)\.xml$/i.test(name)
+      );
 
-      zip.file("word/document.xml", docXml);
+      const mask = getMaskToken();
+      for (const part of xmlParts){
+        const xml = await zip.file(part).async("string");
+        const redacted = redactWordProcessingMlText(xml, selected, mask);
+        zip.file(part, redacted);
+      }
 
       const outBlob = await zip.generateAsync({type:"blob"});
       downloadBlob(outBlob, withSuffix(state.file.name, "-redacted"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      setStatus("Redacted DOCX exported. Spot-check it, especially for items that may be split across runs.", "ok");
+      setStatus("Redacted DOCX exported with WordprocessingML preserved (text-node redaction). Spot-check split-run values.", "ok");
     } catch(e){
       console.error(e);
       setStatus("DOCX export failed. See console for details.", "warn");

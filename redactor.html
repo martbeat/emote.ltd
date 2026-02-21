@@ -268,22 +268,50 @@
   }
 
   function buildSimplePdf(text){
-    const lines = (text || '').split(/\r?\n/).map(line => line.slice(0, 110));
-    const pageLines = lines.length ? lines : [''];
-    const content = ['BT', '/F1 11 Tf', '50 780 Td', '14 TL'];
-    pageLines.forEach((line, idx) => {
-      content.push(`(${escapePdfText(line)}) Tj`);
-      if (idx < pageLines.length - 1) content.push('T*');
-    });
-    content.push('ET');
-    const contentStream = content.join('\n');
+    const maxCharsPerLine = 85;
+    const maxLinesPerPage = 48;
+    const lines = [];
+
+    for (const rawLine of (text || '').split(/\r?\n/)){
+      if (!rawLine){
+        lines.push('');
+        continue;
+      }
+      for (let index = 0; index < rawLine.length; index += maxCharsPerLine){
+        lines.push(rawLine.slice(index, index + maxCharsPerLine));
+      }
+    }
+
+    const pages = [];
+    const effectiveLines = lines.length ? lines : [''];
+    for (let index = 0; index < effectiveLines.length; index += maxLinesPerPage){
+      pages.push(effectiveLines.slice(index, index + maxLinesPerPage));
+    }
+
     const objs = [
-      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
-      '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-      `5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'
     ];
+    const pageRefs = [];
+    let objIndex = 3;
+
+    pages.forEach((pageLines) => {
+      const content = ['BT', '/F1 11 Tf', '50 780 Td', '14 TL'];
+      pageLines.forEach((line, idx) => {
+        content.push(`(${escapePdfText(line)}) Tj`);
+        if (idx < pageLines.length - 1) content.push('T*');
+      });
+      content.push('ET');
+      const contentStream = content.join('\n');
+
+      objs.push(`${objIndex} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${objIndex + 2} 0 R >> >> /Contents ${objIndex + 1} 0 R >>\nendobj\n`);
+      objs.push(`${objIndex + 1} 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+      pageRefs.push(`${objIndex} 0 R`);
+      objIndex += 3;
+    });
+
+    objs.splice(1, 0, `2 0 obj\n<< /Type /Pages /Kids [${pageRefs.join(' ')}] /Count ${pages.length} >>\nendobj\n`);
+    objs.push(`${objIndex - 1} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`);
+
     let out = '%PDF-1.4\n';
     const offsets = [0];
     objs.forEach(obj => {
@@ -1080,7 +1108,7 @@
       state.inputPdfBytes = fileBytes;
       const extracted = await extractPdfText(fileBytes);
       $('plainInput').value = extracted;
-      setStatus(`Loaded PDF: ${f.name} (${Math.round(f.size/1024)} KB). Extracted text into plain-text input for redaction.`);
+      setStatus(`Loaded PDF: ${f.name} (${Math.round(f.size/1024)} KB). Text extraction is best-effort; output PDF is plain-text reconstruction (layout not preserved).`);
       return;
     }
     state.inputDocxBytes = fileBytes;
@@ -1118,6 +1146,7 @@
     a.download = 'redacted.pdf';
     a.click();
     URL.revokeObjectURL(a.href);
+    setStatus('Downloaded redacted.pdf (plain-text reconstruction with wrapping/pagination, not layout-preserving redaction).');
   });
 
   $('dlReportBtn').addEventListener('click', ()=>{
@@ -1149,7 +1178,7 @@
     $('searchPane').textContent = lines.length ? lines.join('\n') : 'No indexed docx parts. Run redaction first.';
   });
 
-  function runHarness(){
+  async function runHarness(){
     const out = [];
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
     const previousMode = $('modeSel').value;
@@ -1192,8 +1221,12 @@ RG6 1AA` });
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
 
-    const samplePdfBlob = buildSimplePdf('Alice Example\nEmail alice@example.com');
+    const longPdfSource = Array.from({ length: 60 }, (_, idx) => `Line ${idx + 1} ${'x'.repeat(100)}`).join('\n');
+    const samplePdfBlob = buildSimplePdf(longPdfSource);
     assert('simple PDF generator emits PDF mime type', samplePdfBlob.type === 'application/pdf');
+    const samplePdfText = await samplePdfBlob.text();
+    assert('simple PDF generator paginates for long content', /\/Count\s+[2-9]/.test(samplePdfText));
+    assert('simple PDF generator wraps long lines', samplePdfText.includes('Line 1 '));
 
     $('modeSel').value = previousMode;
     updateInferenceControls();

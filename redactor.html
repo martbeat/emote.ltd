@@ -512,12 +512,11 @@
     }
     if (!nodes.length) return { xml, before:'', after:'' };
 
-    const logical = nodes.map(n=>n.text).join('');
+    const logical = nodes.map(n=>n.text).join('\u0001');
     const redactedLogical = redactText(logical, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
 
-    const replacementTexts = nodes.map((_, i) =>
-      i === 0 ? redactedLogical : ''
-    );
+    const parts = redactedLogical.split('\u0001');
+    const replacementTexts = nodes.map((n, i) => parts[i] ?? n.text);
 
     let out = '';
     let cursor = 0;

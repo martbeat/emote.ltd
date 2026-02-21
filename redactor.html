@@ -118,9 +118,14 @@
   </section>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
 <script>
 (() => {
   'use strict';
+
+  if (window.pdfjsLib?.GlobalWorkerOptions){
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+  }
 
   const DOCX_TEXT_PART_PATTERNS = [
     /^word\/document\.xml$/,
@@ -223,7 +228,7 @@
       .replace(/\\f/g, '\f');
   }
 
-  async function extractPdfText(bytes){
+  async function extractPdfTextLegacy(bytes){
     const src = new TextDecoder('latin1').decode(bytes);
     const chunks = [];
     const streamRe = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
@@ -265,6 +270,24 @@
       }
     }
     return textBits.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  async function extractPdfText(bytes){
+    if (window.pdfjsLib?.getDocument){
+      const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        fullText += content.items.map(i => i.str).join(' ') + '\n';
+      }
+
+      return fullText.trim();
+    }
+
+    return extractPdfTextLegacy(bytes);
   }
 
   function buildSimplePdf(text){
@@ -1119,9 +1142,15 @@
     const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
     if (isPdf){
       state.inputPdfBytes = fileBytes;
-      const extracted = await extractPdfText(fileBytes);
-      $('plainInput').value = extracted;
-      setStatus(`Loaded PDF: ${f.name} (${Math.round(f.size/1024)} KB). Text extraction is best-effort; output PDF is plain-text reconstruction (layout not preserved).`);
+      try {
+        const extracted = await extractPdfText(fileBytes);
+        $('plainInput').value = extracted;
+        const usingPdfJs = !!window.pdfjsLib?.getDocument;
+        setStatus(`Loaded PDF: ${f.name} (${Math.round(f.size/1024)} KB). ${usingPdfJs ? 'PDF.js extraction active.' : 'PDF.js unavailable; using fallback extraction.'} Output PDF is plain-text reconstruction (layout not preserved).`);
+      } catch (err){
+        $('plainInput').value = '';
+        setStatus(`Failed to extract PDF text from ${f.name}: ${err.message}`);
+      }
       return;
     }
     state.inputDocxBytes = fileBytes;

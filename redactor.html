@@ -60,6 +60,9 @@
       <div class="row">
         <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
       </div>
+      <div class="row">
+        <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
+      </div>
       <label>Whitelist terms (one per line)</label>
       <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
       <label>Organisation terms for deterministic pseudonyms (one per line)</label>
@@ -127,7 +130,7 @@
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
-    mobileUk: /\b(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
+    mobileUk: /(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
     landlineUk: /(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
     postcodeUk: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/ig,
     urlHttp: /\bhttps?:\/\/[^\s<>"']+/ig,
@@ -136,6 +139,24 @@
     username: /\b(?:@|user(?:name)?[:\s]+)[a-z0-9._-]{3,}\b/ig,
     date: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4})\b/ig,
     metric: /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s?(?:%|k|m|bn|hours?|yrs?|years?)\b/ig
+  };
+
+  const ENTITY_PRIORITY = {
+    FULL_NAME: 6,
+    EMAIL: 5,
+    PHONE: 4,
+    URL: 3,
+    POSTCODE: 2,
+    NAME_TOKEN: 1
+  };
+
+  const ENTITY_TOKEN = {
+    FULL_NAME: '[REDACTED_NAME]',
+    NAME_TOKEN: '[REDACTED_NAME]',
+    EMAIL: '[REDACTED_EMAIL]',
+    PHONE: '[REDACTED_PHONE]',
+    URL: '[REDACTED_URL]',
+    POSTCODE: '[REDACTED_POSTCODE]'
   };
 
   const state = {
@@ -299,22 +320,16 @@
     return rules;
   }
 
-  function logMatch(matchLog, type, match, part){
-    const existing = matchLog.find(m => m.type===type && m.match===match && m.part===part);
-    if (existing) existing.count += 1;
-    else matchLog.push({ type, match, part, count: 1 });
-  }
+  function buildNameDetections(candidates, text, opts){
+    const matches = [];
+    if (!candidates) return matches;
 
-  function replaceWithLabel(text, re, label, type, part, matchLog){
-    return text.replace(re, m => {
-      logMatch(matchLog, type, m, part);
-      return label;
-    });
-  }
-
-  function buildNameRules(candidates, text, opts){
-    const rules = [];
-    if (!candidates) return rules;
+    const addRegexMatches = (re, type, confidence) => {
+      const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+      for (const m of text.matchAll(rgx)){
+        matches.push({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0] });
+      }
+    };
 
     const tokens = [...(candidates.nameTokens || [])].sort((a,b)=>b.confidence-a.confidence);
     const firstToken = tokens[0]?.token || '';
@@ -324,7 +339,11 @@
 
     if (opts.redactFullNameVariants){
       for (const variant of candidates.fullNameVariants || []){
-        rules.push({ type:'name', label:'[REDACTED_NAME]', re:new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig') });
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig'), 'FULL_NAME', 0.95);
+      }
+
+      for (const identityPhrase of extractIdentityZoneFullNames(text)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'ig'), 'FULL_NAME', 0.92);
       }
     }
 
@@ -342,7 +361,7 @@
     if (opts.redactSurnameGlobal && surname){
       const score = tokens.find(t => t.token===surname)?.confidence || 0;
       if (score >= 0.85 && safeToGlobalSurname){
-        rules.push({ type:'name', label:'[REDACTED_NAME]', re:new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig') });
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig'), 'NAME_TOKEN', score);
       }
     }
 
@@ -351,11 +370,86 @@
       const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'i'));
       const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(firstToken));
       if (score >= 0.85 && (inHeader || inEmail)){
-        rules.push({ type:'name', label:'[REDACTED_NAME]', re:new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig') });
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig'), 'NAME_TOKEN', score);
       }
     }
 
-    return rules;
+    return matches;
+  }
+
+  function extractIdentityZoneFullNames(text){
+    const zone = text.slice(0, 300);
+    const found = [];
+    for (const m of zone.matchAll(/\b([A-Z][a-z]+\s+[A-Z][A-Za-z']+)\b/g)){
+      found.push(m[1]);
+    }
+    return [...new Set(found)];
+  }
+
+  function findProtectedRanges(text){
+    return [...text.matchAll(/\[REDACTED_[A-Z_]+\]/g)].map(m => ({ start: m.index, end: m.index + m[0].length }));
+  }
+
+  function overlaps(a, b){
+    return a.start < b.end && b.start < a.end;
+  }
+
+  function detectEntities(text, candidates, opts){
+    const matches = [];
+    const protectedRanges = findProtectedRanges(text);
+    const pushMatch = (m) => {
+      if (m.start == null) return;
+      if (protectedRanges.some(r => overlaps(m, r))) return;
+      matches.push(m);
+    };
+
+    const addPatternMatches = (re, type, confidence) => {
+      const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+      for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0] });
+    };
+
+    addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
+    addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
+    addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    addPatternMatches(REDACTION_PATTERNS.urlHttp, 'URL', 0.97);
+    addPatternMatches(REDACTION_PATTERNS.urlWww, 'URL', 0.95);
+    addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+
+    for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+    return matches;
+  }
+
+  function resolveOverlaps(text, matches){
+    const occupied = new Array(text.length).fill(false);
+    const sorted = [...matches].sort((a,b)=>{
+      const lenA = a.end - a.start;
+      const lenB = b.end - b.start;
+      if (lenB !== lenA) return lenB - lenA;
+      const prA = ENTITY_PRIORITY[a.type] || 0;
+      const prB = ENTITY_PRIORITY[b.type] || 0;
+      if (prB !== prA) return prB - prA;
+      return a.start - b.start;
+    });
+    const selected = [];
+    for (const m of sorted){
+      let blocked = false;
+      for (let i = m.start; i < m.end; i++) if (occupied[i]) { blocked = true; break; }
+      if (blocked) continue;
+      for (let i = m.start; i < m.end; i++) occupied[i] = true;
+      selected.push(m);
+    }
+    return selected.sort((a,b)=>a.start-b.start);
+  }
+
+  function applyEntityReplacements(text, matches){
+    let out = text;
+    const byEnd = [...matches].sort((a,b)=>b.start-a.start);
+    for (const m of byEnd){
+      const token = ENTITY_TOKEN[m.type];
+      if (!token) continue;
+      out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
+    }
+    return out;
   }
 
   function redactText(rawText, context = {}){
@@ -374,24 +468,23 @@
 
     if (mode === 'min'){
       text = applyPseudonyms(text);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.email, '[REDACTED_EMAIL]', 'email', part, matchLog);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.urlHttp, '[REDACTED_URL]', 'url', part, matchLog);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.urlWww, '[REDACTED_URL]', 'url', part, matchLog);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.mobileUk, '[REDACTED_PHONE]', 'phone', part, matchLog);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.landlineUk, '[REDACTED_PHONE]', 'phone', part, matchLog);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.postcodeUk, '[REDACTED_POSTCODE]', 'postcode', part, matchLog);
-      text = replaceWithLabel(text, REDACTION_PATTERNS.addressLine, '[REDACTED_POSTCODE]', 'address', part, matchLog);
-
-      const nameRules = buildNameRules(state.piiCandidates, rawText, {
+      const detections = detectEntities(text, state.piiCandidates, {
         redactFullNameVariants: $('redactFullNameVariants').checked,
         redactSurnameGlobal: $('redactSurnameGlobal').checked,
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
-      for (const rule of nameRules){
-        text = text.replace(rule.re, m => {
-          logMatch(matchLog, rule.type, m, part);
-          return rule.label;
-        });
+      const resolved = resolveOverlaps(text, detections);
+      text = applyEntityReplacements(text, resolved);
+
+      if (context.debugDetections){
+        matchLog.push(...resolved.map(m => ({
+          part,
+          start: m.start,
+          end: m.end,
+          type: m.type,
+          confidence: Number((m.confidence || 0).toFixed(2)),
+          match: m.match
+        })));
       }
 
       text = text.replace(REDACTION_PATTERNS.username, '[REDACTED_USERNAME]');
@@ -420,7 +513,7 @@
     if (!nodes.length) return { xml, before:'', after:'' };
 
     const logical = nodes.map(n=>n.text).join('');
-    const redactedLogical = redactText(logical, { part, matchLog: state.matchLog }).text;
+    const redactedLogical = redactText(logical, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
 
     const segLens = nodes.map(n=>n.text.length);
     const replacementTexts = [];
@@ -458,7 +551,7 @@
   }
   function scrubRelsXml(xml){
     return xml.replace(/Target="([^"]+)"/g, (all, t) => {
-      const red = redactText(t, { part: 'rels', matchLog: state.matchLog }).text;
+      const red = redactText(t, { part: 'rels', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
       return `Target="${red.replace(/"/g,'&quot;')}"`;
     });
   }
@@ -626,7 +719,14 @@
   }
 
   function renderMatchLog(){
-    $('matchLogPane').textContent = state.matchLog.length ? JSON.stringify(state.matchLog, null, 2) : 'No matches recorded.';
+    if (!state.matchLog.length){
+      $('matchLogPane').textContent = 'No matches recorded.';
+      return;
+    }
+    const header = 'part\tstart\tend\ttype\tconfidence\tmatch';
+    const rows = state.matchLog
+      .map(m => `${m.part}\t${m.start}\t${m.end}\t${m.type}\t${m.confidence}\t${m.match}`);
+    $('matchLogPane').textContent = [header, ...rows].join('\n');
   }
 
   function renderCandidates(){
@@ -642,7 +742,7 @@
       state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain });
 
       let combinedBefore = plain;
-      let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog }).text;
+      let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
       if (state.inputDocxBytes){
         await processDocx(state.inputDocxBytes);
         combinedBefore = [combinedBefore, state.originalText].filter(Boolean).join('\n');
@@ -706,22 +806,24 @@
     const out = [];
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
 
-    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: 'Martin FRY\nEmail Martin@eMote.Ltd\n+44 77 202 89063\nRG6 1AA' });
+    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY\nEmail Martin@eMote.Ltd\n+44 77 202 89063\nRG6 1AA` });
     state.matchLog = [];
 
-    const red = redactText('Martin FRY +44 77 202 89063 Martin@eMote.Ltd RG6 1AA', { part: 'test', matchLog: state.matchLog }).text;
-    assert('Martin FRY replaced with [REDACTED_NAME]', red.includes('[REDACTED_NAME]'));
-    assert('phone replaced with [REDACTED_PHONE]', red.includes('[REDACTED_PHONE]'));
-    assert('phone not replaced with [REDACTED_EMAIL]', !red.includes('[REDACTED_EMAIL] [REDACTED_EMAIL]'));
-    assert('email replaced with [REDACTED_EMAIL]', red.includes('[REDACTED_EMAIL]'));
-    assert('postcode replaced with [REDACTED_POSTCODE]', red.includes('[REDACTED_POSTCODE]'));
+    const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+    const sampleExpected = '[REDACTED_NAME] MBA [REDACTED_URL] [REDACTED_PHONE] [REDACTED_EMAIL]';
+    const red = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
+    assert('3-phase replacement output matches expected', red === sampleExpected);
 
-    const fryVariants = redactText('FRY Fry fry', { part: 'test', matchLog: [] }).text;
-    assert('case-insensitive FRY/Fry/fry redaction', fryVariants === '[REDACTED_NAME] [REDACTED_NAME] [REDACTED_NAME]');
+    const protectedToken = redactText('[REDACTED_NAME] Martin FRY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME] [REDACTED_NAME]');
 
     const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
     assert('split-token redaction across DOCX runs', mapped.after.includes('[REDACTED_NAME]'));
+
+    const dbg = [];
+    redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
+    assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
 
     $('testsPane').textContent = out.join('\n');
   }

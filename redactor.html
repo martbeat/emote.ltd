@@ -455,15 +455,86 @@
   </section>
 </main>
 
-<!-- CDN libs (swap to local files for full offline use) -->
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
+<!-- CDN libs are loaded with runtime fallback below -->
 <script>
-  // pdf.js worker config
-  if (window['pdfjsLib']) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
+
+  const LIB_SOURCES = {
+    pdfjs: [
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js",
+      "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"
+    ],
+    jspdf: [
+      "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
+      "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    ],
+    jszip: [
+      "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
+      "https://unpkg.com/jszip@3.10.1/dist/jszip.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+    ]
+  };
+
+  let depsReadyPromise = null;
+
+  function loadScriptOnce(src){
+    return new Promise((resolve, reject) => {
+      const existing = [...document.scripts].find(sc => sc.src === src);
+      if (existing){
+        if (existing.dataset.loaded === '1') return resolve();
+        existing.addEventListener('load', () => resolve(), { once:true });
+        existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once:true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.referrerPolicy = 'no-referrer';
+      script.onload = () => { script.dataset.loaded = '1'; resolve(); };
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function loadFromFallbacks(urls, isReady){
+    if (isReady()) return true;
+    for (const src of urls){
+      try{
+        await loadScriptOnce(src);
+        if (isReady()) return true;
+      } catch(_e){}
+    }
+    return isReady();
+  }
+
+  async function ensureDependencies(){
+    const [pdfOk, pdfExportOk, docxOk] = await Promise.all([
+      loadFromFallbacks(LIB_SOURCES.pdfjs, () => !!window.pdfjsLib),
+      loadFromFallbacks(LIB_SOURCES.jspdf, () => !!(window.jspdf && window.jspdf.jsPDF)),
+      loadFromFallbacks(LIB_SOURCES.jszip, () => !!window.JSZip),
+    ]);
+
+    if (pdfOk && window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
+    }
+
+    return { pdfOk, pdfExportOk, docxOk };
+  }
+
+  function initDependencies(){
+    if (!depsReadyPromise) depsReadyPromise = ensureDependencies();
+    return depsReadyPromise;
+  }
+
+  function hasPdfLib(){
+    return !!window.pdfjsLib;
+  }
+  function hasDocxLib(){
+    return !!window.JSZip;
+  }
+  function hasPdfExportLib(){
+    return !!(window.jspdf && window.jspdf.jsPDF);
   }
 
   function hasPdfLib(){
@@ -513,6 +584,8 @@
     refRegex: document.getElementById('refRegex'),
     maskToken: document.getElementById('maskToken'),
   };
+
+  initDependencies();
 
   let state = {
     file: null,
@@ -605,10 +678,11 @@
   }
 
   async function loadPdfForPreview(){
+    if (!hasPdfLib()) await initDependencies();
     if (!hasPdfLib()){
       state.pdfDoc = null;
       hidePdfPreview();
-      setStatus("PDF features are unavailable because pdf.js failed to load (likely CDN/network blocking). DOCX still works.", "warn");
+      setStatus("PDF features are currently unavailable (library could not be loaded from fallback CDNs). DOCX still works.", "warn");
       return;
     }
     try{
@@ -655,7 +729,7 @@
 
   async function extractTextFromPdf(){
     if (!hasPdfLib()){
-      setStatus("PDF text extraction is unavailable because pdf.js failed to load. Check network/CDN access or use DOCX.", "warn");
+      setStatus("PDF text extraction is unavailable right now (could not load pdf.js from fallback CDNs). Check network policy or use DOCX.", "warn");
       return false;
     }
     if (!state.pdfDoc) await loadPdfForPreview();
@@ -683,6 +757,7 @@
   }
 
   async function extractTextFromDocx(){
+    if (!hasDocxLib()) await initDependencies();
     if (!hasDocxLib()) throw new Error("JSZip is unavailable");
     const buf = await state.file.arrayBuffer();
     const zip = await JSZip.loadAsync(buf);
@@ -1053,7 +1128,8 @@
   els.btnExportDocx.addEventListener('click', async () => {
     clearStatus();
     if (state.kind !== "docx") return;
-    if (!hasDocxLib()) return setStatus("DOCX export is unavailable because JSZip failed to load.", "warn");
+    if (!hasDocxLib()) await initDependencies();
+    if (!hasDocxLib()) return setStatus("DOCX export is unavailable because JSZip could not be loaded from fallback CDNs.", "warn");
     if (!state.findings.length) return setStatus("Detect items first.", "warn");
 
     try{
@@ -1092,8 +1168,9 @@
   els.btnExportPdf.addEventListener('click', async () => {
     clearStatus();
     if (state.kind !== "pdf") return;
-    if (!hasPdfLib()) return setStatus("PDF export is unavailable because pdf.js failed to load.", "warn");
-    if (!hasPdfExportLib()) return setStatus("PDF export is unavailable because jsPDF failed to load.", "warn");
+    if (!hasPdfLib() || !hasPdfExportLib()) await initDependencies();
+    if (!hasPdfLib()) return setStatus("PDF export is unavailable because pdf.js could not be loaded from fallback CDNs.", "warn");
+    if (!hasPdfExportLib()) return setStatus("PDF export is unavailable because jsPDF could not be loaded from fallback CDNs.", "warn");
 
     try{
       if (!state.pdfDoc) await loadPdfForPreview();

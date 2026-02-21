@@ -270,31 +270,47 @@
   function buildSimplePdf(text){
     const maxCharsPerLine = 85;
     const maxLinesPerPage = 48;
-    const lines = [];
 
+    // 1) Wrap into lines
+    const lines = [];
     for (const rawLine of (text || '').split(/\r?\n/)){
       if (!rawLine){
         lines.push('');
         continue;
       }
-      for (let index = 0; index < rawLine.length; index += maxCharsPerLine){
-        lines.push(rawLine.slice(index, index + maxCharsPerLine));
+      for (let i = 0; i < rawLine.length; i += maxCharsPerLine){
+        lines.push(rawLine.slice(i, i + maxCharsPerLine));
       }
     }
 
+    // 2) Split into pages
     const pages = [];
     const effectiveLines = lines.length ? lines : [''];
-    for (let index = 0; index < effectiveLines.length; index += maxLinesPerPage){
-      pages.push(effectiveLines.slice(index, index + maxLinesPerPage));
+    for (let i = 0; i < effectiveLines.length; i += maxLinesPerPage){
+      pages.push(effectiveLines.slice(i, i + maxLinesPerPage));
     }
 
-    const objs = [
-      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'
-    ];
+    // Object numbering plan:
+    // 1 = Catalog
+    // 2 = Pages
+    // 3 = shared Font
+    // 4.. = Page objects and their Content objects
+    const fontObjNum = 3;
+    let nextObjNum = 4;
+
+    const objs = [];
+    objs.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
     const pageRefs = [];
-    let objIndex = 3;
+
+    // Shared font object referenced by every page.
+    objs.push('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
 
     pages.forEach((pageLines) => {
+      const pageObjNum = nextObjNum++;
+      const contentObjNum = nextObjNum++;
+
+      pageRefs.push(`${pageObjNum} 0 R`);
+
       const content = ['BT', '/F1 11 Tf', '50 780 Td', '14 TL'];
       pageLines.forEach((line, idx) => {
         content.push(`(${escapePdfText(line)}) Tj`);
@@ -303,14 +319,11 @@
       content.push('ET');
       const contentStream = content.join('\n');
 
-      objs.push(`${objIndex} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${objIndex + 2} 0 R >> >> /Contents ${objIndex + 1} 0 R >>\nendobj\n`);
-      objs.push(`${objIndex + 1} 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
-      pageRefs.push(`${objIndex} 0 R`);
-      objIndex += 3;
+      objs.push(`${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObjNum} 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj\n`);
+      objs.push(`${contentObjNum} 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
     });
 
     objs.splice(1, 0, `2 0 obj\n<< /Type /Pages /Kids [${pageRefs.join(' ')}] /Count ${pages.length} >>\nendobj\n`);
-    objs.push(`${objIndex - 1} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`);
 
     let out = '%PDF-1.4\n';
     const offsets = [0];
@@ -325,7 +338,7 @@
       out += `${String(offset).padStart(10, '0')} 00000 n \n`;
     });
     out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
-    return new Blob([new TextEncoder().encode(out)], { type: 'application/pdf' });
+    return new Blob([textEncoder.encode(out)], { type: 'application/pdf' });
   }
 
   function parseCoreProps(xml){

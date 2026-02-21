@@ -257,19 +257,18 @@
     while ((lit = litRe.exec(content))){
       textBits.push(decodePdfLiteral(lit[0].slice(1, -1)));
     }
-    const hexRe = /<([0-9A-Fa-f\s]{4,})>/g;
-    let hex;
-    while ((hex = hexRe.exec(content))){
-      const cleaned = hex[1].replace(/\s+/g, '');
-      if (!cleaned || cleaned.length % 2 !== 0) continue;
-      try {
-        const bytesArr = new Uint8Array(cleaned.match(/../g).map(pair => parseInt(pair, 16)));
-        textBits.push(new TextDecoder('latin1').decode(bytesArr));
-      } catch (_err){
-        // ignore malformed hex strings
-      }
+
+    const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      fullText += content.items.map(i => i.str).join(' ') + '\n';
     }
-    return textBits.join(' ').replace(/\s+/g, ' ').trim();
+
+    return fullText;
   }
 
   async function extractPdfText(bytes){

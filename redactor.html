@@ -1039,6 +1039,11 @@
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
     const previousMode = $('modeSel').value;
 
+    // Ensure deterministic token IDs even if the harness is run after prior redactions.
+    resetAuditState();
+    state.tokenCache.clear();
+    state.counters = {};
+
     state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
 Email Martin@eMote.Ltd
 +44 77 202 89063

@@ -384,14 +384,41 @@
     return part;
   }
 
+  function normalizeUkPhone(value){
+    // Goal: make these equivalent:
+    // 07700 900123
+    // +44 7700 900123
+    // 447700900123
+    // -> 447700900123
+
+    const digits = (value || '').replace(/\D/g, '');
+    if (!digits) return '';
+
+    // If it starts with 00 (international dial prefix), drop it
+    let d = digits.startsWith('00') ? digits.slice(2) : digits;
+
+    // Convert leading 0 national form to 44
+    if (d.startsWith('0')) d = '44' + d.slice(1);
+
+    // If it already starts with 44, keep as-is
+    // Otherwise leave digits-only (still stable for caching)
+    return d;
+  }
+
   function normForKey(type, value){
-    const v = String(value || '').trim();
+    const v = (value || '').trim();
 
     if (type === 'EMAIL') return v.toLowerCase();
-    if (type === 'PHONE') return v.replace(/\D/g, '');
+
+    if (type === 'PHONE') return normalizeUkPhone(v);
+
     if (type === 'URL') return v.toLowerCase();
-    if (type === 'POSTCODE') return v.toUpperCase().replace(/\s+/g, '');
-    if (type === 'FULL_NAME' || type === 'NAME_TOKEN') return v.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    if (type === 'POSTCODE') return v.toUpperCase().replace(/\s+/g,'');
+
+    if (type === 'FULL_NAME' || type === 'NAME_TOKEN'){
+      return v.toLowerCase().replace(/\s+/g,' ').trim();
+    }
 
     return v.toLowerCase();
   }
@@ -682,7 +709,10 @@
     ];
     return leakRules.map(([name,re]) => {
       const ms = [...text.matchAll(re)].map(m=>m[0]);
-      return `${name}: ${ms.length}${ms.length ? ` -> ${ms.slice(0,6).join(', ')}` : ''}`;
+      const msNorm = name === 'phone'
+        ? [...new Set(ms.map(normalizeUkPhone).filter(Boolean))]
+        : [...new Set(ms)];
+      return `${name}: ${msNorm.length}${msNorm.length ? ` -> ${msNorm.slice(0,6).join(', ')}` : ''}`;
     }).join('\n');
   }
 

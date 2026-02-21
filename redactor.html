@@ -515,14 +515,9 @@
     const logical = nodes.map(n=>n.text).join('');
     const redactedLogical = redactText(logical, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
 
-    const segLens = nodes.map(n=>n.text.length);
-    const replacementTexts = [];
-    let ptr = 0;
-    for (let i=0;i<segLens.length;i++){
-      const len = (i === segLens.length - 1) ? (redactedLogical.length - ptr) : segLens[i];
-      replacementTexts.push(redactedLogical.slice(ptr, ptr + Math.max(0, len)));
-      ptr += Math.max(0, len);
-    }
+    const replacementTexts = nodes.map((_, i) =>
+      i === 0 ? redactedLogical : ''
+    );
 
     let out = '';
     let cursor = 0;

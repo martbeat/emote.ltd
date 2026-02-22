@@ -1229,13 +1229,13 @@
     state.tokenCache.clear();
     state.counters = {};
 
-    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
-Email Martin@eMote.Ltd
-+44 77 202 89063
-RG6 1AA` });
+    state.piiCandidates = buildPiiCandidates({ creator: 'Alex Jordan Tester', lastModifiedBy: 'Alex Tester', fullText: `ALEX TESTER
+Email alex.tester@example.net
++1 202 555 0147
+90210` });
     state.matchLog = [];
 
-    const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+    const sampleInput = 'ALEX TESTER MBA https://example.com +1 202 555 0147 alex.tester@example.net';
 
     $('modeSel').value = 'aggressive';
     resetAuditState();
@@ -1246,13 +1246,13 @@ RG6 1AA` });
     $('modeSel').value = 'identity';
     state.piiCandidates = null;
     resetAuditState();
-    const identityExpected = 'Martin FRY MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identityExpected = 'ALEX TESTER MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
     resetAuditState();
-    const protectedToken = redactText('[REDACTED_FULL_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
-    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_FULL_NAME_001] Martin FRY');
+    const protectedToken = redactText('[REDACTED_FULL_NAME_001] ALEX TESTER', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_FULL_NAME_001] ALEX TESTER');
 
     const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');

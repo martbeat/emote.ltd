@@ -1,421 +1,1283 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PseudoRedact (PDF + DOCX)</title>
-  <style>
-    :root {
-      --bg: #0f1220;
-      --panel: #171a2b;
-      --line: #2a3050;
-      --text: #ecf0ff;
-      --muted: #9ba4c7;
-      --danger: #ff6b6b;
-      --ok: #2ec27e;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; color: var(--text); background: radial-gradient(circle at top, #1a1e34 0%, var(--bg) 45%); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    .app { max-width: 1450px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
-    @media (max-width: 980px) { .app { grid-template-columns: 1fr; } }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-    .header { padding: 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(118,169,255,.15), rgba(0,0,0,0)); }
-    .header h1, .header h2 { margin: 0; font-size: 16px; }
-    .body { padding: 14px; }
-    .stack > * + * { margin-top: 10px; }
-    .small { color: var(--muted); font-size: 12px; line-height: 1.35; }
-    input[type="file"], input[type="text"], textarea, button, select { width: 100%; border-radius: 10px; border: 1px solid var(--line); padding: 10px; font-size: 13px; color: var(--text); background: #101427; }
-    button { cursor: pointer; font-weight: 600; }
-    button:hover { border-color: #4f619b; }
-    .danger { background: rgba(255,107,107,.2); }
-    .success { background: rgba(46,194,126,.2); }
-    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); margin-right: 4px; margin-bottom: 6px; }
-    .warn { border: 1px solid #8e6a2f; background: rgba(255,190,90,.15); color: #ffe1af; border-radius: 10px; padding: 10px; font-size: 12px; line-height: 1.35; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .row button { width: auto; }
-
-    #viewerWrap { position: relative; overflow: auto; height: 70vh; background: #0b0f1d; border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-    .page-wrap { position: relative; width: fit-content; margin: 0 auto 18px; }
-    .pdf-canvas { display: block; border: 1px solid #1b223b; border-radius: 8px; background: white; }
-    .overlay { position: absolute; inset: 0; cursor: crosshair; }
-    .redaction { position: absolute; background: #000; border: 1px solid #111; opacity: .95; pointer-events: auto; }
-
-    .pane { background: #0c1020; border: 1px solid #2c3964; border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Offline Identity Anonymisation Engine</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
+  header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
+  main{padding:16px;display:grid;grid-template-columns:360px 1fr;gap:14px}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .card{background:#171d34;border:1px solid #2a3352;border-radius:12px;overflow:hidden}
+  .hd{padding:10px 12px;border-bottom:1px solid #2a3352;font-weight:700}
+  .bd{padding:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label{display:block;font-size:12px;color:#aeb8da;margin:8px 0 4px}
+  input[type=file],textarea,input,select{width:100%;background:#0e1324;color:#e9ecf6;border:1px solid #33406b;border-radius:8px;padding:8px}
+  textarea{min-height:72px}
+  button{background:#243159;color:#ecf1ff;border:1px solid #3c4f87;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
+  button:hover{background:#2c3b6f}
+  .warn{background:#3c2e10;border:1px solid #7b6330;color:#ffe8ac;padding:10px;border-radius:8px;font-size:12px;line-height:1.4}
+  pre,.pane{background:#0c1020;border:1px solid #2c3964;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border-bottom:1px solid #2a3352;padding:6px;text-align:left}
+  .ok{color:#90f7b6}.bad{color:#ff9f9f}.muted{color:#aeb8da;font-size:12px}
+  .pill{padding:3px 8px;background:#0d1328;border:1px solid #34426e;border-radius:999px;font-size:12px}
+</style>
 </head>
 <body>
-  <div class="app">
-    <section class="card">
-      <div class="header"><h1>PseudoRedact (.pdf + .docx)</h1></div>
-      <div class="body stack">
-        <p class="small">Upload a PDF or DOCX. PDF mode uses draw-box redaction. DOCX mode redacts underlying XML text across document/header/footer/comments.</p>
-        <input id="fileInput" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+<header>
+  <strong>Offline Identity Anonymisation Engine (.docx, .pdf + text)</strong>
+  <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
+</header>
+<main>
+  <section class="card">
+    <div class="hd">Controls</div>
+    <div class="bd">
+      <label>Upload DOCX or PDF</label>
+      <input id="docInput" type="file" accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <label>Paste plain text (optional)</label>
+      <textarea id="plainInput" placeholder="Paste document text here..."></textarea>
 
-        <div>
-          <span class="pill" id="fileType">Type: —</span>
-          <span class="pill" id="pageCount">Pages: 0</span>
-          <span class="pill" id="boxCount">Boxes: 0</span>
-        </div>
-
-        <label class="small">DOCX mask text</label>
-        <input id="maskText" type="text" value="[REDACTED]" />
-
-        <label class="small">Optional text stamp inside PDF boxes</label>
-        <input id="labelText" type="text" placeholder="REDACTED" />
-
-        <label class="small">DOCX custom regex rules (one per line: /pattern/flags)</label>
-        <textarea id="customRules" rows="5" placeholder="/john doe/gi\n/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi"></textarea>
-
-        <div class="row">
-          <button id="clearPageBtn">Clear boxes on active page</button>
-          <button class="danger" id="clearAllBtn">Clear all boxes</button>
-        </div>
-
-        <div class="row">
-          <button class="success" id="exportPdfBtn">Export redacted PDF</button>
-          <button class="success" id="runDocxBtn">Redact DOCX</button>
-          <button class="success" id="downloadDocxBtn" disabled>Download redacted.docx</button>
-        </div>
-
-        <div class="warn">PseudoRedact helps quickly reduce exposure but does not guarantee perfect anonymisation. Verify outputs before sharing.</div>
+      <label>Redaction mode</label>
+      <select id="modeSel">
+        <option value="identity" selected>A) Identity removal (deterministic identifiers)</option>
+        <option value="aggressive">B) Aggressive identity inference (CV / HR)</option>
+        <option value="custom">C) Custom rules</option>
+      </select>
+      <div class="row" style="margin-top:8px">
+        <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
+        <span class="pill">mask: <span id="maskPreview">████████</span></span>
       </div>
-    </section>
+      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), Org anonymisation: Off, Client anonymisation: Off</div>
+      <label>Name redaction controls</label>
+      <div class="row">
+        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact surname globally if high confidence</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
+      </div>
+      <label>Whitelist terms (one per line)</label>
+      <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
+      <label>Organisation terms for deterministic pseudonyms (one per line)</label>
+      <textarea id="orgDict" placeholder="Oxford City Council"></textarea>
+      <label>Client terms for deterministic pseudonyms (one per line)</label>
+      <textarea id="clientDict" placeholder="NHS Trust"></textarea>
+      <label>Custom regex rules (one per line: /pattern/flags => replacement)</label>
+      <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
 
-    <section class="card">
-      <div class="header"><h2>Viewer / Preview</h2></div>
-      <div class="body stack">
-        <div class="row">
-          <button id="zoomOut">-</button>
-          <button id="zoomIn">+</button>
-          <span class="pill" id="zoomLevel">Zoom: 125%</span>
-          <span class="small">PDF: drag to draw boxes, click box to remove.</span>
-        </div>
-        <div id="viewerWrap"></div>
+      <div class="row">
+        <button id="runBtn">Redact</button>
+        <button id="testsBtn">Run tests</button>
+        <button id="dlDocxBtn" disabled>Download redacted.docx</button>
+        <button id="dlPdfBtn" disabled>Download redacted.pdf</button>
+        <button id="dlTxtBtn" disabled>Download redacted.txt</button>
+        <button id="dlReportBtn" disabled>Download report.json</button>
+        <button id="dlManifestBtn" disabled>Download redaction-report.json</button>
+      </div>
+      <div id="status" class="muted" style="margin-top:8px"></div>
+      <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd">Preview, leaks check, and document inspection</div>
+    <div class="bd">
+      <div class="grid">
         <div>
-          <label class="small">DOCX text preview before</label>
-          <div id="beforePane" class="pane">—</div>
+          <label>Before (extracted plain text)</label>
+          <pre id="beforePane">—</pre>
         </div>
         <div>
-          <label class="small">DOCX text preview after</label>
-          <div id="afterPane" class="pane">—</div>
+          <label>After (redacted plain text)</label>
+          <pre id="afterPane">—</pre>
         </div>
       </div>
-    </section>
-  </div>
+      <label>Leaks check report</label>
+      <div id="leaksPane" class="pane">No run yet.</div>
+      <label>Run summary</label>
+      <div id="summaryPane" class="pane">No run yet.</div>
+      <label>PII candidates</label>
+      <div id="candidatesPane" class="pane">No run yet.</div>
+      <label>Match log</label>
+      <div id="matchLogPane" class="pane">No run yet.</div>
+      <label>Search in DOCX redaction surfaces</label>
+      <div class="row"><input id="searchTerm" placeholder="Search term" /><button id="searchBtn">Search</button></div>
+      <div id="searchPane" class="pane">Load a DOCX and run redaction to inspect parts.</div>
+      <label>Mini test harness output</label>
+      <div id="testsPane" class="pane">Not run.</div>
+    </div>
+  </section>
+</main>
 
-  <script type="module">
-    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.min.mjs';
-    import { PDFDocument, rgb, StandardFonts } from 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm';
-    import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
+<script>
+(() => {
+  'use strict';
 
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
+  if (window.pdfjsLib?.GlobalWorkerOptions){
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+  }
 
-    const fileInput = document.getElementById('fileInput');
-    const viewerWrap = document.getElementById('viewerWrap');
-    const pageCountEl = document.getElementById('pageCount');
-    const boxCountEl = document.getElementById('boxCount');
-    const zoomLevelEl = document.getElementById('zoomLevel');
-    const fileTypeEl = document.getElementById('fileType');
-    const labelTextInput = document.getElementById('labelText');
-    const maskTextInput = document.getElementById('maskText');
-    const customRulesInput = document.getElementById('customRules');
-    const beforePane = document.getElementById('beforePane');
-    const afterPane = document.getElementById('afterPane');
+  const DOCX_TEXT_PART_PATTERNS = [
+    /^word\/document\.xml$/,
+    /^word\/header\d*\.xml$/,
+    /^word\/footer\d*\.xml$/,
+    /^word\/comments\.xml$/,
+    /^word\/footnotes\.xml$/,
+    /^word\/endnotes\.xml$/
+  ];
+  const HEADER_SCAN_CHARS = 500;
+  const HEADER_SCAN_LINES = 30;
+  const NAME_STOPWORDS = new Set(['cv','curriculum','vitae','resume','profile','summary','experience','email','phone','address','contact','professional','linkedin','github','ltd','limited','uk','england','mba','msc','bsc']);
+  const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
 
-    const clearPageBtn = document.getElementById('clearPageBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    const exportPdfBtn = document.getElementById('exportPdfBtn');
-    const runDocxBtn = document.getElementById('runDocxBtn');
-    const downloadDocxBtn = document.getElementById('downloadDocxBtn');
-    const zoomInBtn = document.getElementById('zoomIn');
-    const zoomOutBtn = document.getElementById('zoomOut');
+  const REDACTION_PATTERNS = {
+    email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
+    mobileUk: /(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
+    landlineUk: /(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
+    postcodeUk: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/ig,
+    urlHttp: /\bhttps?:\/\/[^\s<>"']+/ig,
+    urlWww: /\bwww\.[^\s<>"']+/ig,
+    addressLine: /\b\d{1,4}\s+[A-Za-z0-9'\-\.\s]{2,40}\s(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Close|Way|Drive|Dr|Court|Ct)\b/ig,
+    username: /\b(?:@|user(?:name)?[:\s]+)[a-z0-9._-]{3,}\b/ig,
+    date: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4})\b/ig,
+    metric: /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s?(?:%|k|m|bn|hours?|yrs?|years?)\b/ig
+  };
 
-    let fileKind = null;
-    let pdfDoc = null;
-    let rawPdfBytes = null;
-    let scale = 1.25;
-    let activePage = 1;
-    const pageRects = new Map();
+  const ENTITY_PRIORITY = {
+    FULL_NAME: 6,
+    EMAIL: 5,
+    PHONE: 4,
+    URL: 3,
+    POSTCODE: 2,
+    NAME_TOKEN: 1
+  };
 
-    let docxBytes = null;
-    let redactedDocxBytes = null;
+  const state = {
+    originalText: '',
+    redactedText: '',
+    inputDocxBytes: null,
+    redactedDocxBytes: null,
+    inputPdfBytes: null,
+    extractedPartText: new Map(),
+    redactedPartText: new Map(),
+    pseudonyms: { org: new Map(), client: new Map() },
+    piiCandidates: null,
+    matchLog: [],
+    manifest: [],
+    counters: {},
+    tokenCache: new Map(),
+    report: null,
+    processedParts: new Set()
+  };
 
-    function hasPdfHeader(bytes) {
-      if (!bytes || bytes.length < 5) return false;
-      return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2D; // %PDF-
-    }
+  const $ = id => document.getElementById(id);
 
-    function countRects() { let n = 0; for (const arr of pageRects.values()) n += arr.length; return n; }
-    function updateBadges() {
-      fileTypeEl.textContent = `Type: ${fileKind || '—'}`;
-      pageCountEl.textContent = `Pages: ${pdfDoc ? pdfDoc.numPages : 0}`;
-      boxCountEl.textContent = `Boxes: ${countRects()}`;
-      zoomLevelEl.textContent = `Zoom: ${Math.round(scale * 100)}%`;
-    }
 
-    function ensurePageEntry(pageNum) { if (!pageRects.has(pageNum)) pageRects.set(pageNum, []); return pageRects.get(pageNum); }
+  function isInferenceMode(){
+    return $('modeSel').value === 'aggressive';
+  }
 
-    async function renderPdfPages() {
-      viewerWrap.innerHTML = '';
-      if (!pdfDoc) return updateBadges();
-      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-        const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale });
-        const wrap = document.createElement('div');
-        wrap.className = 'page-wrap';
-        wrap.dataset.pageNum = String(pageNum);
-        wrap.addEventListener('pointerdown', () => activePage = pageNum);
+  function updateInferenceControls(){
+    const enabled = isInferenceMode();
+    ['redactFullNameVariants', 'redactSurnameGlobal', 'redactFirstNameGlobal'].forEach(id => {
+      $(id).disabled = !enabled;
+    });
+  }
+  function updatePolicyLine(){
+    const mode = $('modeSel').value;
+    const modeLabel = mode === 'aggressive'
+      ? 'Aggressive identity inference'
+      : (mode === 'custom' ? 'Custom rules' : 'Identity removal (no inference)');
+    const orgOn = $('orgDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
+    const clientOn = $('clientDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
+    $('policyLine').textContent = `Policy: ${modeLabel}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
+  }
+  const setStatus = msg => { $('status').textContent = msg; };
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
 
-        const canvas = document.createElement('canvas');
-        canvas.className = 'pdf-canvas';
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        await page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport }).promise;
+  $('useBlock').addEventListener('change', () => {
+    $('maskPreview').textContent = $('useBlock').checked ? '████████' : '[REDACTED]';
+  });
 
-        const overlay = document.createElement('div');
-        overlay.className = 'overlay';
-        overlay.style.width = canvas.width + 'px';
-        overlay.style.height = canvas.height + 'px';
-        attachDrawHandlers(overlay, pageNum);
-        redrawRects(overlay, pageNum);
+  function decodeXmlText(s){ return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); }
+  function encodeXmlText(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-        wrap.appendChild(canvas); wrap.appendChild(overlay); viewerWrap.appendChild(wrap);
-      }
-      updateBadges();
-    }
+  function escapePdfText(value){
+    return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  }
 
-    function redrawRects(overlay, pageNum) {
-      overlay.querySelectorAll('.redaction').forEach(v => v.remove());
-      const rects = ensurePageEntry(pageNum);
-      rects.forEach((r, idx) => {
-        const el = document.createElement('div');
-        el.className = 'redaction';
-        el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px';
-        el.addEventListener('click', (ev) => { ev.stopPropagation(); rects.splice(idx, 1); redrawRects(overlay, pageNum); updateBadges(); });
-        overlay.appendChild(el);
-      });
-    }
+  function decodePdfLiteral(literal){
+    return literal
+      .replace(/\\([\\()])/g, '$1')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\b/g, '\b')
+      .replace(/\\f/g, '\f');
+  }
 
-    function attachDrawHandlers(overlay, pageNum) {
-      let drawing = false, startX = 0, startY = 0, temp = null;
-      overlay.addEventListener('pointerdown', (e) => {
-        if (e.target !== overlay) return;
-        const rect = overlay.getBoundingClientRect();
-        drawing = true; startX = e.clientX - rect.left; startY = e.clientY - rect.top;
-        temp = document.createElement('div'); temp.className = 'redaction'; temp.style.opacity = '.55';
-        temp.style.left = startX + 'px'; temp.style.top = startY + 'px'; temp.style.width = '0px'; temp.style.height = '0px';
-        overlay.appendChild(temp);
-      });
-      overlay.addEventListener('pointermove', (e) => {
-        if (!drawing || !temp) return;
-        const rect = overlay.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-        temp.style.left = Math.min(startX, x) + 'px'; temp.style.top = Math.min(startY, y) + 'px';
-        temp.style.width = Math.abs(x - startX) + 'px'; temp.style.height = Math.abs(y - startY) + 'px';
-      });
-      function end() {
-        if (!drawing || !temp) return;
-        drawing = false;
-        const x = parseFloat(temp.style.left), y = parseFloat(temp.style.top), w = parseFloat(temp.style.width), h = parseFloat(temp.style.height);
-        temp.remove(); temp = null;
-        if (w < 4 || h < 4) return;
-        ensurePageEntry(pageNum).push({ x, y, w, h });
-        redrawRects(overlay, pageNum); updateBadges();
-      }
-      overlay.addEventListener('pointerup', end); overlay.addEventListener('pointerleave', end);
-    }
-
-    async function loadPdf(file) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      if (!hasPdfHeader(bytes)) {
-        throw new Error('Selected file does not have a valid PDF header.');
-      }
-      const parsedPdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-      rawPdfBytes = bytes;
-      pdfDoc = parsedPdf;
-      pageRects.clear();
-      await renderPdfPages();
-    }
-
-    async function exportPdf() {
-      if (fileKind !== 'PDF' || !rawPdfBytes || !pdfDoc) return alert('Load a PDF first.');
-      if (!hasPdfHeader(rawPdfBytes)) {
-        alert('Current data is not a valid PDF. Please re-load a PDF file.');
-        return;
-      }
-      const outDoc = await PDFDocument.load(rawPdfBytes);
-      const font = await outDoc.embedFont(StandardFonts.HelveticaBold);
-      const stamp = labelTextInput.value.trim();
-
-      for (let i = 0; i < outDoc.getPageCount(); i++) {
-        const pageNum = i + 1;
-        const rects = pageRects.get(pageNum) || [];
-        if (!rects.length) continue;
-        const page = outDoc.getPage(i);
-        const { width, height } = page.getSize();
-        const srcPage = await pdfDoc.getPage(pageNum);
-        const viewport = srcPage.getViewport({ scale });
-
-        rects.forEach((r) => {
-          const pdfX = (r.x / viewport.width) * width;
-          const pdfW = (r.w / viewport.width) * width;
-          const topFromTop = (r.y / viewport.height) * height;
-          const pdfH = (r.h / viewport.height) * height;
-          const pdfY = height - topFromTop - pdfH;
-          page.drawRectangle({ x: pdfX, y: pdfY, width: pdfW, height: pdfH, color: rgb(0, 0, 0), borderWidth: 0, opacity: 1 });
-          if (stamp && pdfW > 40 && pdfH > 14) {
-            const size = Math.max(8, Math.min(14, pdfH * 0.35));
-            const textW = font.widthOfTextAtSize(stamp, size);
-            if (textW < pdfW - 8) page.drawText(stamp, { x: pdfX + (pdfW - textW)/2, y: pdfY + (pdfH - size)/2, size, font, color: rgb(1, 1, 1), opacity: .9 });
-          }
-        });
-      }
-
-      const blob = new Blob([await outDoc.save()], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'pseudoredacted.pdf'; document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    const DOCX_PARTS = [
-      /^word\/document\.xml$/,
-      /^word\/header\d*\.xml$/,
-      /^word\/footer\d*\.xml$/,
-      /^word\/comments\.xml$/,
-      /^word\/footnotes\.xml$/,
-      /^word\/endnotes\.xml$/
-    ];
-
-    function parseCustomRegexes() {
-      return customRulesInput.value
-        .split(/\n+/)
-        .map(v => v.trim())
-        .filter(Boolean)
-        .map(line => {
-          const m = line.match(/^\/(.*)\/([gimsuy]*)$/);
-          if (!m) return null;
-          try { return new RegExp(m[1], m[2].includes('g') ? m[2] : m[2] + 'g'); } catch { return null; }
-        })
-        .filter(Boolean);
-    }
-
-    function redactText(input, mask, customRegexes) {
-      let out = input;
-      const defaults = [
-        /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-        /(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
-        /\bhttps?:\/\/[^\s<>"]+/gi,
-        /\bwww\.[^\s<>"]+/gi,
-        /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi
-      ];
-      [...defaults, ...customRegexes].forEach(re => { out = out.replace(re, mask); });
-      return out;
-    }
-
-    function xmlToText(xml) {
-      return xml
-        .replace(/<w:tab\s*\/?>/g, '\t')
-        .replace(/<w:br\s*\/?>/g, '\n')
-        .replace(/<w:p[^>]*>/g, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
-    }
-
-    async function runDocxRedaction() {
-      if (!docxBytes) return alert('Load a DOCX first.');
-      const mask = maskTextInput.value || '[REDACTED]';
-      const customRegexes = parseCustomRegexes();
-      const zip = await JSZip.loadAsync(docxBytes);
-      const outZip = new JSZip();
-
-      let before = '';
-      let after = '';
-
-      const entries = Object.values(zip.files);
-      for (const entry of entries) {
-        if (entry.dir) continue;
-        const isDocxPart = DOCX_PARTS.some(re => re.test(entry.name));
-        if (!isDocxPart) {
-          outZip.file(entry.name, await entry.async('uint8array'));
-          continue;
-        }
-
-        const xml = await entry.async('string');
-        before += `\n--- ${entry.name} ---\n` + xmlToText(xml).slice(0, 2500);
-        const redacted = xml.replace(/>([^<]+)</g, (_m, text) => `>${redactText(text, mask, customRegexes)}<`);
-        after += `\n--- ${entry.name} ---\n` + xmlToText(redacted).slice(0, 2500);
-        outZip.file(entry.name, redacted);
-      }
-
-      redactedDocxBytes = await outZip.generateAsync({ type: 'uint8array' });
-      beforePane.textContent = before.trim() || 'No DOCX text surfaces found.';
-      afterPane.textContent = after.trim() || 'No DOCX text surfaces found.';
-      downloadDocxBtn.disabled = false;
-    }
-
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      const lowerName = file.name.toLowerCase();
-
-      if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
-        pdfDoc = null; rawPdfBytes = null;
-        docxBytes = null; redactedDocxBytes = null;
-        beforePane.textContent = '—'; afterPane.textContent = '—'; downloadDocxBtn.disabled = true;
+  async function extractPdfTextLegacy(bytes){
+    const src = new TextDecoder('latin1').decode(bytes);
+    const chunks = [];
+    const streamRe = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let m;
+    while ((m = streamRe.exec(src))){
+      const dict = m[1];
+      const raw = m[2];
+      let streamText = raw;
+      if (/\/Filter\s*\/FlateDecode/.test(dict) && typeof DecompressionStream !== 'undefined'){
         try {
-          await loadPdf(file);
-          fileKind = 'PDF';
-        } catch (err) {
-          fileKind = null;
-          viewerWrap.innerHTML = '';
-          console.error(err);
-          alert('Could not open PDF. Make sure the file is a valid PDF.');
+          const stream = new Response(new Uint8Array(raw.split('').map(ch => ch.charCodeAt(0))).buffer)
+            .body
+            .pipeThrough(new DecompressionStream('deflate'));
+          const decompressed = await new Response(stream).arrayBuffer();
+          streamText = new TextDecoder('latin1').decode(new Uint8Array(decompressed));
+        } catch (_err){
+          streamText = raw;
         }
-      } else if (lowerName.endsWith('.docx')) {
-        fileKind = 'DOCX';
-        pdfDoc = null; rawPdfBytes = null; pageRects.clear(); viewerWrap.innerHTML = '<div class="small">DOCX mode loaded. Use "Redact DOCX" for textual redaction and preview below.</div>';
-        docxBytes = new Uint8Array(await file.arrayBuffer());
-        redactedDocxBytes = null;
-        const zip = await JSZip.loadAsync(docxBytes);
-        const docXml = zip.file('word/document.xml');
-        beforePane.textContent = docXml ? xmlToText(await docXml.async('string')).slice(0, 8000) : 'Could not read word/document.xml';
-        afterPane.textContent = 'Run DOCX redaction to populate output preview.';
-        downloadDocxBtn.disabled = true;
-      } else {
-        alert('Please choose a PDF or DOCX file.');
       }
-      updateBadges();
+      chunks.push(streamText);
+    }
+    const content = chunks.join('\n');
+    const textBits = [];
+    const litRe = /\((?:\\.|[^\\)])*\)/g;
+    let lit;
+    while ((lit = litRe.exec(content))){
+      textBits.push(decodePdfLiteral(lit[0].slice(1, -1)));
+    }
+
+    const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      fullText += content.items.map(i => i.str).join(' ') + '\n';
+    }
+
+    return fullText;
+  }
+
+  async function extractPdfText(bytes){
+    if (window.pdfjsLib?.getDocument){
+      const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        fullText += content.items.map(i => i.str).join(' ') + '\n';
+      }
+
+      return fullText.trim();
+    }
+
+    return extractPdfTextLegacy(bytes);
+  }
+
+  function buildSimplePdf(text){
+    const maxCharsPerLine = 85;
+    const maxLinesPerPage = 48;
+
+    // 1) Wrap into lines
+    const lines = [];
+    for (const rawLine of (text || '').split(/\r?\n/)){
+      if (!rawLine){
+        lines.push('');
+        continue;
+      }
+      for (let i = 0; i < rawLine.length; i += maxCharsPerLine){
+        lines.push(rawLine.slice(i, i + maxCharsPerLine));
+      }
+    }
+
+    // 2) Split into pages
+    const pages = [];
+    const effectiveLines = lines.length ? lines : [''];
+    for (let i = 0; i < effectiveLines.length; i += maxLinesPerPage){
+      pages.push(effectiveLines.slice(i, i + maxLinesPerPage));
+    }
+
+    // Object numbering plan:
+    // 1 = Catalog
+    // 2 = Pages
+    // 3 = shared Font
+    // 4.. = Page objects and their Content objects
+    const fontObjNum = 3;
+    let nextObjNum = 4;
+
+    const objs = [];
+    objs.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    const pageRefs = [];
+
+    // Shared font object referenced by every page.
+    objs.push('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+
+    pages.forEach((pageLines) => {
+      const pageObjNum = nextObjNum++;
+      const contentObjNum = nextObjNum++;
+
+      pageRefs.push(`${pageObjNum} 0 R`);
+
+      const content = ['BT', '/F1 11 Tf', '50 780 Td', '14 TL'];
+      pageLines.forEach((line, idx) => {
+        content.push(`(${escapePdfText(line)}) Tj`);
+        if (idx < pageLines.length - 1) content.push('T*');
+      });
+      content.push('ET');
+      const contentStream = content.join('\n');
+
+      objs.push(`${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObjNum} 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj\n`);
+      objs.push(`${contentObjNum} 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
     });
 
-    zoomInBtn.addEventListener('click', async () => { if (!pdfDoc) return; scale = Math.min(scale + .15, 3); await renderPdfPages(); });
-    zoomOutBtn.addEventListener('click', async () => { if (!pdfDoc) return; scale = Math.max(scale - .15, .5); await renderPdfPages(); });
+    objs.splice(1, 0, `2 0 obj\n<< /Type /Pages /Kids [${pageRefs.join(' ')}] /Count ${pages.length} >>\nendobj\n`);
 
-    clearPageBtn.addEventListener('click', () => {
-      if (!pdfDoc) return;
-      const wrap = viewerWrap.querySelector(`.page-wrap[data-page-num="${activePage}"]`);
-      if (!wrap) return;
-      pageRects.set(activePage, []);
-      redrawRects(wrap.querySelector('.overlay'), activePage);
-      updateBadges();
+    let out = '%PDF-1.4\n';
+    const offsets = [0];
+    objs.forEach(obj => {
+      offsets.push(out.length);
+      out += obj;
+    });
+    const xrefStart = out.length;
+    out += `xref\n0 ${objs.length + 1}\n`;
+    out += '0000000000 65535 f \n';
+    offsets.slice(1).forEach(offset => {
+      out += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    return new Blob([textEncoder.encode(out)], { type: 'application/pdf' });
+  }
+
+  function parseCoreProps(xml){
+    const creator = (xml.match(/<dc:creator>([\s\S]*?)<\/dc:creator>/i)?.[1] || '').trim();
+    const lastModifiedBy = (xml.match(/<cp:lastModifiedBy>([\s\S]*?)<\/cp:lastModifiedBy>/i)?.[1] || '').trim();
+    return { creator: decodeXmlText(creator), lastModifiedBy: decodeXmlText(lastModifiedBy) };
+  }
+
+  function splitNameTokens(raw){
+    const base = raw.replace(/[_\-.+]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[^A-Za-z\s']/g,' ')
+      .split(/\s+/)
+      .map(t=>t.trim().toLowerCase())
+      .filter(Boolean)
+      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t));
+    return [...new Set(base)];
+  }
+
+  function titleCase(token){ return token ? token[0].toUpperCase()+token.slice(1).toLowerCase() : ''; }
+
+  function extractHeaderNamePhrase(text){
+    const headerLines = text.split(/\r?\n/).slice(0, HEADER_SCAN_LINES);
+    const block = headerLines.join('\n').slice(0, HEADER_SCAN_CHARS);
+    const lines = block.split(/\r?\n/);
+    for (const line of lines){
+      const clean = line.replace(/[^A-Za-z\s']/g,' ').trim();
+      if (!clean) continue;
+      const words = clean.split(/\s+/).filter(Boolean);
+      if (words.length < 2 || words.length > 4) continue;
+      const caps = words.filter(w => /^[A-Z][a-z]+$/.test(w) || /^[A-Z]{2,}$/.test(w));
+      if (caps.length >= 2){
+        return { phrase: words.join(' '), tokens: splitNameTokens(words.join(' ')), headerBlock: block };
+      }
+    }
+    return { phrase: '', tokens: [], headerBlock: block };
+  }
+
+  function extractEmailLocalTokens(text){
+    const locals = [];
+    for (const m of text.matchAll(REDACTION_PATTERNS.email)) locals.push(m[0].split('@')[0]);
+    const tokens = [];
+    for (const local of locals) tokens.push(...splitNameTokens(local));
+    return { locals: [...new Set(locals)], tokens: [...new Set(tokens)] };
+  }
+
+  function extractAllCapsNearTop(text){
+    const top = text.slice(0, HEADER_SCAN_CHARS);
+    const words = [...top.matchAll(/\b[A-Z]{2,}\b/g)].map(m=>m[0]);
+    return [...new Set(words)];
+  }
+
+  function extractPhoneAndPostcodes(text){
+    return {
+      phones: [...new Set([...(text.match(REDACTION_PATTERNS.mobileUk)||[]), ...(text.match(REDACTION_PATTERNS.landlineUk)||[])])],
+      postcodes: [...new Set(text.match(REDACTION_PATTERNS.postcodeUk) || [])]
+    };
+  }
+
+  function buildPiiCandidates(inputs){
+    const tokenScores = new Map();
+    const tokenSources = new Map();
+    const addToken = (token, score, source) => {
+      const t = token?.trim().toLowerCase();
+      if (!t) return;
+      tokenScores.set(t, Math.max(tokenScores.get(t) || 0, score));
+      const src = tokenSources.get(t) || new Set();
+      src.add(source);
+      tokenSources.set(t, src);
+    };
+
+    splitNameTokens(`${inputs.creator} ${inputs.lastModifiedBy}`).forEach(t => addToken(t, 0.96, 'docProps'));
+
+    const emailData = extractEmailLocalTokens(inputs.fullText || '');
+    emailData.tokens.forEach(t => addToken(t, 0.9, 'emailLocalPart'));
+
+    const headerData = extractHeaderNamePhrase(inputs.fullText || '');
+    headerData.tokens.forEach(t => addToken(t, 0.88, 'header'));
+
+    const caps = extractAllCapsNearTop(inputs.fullText || '').map(w => w.toLowerCase());
+    caps.forEach(t => addToken(t, 0.75, 'allCapsTop'));
+
+    const tokenObjects = [...tokenScores.entries()].sort((a,b)=>b[1]-a[1]).map(([token, confidence]) => ({
+      token,
+      confidence: Number(confidence.toFixed(2)),
+      sources: [...(tokenSources.get(token) || [])]
+    }));
+
+    const first = tokenObjects[0]?.token || '';
+    const surname = tokenObjects.find(t => t.token !== first)?.token || '';
+    const fullNameVariants = [];
+    if (headerData.phrase) fullNameVariants.push(headerData.phrase);
+    if (first && surname){
+      fullNameVariants.push(`${titleCase(first)} ${titleCase(surname)}`);
+      fullNameVariants.push(`${titleCase(first)} ${surname.toUpperCase()}`);
+      fullNameVariants.push(`${first[0].toUpperCase()}. ${titleCase(surname)}`);
+    }
+
+    const phonePost = extractPhoneAndPostcodes(inputs.fullText || '');
+
+    return {
+      creator: inputs.creator || '',
+      lastModifiedBy: inputs.lastModifiedBy || '',
+      headerLine: headerData.phrase,
+      headerBlock: headerData.headerBlock,
+      emailLocalParts: emailData.locals,
+      allCapsTopWords: caps,
+      phones: phonePost.phones,
+      postcodes: phonePost.postcodes,
+      fullNameVariants: [...new Set(fullNameVariants)],
+      nameTokens: tokenObjects
+    };
+  }
+
+  function buildPseudonymMaps(){
+    state.pseudonyms.org.clear();
+    state.pseudonyms.client.clear();
+    $('orgDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.org.set(v.toLowerCase(), `ORG_${i+1}`));
+    $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
+  }
+
+  function applyPseudonyms(text, context){
+    const part = context.part || 'plainText';
+    for (const [k] of state.pseudonyms.org){
+      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+      text = text.replace(re, (match, offset) => allocToken({ type: 'ORG', rule: 'dict.org', part, start: offset, end: offset + match.length, match, confidence: 1 }));
+    }
+    for (const [k] of state.pseudonyms.client){
+      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+      text = text.replace(re, (match, offset) => allocToken({ type: 'CLIENT', rule: 'dict.client', part, start: offset, end: offset + match.length, match, confidence: 1 }));
+    }
+    return text;
+  }
+
+  function parseCustomRules(){
+    const lines = $('customRules').value.split(/\n+/).map(v=>v.trim()).filter(Boolean);
+    const rules = [];
+    for (const line of lines){
+      const m = line.match(/^\/(.+)\/([gimsuy]*)\s*=>\s*(.*)$/);
+      if (!m) continue;
+      try { rules.push({ re: new RegExp(m[1], m[2]), rep: m[3] }); } catch(_e){}
+    }
+    return rules;
+  }
+
+  function resetAuditState(){
+    resetManifest();
+    state.report = null;
+    state.processedParts = new Set();
+  }
+
+  function resetManifest(){
+    state.manifest = [];
+    state.counters = {};
+    state.tokenCache.clear();
+  }
+
+  function friendlyPartName(part){
+    if (part === 'plainText') return 'Pasted text';
+    if (part === 'word/document.xml') return 'Body';
+
+    const hm = part.match(/^word\/header(\d+)\.xml$/);
+    if (hm) return `Header ${hm[1] || 1}`;
+
+    const fm = part.match(/^word\/footer(\d+)\.xml$/);
+    if (fm) return `Footer ${fm[1] || 1}`;
+
+    if (part === 'word/comments.xml') return 'Comments';
+    if (part === 'word/footnotes.xml') return 'Footnotes';
+    if (part === 'word/endnotes.xml') return 'Endnotes';
+
+    if (/^word\/_rels\/.*\.rels$/.test(part)) return 'Relationships';
+    if (part === 'docProps/core.xml') return 'Core properties';
+    if (part === 'docProps/app.xml') return 'App properties';
+    if (part === 'word/settings.xml') return 'Settings';
+
+    return part;
+  }
+
+  function normalizeUkPhone(value){
+    // Goal: make these equivalent:
+    // 07700 900123
+    // +44 7700 900123
+    // 447700900123
+    // -> 447700900123
+
+    const digits = (value || '').replace(/\D/g, '');
+    if (!digits) return '';
+
+    // If it starts with 00 (international dial prefix), drop it
+    let d = digits.startsWith('00') ? digits.slice(2) : digits;
+
+    // Convert leading 0 national form to 44
+    if (d.startsWith('0')) d = '44' + d.slice(1);
+
+    // If it already starts with 44, keep as-is
+    // Otherwise leave digits-only (still stable for caching)
+    return d;
+  }
+
+  function normForKey(type, value){
+    const v = (value || '').trim();
+
+    if (type === 'EMAIL') return v.toLowerCase();
+
+    if (type === 'PHONE') return normalizeUkPhone(v);
+
+    if (type === 'URL') return v.toLowerCase();
+
+    if (type === 'POSTCODE') return v.toUpperCase().replace(/\s+/g,'');
+
+    if (type === 'FULL_NAME' || type === 'NAME_TOKEN'){
+      return v.toLowerCase().replace(/\s+/g,' ').trim();
+    }
+
+    return v.toLowerCase();
+  }
+
+  function allocToken({ type, rule, part, start, end, match, confidence }){
+    const partFriendly = friendlyPartName(part);
+    const key = `${type}::${normForKey(type, match)}`;
+    const cached = state.tokenCache.get(key);
+
+    if (cached){
+      state.manifest.push({
+        id: cached.id,
+        type,
+        rule,
+        part: partFriendly,
+        partRaw: part,
+        start,
+        end,
+        confidence: Number(((confidence ?? 0)).toFixed(2)),
+        snippet: String(match || '').slice(0,20),
+        occurrence: true
+      });
+      return cached.token;
+    }
+
+    state.counters[type] = (state.counters[type] || 0) + 1;
+    const id = `${type}_${String(state.counters[type]).padStart(3,'0')}`;
+    const token = `[REDACTED_${id}]`;
+    state.tokenCache.set(key, { id, token });
+    state.manifest.push({
+      id,
+      type,
+      rule,
+      part: partFriendly,
+      partRaw: part,
+      start,
+      end,
+      confidence: Number(((confidence ?? 0)).toFixed(2)),
+      snippet: String(match || '').slice(0,20),
+      occurrence: false
+    });
+    return token;
+  }
+
+  function buildNameDetections(candidates, text, opts){
+    const matches = [];
+    if (!candidates) return matches;
+
+    const addRegexMatches = (re, type, confidence) => {
+      const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+      for (const m of text.matchAll(rgx)){
+        matches.push({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: 'inference.name' });
+      }
+    };
+
+    const tokens = [...(candidates.nameTokens || [])].sort((a,b)=>b.confidence-a.confidence);
+    const firstToken = tokens[0]?.token || '';
+    const headerSurname = splitNameTokens(candidates.headerLine || '').slice(-1)[0] || '';
+    const creatorSurname = splitNameTokens(candidates.creator || '').slice(-1)[0] || '';
+    const surname = headerSurname || creatorSurname || tokens.find(t => t.token !== firstToken)?.token || '';
+
+    if (opts.redactFullNameVariants){
+      for (const variant of candidates.fullNameVariants || []){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig'), 'FULL_NAME', 0.95);
+      }
+
+      for (const identityPhrase of extractIdentityZoneFullNames(text)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'ig'), 'FULL_NAME', 0.92);
+      }
+    }
+
+    const safeToGlobalSurname = (() => {
+      if (!surname) return false;
+      if ((candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i'))) return true;
+      if ((candidates.creator || '').match(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i'))) return true;
+      if (firstToken){
+        const near = new RegExp(`\\b${escapeRegExp(firstToken)}\\b(?:\\W+\\w+){0,5}\\W+\\b${escapeRegExp(surname)}\\b|\\b${escapeRegExp(surname)}\\b(?:\\W+\\w+){0,5}\\W+\\b${escapeRegExp(firstToken)}\\b`, 'i');
+        return near.test(text);
+      }
+      return false;
+    })();
+
+    if (opts.redactSurnameGlobal && surname){
+      const score = tokens.find(t => t.token===surname)?.confidence || 0;
+      if (score >= 0.85 && safeToGlobalSurname){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig'), 'NAME_TOKEN', score);
+      }
+    }
+
+    if (opts.redactFirstNameGlobal && firstToken){
+      const score = tokens.find(t => t.token===firstToken)?.confidence || 0;
+      const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'i'));
+      const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(firstToken));
+      if (score >= 0.85 && (inHeader || inEmail)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig'), 'NAME_TOKEN', score);
+      }
+    }
+
+    return matches;
+  }
+
+  function extractIdentityZoneFullNames(text){
+    const zone = text.slice(0, 300);
+    const found = [];
+    for (const m of zone.matchAll(/\b([A-Z][a-z]+\s+[A-Z][A-Za-z']+)\b/g)){
+      found.push(m[1]);
+    }
+    return [...new Set(found)];
+  }
+
+  function findProtectedRanges(text){
+    return [...text.matchAll(/\[REDACTED_[A-Z0-9_]+\]/g)].map(m => ({ start: m.index, end: m.index + m[0].length }));
+  }
+
+  function overlaps(a, b){
+    return a.start < b.end && b.start < a.end;
+  }
+
+  function detectEntities(text, candidates, opts){
+    const matches = [];
+    const protectedRanges = findProtectedRanges(text);
+    const pushMatch = (m) => {
+      if (m.start == null) return;
+      if (protectedRanges.some(r => overlaps(m, r))) return;
+      matches.push(m);
+    };
+
+    const addPatternMatches = (re, type, confidence) => {
+      const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+      for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: `regex.${type.toLowerCase()}` });
+    };
+
+    addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
+    addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
+    addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    addPatternMatches(REDACTION_PATTERNS.urlHttp, 'URL', 0.97);
+    addPatternMatches(REDACTION_PATTERNS.urlWww, 'URL', 0.95);
+    addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+
+    if (opts.enableIdentityInference) {
+      for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+    }
+    return matches;
+  }
+
+  function resolveOverlaps(text, matches){
+    const occupied = new Array(text.length).fill(false);
+    const sorted = [...matches].sort((a,b)=>{
+      const lenA = a.end - a.start;
+      const lenB = b.end - b.start;
+      if (lenB !== lenA) return lenB - lenA;
+      const prA = ENTITY_PRIORITY[a.type] || 0;
+      const prB = ENTITY_PRIORITY[b.type] || 0;
+      if (prB !== prA) return prB - prA;
+      return a.start - b.start;
+    });
+    const selected = [];
+    for (const m of sorted){
+      let blocked = false;
+      for (let i = m.start; i < m.end; i++) if (occupied[i]) { blocked = true; break; }
+      if (blocked) continue;
+      for (let i = m.start; i < m.end; i++) occupied[i] = true;
+      selected.push(m);
+    }
+    return selected.sort((a,b)=>a.start-b.start);
+  }
+
+  function applyEntityReplacements(text, matches, part = 'plainText'){
+    let out = text;
+    const byEnd = [...matches].sort((a,b)=>b.start-a.start);
+    for (const m of byEnd){
+      const token = allocToken({ type: m.type, rule: 'entity-detection', part, start: m.start, end: m.end, match: m.match, confidence: m.confidence });
+      if (!token) continue;
+      out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
+    }
+    return out;
+  }
+
+  function redactText(rawText, context = {}){
+    const part = context.part || 'plainText';
+    const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    const mode = $('modeSel').value;
+    const matchLog = context.matchLog || [];
+    let text = rawText;
+
+    const protectedTokens = [];
+    whitelist.forEach((term,i)=>{
+      const tok = `__WL_${i}__`;
+      protectedTokens.push([tok, term]);
+      text = text.replace(new RegExp(escapeRegExp(term), 'ig'), tok);
     });
 
-    clearAllBtn.addEventListener('click', () => {
-      pageRects.forEach((_v, k) => pageRects.set(k, []));
-      viewerWrap.querySelectorAll('.overlay').forEach((overlay) => redrawRects(overlay, Number(overlay.parentElement.dataset.pageNum)));
-      updateBadges();
-    });
+    if (mode === 'identity' || mode === 'aggressive'){
+      text = applyPseudonyms(text, { part });
+      const detections = detectEntities(text, state.piiCandidates, {
+        enableIdentityInference: mode === 'aggressive',
+        redactFullNameVariants: $('redactFullNameVariants').checked,
+        redactSurnameGlobal: $('redactSurnameGlobal').checked,
+        redactFirstNameGlobal: $('redactFirstNameGlobal').checked
+      });
+      const resolved = resolveOverlaps(text, detections);
+      text = applyEntityReplacements(text, resolved, part);
 
-    exportPdfBtn.addEventListener('click', () => exportPdf().catch(err => { console.error(err); alert('PDF export failed.'); }));
-    runDocxBtn.addEventListener('click', () => runDocxRedaction().catch(err => { console.error(err); alert('DOCX redaction failed.'); }));
-    downloadDocxBtn.addEventListener('click', () => {
-      if (!redactedDocxBytes) return;
-      const blob = new Blob([redactedDocxBytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'redacted.docx'; document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-    });
+      if (context.debugDetections){
+        matchLog.push(...resolved.map(m => ({
+          part,
+          start: m.start,
+          end: m.end,
+          type: m.type,
+          confidence: Number((m.confidence || 0).toFixed(2)),
+          match: m.match
+        })));
+      }
 
-    updateBadges();
-  </script>
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken({ type: 'USERNAME', rule: 'regex.username', part, start: offset, end: offset + match.length, match, confidence: 0.95 }));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken({ type: 'DATE', rule: 'regex.date', part, start: offset, end: offset + match.length, match, confidence: 0.9 }));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken({ type: 'METRIC', rule: 'regex.metric', part, start: offset, end: offset + match.length, match, confidence: 0.9 }));
+    } else {
+      for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
+      if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
+    }
+
+    for (const [tok,term] of protectedTokens) text = text.replace(new RegExp(escapeRegExp(tok), 'g'), term);
+    return { text, matchLog };
+  }
+
+  function mapAndRewriteWT(xml, part){
+    const re = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
+    const nodes = [];
+    let m;
+    while ((m = re.exec(xml))){
+      nodes.push({
+        innerStart: m.index + m[0].indexOf('>') + 1,
+        innerEnd: re.lastIndex - 6,
+        text: decodeXmlText(m[1])
+      });
+    }
+    if (!nodes.length) return { xml, before:'', after:'' };
+
+    const before = nodes.map(n=>n.text).join('\u0001');
+    for (const n of nodes){
+      n.redacted = redactText(n.text, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+    }
+
+    let out = '';
+    let cursor = 0;
+    for (let i=0;i<nodes.length;i++){
+      const n = nodes[i];
+      out += xml.slice(cursor, n.innerStart);
+      out += encodeXmlText(n.redacted);
+      cursor = n.innerEnd;
+    }
+    out += xml.slice(cursor);
+    return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
+  }
+
+  function scrubSettingsXml(xml){
+    return xml
+      .replace(/<w:trackRevisions\b[^/>]*\/?>(?:<\/w:trackRevisions>)?/g, '<w:trackRevisions w:val="false"/>')
+      .replace(/<w:doNotTrackMoves\b[^/>]*\/?>(?:<\/w:doNotTrackMoves>)?/g, '<w:doNotTrackMoves w:val="false"/>');
+  }
+
+  function scrubCoreProps(xml){
+    return xml.replace(/<dc:creator>[\s\S]*?<\/dc:creator>/g, '<dc:creator></dc:creator>')
+      .replace(/<cp:lastModifiedBy>[\s\S]*?<\/cp:lastModifiedBy>/g, '<cp:lastModifiedBy></cp:lastModifiedBy>');
+  }
+  function scrubAppProps(xml){
+    return xml.replace(/<Company>[\s\S]*?<\/Company>/g, '<Company></Company>').replace(/<Manager>[\s\S]*?<\/Manager>/g, '<Manager></Manager>');
+  }
+  function scrubRelsXml(xml, part){
+    return xml.replace(/Target="([^"]+)"/g, (all, t) => {
+      const red = redactText(t, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+      return `Target="${red.replace(/"/g,'&quot;')}"`;
+    });
+  }
+  function scrubCommentsLike(xml){
+    return xml
+      .replace(/<w:delText\b[^>]*>[\s\S]*?<\/w:delText>/g, '<w:delText></w:delText>')
+      .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, '<w:instrText></w:instrText>')
+      .replace(/<w:vanish\b[^>]*\/?>(?:<\/w:vanish>)?/g, '');
+  }
+
+  function findLeaks(text){
+    const leakRules = [
+      ['email', REDACTION_PATTERNS.email],
+      ['phone', new RegExp(`${REDACTION_PATTERNS.mobileUk.source}|${REDACTION_PATTERNS.landlineUk.source}`, 'g')],
+      ['postcode', REDACTION_PATTERNS.postcodeUk]
+    ];
+    return leakRules.map(([name,re]) => {
+      const ms = [...text.matchAll(re)].map(m=>m[0]);
+      const msNorm = name === 'phone'
+        ? [...new Set(ms.map(normalizeUkPhone).filter(Boolean))]
+        : [...new Set(ms)];
+      return `${name}: ${msNorm.length}${msNorm.length ? ` -> ${msNorm.slice(0,6).join(', ')}` : ''}`;
+    }).join('\n');
+  }
+
+  function u16(v,o){return v[o]|(v[o+1]<<8);} function u32(v,o){return (v[o]|(v[o+1]<<8)|(v[o+2]<<16)|(v[o+3]<<24))>>>0;}
+  function w16(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;} function w32(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;v[o+2]=(n>>>16)&255;v[o+3]=(n>>>24)&255;}
+
+  async function inflateRaw(bytes){
+    const ds = new DecompressionStream('deflate-raw');
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+  async function deflateRaw(bytes){
+    const cs = new CompressionStream('deflate-raw');
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+
+  const CRC_TABLE = (()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0;}return t;})();
+  function crc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=CRC_TABLE[(c^bytes[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+
+  async function unzipDocx(arrBuf){
+    const v = new Uint8Array(arrBuf);
+    let eocd = -1;
+    for (let i=v.length-22;i>=Math.max(0,v.length-66000);i--){ if (u32(v,i)===0x06054b50){ eocd=i; break; } }
+    if (eocd<0) throw new Error('Invalid zip: EOCD not found');
+    const cdSize = u32(v,eocd+12), cdOff = u32(v,eocd+16);
+    const files = new Map();
+    let p = cdOff;
+    while (p < cdOff + cdSize){
+      if (u32(v,p)!==0x02014b50) break;
+      const method = u16(v,p+10), compSize = u32(v,p+20), uncompSize = u32(v,p+24), nameLen=u16(v,p+28), extraLen=u16(v,p+30), commentLen=u16(v,p+32), lhoff=u32(v,p+42);
+      const name = textDecoder.decode(v.slice(p+46,p+46+nameLen));
+      const lfNameLen=u16(v,lhoff+26), lfExtraLen=u16(v,lhoff+28);
+      const dataStart = lhoff+30+lfNameLen+lfExtraLen;
+      const comp = v.slice(dataStart,dataStart+compSize);
+      let data;
+      if (method===0) data = comp;
+      else if (method===8) data = await inflateRaw(comp);
+      else throw new Error(`Unsupported ZIP compression method ${method} in ${name}`);
+      if (data.length !== uncompSize) {}
+      files.set(name,{name,data,method});
+      p += 46+nameLen+extraLen+commentLen;
+    }
+    return files;
+  }
+
+  async function zipDocx(filesMap){
+    const entries = [];
+    for (const [name, f] of filesMap){
+      const data = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+      const comp = await deflateRaw(data);
+      entries.push({name,data,comp,method:8,crc:crc32(data)});
+    }
+    let localTotal = 0, cdTotal = 0;
+    const nameBytes = entries.map(e=>textEncoder.encode(e.name));
+    entries.forEach((e,i)=>{ localTotal += 30 + nameBytes[i].length + e.comp.length; cdTotal += 46 + nameBytes[i].length; });
+    const out = new Uint8Array(localTotal + cdTotal + 22);
+    let p = 0;
+    const offsets = [];
+    entries.forEach((e,i)=>{
+      const nb = nameBytes[i]; offsets.push(p);
+      w32(out,p,0x04034b50); w16(out,p+4,20); w16(out,p+6,0); w16(out,p+8,e.method); w16(out,p+10,0); w16(out,p+12,0);
+      w32(out,p+14,e.crc); w32(out,p+18,e.comp.length); w32(out,p+22,e.data.length); w16(out,p+26,nb.length); w16(out,p+28,0);
+      out.set(nb,p+30); out.set(e.comp,p+30+nb.length); p += 30+nb.length+e.comp.length;
+    });
+    const cdStart = p;
+    entries.forEach((e,i)=>{
+      const nb = nameBytes[i];
+      w32(out,p,0x02014b50); w16(out,p+4,20); w16(out,p+6,20); w16(out,p+8,0); w16(out,p+10,e.method); w16(out,p+12,0); w16(out,p+14,0);
+      w32(out,p+16,e.crc); w32(out,p+20,e.comp.length); w32(out,p+24,e.data.length); w16(out,p+28,nb.length); w16(out,p+30,0); w16(out,p+32,0); w16(out,p+34,0); w16(out,p+36,0);
+      w32(out,p+38,0); w32(out,p+42,offsets[i]); out.set(nb,p+46); p += 46+nb.length;
+    });
+    const cdSize = p - cdStart;
+    w32(out,p,0x06054b50); w16(out,p+4,0); w16(out,p+6,0); w16(out,p+8,entries.length); w16(out,p+10,entries.length); w32(out,p+12,cdSize); w32(out,p+16,cdStart); w16(out,p+20,0);
+    return out;
+  }
+
+  async function processDocx(bytes){
+    const files = await unzipDocx(bytes.buffer);
+    state.extractedPartText.clear();
+    state.redactedPartText.clear();
+    const beforeAll = [];
+    const afterAll = [];
+
+    let creator = '';
+    let lastModifiedBy = '';
+    let docTextForCandidates = '';
+    for (const [name,obj] of files){
+      const xml = textDecoder.decode(obj.data);
+      if (name === 'docProps/core.xml'){
+        const props = parseCoreProps(xml);
+        creator = props.creator;
+        lastModifiedBy = props.lastModifiedBy;
+      }
+      if (name === 'word/document.xml'){
+        const textBits = [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m=>decodeXmlText(m[1]));
+        docTextForCandidates += textBits.join('');
+      }
+    }
+
+    const plain = $('plainInput').value || '';
+    state.piiCandidates = isInferenceMode()
+      ? buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() })
+      : null;
+
+    for (const [name,obj] of files){
+      let xml = textDecoder.decode(obj.data);
+      let changed = false;
+      if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
+        state.processedParts.add(name);
+        xml = scrubCommentsLike(xml);
+        const mapped = mapAndRewriteWT(xml, name);
+        xml = mapped.xml;
+        changed = true;
+        if (mapped.before) { beforeAll.push(mapped.before); afterAll.push(mapped.after); }
+        state.extractedPartText.set(name, mapped.before);
+        state.redactedPartText.set(name, mapped.after);
+      } else if (/^word\/_rels\/.*\.rels$/.test(name)){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubRelsXml(xml, name);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      } else if (name === 'docProps/core.xml'){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubCoreProps(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      } else if (name === 'docProps/app.xml'){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubAppProps(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      } else if (name === 'word/settings.xml'){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubSettingsXml(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      }
+      if (changed) files.set(name,{...obj,data:textEncoder.encode(xml)});
+    }
+
+    state.originalText = beforeAll.join('\n');
+    state.redactedText = afterAll.join('\n');
+    state.redactedDocxBytes = await zipDocx(files);
+  }
+
+  function renderMatchLog(){
+    if (!state.matchLog.length){
+      $('matchLogPane').textContent = 'No matches recorded.';
+      return;
+    }
+    const header = 'part\tstart\tend\ttype\tconfidence\tmatch';
+    const rows = state.matchLog
+      .map(m => `${m.part}\t${m.start}\t${m.end}\t${m.type}\t${m.confidence}\t${m.match}`);
+    $('matchLogPane').textContent = [header, ...rows].join('\n');
+  }
+
+  function renderCandidates(){
+    $('candidatesPane').textContent = state.piiCandidates
+      ? JSON.stringify(state.piiCandidates, null, 2)
+      : (isInferenceMode() ? 'No candidates discovered.' : 'Candidate-based name inference is disabled in this mode.');
+  }
+
+  function buildReport(){
+    const countsByType = {};
+    state.manifest.forEach(item => {
+      countsByType[item.type] = (countsByType[item.type] || 0) + 1;
+    });
+    const leakText = findLeaks(state.redactedText || '');
+    const leakPass = !/(email|phone|postcode):\s*[1-9]/.test(leakText);
+    const manifest = [...state.manifest].sort((a,b)=>{
+      const partCmp = String(a.part).localeCompare(String(b.part));
+      if (partCmp) return partCmp;
+      if (a.start !== b.start) return a.start - b.start;
+      if (a.end !== b.end) return a.end - b.end;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    return {
+      generatedAt: new Date().toISOString(),
+      policy: {
+        mode: $('modeSel').value,
+        inferenceEnabled: isInferenceMode(),
+        orgAnonymisationEnabled: state.pseudonyms.org.size > 0,
+        clientAnonymisationEnabled: state.pseudonyms.client.size > 0
+      },
+      countsByType,
+      partsTouched: [...state.processedParts].sort(),
+      leaksCheck: { pass: leakPass, details: leakText },
+      manifest
+    };
+  }
+
+  function renderSummary(report){
+    const nameCount = (report.countsByType.FULL_NAME || 0) + (report.countsByType.NAME_TOKEN || 0);
+    const lines = [];
+    lines.push('Redactions:');
+    lines.push(`EMAIL: ${report.countsByType.EMAIL || 0}`);
+    lines.push(`PHONE: ${report.countsByType.PHONE || 0}`);
+    lines.push(`URL: ${report.countsByType.URL || 0}`);
+    lines.push(`POSTCODE: ${report.countsByType.POSTCODE || 0}`);
+    lines.push(`NAME: ${nameCount}`);
+    lines.push(`Total replacements: ${report.manifest.length}`);
+    lines.push(`Parts touched: ${report.partsTouched.length ? report.partsTouched.join(', ') : 'plainText only'}`);
+    lines.push(`Leaks check: ${report.leaksCheck.pass ? 'PASS' : 'FAIL'}`);
+    lines.push(`Inference mode: ${report.policy.inferenceEnabled ? 'ON' : 'OFF'}`);
+    const scrubParts = ['docProps/core.xml','docProps/app.xml','word/settings.xml'];
+    const relsTouched = report.partsTouched.some(p => /^word\/_rels\/.*\.rels$/.test(p));
+    const scrubbed = scrubParts.every(p => report.partsTouched.includes(p)) && relsTouched;
+    lines.push(`Metadata scrubbed: ${scrubbed ? 'YES' : 'NO'}`);
+    lines.push('Review checklist: headers, tables, embedded images manually.');
+    $('summaryPane').textContent = lines.join('\n');
+  }
+
+  async function runRedaction(){
+    try{
+      state.matchLog = [];
+      resetAuditState();
+      buildPseudonymMaps();
+      updatePolicyLine();
+      const plain = $('plainInput').value || '';
+
+      state.piiCandidates = isInferenceMode()
+        ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
+        : null;
+
+      let combinedBefore = plain;
+      let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+      if (state.inputDocxBytes){
+        await processDocx(state.inputDocxBytes);
+        combinedBefore = [combinedBefore, state.originalText].filter(Boolean).join('\n');
+        combinedAfter = [combinedAfter, state.redactedText].filter(Boolean).join('\n');
+      }
+
+      state.originalText = combinedBefore;
+      state.redactedText = combinedAfter;
+
+      $('beforePane').textContent = state.originalText || '—';
+      $('afterPane').textContent = state.redactedText || '—';
+      $('leaksPane').textContent = findLeaks(state.redactedText);
+      state.report = buildReport();
+      renderSummary(state.report);
+      renderCandidates();
+      renderMatchLog();
+      $('dlTxtBtn').disabled = !state.redactedText;
+      $('dlDocxBtn').disabled = !state.redactedDocxBytes;
+      $('dlPdfBtn').disabled = !state.redactedText;
+      $('dlReportBtn').disabled = !(state.report && state.report.manifest.length);
+      $('dlManifestBtn').disabled = !state.manifest.length;
+      setStatus('Redaction complete. Review leaks check, candidates, and match log.');
+    } catch (err){
+      setStatus(`Error: ${err.message}`);
+    }
+  }
+
+  $('docInput').addEventListener('change', async (e)=>{
+    const f = e.target.files[0];
+    if (!f) return;
+    const fileBytes = new Uint8Array(await f.arrayBuffer());
+    state.inputDocxBytes = null;
+    state.inputPdfBytes = null;
+    state.piiCandidates = null;
+    const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    if (isPdf){
+      state.inputPdfBytes = fileBytes;
+      try {
+        const extracted = await extractPdfText(fileBytes);
+        $('plainInput').value = extracted;
+        const usingPdfJs = !!window.pdfjsLib?.getDocument;
+        setStatus(`Loaded PDF: ${f.name} (${Math.round(f.size/1024)} KB). ${usingPdfJs ? 'PDF.js extraction active.' : 'PDF.js unavailable; using fallback extraction.'} Output PDF is plain-text reconstruction (layout not preserved).`);
+      } catch (err){
+        $('plainInput').value = '';
+        setStatus(`Failed to extract PDF text from ${f.name}: ${err.message}`);
+      }
+      return;
+    }
+    state.inputDocxBytes = fileBytes;
+    setStatus(`Loaded DOCX: ${f.name} (${Math.round(f.size/1024)} KB)`);
+  });
+
+  $('runBtn').addEventListener('click', runRedaction);
+  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); });
+  $('orgDict').addEventListener('input', updatePolicyLine);
+  $('clientDict').addEventListener('input', updatePolicyLine);
+
+  $('dlTxtBtn').addEventListener('click', ()=>{
+    const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlDocxBtn').addEventListener('click', ()=>{
+    const blob = new Blob([state.redactedDocxBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlPdfBtn').addEventListener('click', ()=>{
+    if (!state.redactedText) return;
+    const blob = buildSimplePdf(state.redactedText);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('Downloaded redacted.pdf (plain-text reconstruction with wrapping/pagination, not layout-preserving redaction).');
+  });
+
+  $('dlReportBtn').addEventListener('click', ()=>{
+    if (!state.report) return;
+    const blob = new Blob([JSON.stringify(state.report, null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'report.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlManifestBtn').addEventListener('click', ()=>{
+    if (!state.manifest.length) return;
+    const blob = new Blob([JSON.stringify(state.manifest, null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redaction-report.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('searchBtn').addEventListener('click', ()=>{
+    const term = $('searchTerm').value.trim();
+    if (!term){ $('searchPane').textContent = 'Enter a term.'; return; }
+    const re = new RegExp(escapeRegExp(term), 'ig');
+    const lines = [];
+    for (const [part,txt] of state.redactedPartText) lines.push(`${part}: ${[...txt.matchAll(re)].length}`);
+    $('searchPane').textContent = lines.length ? lines.join('\n') : 'No indexed docx parts. Run redaction first.';
+  });
+
+  async function runHarness(){
+    const out = [];
+    const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
+    const previousMode = $('modeSel').value;
+
+    // Ensure deterministic token IDs even if the harness is run after prior redactions.
+    resetAuditState();
+    state.tokenCache.clear();
+    state.counters = {};
+
+    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
+Email Martin@eMote.Ltd
++44 77 202 89063
+RG6 1AA` });
+    state.matchLog = [];
+
+    const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+
+    $('modeSel').value = 'aggressive';
+    resetAuditState();
+    const aggressiveExpected = '[REDACTED_FULL_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
+    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
+
+    $('modeSel').value = 'identity';
+    state.piiCandidates = null;
+    resetAuditState();
+    const identityExpected = 'Martin FRY MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
+    assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
+
+    resetAuditState();
+    const protectedToken = redactText('[REDACTED_FULL_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_FULL_NAME_001] Martin FRY');
+
+    const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
+    const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
+    assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
+
+    const dbg = [];
+    redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
+    assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
+
+    const longPdfSource = Array.from({ length: 60 }, (_, idx) => `Line ${idx + 1} ${'x'.repeat(100)}`).join('\n');
+    const samplePdfBlob = buildSimplePdf(longPdfSource);
+    assert('simple PDF generator emits PDF mime type', samplePdfBlob.type === 'application/pdf');
+    const samplePdfText = await samplePdfBlob.text();
+    assert('simple PDF generator paginates for long content', /\/Count\s+[2-9]/.test(samplePdfText));
+    assert('simple PDF generator wraps long lines', samplePdfText.includes('Line 1 '));
+
+    $('modeSel').value = previousMode;
+    updateInferenceControls();
+    $('testsPane').textContent = out.join('\n');
+  }
+
+  $('testsBtn').addEventListener('click', runHarness);
+  updateInferenceControls();
+  updatePolicyLine();
+})();
+</script>
 </body>
 </html>

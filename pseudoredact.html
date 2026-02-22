@@ -140,6 +140,11 @@
     let docxBytes = null;
     let redactedDocxBytes = null;
 
+    function hasPdfHeader(bytes) {
+      if (!bytes || bytes.length < 5) return false;
+      return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2D; // %PDF-
+    }
+
     function countRects() { let n = 0; for (const arr of pageRects.values()) n += arr.length; return n; }
     function updateBadges() {
       fileTypeEl.textContent = `Type: ${fileKind || '—'}`;
@@ -220,14 +225,23 @@
     }
 
     async function loadPdf(file) {
-      rawPdfBytes = new Uint8Array(await file.arrayBuffer());
-      pdfDoc = await pdfjsLib.getDocument({ data: rawPdfBytes }).promise;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (!hasPdfHeader(bytes)) {
+        throw new Error('Selected file does not have a valid PDF header.');
+      }
+      const parsedPdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      rawPdfBytes = bytes;
+      pdfDoc = parsedPdf;
       pageRects.clear();
       await renderPdfPages();
     }
 
     async function exportPdf() {
-      if (!rawPdfBytes || !pdfDoc) return alert('Load a PDF first.');
+      if (fileKind !== 'PDF' || !rawPdfBytes || !pdfDoc) return alert('Load a PDF first.');
+      if (!hasPdfHeader(rawPdfBytes)) {
+        alert('Current data is not a valid PDF. Please re-load a PDF file.');
+        return;
+      }
       const outDoc = await PDFDocument.load(rawPdfBytes);
       const font = await outDoc.embedFont(StandardFonts.HelveticaBold);
       const stamp = labelTextInput.value.trim();
@@ -342,13 +356,22 @@
       const file = e.target.files?.[0];
       if (!file) return;
 
-      if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
-        fileKind = 'PDF';
+      const lowerName = file.name.toLowerCase();
+
+      if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
         pdfDoc = null; rawPdfBytes = null;
         docxBytes = null; redactedDocxBytes = null;
         beforePane.textContent = '—'; afterPane.textContent = '—'; downloadDocxBtn.disabled = true;
-        await loadPdf(file);
-      } else if (file.name.toLowerCase().endsWith('.docx')) {
+        try {
+          await loadPdf(file);
+          fileKind = 'PDF';
+        } catch (err) {
+          fileKind = null;
+          viewerWrap.innerHTML = '';
+          console.error(err);
+          alert('Could not open PDF. Make sure the file is a valid PDF.');
+        }
+      } else if (lowerName.endsWith('.docx')) {
         fileKind = 'DOCX';
         pdfDoc = null; rawPdfBytes = null; pageRects.clear(); viewerWrap.innerHTML = '<div class="small">DOCX mode loaded. Use "Redact DOCX" for textual redaction and preview below.</div>';
         docxBytes = new Uint8Array(await file.arrayBuffer());

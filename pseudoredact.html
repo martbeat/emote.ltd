@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PseudoRedact PDF</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171a2b;
+      --line: #2a3050;
+      --text: #ecf0ff;
+      --muted: #9ba4c7;
+      --accent: #76a9ff;
+      --danger: #ff6b6b;
+      --ok: #2ec27e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: radial-gradient(circle at top, #1a1e34 0%, var(--bg) 45%);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 980px) { .app { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .card h1, .card h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .header {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(118,169,255,.15), rgba(0,0,0,0));
+    }
+    .body { padding: 14px; }
+    .small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .stack > * + * { margin-top: 10px; }
+    input[type="file"], input[type="text"], button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 10px;
+      font-size: 13px;
+      color: var(--text);
+      background: #101427;
+    }
+    button { cursor: pointer; font-weight: 600; }
+    button:hover { border-color: #4f619b; }
+    .primary { background: rgba(118,169,255,.2); }
+    .danger { background: rgba(255,107,107,.2); }
+    .success { background: rgba(46,194,126,.2); }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      margin-right: 4px;
+      margin-bottom: 6px;
+    }
+    #viewerWrap {
+      position: relative;
+      overflow: auto;
+      height: 85vh;
+      background: #0b0f1d;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .page-wrap {
+      position: relative;
+      width: fit-content;
+      margin: 0 auto 18px;
+    }
+    .pdf-canvas {
+      display: block;
+      border: 1px solid #1b223b;
+      border-radius: 8px;
+      background: white;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+    }
+    .redaction {
+      position: absolute;
+      background: #000;
+      border: 1px solid #111;
+      opacity: .95;
+      pointer-events: auto;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .toolbar button { width: auto; }
+    .warn {
+      border: 1px solid #8e6a2f;
+      background: rgba(255,190,90,.15);
+      color: #ffe1af;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <div class="header">
+        <h1>PseudoRedact PDF</h1>
+      </div>
+      <div class="body stack">
+        <p class="small">Load a PDF, draw black boxes, and export a <b>new PDF with those boxes burned in</b>.</p>
+        <input id="pdfInput" type="file" accept="application/pdf" />
+        <div>
+          <span class="pill" id="pageCount">Pages: 0</span>
+          <span class="pill" id="boxCount">Boxes: 0</span>
+        </div>
+        <input id="labelText" type="text" placeholder="Optional stamp text (e.g. REDACTED)" />
+        <button id="clearPageBtn">Clear boxes on current page</button>
+        <button class="danger" id="clearAllBtn">Clear all boxes</button>
+        <button class="success" id="exportBtn">Export redacted PDF</button>
+        <div class="warn">
+          This tool is called <b>PseudoRedact</b> because visual masking can be done incorrectly in many workflows.
+          Always verify the exported file cannot be searched/copied for hidden data and test with external tools before sharing.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="header">
+        <h2>PDF Viewer</h2>
+      </div>
+      <div class="body">
+        <div class="toolbar">
+          <button id="zoomOut">-</button>
+          <button id="zoomIn">+</button>
+          <span class="pill" id="zoomLevel">Zoom: 125%</span>
+          <span class="small">Click + drag on a page to draw a redaction rectangle. Click rectangle to remove.</span>
+        </div>
+        <div id="viewerWrap"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.min.mjs" type="module"></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.min.mjs';
+    import { PDFDocument, rgb, StandardFonts } from 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
+
+    const pdfInput = document.getElementById('pdfInput');
+    const viewerWrap = document.getElementById('viewerWrap');
+    const pageCountEl = document.getElementById('pageCount');
+    const boxCountEl = document.getElementById('boxCount');
+    const zoomLevelEl = document.getElementById('zoomLevel');
+    const labelTextInput = document.getElementById('labelText');
+
+    const clearPageBtn = document.getElementById('clearPageBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const zoomInBtn = document.getElementById('zoomIn');
+    const zoomOutBtn = document.getElementById('zoomOut');
+
+    let pdfDoc = null;
+    let rawPdfBytes = null;
+    let scale = 1.25;
+    let activePage = 1;
+    const pageRects = new Map(); // pageNum -> [{x,y,w,h}] in viewport coords at current scale
+
+    function totalRects() {
+      let count = 0;
+      for (const arr of pageRects.values()) count += arr.length;
+      return count;
+    }
+
+    function updateBadges() {
+      pageCountEl.textContent = `Pages: ${pdfDoc ? pdfDoc.numPages : 0}`;
+      boxCountEl.textContent = `Boxes: ${totalRects()}`;
+      zoomLevelEl.textContent = `Zoom: ${Math.round(scale * 100)}%`;
+    }
+
+    function ensurePageEntry(pageNum) {
+      if (!pageRects.has(pageNum)) pageRects.set(pageNum, []);
+      return pageRects.get(pageNum);
+    }
+
+    async function renderAllPages() {
+      viewerWrap.innerHTML = '';
+      if (!pdfDoc) {
+        updateBadges();
+        return;
+      }
+
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+
+        const wrap = document.createElement('div');
+        wrap.className = 'page-wrap';
+        wrap.dataset.pageNum = String(pageNum);
+        wrap.addEventListener('pointerdown', () => { activePage = pageNum; });
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pdf-canvas';
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+
+        const ctx = canvas.getContext('2d', { alpha: false });
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.style.width = canvas.width + 'px';
+        overlay.style.height = canvas.height + 'px';
+
+        attachDrawHandlers(overlay, pageNum);
+        redrawRects(overlay, pageNum);
+
+        wrap.appendChild(canvas);
+        wrap.appendChild(overlay);
+        viewerWrap.appendChild(wrap);
+      }
+
+      updateBadges();
+    }
+
+    function redrawRects(overlay, pageNum) {
+      overlay.querySelectorAll('.redaction').forEach(n => n.remove());
+      const rects = ensurePageEntry(pageNum);
+      rects.forEach((r, idx) => {
+        const el = document.createElement('div');
+        el.className = 'redaction';
+        el.style.left = r.x + 'px';
+        el.style.top = r.y + 'px';
+        el.style.width = r.w + 'px';
+        el.style.height = r.h + 'px';
+        el.title = 'Click to remove';
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          rects.splice(idx, 1);
+          redrawRects(overlay, pageNum);
+          updateBadges();
+        });
+        overlay.appendChild(el);
+      });
+    }
+
+    function attachDrawHandlers(overlay, pageNum) {
+      let drawing = false;
+      let startX = 0;
+      let startY = 0;
+      let temp = null;
+
+      overlay.addEventListener('pointerdown', (e) => {
+        if (e.target !== overlay) return;
+        drawing = true;
+        const rect = overlay.getBoundingClientRect();
+        startX = e.clientX - rect.left;
+        startY = e.clientY - rect.top;
+        temp = document.createElement('div');
+        temp.className = 'redaction';
+        temp.style.left = startX + 'px';
+        temp.style.top = startY + 'px';
+        temp.style.width = '0px';
+        temp.style.height = '0px';
+        temp.style.opacity = '.55';
+        overlay.appendChild(temp);
+      });
+
+      overlay.addEventListener('pointermove', (e) => {
+        if (!drawing || !temp) return;
+        const rect = overlay.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const left = Math.min(startX, x);
+        const top = Math.min(startY, y);
+        const w = Math.abs(x - startX);
+        const h = Math.abs(y - startY);
+        temp.style.left = left + 'px';
+        temp.style.top = top + 'px';
+        temp.style.width = w + 'px';
+        temp.style.height = h + 'px';
+      });
+
+      function endDraw() {
+        if (!drawing || !temp) return;
+        drawing = false;
+        const x = parseFloat(temp.style.left);
+        const y = parseFloat(temp.style.top);
+        const w = parseFloat(temp.style.width);
+        const h = parseFloat(temp.style.height);
+        temp.remove();
+        temp = null;
+        if (w < 4 || h < 4) return;
+        ensurePageEntry(pageNum).push({ x, y, w, h });
+        redrawRects(overlay, pageNum);
+        updateBadges();
+      }
+
+      overlay.addEventListener('pointerup', endDraw);
+      overlay.addEventListener('pointerleave', endDraw);
+    }
+
+    async function loadPdf(file) {
+      rawPdfBytes = new Uint8Array(await file.arrayBuffer());
+      pdfDoc = await pdfjsLib.getDocument({ data: rawPdfBytes }).promise;
+      pageRects.clear();
+      await renderAllPages();
+    }
+
+    async function exportRedactedPdf() {
+      if (!rawPdfBytes || !pdfDoc) {
+        alert('Load a PDF first.');
+        return;
+      }
+
+      const outDoc = await PDFDocument.load(rawPdfBytes);
+      const font = await outDoc.embedFont(StandardFonts.HelveticaBold);
+      const stamp = labelTextInput.value.trim();
+
+      for (let i = 0; i < outDoc.getPageCount(); i++) {
+        const pageNum = i + 1;
+        const rects = pageRects.get(pageNum) || [];
+        if (!rects.length) continue;
+
+        const page = outDoc.getPage(i);
+        const { width, height } = page.getSize();
+
+        const srcPage = await pdfDoc.getPage(pageNum);
+        const viewport = srcPage.getViewport({ scale });
+
+        rects.forEach((r) => {
+          const pdfX = (r.x / viewport.width) * width;
+          const pdfW = (r.w / viewport.width) * width;
+          const topFromTop = (r.y / viewport.height) * height;
+          const pdfH = (r.h / viewport.height) * height;
+          const pdfY = height - topFromTop - pdfH;
+
+          page.drawRectangle({
+            x: pdfX,
+            y: pdfY,
+            width: pdfW,
+            height: pdfH,
+            color: rgb(0, 0, 0),
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 0,
+            opacity: 1
+          });
+
+          if (stamp && pdfW > 40 && pdfH > 14) {
+            const size = Math.max(8, Math.min(14, pdfH * 0.35));
+            const textW = font.widthOfTextAtSize(stamp, size);
+            if (textW < pdfW - 8) {
+              page.drawText(stamp, {
+                x: pdfX + (pdfW - textW) / 2,
+                y: pdfY + (pdfH - size) / 2,
+                size,
+                font,
+                color: rgb(1, 1, 1),
+                opacity: 0.9
+              });
+            }
+          }
+        });
+      }
+
+      const bytes = await outDoc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pseudoredacted.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    pdfInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.type !== 'application/pdf') {
+        alert('Please choose a PDF file.');
+        return;
+      }
+      try {
+        await loadPdf(file);
+      } catch (err) {
+        console.error(err);
+        alert('Could not open PDF.');
+      }
+    });
+
+    zoomInBtn.addEventListener('click', async () => {
+      if (!pdfDoc) return;
+      scale = Math.min(scale + 0.15, 3);
+      await renderAllPages();
+    });
+
+    zoomOutBtn.addEventListener('click', async () => {
+      if (!pdfDoc) return;
+      scale = Math.max(scale - 0.15, 0.5);
+      await renderAllPages();
+    });
+
+    clearPageBtn.addEventListener('click', () => {
+      const wrap = viewerWrap.querySelector(`.page-wrap[data-page-num="${activePage}"]`);
+      if (!wrap) return;
+      pageRects.set(activePage, []);
+      const overlay = wrap.querySelector('.overlay');
+      redrawRects(overlay, activePage);
+      updateBadges();
+    });
+
+    clearAllBtn.addEventListener('click', () => {
+      for (const key of pageRects.keys()) pageRects.set(key, []);
+      viewerWrap.querySelectorAll('.overlay').forEach((overlay) => {
+        const pageNum = Number(overlay.parentElement.dataset.pageNum);
+        redrawRects(overlay, pageNum);
+      });
+      updateBadges();
+    });
+
+    exportBtn.addEventListener('click', () => {
+      exportRedactedPdf().catch((err) => {
+        console.error(err);
+        alert('Export failed.');
+      });
+    });
+
+    updateBadges();
+  </script>
+</body>
+</html>

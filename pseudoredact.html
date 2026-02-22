@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PseudoRedact (PDF + DOCX)</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171a2b;
+      --line: #2a3050;
+      --text: #ecf0ff;
+      --muted: #9ba4c7;
+      --danger: #ff6b6b;
+      --ok: #2ec27e;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: radial-gradient(circle at top, #1a1e34 0%, var(--bg) 45%); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .app { max-width: 1450px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+    @media (max-width: 980px) { .app { grid-template-columns: 1fr; } }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .header { padding: 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(118,169,255,.15), rgba(0,0,0,0)); }
+    .header h1, .header h2 { margin: 0; font-size: 16px; }
+    .body { padding: 14px; }
+    .stack > * + * { margin-top: 10px; }
+    .small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+    input[type="file"], input[type="text"], textarea, button, select { width: 100%; border-radius: 10px; border: 1px solid var(--line); padding: 10px; font-size: 13px; color: var(--text); background: #101427; }
+    button { cursor: pointer; font-weight: 600; }
+    button:hover { border-color: #4f619b; }
+    .danger { background: rgba(255,107,107,.2); }
+    .success { background: rgba(46,194,126,.2); }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); margin-right: 4px; margin-bottom: 6px; }
+    .warn { border: 1px solid #8e6a2f; background: rgba(255,190,90,.15); color: #ffe1af; border-radius: 10px; padding: 10px; font-size: 12px; line-height: 1.35; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row button { width: auto; }
+
+    #viewerWrap { position: relative; overflow: auto; height: 70vh; background: #0b0f1d; border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    .page-wrap { position: relative; width: fit-content; margin: 0 auto 18px; }
+    .pdf-canvas { display: block; border: 1px solid #1b223b; border-radius: 8px; background: white; }
+    .overlay { position: absolute; inset: 0; cursor: crosshair; }
+    .redaction { position: absolute; background: #000; border: 1px solid #111; opacity: .95; pointer-events: auto; }
+
+    .pane { background: #0c1020; border: 1px solid #2c3964; border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <div class="header"><h1>PseudoRedact (.pdf + .docx)</h1></div>
+      <div class="body stack">
+        <p class="small">Upload a PDF or DOCX. PDF mode uses draw-box redaction. DOCX mode redacts underlying XML text across document/header/footer/comments.</p>
+        <input id="fileInput" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+
+        <div>
+          <span class="pill" id="fileType">Type: —</span>
+          <span class="pill" id="pageCount">Pages: 0</span>
+          <span class="pill" id="boxCount">Boxes: 0</span>
+        </div>
+
+        <label class="small">DOCX mask text</label>
+        <input id="maskText" type="text" value="[REDACTED]" />
+
+        <label class="small">Optional text stamp inside PDF boxes</label>
+        <input id="labelText" type="text" placeholder="REDACTED" />
+
+        <label class="small">DOCX custom regex rules (one per line: /pattern/flags)</label>
+        <textarea id="customRules" rows="5" placeholder="/john doe/gi\n/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi"></textarea>
+
+        <div class="row">
+          <button id="clearPageBtn">Clear boxes on active page</button>
+          <button class="danger" id="clearAllBtn">Clear all boxes</button>
+        </div>
+
+        <div class="row">
+          <button class="success" id="exportPdfBtn">Export redacted PDF</button>
+          <button class="success" id="runDocxBtn">Redact DOCX</button>
+          <button class="success" id="downloadDocxBtn" disabled>Download redacted.docx</button>
+        </div>
+
+        <div class="warn">PseudoRedact helps quickly reduce exposure but does not guarantee perfect anonymisation. Verify outputs before sharing.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="header"><h2>Viewer / Preview</h2></div>
+      <div class="body stack">
+        <div class="row">
+          <button id="zoomOut">-</button>
+          <button id="zoomIn">+</button>
+          <span class="pill" id="zoomLevel">Zoom: 125%</span>
+          <span class="small">PDF: drag to draw boxes, click box to remove.</span>
+        </div>
+        <div id="viewerWrap"></div>
+        <div>
+          <label class="small">DOCX text preview before</label>
+          <div id="beforePane" class="pane">—</div>
+        </div>
+        <div>
+          <label class="small">DOCX text preview after</label>
+          <div id="afterPane" class="pane">—</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.min.mjs';
+    import { PDFDocument, rgb, StandardFonts } from 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm';
+    import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
+
+    const fileInput = document.getElementById('fileInput');
+    const viewerWrap = document.getElementById('viewerWrap');
+    const pageCountEl = document.getElementById('pageCount');
+    const boxCountEl = document.getElementById('boxCount');
+    const zoomLevelEl = document.getElementById('zoomLevel');
+    const fileTypeEl = document.getElementById('fileType');
+    const labelTextInput = document.getElementById('labelText');
+    const maskTextInput = document.getElementById('maskText');
+    const customRulesInput = document.getElementById('customRules');
+    const beforePane = document.getElementById('beforePane');
+    const afterPane = document.getElementById('afterPane');
+
+    const clearPageBtn = document.getElementById('clearPageBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
+    const runDocxBtn = document.getElementById('runDocxBtn');
+    const downloadDocxBtn = document.getElementById('downloadDocxBtn');
+    const zoomInBtn = document.getElementById('zoomIn');
+    const zoomOutBtn = document.getElementById('zoomOut');
+
+    let fileKind = null;
+    let pdfDoc = null;
+    let rawPdfBytes = null;
+    let scale = 1.25;
+    let activePage = 1;
+    const pageRects = new Map();
+
+    let docxBytes = null;
+    let redactedDocxBytes = null;
+
+    function hasPdfHeader(bytes) {
+      if (!bytes || bytes.length < 5) return false;
+      return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2D; // %PDF-
+    }
+
+    function countRects() { let n = 0; for (const arr of pageRects.values()) n += arr.length; return n; }
+    function updateBadges() {
+      fileTypeEl.textContent = `Type: ${fileKind || '—'}`;
+      pageCountEl.textContent = `Pages: ${pdfDoc ? pdfDoc.numPages : 0}`;
+      boxCountEl.textContent = `Boxes: ${countRects()}`;
+      zoomLevelEl.textContent = `Zoom: ${Math.round(scale * 100)}%`;
+    }
+
+    function ensurePageEntry(pageNum) { if (!pageRects.has(pageNum)) pageRects.set(pageNum, []); return pageRects.get(pageNum); }
+
+    async function renderPdfPages() {
+      viewerWrap.innerHTML = '';
+      if (!pdfDoc) return updateBadges();
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+        const wrap = document.createElement('div');
+        wrap.className = 'page-wrap';
+        wrap.dataset.pageNum = String(pageNum);
+        wrap.addEventListener('pointerdown', () => activePage = pageNum);
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pdf-canvas';
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        await page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport }).promise;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.style.width = canvas.width + 'px';
+        overlay.style.height = canvas.height + 'px';
+        attachDrawHandlers(overlay, pageNum);
+        redrawRects(overlay, pageNum);
+
+        wrap.appendChild(canvas); wrap.appendChild(overlay); viewerWrap.appendChild(wrap);
+      }
+      updateBadges();
+    }
+
+    function redrawRects(overlay, pageNum) {
+      overlay.querySelectorAll('.redaction').forEach(v => v.remove());
+      const rects = ensurePageEntry(pageNum);
+      rects.forEach((r, idx) => {
+        const el = document.createElement('div');
+        el.className = 'redaction';
+        el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px';
+        el.addEventListener('click', (ev) => { ev.stopPropagation(); rects.splice(idx, 1); redrawRects(overlay, pageNum); updateBadges(); });
+        overlay.appendChild(el);
+      });
+    }
+
+    function attachDrawHandlers(overlay, pageNum) {
+      let drawing = false, startX = 0, startY = 0, temp = null;
+      overlay.addEventListener('pointerdown', (e) => {
+        if (e.target !== overlay) return;
+        const rect = overlay.getBoundingClientRect();
+        drawing = true; startX = e.clientX - rect.left; startY = e.clientY - rect.top;
+        temp = document.createElement('div'); temp.className = 'redaction'; temp.style.opacity = '.55';
+        temp.style.left = startX + 'px'; temp.style.top = startY + 'px'; temp.style.width = '0px'; temp.style.height = '0px';
+        overlay.appendChild(temp);
+      });
+      overlay.addEventListener('pointermove', (e) => {
+        if (!drawing || !temp) return;
+        const rect = overlay.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+        temp.style.left = Math.min(startX, x) + 'px'; temp.style.top = Math.min(startY, y) + 'px';
+        temp.style.width = Math.abs(x - startX) + 'px'; temp.style.height = Math.abs(y - startY) + 'px';
+      });
+      function end() {
+        if (!drawing || !temp) return;
+        drawing = false;
+        const x = parseFloat(temp.style.left), y = parseFloat(temp.style.top), w = parseFloat(temp.style.width), h = parseFloat(temp.style.height);
+        temp.remove(); temp = null;
+        if (w < 4 || h < 4) return;
+        ensurePageEntry(pageNum).push({ x, y, w, h });
+        redrawRects(overlay, pageNum); updateBadges();
+      }
+      overlay.addEventListener('pointerup', end); overlay.addEventListener('pointerleave', end);
+    }
+
+    async function loadPdf(file) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (!hasPdfHeader(bytes)) {
+        throw new Error('Selected file does not have a valid PDF header.');
+      }
+      const parsedPdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      rawPdfBytes = bytes;
+      pdfDoc = parsedPdf;
+      pageRects.clear();
+      await renderPdfPages();
+    }
+
+    async function exportPdf() {
+      if (fileKind !== 'PDF' || !rawPdfBytes || !pdfDoc) return alert('Load a PDF first.');
+      if (!hasPdfHeader(rawPdfBytes)) {
+        alert('Current data is not a valid PDF. Please re-load a PDF file.');
+        return;
+      }
+      const outDoc = await PDFDocument.load(rawPdfBytes);
+      const font = await outDoc.embedFont(StandardFonts.HelveticaBold);
+      const stamp = labelTextInput.value.trim();
+
+      for (let i = 0; i < outDoc.getPageCount(); i++) {
+        const pageNum = i + 1;
+        const rects = pageRects.get(pageNum) || [];
+        if (!rects.length) continue;
+        const page = outDoc.getPage(i);
+        const { width, height } = page.getSize();
+        const srcPage = await pdfDoc.getPage(pageNum);
+        const viewport = srcPage.getViewport({ scale });
+
+        rects.forEach((r) => {
+          const pdfX = (r.x / viewport.width) * width;
+          const pdfW = (r.w / viewport.width) * width;
+          const topFromTop = (r.y / viewport.height) * height;
+          const pdfH = (r.h / viewport.height) * height;
+          const pdfY = height - topFromTop - pdfH;
+          page.drawRectangle({ x: pdfX, y: pdfY, width: pdfW, height: pdfH, color: rgb(0, 0, 0), borderWidth: 0, opacity: 1 });
+          if (stamp && pdfW > 40 && pdfH > 14) {
+            const size = Math.max(8, Math.min(14, pdfH * 0.35));
+            const textW = font.widthOfTextAtSize(stamp, size);
+            if (textW < pdfW - 8) page.drawText(stamp, { x: pdfX + (pdfW - textW)/2, y: pdfY + (pdfH - size)/2, size, font, color: rgb(1, 1, 1), opacity: .9 });
+          }
+        });
+      }
+
+      const blob = new Blob([await outDoc.save()], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'pseudoredacted.pdf'; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    const DOCX_PARTS = [
+      /^word\/document\.xml$/,
+      /^word\/header\d*\.xml$/,
+      /^word\/footer\d*\.xml$/,
+      /^word\/comments\.xml$/,
+      /^word\/footnotes\.xml$/,
+      /^word\/endnotes\.xml$/
+    ];
+
+    function parseCustomRegexes() {
+      return customRulesInput.value
+        .split(/\n+/)
+        .map(v => v.trim())
+        .filter(Boolean)
+        .map(line => {
+          const m = line.match(/^\/(.*)\/([gimsuy]*)$/);
+          if (!m) return null;
+          try { return new RegExp(m[1], m[2].includes('g') ? m[2] : m[2] + 'g'); } catch { return null; }
+        })
+        .filter(Boolean);
+    }
+
+    function redactText(input, mask, customRegexes) {
+      let out = input;
+      const defaults = [
+        /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+        /(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
+        /\bhttps?:\/\/[^\s<>"]+/gi,
+        /\bwww\.[^\s<>"]+/gi,
+        /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi
+      ];
+      [...defaults, ...customRegexes].forEach(re => { out = out.replace(re, mask); });
+      return out;
+    }
+
+    function xmlToText(xml) {
+      return xml
+        .replace(/<w:tab\s*\/?>/g, '\t')
+        .replace(/<w:br\s*\/?>/g, '\n')
+        .replace(/<w:p[^>]*>/g, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+    }
+
+    async function runDocxRedaction() {
+      if (!docxBytes) return alert('Load a DOCX first.');
+      const mask = maskTextInput.value || '[REDACTED]';
+      const customRegexes = parseCustomRegexes();
+      const zip = await JSZip.loadAsync(docxBytes);
+      const outZip = new JSZip();
+
+      let before = '';
+      let after = '';
+
+      const entries = Object.values(zip.files);
+      for (const entry of entries) {
+        if (entry.dir) continue;
+        const isDocxPart = DOCX_PARTS.some(re => re.test(entry.name));
+        if (!isDocxPart) {
+          outZip.file(entry.name, await entry.async('uint8array'));
+          continue;
+        }
+
+        const xml = await entry.async('string');
+        before += `\n--- ${entry.name} ---\n` + xmlToText(xml).slice(0, 2500);
+        const redacted = xml.replace(/>([^<]+)</g, (_m, text) => `>${redactText(text, mask, customRegexes)}<`);
+        after += `\n--- ${entry.name} ---\n` + xmlToText(redacted).slice(0, 2500);
+        outZip.file(entry.name, redacted);
+      }
+
+      redactedDocxBytes = await outZip.generateAsync({ type: 'uint8array' });
+      beforePane.textContent = before.trim() || 'No DOCX text surfaces found.';
+      afterPane.textContent = after.trim() || 'No DOCX text surfaces found.';
+      downloadDocxBtn.disabled = false;
+    }
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const lowerName = file.name.toLowerCase();
+
+      if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
+        pdfDoc = null; rawPdfBytes = null;
+        docxBytes = null; redactedDocxBytes = null;
+        beforePane.textContent = '—'; afterPane.textContent = '—'; downloadDocxBtn.disabled = true;
+        try {
+          await loadPdf(file);
+          fileKind = 'PDF';
+        } catch (err) {
+          fileKind = null;
+          viewerWrap.innerHTML = '';
+          console.error(err);
+          alert('Could not open PDF. Make sure the file is a valid PDF.');
+        }
+      } else if (lowerName.endsWith('.docx')) {
+        fileKind = 'DOCX';
+        pdfDoc = null; rawPdfBytes = null; pageRects.clear(); viewerWrap.innerHTML = '<div class="small">DOCX mode loaded. Use "Redact DOCX" for textual redaction and preview below.</div>';
+        docxBytes = new Uint8Array(await file.arrayBuffer());
+        redactedDocxBytes = null;
+        const zip = await JSZip.loadAsync(docxBytes);
+        const docXml = zip.file('word/document.xml');
+        beforePane.textContent = docXml ? xmlToText(await docXml.async('string')).slice(0, 8000) : 'Could not read word/document.xml';
+        afterPane.textContent = 'Run DOCX redaction to populate output preview.';
+        downloadDocxBtn.disabled = true;
+      } else {
+        alert('Please choose a PDF or DOCX file.');
+      }
+      updateBadges();
+    });
+
+    zoomInBtn.addEventListener('click', async () => { if (!pdfDoc) return; scale = Math.min(scale + .15, 3); await renderPdfPages(); });
+    zoomOutBtn.addEventListener('click', async () => { if (!pdfDoc) return; scale = Math.max(scale - .15, .5); await renderPdfPages(); });
+
+    clearPageBtn.addEventListener('click', () => {
+      if (!pdfDoc) return;
+      const wrap = viewerWrap.querySelector(`.page-wrap[data-page-num="${activePage}"]`);
+      if (!wrap) return;
+      pageRects.set(activePage, []);
+      redrawRects(wrap.querySelector('.overlay'), activePage);
+      updateBadges();
+    });
+
+    clearAllBtn.addEventListener('click', () => {
+      pageRects.forEach((_v, k) => pageRects.set(k, []));
+      viewerWrap.querySelectorAll('.overlay').forEach((overlay) => redrawRects(overlay, Number(overlay.parentElement.dataset.pageNum)));
+      updateBadges();
+    });
+
+    exportPdfBtn.addEventListener('click', () => exportPdf().catch(err => { console.error(err); alert('PDF export failed.'); }));
+    runDocxBtn.addEventListener('click', () => runDocxRedaction().catch(err => { console.error(err); alert('DOCX redaction failed.'); }));
+    downloadDocxBtn.addEventListener('click', () => {
+      if (!redactedDocxBytes) return;
+      const blob = new Blob([redactedDocxBytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'redacted.docx'; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    updateBadges();
+  </script>
+</body>
+</html>

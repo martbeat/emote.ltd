@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PII Redactor (DOCX + PDF) – Client-side, Format-Preserving</title>
+  <style>
+    :root{
+      --bg:#0b0f1a;
+      --panel:#121a2b;
+      --panel2:#0f1626;
+      --text:#e7edf7;
+      --muted:#a7b4c7;
+      --line:#24314d;
+      --accent:#6aa9ff;
+      --good:#44d18f;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --chip:#1a2640;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,var(--panel),rgba(18,26,43,.85));border-bottom:1px solid var(--line)}
+    .wrap{max-width:1280px;margin:0 auto;padding:14px 16px}
+    .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .title{display:flex;gap:10px;align-items:center}
+    .badge{font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:rgba(255,255,255,.02)}
+    h1{font-size:16px;margin:0}
+    .grid{display:grid;grid-template-columns:380px 1fr;gap:14px}
+    @media (max-width:1020px){ .grid{grid-template-columns:1fr} }
+    .card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .card .hd{padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02);font-weight:700;display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .card .bd{padding:12px}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input[type="file"]{width:100%}
+    input[type="text"], textarea, select{
+      width:100%;padding:10px 10px;border-radius:10px;border:1px solid var(--line);
+      background:var(--panel2);color:var(--text);outline:none
+    }
+    textarea{min-height:88px;resize:vertical}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row > *{flex:1}
+    .btns{display:flex;gap:10px;flex-wrap:wrap}
+    button{
+      appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);
+      padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:650
+    }
+    button.primary{border-color:rgba(106,169,255,.55);background:rgba(106,169,255,.12)}
+    button.good{border-color:rgba(68,209,143,.55);background:rgba(68,209,143,.10)}
+    button.warn{border-color:rgba(255,204,102,.55);background:rgba(255,204,102,.10)}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .hint{font-size:12px;color:var(--muted);line-height:1.35}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .chip{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);color:var(--muted)}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .stat{padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+    .stat .k{font-size:12px;color:var(--muted)}
+    .stat .v{font-size:18px;font-weight:800;margin-top:2px}
+    .viewer{padding:0}
+    .viewerTop{
+      display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+      padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)
+    }
+    .viewerTop .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .viewerTop .right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:var(--muted);background:rgba(255,255,255,.02)}
+    .pages{padding:12px;display:flex;flex-direction:column;gap:14px}
+    .page{
+      border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)
+    }
+    .pageHd{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
+    .pageHd b{font-size:13px}
+    .canvasWrap{position:relative;overflow:auto;max-height:70vh}
+    canvas{display:block;max-width:100%;height:auto}
+    .overlay{
+      position:absolute;left:0;top:0;pointer-events:none;
+    }
+    .rect{
+      position:absolute;border:1px solid rgba(255,255,255,.0);
+      background:#000;opacity:1;
+    }
+    .rect.preview{
+      background:#000;opacity:.55;border:1px dashed rgba(255,255,255,.35)
+    }
+    .rect.off{display:none}
+    .small{font-size:12px;color:var(--muted)}
+    .log{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:12px;background:rgba(0,0,0,.25);border:1px solid var(--line);
+      padding:10px;border-radius:12px;white-space:pre-wrap;max-height:220px;overflow:auto
+    }
+    .toggleRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .toggle{
+      display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)
+    }
+    .toggle input{transform:scale(1.1)}
+    .warnBox{
+      border:1px solid rgba(255,204,102,.4);background:rgba(255,204,102,.08);
+      padding:10px;border-radius:12px;color:var(--muted);font-size:12px;line-height:1.35
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap top">
+    <div class="title">
+      <h1>PII Redactor</h1>
+      <span class="badge">Client-side only</span>
+      <span class="badge">PDF + DOCX</span>
+      <span class="badge">Format-preserving output</span>
+    </div>
+    <div class="row" style="max-width:520px">
+      <div class="pill" id="filePill">No file loaded</div>
+      <div class="pill" id="modePill">Idle</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <section class="card">
+      <div class="hd">
+        <span>Controls</span>
+        <span class="small" id="libStatus">Loading libraries…</span>
+      </div>
+      <div class="bd">
+        <label>Input (PDF or DOCX)</label>
+        <input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+
+        <div class="warnBox" style="margin-top:10px">
+          PDF output is a true visual redaction (burned into page images). It reliably removes readable content but it drops the PDF text layer.
+          DOCX output preserves the original formatting by replacing redacted characters inside the Word XML.
+        </div>
+
+        <label>Detection profile</label>
+        <div class="toggleRow">
+          <label class="toggle"><input type="checkbox" id="detEmails" checked> Emails</label>
+          <label class="toggle"><input type="checkbox" id="detPhones" checked> Phone numbers</label>
+          <label class="toggle"><input type="checkbox" id="detPostcodes" checked> UK postcodes</label>
+          <label class="toggle"><input type="checkbox" id="detNINo" checked> UK NI numbers</label>
+          <label class="toggle"><input type="checkbox" id="detUrls" checked> URLs</label>
+          <label class="toggle"><input type="checkbox" id="detDates"> Dates (basic)</label>
+        </div>
+
+        <label>Custom terms (one per line, exact match, case-insensitive)</label>
+        <textarea id="customTerms" placeholder="e.g. Martin Fry&#10;Reading Borough Council&#10;RG6 7DX"></textarea>
+
+        <label>Replacement style</label>
+        <div class="row">
+          <select id="replacementMode">
+            <option value="blocks">Solid blocks (█) in DOCX</option>
+            <option value="tag">[REDACTED] tags in DOCX</option>
+          </select>
+          <select id="pdfRedactionStyle">
+            <option value="black">PDF black boxes</option>
+            <option value="blur">PDF blur (weaker)</option>
+          </select>
+        </div>
+
+        <label>Actions</label>
+        <div class="btns">
+          <button id="scan" class="primary" disabled>Scan for PII</button>
+          <button id="apply" class="warn" disabled>Apply redactions</button>
+          <button id="export" class="good" disabled>Export redacted file</button>
+          <button id="reset" disabled>Reset</button>
+        </div>
+
+        <div class="chips">
+          <span class="chip" id="chipType">Type: —</span>
+          <span class="chip" id="chipPages">Pages: —</span>
+          <span class="chip" id="chipFinds">Finds: —</span>
+        </div>
+
+        <label>Quick stats</label>
+        <div class="stats">
+          <div class="stat">
+            <div class="k">Detected items</div>
+            <div class="v" id="statDetected">0</div>
+          </div>
+          <div class="stat">
+            <div class="k">Redactions selected</div>
+            <div class="v" id="statSelected">0</div>
+          </div>
+        </div>
+
+        <label>Log</label>
+        <div class="log" id="log">Ready.</div>
+
+        <div class="hint" style="margin-top:10px">
+          PDF: click a highlighted item to toggle, or drag to add a manual redaction rectangle.<br/>
+          DOCX: redactions are applied to the document XML in paragraphs, headers, and footers.
+        </div>
+      </div>
+    </section>
+
+    <section class="card viewer">
+      <div class="viewerTop">
+        <div class="left">
+          <b id="viewerTitle">Preview</b>
+          <span class="pill" id="viewerHint">Load a PDF or DOCX</span>
+        </div>
+        <div class="right">
+          <label class="toggle" title="Show or hide overlays in preview">
+            <input type="checkbox" id="showOverlays" checked> Show overlays
+          </label>
+          <label class="toggle" title="When enabled, scanning will also select all detected items">
+            <input type="checkbox" id="autoSelect" checked> Auto-select detected
+          </label>
+        </div>
+      </div>
+      <div class="pages" id="pages"></div>
+    </section>
+  </div>
+</div>
+
+<!-- Libraries (client-side). If you need fully offline, inline these minified bundles into this single file. -->
+<!-- PDF.js (stable classic build) -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+</script>
+
+<!-- PDF-LIB -->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<!-- JSZip -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log");
+
+  function log(msg){
+    const t = new Date().toISOString().replace("T"," ").replace("Z","");
+    logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent;
+  }
+
+  function setMode(text){ $("modePill").textContent = text; }
+  function setFilePill(text){ $("filePill").textContent = text; }
+  function setStat(){
+    $("statDetected").textContent = String(state.detectedCount);
+    $("statSelected").textContent = String(state.selectedCount);
+    $("chipType").textContent = `Type: ${state.type ?? "—"}`;
+    $("chipPages").textContent = `Pages: ${state.pageCount ?? "—"}`;
+    $("chipFinds").textContent = `Finds: ${state.detectedCount ?? "—"}`;
+  }
+
+  const state = {
+    type: null,          // 'pdf' | 'docx'
+    file: null,
+    fileName: null,
+    arrayBuffer: null,
+
+    // PDF specific
+    pdfDoc: null,
+    pdfPages: [],        // [{pageNo, viewport, canvas, ctx, overlayEl, items:[{id, x,y,w,h, text, selected, kind, manual, blur}] }]
+    pdfScale: 1.35,
+
+    // DOCX specific
+    docxZip: null,
+    docxXml: new Map(),  // partPath -> xmlString
+    docxFinds: [],       // [{partPath, paragraphIndex, matchText, kind}]
+    docxRedactedZipBlob: null,
+
+    detectedCount: 0,
+    selectedCount: 0,
+
+    ready: false,
+    scanned: false,
+    applied: false
+  };
+
+  // ---------- Regex profiles ----------
+  function buildPatterns(){
+    const enabled = {
+      emails: $("detEmails").checked,
+      phones: $("detPhones").checked,
+      postcodes: $("detPostcodes").checked,
+      nino: $("detNINo").checked,
+      urls: $("detUrls").checked,
+      dates: $("detDates").checked
+    };
+
+    const patterns = [];
+
+    if (enabled.emails){
+      patterns.push({ kind:"email", re:/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/ig });
+    }
+    if (enabled.urls){
+      patterns.push({ kind:"url", re:/\bhttps?:\/\/[^\s<>"']+|\bwww\.[^\s<>"']+\b/ig });
+    }
+    if (enabled.phones){
+      // Broad UK-friendly phone matcher (supports spaces, hyphens, parentheses)
+      patterns.push({ kind:"phone", re:/\b(?:\+?44\s?7\d{3}|\(?0(?:7\d{3}|1\d{3}|2\d{3}|3\d{3}|8\d{3})\)?)\s?\d{3}\s?\d{3,4}\b/ig });
+    }
+    if (enabled.postcodes){
+      // UK postcode (approx)
+      patterns.push({ kind:"postcode", re:/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/ig });
+    }
+    if (enabled.nino){
+      // NI number: 2 letters, 6 digits, 1 letter (allow spaces)
+      patterns.push({ kind:"nino", re:/\b(?!BG)(?!GB)(?!NK)(?!KN)(?!TN)(?!NT)(?!ZZ)[A-CEGHJ-PR-TW-Z]{2}\s*\d{2}\s*\d{2}\s*\d{2}\s*[A-D]\b/ig });
+    }
+    if (enabled.dates){
+      patterns.push({ kind:"date", re:/\b(?:\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\b/g });
+    }
+
+    // Custom terms (exact, case-insensitive)
+    const terms = $("customTerms").value.split("\n").map(s => s.trim()).filter(Boolean);
+    for (const term of terms){
+      // Escape regex metacharacters
+      const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      patterns.push({ kind:"custom", re:new RegExp(`\\b${esc}\\b`, "ig"), label: term });
+    }
+
+    return patterns;
+  }
+
+  // ---------- Init / library readiness ----------
+  function libsReady(){
+    const ok = !!(window.pdfjsLib && window.PDFLib && window.JSZip);
+    $("libStatus").textContent = ok ? "Libraries loaded" : "Libraries not loaded";
+    return ok;
+  }
+
+  // pdf.js worker
+  function configurePdfJs(){
+    try{
+      // pdfjs-dist@4 ships worker separately; pdfjsLib.GlobalWorkerOptions may exist.
+      if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions){
+        // If worker is loaded via <script>, pdfjsLib should be able to locate it.
+        // This line is safe but optional.
+        pdfjsLib.GlobalWorkerOptions.workerSrc = undefined;
+      }
+    }catch(_){}
+  }
+
+  // ---------- Reset ----------
+  function hardReset(){
+    state.type = null;
+    state.file = null;
+    state.fileName = null;
+    state.arrayBuffer = null;
+
+    state.pdfDoc = null;
+    state.pdfPages = [];
+
+    state.docxZip = null;
+    state.docxXml.clear();
+    state.docxFinds = [];
+    state.docxRedactedZipBlob = null;
+
+    state.detectedCount = 0;
+    state.selectedCount = 0;
+    state.ready = false;
+    state.scanned = false;
+    state.applied = false;
+
+    $("pages").innerHTML = "";
+    $("viewerTitle").textContent = "Preview";
+    $("viewerHint").textContent = "Load a PDF or DOCX";
+
+    $("scan").disabled = true;
+    $("apply").disabled = true;
+    $("export").disabled = true;
+    $("reset").disabled = true;
+
+    setMode("Idle");
+    setFilePill("No file loaded");
+    setStat();
+    log("Reset complete.");
+  }
+
+  // ---------- File load ----------
+  async function onFileSelected(file){
+    if (!libsReady()){
+      log("Libraries not loaded. If your network blocks CDNs, inline the libraries into this file for offline use.");
+      return;
+    }
+
+    hardReset();
+
+    state.file = file;
+    state.fileName = file.name;
+    setFilePill(file.name);
+    $("reset").disabled = false;
+
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const isPdf = ext === "pdf" || file.type === "application/pdf";
+    const isDocx = ext === "docx" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    if (!isPdf && !isDocx){
+      log("Unsupported file type. Please provide a PDF or DOCX.");
+      return;
+    }
+
+    state.type = isPdf ? "pdf" : "docx";
+    $("chipType").textContent = `Type: ${state.type.toUpperCase()}`;
+    setMode("Loading…");
+
+    state.arrayBuffer = await file.arrayBuffer();
+
+    if (state.type === "pdf"){
+      await loadPdf(state.arrayBuffer);
+    } else {
+      await loadDocx(state.arrayBuffer);
+    }
+
+    state.ready = true;
+    $("scan").disabled = false;
+    setMode("Ready");
+    setStat();
+    log(`Loaded ${state.type.toUpperCase()} successfully.`);
+  }
+
+  // ---------- PDF pipeline ----------
+  async function loadPdf(buf){
+    configurePdfJs();
+
+    // pdf.js getDocument accepts Uint8Array
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buf) });
+    const pdf = await loadingTask.promise;
+    state.pdfDoc = pdf;
+    state.pageCount = pdf.numPages;
+
+    $("viewerTitle").textContent = "PDF preview";
+    $("viewerHint").textContent = "Scan for PII then toggle items or draw manual redactions";
+    $("pages").innerHTML = "";
+
+    state.pdfPages = [];
+
+    for (let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: state.pdfScale });
+
+      const pageEl = document.createElement("div");
+      pageEl.className = "page";
+
+      const pageHd = document.createElement("div");
+      pageHd.className = "pageHd";
+      pageHd.innerHTML = `<b>Page ${i}</b><span class="small">Drag to add manual redactions</span>`;
+
+      const canvasWrap = document.createElement("div");
+      canvasWrap.className = "canvasWrap";
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { alpha: false });
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      overlay.style.width = canvas.width + "px";
+      overlay.style.height = canvas.height + "px";
+      overlay.style.pointerEvents = "auto"; // to capture clicks/drag
+      overlay.style.position = "absolute";
+      overlay.style.left = "0";
+      overlay.style.top = "0";
+
+      // Wrap canvas in a positioned container so overlay can sit on top
+      const inner = document.createElement("div");
+      inner.style.position = "relative";
+      inner.style.width = canvas.width + "px";
+      inner.style.height = canvas.height + "px";
+
+      inner.appendChild(canvas);
+      inner.appendChild(overlay);
+      canvasWrap.appendChild(inner);
+
+      pageEl.appendChild(pageHd);
+      pageEl.appendChild(canvasWrap);
+      $("pages").appendChild(pageEl);
+
+      // render
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      const pageState = {
+        pageNo: i,
+        page,
+        viewport,
+        canvas,
+        ctx,
+        overlayEl: overlay,
+        items: [],
+        manualDraft: null
+      };
+
+      attachPdfOverlayHandlers(pageState);
+      state.pdfPages.push(pageState);
+    }
+
+    state.pageCount = state.pdfPages.length;
+  }
+
+  function attachPdfOverlayHandlers(pageState){
+    const overlay = pageState.overlayEl;
+
+    let dragging = false;
+    let start = null;
+    let draftEl = null;
+
+    function ptFromEvent(ev){
+      const r = overlay.getBoundingClientRect();
+      const x = ev.clientX - r.left;
+      const y = ev.clientY - r.top;
+      return { x: Math.max(0, Math.min(x, overlay.clientWidth)), y: Math.max(0, Math.min(y, overlay.clientHeight)) };
+    }
+
+    overlay.addEventListener("mousedown", (ev) => {
+      // If clicked on a rect, toggle instead of drawing
+      if (ev.target && ev.target.classList && ev.target.classList.contains("rect")){
+        const id = ev.target.dataset.id;
+        const item = pageState.items.find(it => it.id === id);
+        if (item){
+          item.selected = !item.selected;
+          ev.target.classList.toggle("off", !item.selected);
+          recomputeSelectedCount();
+        }
+        return;
+      }
+
+      dragging = true;
+      start = ptFromEvent(ev);
+
+      draftEl = document.createElement("div");
+      draftEl.className = "rect preview";
+      draftEl.style.left = start.x + "px";
+      draftEl.style.top = start.y + "px";
+      draftEl.style.width = "1px";
+      draftEl.style.height = "1px";
+      overlay.appendChild(draftEl);
+    });
+
+    overlay.addEventListener("mousemove", (ev) => {
+      if (!dragging || !draftEl) return;
+      const cur = ptFromEvent(ev);
+      const x = Math.min(start.x, cur.x);
+      const y = Math.min(start.y, cur.y);
+      const w = Math.abs(cur.x - start.x);
+      const h = Math.abs(cur.y - start.y);
+      draftEl.style.left = x + "px";
+      draftEl.style.top = y + "px";
+      draftEl.style.width = w + "px";
+      draftEl.style.height = h + "px";
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!dragging) return;
+      dragging = false;
+
+      if (!draftEl){
+        start = null;
+        return;
+      }
+
+      const x = parseFloat(draftEl.style.left);
+      const y = parseFloat(draftEl.style.top);
+      const w = parseFloat(draftEl.style.width);
+      const h = parseFloat(draftEl.style.height);
+
+      overlay.removeChild(draftEl);
+      draftEl = null;
+
+      // Ignore tiny drags
+      if (w < 6 || h < 6){
+        start = null;
+        return;
+      }
+
+      const id = crypto.randomUUID();
+      const item = { id, x, y, w, h, text:"(manual)", selected:true, kind:"manual", manual:true };
+      pageState.items.push(item);
+
+      const rectEl = document.createElement("div");
+      rectEl.className = "rect";
+      rectEl.dataset.id = id;
+      rectEl.style.left = x + "px";
+      rectEl.style.top = y + "px";
+      rectEl.style.width = w + "px";
+      rectEl.style.height = h + "px";
+      rectEl.title = "Manual redaction (click to toggle)";
+      pageState.overlayEl.appendChild(rectEl);
+
+      state.detectedCount += 1;
+      recomputeSelectedCount();
+      setStat();
+      log(`Added manual redaction on page ${pageState.pageNo}.`);
+      start = null;
+    }, { passive:true });
+  }
+
+  async function scanPdf(){
+    setMode("Scanning PDF…");
+    log("Scanning PDF text for PII…");
+
+    const patterns = buildPatterns();
+    let totalFinds = 0;
+
+    // Clear existing detected items except manual ones
+    for (const p of state.pdfPages){
+      const manual = p.items.filter(it => it.manual);
+      p.items = manual;
+      // Clear overlay children (rebuild)
+      p.overlayEl.querySelectorAll(".rect").forEach(el => el.remove());
+      // Re-add manual rects
+      for (const it of manual){
+        const rectEl = document.createElement("div");
+        rectEl.className = "rect";
+        rectEl.dataset.id = it.id;
+        rectEl.style.left = it.x + "px";
+        rectEl.style.top = it.y + "px";
+        rectEl.style.width = it.w + "px";
+        rectEl.style.height = it.h + "px";
+        rectEl.title = "Manual redaction (click to toggle)";
+        p.overlayEl.appendChild(rectEl);
+      }
+    }
+
+    // Extract text items from each page
+    for (const p of state.pdfPages){
+      const textContent = await p.page.getTextContent();
+      const items = textContent.items || [];
+
+      // pdf.js text item transform -> approximate bounding box
+      // We'll scan each item string independently. This avoids complex multi-item matching,
+      // but is stable and maps cleanly to coordinates.
+      for (const t of items){
+        const s = (t.str || "").trim();
+        if (!s) continue;
+
+        for (const pat of patterns){
+          pat.re.lastIndex = 0;
+          let m;
+          while ((m = pat.re.exec(s)) !== null){
+            const matchText = m[0];
+            const box = estimatePdfTextBox(p, t, s, m.index, matchText.length);
+            if (!box) continue;
+
+            const id = crypto.randomUUID();
+            const selected = $("autoSelect").checked;
+            const item = { id, ...box, text: matchText, selected, kind: pat.kind, manual:false };
+            p.items.push(item);
+
+            const rectEl = document.createElement("div");
+            rectEl.className = "rect";
+            rectEl.dataset.id = id;
+            rectEl.style.left = box.x + "px";
+            rectEl.style.top = box.y + "px";
+            rectEl.style.width = box.w + "px";
+            rectEl.style.height = box.h + "px";
+            rectEl.title = `${pat.kind.toUpperCase()}: ${matchText}\nClick to toggle`;
+            if (!selected) rectEl.classList.add("off");
+            rectEl.style.display = $("showOverlays").checked ? "block" : "none";
+            p.overlayEl.appendChild(rectEl);
+
+            totalFinds++;
+          }
+        }
+      }
+    }
+
+    state.detectedCount = totalFinds;
+    state.scanned = true;
+    recomputeSelectedCount();
+    setStat();
+    setMode("Scan complete");
+    log(`PDF scan complete: ${totalFinds} item(s) detected.`);
+  }
+
+  function estimatePdfTextBox(pageState, textItem, fullStr, startIdx, matchLen){
+    // pdf.js gives a transform matrix for the whole item.
+    // We approximate per-substring by proportional width allocation.
+    // This keeps coordinates stable enough for redaction boxes.
+
+    const { viewport } = pageState;
+
+    const transform = pdfjsLib.Util.transform(viewport.transform, textItem.transform);
+    const x = transform[4];
+    const y = transform[5];
+
+    // textItem.width/height are in text space; viewport scales them.
+    const itemW = Math.abs(textItem.width * viewport.scale);
+    const itemH = Math.abs(textItem.height * viewport.scale);
+
+    // Proportional substring mapping
+    const len = fullStr.length || 1;
+    const sx = (startIdx / len) * itemW;
+    const sw = (matchLen / len) * itemW;
+
+    // PDF y is baseline-ish; adjust upward by height
+    const boxX = x + sx;
+    const boxY = (y - itemH); // rough
+    const boxW = Math.max(6, sw);
+    const boxH = Math.max(10, itemH || 12);
+
+    // Clamp
+    const clamped = {
+      x: Math.max(0, Math.min(boxX, viewport.width - 1)),
+      y: Math.max(0, Math.min(boxY, viewport.height - 1)),
+      w: Math.max(2, Math.min(boxW, viewport.width - boxX)),
+      h: Math.max(2, Math.min(boxH, viewport.height - boxY))
+    };
+    return clamped;
+  }
+
+  async function applyPdfRedactions(){
+    setMode("Applying (PDF)…");
+    log("Applying PDF redactions…");
+
+    // Burn redactions into canvas pixels (and keep overlays for UX)
+    const style = $("pdfRedactionStyle").value;
+
+    for (const p of state.pdfPages){
+      const ctx = p.ctx;
+      for (const it of p.items){
+        if (!it.selected) continue;
+
+        if (style === "black"){
+          ctx.save();
+          ctx.fillStyle = "#000";
+          ctx.fillRect(it.x, it.y, it.w, it.h);
+          ctx.restore();
+        } else {
+          // blur: draw a scaled sample of the region back onto itself (simple mosaic-ish blur)
+          const sx = Math.max(0, Math.floor(it.x));
+          const sy = Math.max(0, Math.floor(it.y));
+          const sw = Math.max(1, Math.floor(it.w));
+          const sh = Math.max(1, Math.floor(it.h));
+          try{
+            const img = ctx.getImageData(sx, sy, sw, sh);
+
+            // simple pixelation: sample blocks
+            const block = Math.max(6, Math.floor(Math.min(sw, sh) / 10));
+            for (let y = 0; y < sh; y += block){
+              for (let x = 0; x < sw; x += block){
+                const px = x + Math.floor(block/2);
+                const py = y + Math.floor(block/2);
+                const idx = ((Math.min(py, sh-1) * sw) + Math.min(px, sw-1)) * 4;
+                const r = img.data[idx], g = img.data[idx+1], b = img.data[idx+2];
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(sx + x, sy + y, block, block);
+              }
+            }
+          }catch(_){
+            // fallback to black if tainted (should not happen here)
+            ctx.save(); ctx.fillStyle = "#000"; ctx.fillRect(it.x, it.y, it.w, it.h); ctx.restore();
+          }
+        }
+      }
+    }
+
+    state.applied = true;
+    $("export").disabled = false;
+    setMode("Applied");
+    log("PDF redactions applied to preview canvases.");
+  }
+
+  async function exportPdf(){
+    setMode("Exporting (PDF)…");
+    log("Exporting redacted PDF…");
+
+    const { PDFDocument } = window.PDFLib;
+    const out = await PDFDocument.create();
+
+    for (const p of state.pdfPages){
+      // Convert canvas to PNG, embed, then create a page of same size
+      const dataUrl = p.canvas.toDataURL("image/png");
+      const pngBytes = dataURLToBytes(dataUrl);
+      const img = await out.embedPng(pngBytes);
+      const page = out.addPage([p.canvas.width, p.canvas.height]);
+      page.drawImage(img, { x:0, y:0, width:p.canvas.width, height:p.canvas.height });
+    }
+
+    out.setTitle((state.fileName || "redacted") + " (redacted)");
+    out.setProducer("Client-side PII Redactor");
+    const bytes = await out.save();
+
+    downloadBytes(bytes, safeOutName(state.fileName, "redacted.pdf"), "application/pdf");
+    setMode("Exported");
+    log("PDF exported.");
+  }
+
+  // ---------- DOCX pipeline ----------
+  async function loadDocx(buf){
+    $("viewerTitle").textContent = "DOCX (format-preserving redaction)";
+    $("viewerHint").textContent = "Scan then export a redacted DOCX";
+
+    $("pages").innerHTML = `
+      <div class="page">
+        <div class="pageHd"><b>DOCX preview</b><span class="small">This tool preserves formatting in the exported DOCX</span></div>
+        <div class="bd" style="padding:12px">
+          <div class="hint">
+            For DOCX, previewing the exact layout requires a full Word rendering engine.
+            This tool instead performs a professional-grade, format-preserving redaction by rewriting Word XML
+            (document.xml plus headers and footers), keeping styles intact.
+          </div>
+        </div>
+      </div>
+    `;
+
+    const zip = await JSZip.loadAsync(buf);
+    state.docxZip = zip;
+
+    // Parts we redact
+    const partPaths = [];
+    if (zip.file("word/document.xml")) partPaths.push("word/document.xml");
+
+    // headers/footers (variable count)
+    for (const name of Object.keys(zip.files)){
+      if (/^word\/header\d+\.xml$/.test(name)) partPaths.push(name);
+      if (/^word\/footer\d+\.xml$/.test(name)) partPaths.push(name);
+    }
+
+    if (!partPaths.length){
+      throw new Error("DOCX missing word/document.xml");
+    }
+
+    // Load XML
+    state.docxXml.clear();
+    for (const p of partPaths){
+      const xml = await zip.file(p).async("string");
+      state.docxXml.set(p, xml);
+    }
+
+    state.pageCount = partPaths.length; // not real pages, but parts
+  }
+
+  async function scanDocx(){
+    setMode("Scanning DOCX…");
+    log("Scanning DOCX XML for PII…");
+
+    const patterns = buildPatterns();
+    const finds = [];
+
+    // We scan paragraph-by-paragraph so we can apply replacements while preserving run styles.
+    for (const [partPath, xml] of state.docxXml.entries()){
+      const doc = parseXml(xml);
+      const paragraphs = Array.from(doc.getElementsByTagName("w:p"));
+
+      for (let pi = 0; pi < paragraphs.length; pi++){
+        const p = paragraphs[pi];
+
+        const tNodes = getWTNodes(p);
+        if (!tNodes.length) continue;
+
+        const parts = tNodes.map(n => n.textContent || "");
+        const full = parts.join("");
+        if (!full.trim()) continue;
+
+        for (const pat of patterns){
+          pat.re.lastIndex = 0;
+          let m;
+          while ((m = pat.re.exec(full)) !== null){
+            finds.push({
+              partPath,
+              paragraphIndex: pi,
+              start: m.index,
+              length: m[0].length,
+              matchText: m[0],
+              kind: pat.kind
+            });
+          }
+        }
+      }
+    }
+
+    state.docxFinds = finds;
+    state.detectedCount = finds.length;
+    state.scanned = true;
+
+    // DOCX selection model: all detected are selected (consistent with "apply" action)
+    state.selectedCount = finds.length;
+    $("apply").disabled = finds.length === 0;
+    $("export").disabled = true;
+
+    setStat();
+    setMode("Scan complete");
+    log(`DOCX scan complete: ${finds.length} match(es) detected across document parts.`);
+  }
+
+  async function applyDocxRedactions(){
+    setMode("Applying (DOCX)…");
+    log("Applying DOCX redactions (format-preserving)…");
+
+    const repMode = $("replacementMode").value;
+
+    // Group matches by (partPath, paragraphIndex)
+    const grouped = new Map();
+    for (const f of state.docxFinds){
+      const key = `${f.partPath}::${f.paragraphIndex}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(f);
+    }
+
+    // Rewrite XML parts
+    for (const [partPath, xml] of state.docxXml.entries()){
+      const doc = parseXml(xml);
+      const paragraphs = Array.from(doc.getElementsByTagName("w:p"));
+
+      // Build paragraph rewrite map
+      const pRewrites = new Map();
+      for (const [key, list] of grouped.entries()){
+        const [pp, idxStr] = key.split("::");
+        if (pp !== partPath) continue;
+        const idx = Number(idxStr);
+        if (!Number.isFinite(idx)) continue;
+        pRewrites.set(idx, list);
+      }
+
+      for (const [pi, matches] of pRewrites.entries()){
+        const p = paragraphs[pi];
+        if (!p) continue;
+
+        const tNodes = getWTNodes(p);
+        if (!tNodes.length) continue;
+
+        const textParts = tNodes.map(n => n.textContent || "");
+        const full = textParts.join("");
+        if (!full.length) continue;
+
+        // Create mask array
+        const mask = new Array(full.length).fill(false);
+
+        // Mark matches (ensure deterministic: sort by start asc, then longer first)
+        matches.sort((a,b) => (a.start - b.start) || (b.length - a.length));
+        for (const m of matches){
+          const s = Math.max(0, Math.min(m.start, full.length));
+          const e = Math.max(s, Math.min(m.start + m.length, full.length));
+          for (let i = s; i < e; i++) mask[i] = true;
+        }
+
+        let redacted;
+        if (repMode === "tag"){
+          // Replace each contiguous region with [REDACTED]
+          redacted = applyTagReplacement(full, mask, "[REDACTED]");
+        } else {
+          // Replace each redacted char with a solid block to preserve spacing/formatting
+          const chars = Array.from(full);
+          for (let i = 0; i < chars.length; i++){
+            if (mask[i]) chars[i] = "█";
+          }
+          redacted = chars.join("");
+        }
+
+        // Distribute redacted text back into original nodes preserving node boundaries
+        let cursor = 0;
+        for (let i = 0; i < tNodes.length; i++){
+          const origLen = (tNodes[i].textContent || "").length;
+          const slice = redacted.slice(cursor, cursor + origLen);
+          tNodes[i].textContent = slice;
+          cursor += origLen;
+        }
+
+        // If tag replacement grew/shrank, we may have leftover chars
+        // Append leftover into the last node (still preserves formatting of the last run)
+        if (cursor < redacted.length && tNodes.length){
+          tNodes[tNodes.length - 1].textContent += redacted.slice(cursor);
+        }
+
+        // If tag replacement is shorter, clear remaining nodes
+        if (cursor > redacted.length){
+          // Nothing needed, slicing already truncated content
+        }
+      }
+
+      // Serialize and store
+      const updated = new XMLSerializer().serializeToString(doc);
+      state.docxXml.set(partPath, updated);
+    }
+
+    // Build new zip with updated parts
+    const outZip = new JSZip();
+    // Copy all original files first
+    for (const name of Object.keys(state.docxZip.files)){
+      const f = state.docxZip.files[name];
+      if (f.dir){
+        outZip.folder(name);
+      } else {
+        const content = await f.async("uint8array");
+        outZip.file(name, content);
+      }
+    }
+    // Overwrite parts
+    for (const [partPath, updatedXml] of state.docxXml.entries()){
+      outZip.file(partPath, updatedXml);
+    }
+
+    const blob = await outZip.generateAsync({ type:"blob" });
+    state.docxRedactedZipBlob = blob;
+
+    state.applied = true;
+    $("export").disabled = false;
+    setMode("Applied");
+    log("DOCX redactions applied. Ready to export.");
+  }
+
+  async function exportDocx(){
+    if (!state.docxRedactedZipBlob){
+      log("No redacted DOCX available.");
+      return;
+    }
+    downloadBlob(state.docxRedactedZipBlob, safeOutName(state.fileName, "redacted.docx"));
+    setMode("Exported");
+    log("DOCX exported.");
+  }
+
+  // ---------- Helpers ----------
+  function recomputeSelectedCount(){
+    let selected = 0;
+    if (state.type === "pdf"){
+      for (const p of state.pdfPages) selected += p.items.filter(it => it.selected).length;
+      state.selectedCount = selected;
+      $("apply").disabled = selected === 0;
+      $("export").disabled = !state.applied;
+    } else if (state.type === "docx"){
+      state.selectedCount = state.docxFinds.length;
+      $("apply").disabled = state.docxFinds.length === 0;
+      $("export").disabled = !state.applied;
+    }
+    setStat();
+  }
+
+  function parseXml(xmlStr){
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlStr, "application/xml");
+    const perr = doc.getElementsByTagName("parsererror")[0];
+    if (perr){
+      throw new Error("XML parse error");
+    }
+    return doc;
+  }
+
+  function getWTNodes(paragraphEl){
+    // WordprocessingML uses w namespace, but DOMParser keeps prefixes in tagName
+    // We match by local name to be safer.
+    const all = paragraphEl.getElementsByTagName("*");
+    const nodes = [];
+    for (const n of all){
+      if (n.nodeType === 1 && (n.localName === "t" || n.tagName === "w:t")){
+        nodes.push(n);
+      }
+    }
+    return nodes;
+  }
+
+  function applyTagReplacement(full, mask, tag){
+    let out = "";
+    let i = 0;
+    while (i < full.length){
+      if (!mask[i]){
+        out += full[i];
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < full.length && mask[j]) j++;
+      out += tag;
+      i = j;
+    }
+    return out;
+  }
+
+  function safeOutName(inName, suffix){
+    const base = (inName || "file").replace(/\.(pdf|docx)$/i, "");
+    return `${base}.${suffix}`;
+  }
+
+  function downloadBytes(bytes, name, mime){
+    const blob = new Blob([bytes], { type: mime });
+    downloadBlob(blob, name);
+  }
+
+  function downloadBlob(blob, name){
+    const a = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function dataURLToBytes(dataUrl){
+    const [meta, b64] = dataUrl.split(",");
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  // ---------- UI wiring ----------
+  $("file").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try{
+      await onFileSelected(f);
+      $("apply").disabled = true;
+      $("export").disabled = true;
+      $("reset").disabled = false;
+    }catch(err){
+      log(`Load failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
+    }
+  });
+
+  $("scan").addEventListener("click", async () => {
+    if (!state.ready) return;
+    try{
+      state.applied = false;
+      $("export").disabled = true;
+      $("apply").disabled = true;
+
+      if (state.type === "pdf"){
+        await scanPdf();
+        // Enable apply if anything selected
+        recomputeSelectedCount();
+      } else {
+        await scanDocx();
+      }
+    }catch(err){
+      log(`Scan failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
+    }
+  });
+
+  $("apply").addEventListener("click", async () => {
+    if (!state.scanned) return;
+    try{
+      if (state.type === "pdf"){
+        await applyPdfRedactions();
+      } else {
+        await applyDocxRedactions();
+      }
+      state.applied = true;
+      $("export").disabled = false;
+    }catch(err){
+      log(`Apply failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
+    }
+  });
+
+  $("export").addEventListener("click", async () => {
+    if (!state.applied) return;
+    try{
+      if (state.type === "pdf"){
+        await exportPdf();
+      } else {
+        await exportDocx();
+      }
+    }catch(err){
+      log(`Export failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
+    }
+  });
+
+  $("reset").addEventListener("click", () => hardReset());
+
+  $("showOverlays").addEventListener("change", () => {
+    if (state.type !== "pdf") return;
+    const on = $("showOverlays").checked;
+    for (const p of state.pdfPages){
+      p.overlayEl.querySelectorAll(".rect").forEach(el => {
+        el.style.display = on ? "block" : "none";
+      });
+    }
+  });
+
+  // When changing detection toggles, require rescan
+  for (const id of ["detEmails","detPhones","detPostcodes","detNINo","detUrls","detDates","customTerms","replacementMode","pdfRedactionStyle","autoSelect"]){
+    const el = $(id);
+    if (!el) continue;
+    el.addEventListener("change", () => {
+      if (!state.ready) return;
+      state.scanned = false;
+      state.applied = false;
+      $("apply").disabled = true;
+      $("export").disabled = true;
+      log("Settings changed. Please rescan.");
+      setMode("Ready");
+    });
+  }
+
+  // Final init
+  hardReset();
+  const ok = libsReady();
+  if (ok){
+    setMode("Idle");
+    log("Ready. Load a PDF or DOCX.");
+  } else {
+    setMode("Libraries missing");
+    log("If libraries do not load, your environment may block CDNs. Inline the minified bundles into this HTML for full offline use.");
+  }
+})();
+</script>
+</body>
+</html>

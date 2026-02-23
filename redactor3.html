@@ -131,6 +131,8 @@
   const HEADER_SCAN_CHARS = 500;
   const HEADER_SCAN_LINES = 30;
   const NAME_STOPWORDS = new Set(['cv','curriculum','vitae','resume','profile','summary','experience','email','phone','address','contact','professional','linkedin','github','ltd','limited','uk','england','mba','msc','bsc']);
+  const NAME_CONTEXT_STOPWORDS = new Set(['curriculum','vitae','resume','profile','summary','experience','education','skills','references','contact','professional','statement','objective','projects']);
+  const ORGISH_TERMS = new Set(['ltd','limited','llp','plc','inc','corp','company','council','trust','university','college','school','department','team']);
   const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
 
   const REDACTION_PATTERNS = {
@@ -247,6 +249,7 @@
       if (!clean) continue;
       const words = clean.split(/\s+/).filter(Boolean);
       if (words.length < 2 || words.length > 4) continue;
+      if (words.some(w => NAME_CONTEXT_STOPWORDS.has(w.toLowerCase()) || ORGISH_TERMS.has(w.toLowerCase()))) continue;
       const caps = words.filter(w => /^[A-Z][a-z]+$/.test(w) || /^[A-Z]{2,}$/.test(w));
       if (caps.length >= 2){
         return { phrase: words.join(' '), tokens: splitNameTokens(words.join(' ')), headerBlock: block };
@@ -403,7 +406,7 @@
         addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig'), 'FULL_NAME', 0.95);
       }
 
-      for (const identityPhrase of extractIdentityZoneFullNames(text)){
+      for (const identityPhrase of extractIdentityZoneFullNames(text, candidates)){
         addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'ig'), 'FULL_NAME', 0.92);
       }
     }
@@ -438,11 +441,19 @@
     return matches;
   }
 
-  function extractIdentityZoneFullNames(text){
+  function extractIdentityZoneFullNames(text, candidates){
     const zone = text.slice(0, 300);
+    const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
     const found = [];
     for (const m of zone.matchAll(/\b([A-Z][a-z]+\s+[A-Z][A-Za-z']+)\b/g)){
-      found.push(m[1]);
+      const phrase = m[1].trim();
+      const parts = phrase.split(/\s+/);
+      if (parts.length !== 2) continue;
+      const lowered = parts.map(p => p.toLowerCase());
+      if (lowered.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
+      const hasCandidateSupport = lowered.some(t => candidateTokens.has(t));
+      if (!hasCandidateSupport) continue;
+      found.push(phrase);
     }
     return [...new Set(found)];
   }

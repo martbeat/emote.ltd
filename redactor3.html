@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Offline Identity Anonymisation Engine</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
+  header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
+  main{padding:16px;display:grid;grid-template-columns:360px 1fr;gap:14px}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .card{background:#171d34;border:1px solid #2a3352;border-radius:12px;overflow:hidden}
+  .hd{padding:10px 12px;border-bottom:1px solid #2a3352;font-weight:700}
+  .bd{padding:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label{display:block;font-size:12px;color:#aeb8da;margin:8px 0 4px}
+  input[type=file],textarea,input,select{width:100%;background:#0e1324;color:#e9ecf6;border:1px solid #33406b;border-radius:8px;padding:8px}
+  textarea{min-height:72px}
+  button{background:#243159;color:#ecf1ff;border:1px solid #3c4f87;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
+  button:hover{background:#2c3b6f}
+  .warn{background:#3c2e10;border:1px solid #7b6330;color:#ffe8ac;padding:10px;border-radius:8px;font-size:12px;line-height:1.4}
+  pre,.pane{background:#0c1020;border:1px solid #2c3964;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border-bottom:1px solid #2a3352;padding:6px;text-align:left}
+  .ok{color:#90f7b6}.bad{color:#ff9f9f}.muted{color:#aeb8da;font-size:12px}
+  .pill{padding:3px 8px;background:#0d1328;border:1px solid #34426e;border-radius:999px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <strong>Offline Identity Anonymisation Engine (.docx + text)</strong>
+  <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
+</header>
+<main>
+  <section class="card">
+    <div class="hd">Controls</div>
+    <div class="bd">
+      <label>Upload DOCX</label>
+      <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <label>Paste plain text (optional)</label>
+      <textarea id="plainInput" placeholder="Paste document text here..."></textarea>
+
+      <label>Redaction mode</label>
+      <select id="modeSel">
+        <option value="identity" selected>A) Identity removal (deterministic identifiers)</option>
+        <option value="aggressive">B) Aggressive identity inference (CV / HR)</option>
+        <option value="custom">C) Custom rules</option>
+      </select>
+      <div class="row" style="margin-top:8px">
+        <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
+        <span class="pill">mask: <span id="maskPreview">████████</span></span>
+      </div>
+      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), Org anonymisation: Off, Client anonymisation: Off</div>
+      <label>Name redaction controls</label>
+      <div class="row">
+        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact surname globally if high confidence</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
+      </div>
+      <label>Whitelist terms (one per line)</label>
+      <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
+      <label>Organisation terms for deterministic pseudonyms (one per line)</label>
+      <textarea id="orgDict" placeholder="Oxford City Council"></textarea>
+      <label>Client terms for deterministic pseudonyms (one per line)</label>
+      <textarea id="clientDict" placeholder="NHS Trust"></textarea>
+      <label>Custom regex rules (one per line: /pattern/flags => replacement)</label>
+      <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
+
+      <div class="row">
+        <button id="runBtn">Redact</button>
+        <button id="testsBtn">Run tests</button>
+        <button id="dlDocxBtn" disabled>Download redacted.docx</button>
+        <button id="dlTxtBtn" disabled>Download redacted.txt</button>
+        <button id="dlReportBtn" disabled>Download report.json</button>
+      </div>
+      <div id="status" class="muted" style="margin-top:8px"></div>
+      <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd">Preview, leaks check, and document inspection</div>
+    <div class="bd">
+      <div class="grid">
+        <div>
+          <label>Before (extracted plain text)</label>
+          <pre id="beforePane">—</pre>
+        </div>
+        <div>
+          <label>After (redacted plain text)</label>
+          <pre id="afterPane">—</pre>
+        </div>
+      </div>
+      <label>Leaks check report</label>
+      <div id="leaksPane" class="pane">No run yet.</div>
+      <label>Run summary</label>
+      <div id="summaryPane" class="pane">No run yet.</div>
+      <label>PII candidates</label>
+      <div id="candidatesPane" class="pane">No run yet.</div>
+      <label>Match log</label>
+      <div id="matchLogPane" class="pane">No run yet.</div>
+      <label>Search in DOCX redaction surfaces</label>
+      <div class="row"><input id="searchTerm" placeholder="Search term" /><button id="searchBtn">Search</button></div>
+      <div id="searchPane" class="pane">Load a DOCX and run redaction to inspect parts.</div>
+      <label>Mini test harness output</label>
+      <div id="testsPane" class="pane">Not run.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const DOCX_TEXT_PART_PATTERNS = [
+    /^word\/document\.xml$/,
+    /^word\/header\d*\.xml$/,
+    /^word\/footer\d*\.xml$/,
+    /^word\/comments\.xml$/,
+    /^word\/footnotes\.xml$/,
+    /^word\/endnotes\.xml$/
+  ];
+  const HEADER_SCAN_CHARS = 500;
+  const HEADER_SCAN_LINES = 30;
+  const NAME_STOPWORDS = new Set(['cv','curriculum','vitae','resume','profile','summary','experience','email','phone','address','contact','professional','linkedin','github','ltd','limited','uk','england','mba','msc','bsc']);
+  const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
+
+  const REDACTION_PATTERNS = {
+    email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
+    mobileUk: /(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
+    landlineUk: /(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
+    postcodeUk: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/ig,
+    urlHttp: /\bhttps?:\/\/[^\s<>"']+/ig,
+    urlWww: /\bwww\.[^\s<>"']+/ig,
+    addressLine: /\b\d{1,4}\s+[A-Za-z0-9'\-\.\s]{2,40}\s(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Close|Way|Drive|Dr|Court|Ct)\b/ig,
+    username: /\b(?:@|user(?:name)?[:\s]+)[a-z0-9._-]{3,}\b/ig,
+    date: /\b(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{4})\b/ig,
+    metric: /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s?(?:%|k|m|bn|hours?|yrs?|years?)\b/ig
+  };
+
+  const ENTITY_PRIORITY = {
+    FULL_NAME: 6,
+    EMAIL: 5,
+    PHONE: 4,
+    URL: 3,
+    POSTCODE: 2,
+    NAME_TOKEN: 1
+  };
+
+  const TOKEN_LABELS = {
+    FULL_NAME: 'NAME',
+    NAME_TOKEN: 'NAME_TOKEN',
+    EMAIL: 'EMAIL',
+    PHONE: 'PHONE',
+    URL: 'URL',
+    POSTCODE: 'POSTCODE',
+    USERNAME: 'USERNAME',
+    DATE: 'DATE',
+    METRIC: 'METRIC',
+    ORG: 'ORG',
+    CLIENT: 'CLIENT'
+  };
+
+  const state = {
+    originalText: '',
+    redactedText: '',
+    inputDocxBytes: null,
+    redactedDocxBytes: null,
+    extractedPartText: new Map(),
+    redactedPartText: new Map(),
+    pseudonyms: { org: new Map(), client: new Map() },
+    piiCandidates: null,
+    matchLog: [],
+    manifest: [],
+    counters: {},
+    report: null,
+    processedParts: new Set()
+  };
+
+  const $ = id => document.getElementById(id);
+
+
+  function isInferenceMode(){
+    return $('modeSel').value === 'aggressive';
+  }
+
+  function updateInferenceControls(){
+    const enabled = isInferenceMode();
+    ['redactFullNameVariants', 'redactSurnameGlobal', 'redactFirstNameGlobal'].forEach(id => {
+      $(id).disabled = !enabled;
+    });
+  }
+  function updatePolicyLine(){
+    const mode = $('modeSel').value;
+    const modeLabel = mode === 'aggressive'
+      ? 'Aggressive identity inference'
+      : (mode === 'custom' ? 'Custom rules' : 'Identity removal (no inference)');
+    const orgOn = $('orgDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
+    const clientOn = $('clientDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
+    $('policyLine').textContent = `Policy: ${modeLabel}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
+  }
+  const setStatus = msg => { $('status').textContent = msg; };
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
+
+  $('useBlock').addEventListener('change', () => {
+    $('maskPreview').textContent = $('useBlock').checked ? '████████' : '[REDACTED]';
+  });
+
+  function decodeXmlText(s){ return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); }
+  function encodeXmlText(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function parseCoreProps(xml){
+    const creator = (xml.match(/<dc:creator>([\s\S]*?)<\/dc:creator>/i)?.[1] || '').trim();
+    const lastModifiedBy = (xml.match(/<cp:lastModifiedBy>([\s\S]*?)<\/cp:lastModifiedBy>/i)?.[1] || '').trim();
+    return { creator: decodeXmlText(creator), lastModifiedBy: decodeXmlText(lastModifiedBy) };
+  }
+
+  function splitNameTokens(raw){
+    const base = raw.replace(/[_\-.+]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[^A-Za-z\s']/g,' ')
+      .split(/\s+/)
+      .map(t=>t.trim().toLowerCase())
+      .filter(Boolean)
+      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t));
+    return [...new Set(base)];
+  }
+
+  function titleCase(token){ return token ? token[0].toUpperCase()+token.slice(1).toLowerCase() : ''; }
+
+  function extractHeaderNamePhrase(text){
+    const headerLines = text.split(/\r?\n/).slice(0, HEADER_SCAN_LINES);
+    const block = headerLines.join('\n').slice(0, HEADER_SCAN_CHARS);
+    const lines = block.split(/\r?\n/);
+    for (const line of lines){
+      const clean = line.replace(/[^A-Za-z\s']/g,' ').trim();
+      if (!clean) continue;
+      const words = clean.split(/\s+/).filter(Boolean);
+      if (words.length < 2 || words.length > 4) continue;
+      const caps = words.filter(w => /^[A-Z][a-z]+$/.test(w) || /^[A-Z]{2,}$/.test(w));
+      if (caps.length >= 2){
+        return { phrase: words.join(' '), tokens: splitNameTokens(words.join(' ')), headerBlock: block };
+      }
+    }
+    return { phrase: '', tokens: [], headerBlock: block };
+  }
+
+  function extractEmailLocalTokens(text){
+    const locals = [];
+    for (const m of text.matchAll(REDACTION_PATTERNS.email)) locals.push(m[0].split('@')[0]);
+    const tokens = [];
+    for (const local of locals) tokens.push(...splitNameTokens(local));
+    return { locals: [...new Set(locals)], tokens: [...new Set(tokens)] };
+  }
+
+  function extractAllCapsNearTop(text){
+    const top = text.slice(0, HEADER_SCAN_CHARS);
+    const words = [...top.matchAll(/\b[A-Z]{2,}\b/g)].map(m=>m[0]);
+    return [...new Set(words)];
+  }
+
+  function extractPhoneAndPostcodes(text){
+    return {
+      phones: [...new Set([...(text.match(REDACTION_PATTERNS.mobileUk)||[]), ...(text.match(REDACTION_PATTERNS.landlineUk)||[])])],
+      postcodes: [...new Set(text.match(REDACTION_PATTERNS.postcodeUk) || [])]
+    };
+  }
+
+  function buildPiiCandidates(inputs){
+    const tokenScores = new Map();
+    const tokenSources = new Map();
+    const addToken = (token, score, source) => {
+      const t = token?.trim().toLowerCase();
+      if (!t) return;
+      tokenScores.set(t, Math.max(tokenScores.get(t) || 0, score));
+      const src = tokenSources.get(t) || new Set();
+      src.add(source);
+      tokenSources.set(t, src);
+    };
+
+    splitNameTokens(`${inputs.creator} ${inputs.lastModifiedBy}`).forEach(t => addToken(t, 0.96, 'docProps'));
+
+    const emailData = extractEmailLocalTokens(inputs.fullText || '');
+    emailData.tokens.forEach(t => addToken(t, 0.9, 'emailLocalPart'));
+
+    const headerData = extractHeaderNamePhrase(inputs.fullText || '');
+    headerData.tokens.forEach(t => addToken(t, 0.88, 'header'));
+
+    const caps = extractAllCapsNearTop(inputs.fullText || '').map(w => w.toLowerCase());
+    caps.forEach(t => addToken(t, 0.75, 'allCapsTop'));
+
+    const tokenObjects = [...tokenScores.entries()].sort((a,b)=>b[1]-a[1]).map(([token, confidence]) => ({
+      token,
+      confidence: Number(confidence.toFixed(2)),
+      sources: [...(tokenSources.get(token) || [])]
+    }));
+
+    const first = tokenObjects[0]?.token || '';
+    const surname = tokenObjects.find(t => t.token !== first)?.token || '';
+    const fullNameVariants = [];
+    if (headerData.phrase) fullNameVariants.push(headerData.phrase);
+    if (first && surname){
+      fullNameVariants.push(`${titleCase(first)} ${titleCase(surname)}`);
+      fullNameVariants.push(`${titleCase(first)} ${surname.toUpperCase()}`);
+      fullNameVariants.push(`${first[0].toUpperCase()}. ${titleCase(surname)}`);
+    }
+
+    const phonePost = extractPhoneAndPostcodes(inputs.fullText || '');
+
+    return {
+      creator: inputs.creator || '',
+      lastModifiedBy: inputs.lastModifiedBy || '',
+      headerLine: headerData.phrase,
+      headerBlock: headerData.headerBlock,
+      emailLocalParts: emailData.locals,
+      allCapsTopWords: caps,
+      phones: phonePost.phones,
+      postcodes: phonePost.postcodes,
+      fullNameVariants: [...new Set(fullNameVariants)],
+      nameTokens: tokenObjects
+    };
+  }
+
+  function buildPseudonymMaps(){
+    state.pseudonyms.org.clear();
+    state.pseudonyms.client.clear();
+    $('orgDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.org.set(v.toLowerCase(), `ORG_${i+1}`));
+    $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
+  }
+
+  function applyPseudonyms(text, context){
+    const part = context.part || 'plainText';
+    for (const [k] of state.pseudonyms.org){
+      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length));
+    }
+    for (const [k] of state.pseudonyms.client){
+      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length));
+    }
+    return text;
+  }
+
+  function parseCustomRules(){
+    const lines = $('customRules').value.split(/\n+/).map(v=>v.trim()).filter(Boolean);
+    const rules = [];
+    for (const line of lines){
+      const m = line.match(/^\/(.+)\/([gimsuy]*)\s*=>\s*(.*)$/);
+      if (!m) continue;
+      try { rules.push({ re: new RegExp(m[1], m[2]), rep: m[3] }); } catch(_e){}
+    }
+    return rules;
+  }
+
+  function resetAuditState(){
+    state.manifest = [];
+    state.report = null;
+    state.processedParts = new Set();
+    state.counters = Object.fromEntries(Object.values(TOKEN_LABELS).map(v => [v, 0]));
+  }
+
+  function allocToken(type, rule, part, start, end, confidence){
+    const label = TOKEN_LABELS[type];
+    if (!label) return '';
+    state.counters[label] = (state.counters[label] || 0) + 1;
+    const index = String(state.counters[label]).padStart(3, '0');
+    const token = `[REDACTED_${label}_${index}]`;
+    const item = { id: `${label}_${index}`, type: label, rule, part, start, end, token };
+    if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
+    state.manifest.push(item);
+    return token;
+  }
+
+  function buildNameDetections(candidates, text, opts){
+    const matches = [];
+    if (!candidates) return matches;
+
+    const addRegexMatches = (re, type, confidence) => {
+      const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+      for (const m of text.matchAll(rgx)){
+        matches.push({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: 'inference.name' });
+      }
+    };
+
+    const tokens = [...(candidates.nameTokens || [])].sort((a,b)=>b.confidence-a.confidence);
+    const firstToken = tokens[0]?.token || '';
+    const headerSurname = splitNameTokens(candidates.headerLine || '').slice(-1)[0] || '';
+    const creatorSurname = splitNameTokens(candidates.creator || '').slice(-1)[0] || '';
+    const surname = headerSurname || creatorSurname || tokens.find(t => t.token !== firstToken)?.token || '';
+
+    if (opts.redactFullNameVariants){
+      for (const variant of candidates.fullNameVariants || []){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig'), 'FULL_NAME', 0.95);
+      }
+
+      for (const identityPhrase of extractIdentityZoneFullNames(text)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'ig'), 'FULL_NAME', 0.92);
+      }
+    }
+
+    const safeToGlobalSurname = (() => {
+      if (!surname) return false;
+      if ((candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i'))) return true;
+      if ((candidates.creator || '').match(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'i'))) return true;
+      if (firstToken){
+        const near = new RegExp(`\\b${escapeRegExp(firstToken)}\\b(?:\\W+\\w+){0,5}\\W+\\b${escapeRegExp(surname)}\\b|\\b${escapeRegExp(surname)}\\b(?:\\W+\\w+){0,5}\\W+\\b${escapeRegExp(firstToken)}\\b`, 'i');
+        return near.test(text);
+      }
+      return false;
+    })();
+
+    if (opts.redactSurnameGlobal && surname){
+      const score = tokens.find(t => t.token===surname)?.confidence || 0;
+      if (score >= 0.85 && safeToGlobalSurname){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig'), 'NAME_TOKEN', score);
+      }
+    }
+
+    if (opts.redactFirstNameGlobal && firstToken){
+      const score = tokens.find(t => t.token===firstToken)?.confidence || 0;
+      const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'i'));
+      const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(firstToken));
+      if (score >= 0.85 && (inHeader || inEmail)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig'), 'NAME_TOKEN', score);
+      }
+    }
+
+    return matches;
+  }
+
+  function extractIdentityZoneFullNames(text){
+    const zone = text.slice(0, 300);
+    const found = [];
+    for (const m of zone.matchAll(/\b([A-Z][a-z]+\s+[A-Z][A-Za-z']+)\b/g)){
+      found.push(m[1]);
+    }
+    return [...new Set(found)];
+  }
+
+  function findProtectedRanges(text){
+    return [...text.matchAll(/\[REDACTED_[A-Z0-9_]+\]/g)].map(m => ({ start: m.index, end: m.index + m[0].length }));
+  }
+
+  function overlaps(a, b){
+    return a.start < b.end && b.start < a.end;
+  }
+
+  function detectEntities(text, candidates, opts){
+    const matches = [];
+    const protectedRanges = findProtectedRanges(text);
+    const pushMatch = (m) => {
+      if (m.start == null) return;
+      if (protectedRanges.some(r => overlaps(m, r))) return;
+      matches.push(m);
+    };
+
+    const addPatternMatches = (re, type, confidence) => {
+      const rgx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+      for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: `regex.${type.toLowerCase()}` });
+    };
+
+    addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
+    addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
+    addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    addPatternMatches(REDACTION_PATTERNS.urlHttp, 'URL', 0.97);
+    addPatternMatches(REDACTION_PATTERNS.urlWww, 'URL', 0.95);
+    addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+
+    if (opts.enableIdentityInference) {
+      for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+    }
+    return matches;
+  }
+
+  function resolveOverlaps(text, matches){
+    const occupied = new Array(text.length).fill(false);
+    const sorted = [...matches].sort((a,b)=>{
+      const lenA = a.end - a.start;
+      const lenB = b.end - b.start;
+      if (lenB !== lenA) return lenB - lenA;
+      const prA = ENTITY_PRIORITY[a.type] || 0;
+      const prB = ENTITY_PRIORITY[b.type] || 0;
+      if (prB !== prA) return prB - prA;
+      return a.start - b.start;
+    });
+    const selected = [];
+    for (const m of sorted){
+      let blocked = false;
+      for (let i = m.start; i < m.end; i++) if (occupied[i]) { blocked = true; break; }
+      if (blocked) continue;
+      for (let i = m.start; i < m.end; i++) occupied[i] = true;
+      selected.push(m);
+    }
+    return selected.sort((a,b)=>a.start-b.start);
+  }
+
+  function applyEntityReplacements(text, matches, context = {}){
+    const part = context.part || 'plainText';
+    let out = text;
+    const byEnd = [...matches].sort((a,b)=>b.start-a.start);
+    for (const m of byEnd){
+      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence);
+      if (!token) continue;
+      out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
+    }
+    return out;
+  }
+
+  function redactText(rawText, context = {}){
+    const part = context.part || 'plainText';
+    const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    const mode = $('modeSel').value;
+    const matchLog = context.matchLog || [];
+    let text = rawText;
+
+    const protectedTokens = [];
+    whitelist.forEach((term,i)=>{
+      const tok = `__WL_${i}__`;
+      protectedTokens.push([tok, term]);
+      text = text.replace(new RegExp(escapeRegExp(term), 'ig'), tok);
+    });
+
+    if (mode === 'identity' || mode === 'aggressive'){
+      text = applyPseudonyms(text, { part });
+      const detections = detectEntities(text, state.piiCandidates, {
+        enableIdentityInference: mode === 'aggressive',
+        redactFullNameVariants: $('redactFullNameVariants').checked,
+        redactSurnameGlobal: $('redactSurnameGlobal').checked,
+        redactFirstNameGlobal: $('redactFirstNameGlobal').checked
+      });
+      const resolved = resolveOverlaps(text, detections);
+      text = applyEntityReplacements(text, resolved, { part });
+
+      if (context.debugDetections){
+        matchLog.push(...resolved.map(m => ({
+          part,
+          start: m.start,
+          end: m.end,
+          type: m.type,
+          confidence: Number((m.confidence || 0).toFixed(2)),
+          match: m.match
+        })));
+      }
+
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length));
+    } else {
+      for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
+      if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
+    }
+
+    for (const [tok,term] of protectedTokens) text = text.replace(new RegExp(escapeRegExp(tok), 'g'), term);
+    return { text, matchLog };
+  }
+
+  function mapAndRewriteWT(xml, part){
+    const re = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
+    const nodes = [];
+    let m;
+    while ((m = re.exec(xml))){
+      nodes.push({
+        innerStart: m.index + m[0].indexOf('>') + 1,
+        innerEnd: re.lastIndex - 6,
+        text: decodeXmlText(m[1])
+      });
+    }
+    if (!nodes.length) return { xml, before:'', after:'' };
+
+    const before = nodes.map(n=>n.text).join('\u0001');
+    for (const n of nodes){
+      n.redacted = redactText(n.text, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+    }
+
+    let out = '';
+    let cursor = 0;
+    for (let i=0;i<nodes.length;i++){
+      const n = nodes[i];
+      out += xml.slice(cursor, n.innerStart);
+      out += encodeXmlText(n.redacted);
+      cursor = n.innerEnd;
+    }
+    out += xml.slice(cursor);
+    return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
+  }
+
+  function scrubSettingsXml(xml){
+    return xml
+      .replace(/<w:trackRevisions\b[^/>]*\/?>(?:<\/w:trackRevisions>)?/g, '<w:trackRevisions w:val="false"/>')
+      .replace(/<w:doNotTrackMoves\b[^/>]*\/?>(?:<\/w:doNotTrackMoves>)?/g, '<w:doNotTrackMoves w:val="false"/>');
+  }
+
+  function scrubCoreProps(xml){
+    return xml.replace(/<dc:creator>[\s\S]*?<\/dc:creator>/g, '<dc:creator></dc:creator>')
+      .replace(/<cp:lastModifiedBy>[\s\S]*?<\/cp:lastModifiedBy>/g, '<cp:lastModifiedBy></cp:lastModifiedBy>');
+  }
+  function scrubAppProps(xml){
+    return xml.replace(/<Company>[\s\S]*?<\/Company>/g, '<Company></Company>').replace(/<Manager>[\s\S]*?<\/Manager>/g, '<Manager></Manager>');
+  }
+  function scrubRelsXml(xml){
+    return xml.replace(/Target="([^"]+)"/g, (all, t) => {
+      const red = redactText(t, { part: 'rels', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+      return `Target="${red.replace(/"/g,'&quot;')}"`;
+    });
+  }
+  function scrubCommentsLike(xml){
+    return xml
+      .replace(/<w:delText\b[^>]*>[\s\S]*?<\/w:delText>/g, '<w:delText></w:delText>')
+      .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, '<w:instrText></w:instrText>')
+      .replace(/<w:vanish\b[^>]*\/?>(?:<\/w:vanish>)?/g, '');
+  }
+
+  function findLeaks(text){
+    const leakRules = [
+      ['email', REDACTION_PATTERNS.email],
+      ['phone', new RegExp(`${REDACTION_PATTERNS.mobileUk.source}|${REDACTION_PATTERNS.landlineUk.source}`, 'g')],
+      ['postcode', REDACTION_PATTERNS.postcodeUk]
+    ];
+    return leakRules.map(([name,re]) => {
+      const ms = [...text.matchAll(re)].map(m=>m[0]);
+      return `${name}: ${ms.length}${ms.length ? ` -> ${ms.slice(0,6).join(', ')}` : ''}`;
+    }).join('\n');
+  }
+
+  function u16(v,o){return v[o]|(v[o+1]<<8);} function u32(v,o){return (v[o]|(v[o+1]<<8)|(v[o+2]<<16)|(v[o+3]<<24))>>>0;}
+  function w16(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;} function w32(v,o,n){v[o]=n&255;v[o+1]=(n>>>8)&255;v[o+2]=(n>>>16)&255;v[o+3]=(n>>>24)&255;}
+
+  async function inflateRaw(bytes){
+    const ds = new DecompressionStream('deflate-raw');
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+  async function deflateRaw(bytes){
+    const cs = new CompressionStream('deflate-raw');
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+
+  const CRC_TABLE = (()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0;}return t;})();
+  function crc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=CRC_TABLE[(c^bytes[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+
+  async function unzipDocx(arrBuf){
+    const v = new Uint8Array(arrBuf);
+    let eocd = -1;
+    for (let i=v.length-22;i>=Math.max(0,v.length-66000);i--){ if (u32(v,i)===0x06054b50){ eocd=i; break; } }
+    if (eocd<0) throw new Error('Invalid zip: EOCD not found');
+    const cdSize = u32(v,eocd+12), cdOff = u32(v,eocd+16);
+    const files = new Map();
+    let p = cdOff;
+    while (p < cdOff + cdSize){
+      if (u32(v,p)!==0x02014b50) break;
+      const method = u16(v,p+10), compSize = u32(v,p+20), uncompSize = u32(v,p+24), nameLen=u16(v,p+28), extraLen=u16(v,p+30), commentLen=u16(v,p+32), lhoff=u32(v,p+42);
+      const name = textDecoder.decode(v.slice(p+46,p+46+nameLen));
+      const lfNameLen=u16(v,lhoff+26), lfExtraLen=u16(v,lhoff+28);
+      const dataStart = lhoff+30+lfNameLen+lfExtraLen;
+      const comp = v.slice(dataStart,dataStart+compSize);
+      let data;
+      if (method===0) data = comp;
+      else if (method===8) data = await inflateRaw(comp);
+      else throw new Error(`Unsupported ZIP compression method ${method} in ${name}`);
+      if (data.length !== uncompSize) {}
+      files.set(name,{name,data,method});
+      p += 46+nameLen+extraLen+commentLen;
+    }
+    return files;
+  }
+
+  async function zipDocx(filesMap){
+    const entries = [];
+    for (const [name, f] of filesMap){
+      const data = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+      const comp = await deflateRaw(data);
+      entries.push({name,data,comp,method:8,crc:crc32(data)});
+    }
+    let localTotal = 0, cdTotal = 0;
+    const nameBytes = entries.map(e=>textEncoder.encode(e.name));
+    entries.forEach((e,i)=>{ localTotal += 30 + nameBytes[i].length + e.comp.length; cdTotal += 46 + nameBytes[i].length; });
+    const out = new Uint8Array(localTotal + cdTotal + 22);
+    let p = 0;
+    const offsets = [];
+    entries.forEach((e,i)=>{
+      const nb = nameBytes[i]; offsets.push(p);
+      w32(out,p,0x04034b50); w16(out,p+4,20); w16(out,p+6,0); w16(out,p+8,e.method); w16(out,p+10,0); w16(out,p+12,0);
+      w32(out,p+14,e.crc); w32(out,p+18,e.comp.length); w32(out,p+22,e.data.length); w16(out,p+26,nb.length); w16(out,p+28,0);
+      out.set(nb,p+30); out.set(e.comp,p+30+nb.length); p += 30+nb.length+e.comp.length;
+    });
+    const cdStart = p;
+    entries.forEach((e,i)=>{
+      const nb = nameBytes[i];
+      w32(out,p,0x02014b50); w16(out,p+4,20); w16(out,p+6,20); w16(out,p+8,0); w16(out,p+10,e.method); w16(out,p+12,0); w16(out,p+14,0);
+      w32(out,p+16,e.crc); w32(out,p+20,e.comp.length); w32(out,p+24,e.data.length); w16(out,p+28,nb.length); w16(out,p+30,0); w16(out,p+32,0); w16(out,p+34,0); w16(out,p+36,0);
+      w32(out,p+38,0); w32(out,p+42,offsets[i]); out.set(nb,p+46); p += 46+nb.length;
+    });
+    const cdSize = p - cdStart;
+    w32(out,p,0x06054b50); w16(out,p+4,0); w16(out,p+6,0); w16(out,p+8,entries.length); w16(out,p+10,entries.length); w32(out,p+12,cdSize); w32(out,p+16,cdStart); w16(out,p+20,0);
+    return out;
+  }
+
+  async function processDocx(bytes){
+    const files = await unzipDocx(bytes.buffer);
+    state.extractedPartText.clear();
+    state.redactedPartText.clear();
+    const beforeAll = [];
+    const afterAll = [];
+
+    let creator = '';
+    let lastModifiedBy = '';
+    let docTextForCandidates = '';
+    for (const [name,obj] of files){
+      const xml = textDecoder.decode(obj.data);
+      if (name === 'docProps/core.xml'){
+        const props = parseCoreProps(xml);
+        creator = props.creator;
+        lastModifiedBy = props.lastModifiedBy;
+      }
+      if (name === 'word/document.xml'){
+        const textBits = [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m=>decodeXmlText(m[1]));
+        docTextForCandidates += textBits.join('');
+      }
+    }
+
+    const plain = $('plainInput').value || '';
+    state.piiCandidates = isInferenceMode()
+      ? buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() })
+      : null;
+
+    for (const [name,obj] of files){
+      let xml = textDecoder.decode(obj.data);
+      let changed = false;
+      if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
+        state.processedParts.add(name);
+        xml = scrubCommentsLike(xml);
+        const mapped = mapAndRewriteWT(xml, name);
+        xml = mapped.xml;
+        changed = true;
+        if (mapped.before) { beforeAll.push(mapped.before); afterAll.push(mapped.after); }
+        state.extractedPartText.set(name, mapped.before);
+        state.redactedPartText.set(name, mapped.after);
+      } else if (/^word\/_rels\/.*\.rels$/.test(name)){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubRelsXml(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      } else if (name === 'docProps/core.xml'){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubCoreProps(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      } else if (name === 'docProps/app.xml'){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubAppProps(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      } else if (name === 'word/settings.xml'){
+        state.processedParts.add(name);
+        const before = xml;
+        xml = scrubSettingsXml(xml);
+        changed = true;
+        state.extractedPartText.set(name, before);
+        state.redactedPartText.set(name, xml);
+      }
+      if (changed) files.set(name,{...obj,data:textEncoder.encode(xml)});
+    }
+
+    state.originalText = beforeAll.join('\n');
+    state.redactedText = afterAll.join('\n');
+    state.redactedDocxBytes = await zipDocx(files);
+  }
+
+  function renderMatchLog(){
+    if (!state.matchLog.length){
+      $('matchLogPane').textContent = 'No matches recorded.';
+      return;
+    }
+    const header = 'part\tstart\tend\ttype\tconfidence\tmatch';
+    const rows = state.matchLog
+      .map(m => `${m.part}\t${m.start}\t${m.end}\t${m.type}\t${m.confidence}\t${m.match}`);
+    $('matchLogPane').textContent = [header, ...rows].join('\n');
+  }
+
+  function renderCandidates(){
+    $('candidatesPane').textContent = state.piiCandidates
+      ? JSON.stringify(state.piiCandidates, null, 2)
+      : (isInferenceMode() ? 'No candidates discovered.' : 'Candidate-based name inference is disabled in this mode.');
+  }
+
+  function buildReport(){
+    const countsByType = {};
+    state.manifest.forEach(item => {
+      countsByType[item.type] = (countsByType[item.type] || 0) + 1;
+    });
+    const leakText = findLeaks(state.redactedText || '');
+    const leakPass = !/(email|phone|postcode):\s*[1-9]/.test(leakText);
+    const manifest = [...state.manifest].sort((a,b)=>{
+      const partCmp = String(a.part).localeCompare(String(b.part));
+      if (partCmp) return partCmp;
+      if (a.start !== b.start) return a.start - b.start;
+      if (a.end !== b.end) return a.end - b.end;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    return {
+      generatedAt: new Date().toISOString(),
+      policy: {
+        mode: $('modeSel').value,
+        inferenceEnabled: isInferenceMode(),
+        orgAnonymisationEnabled: state.pseudonyms.org.size > 0,
+        clientAnonymisationEnabled: state.pseudonyms.client.size > 0
+      },
+      countsByType,
+      partsTouched: [...state.processedParts].sort(),
+      leaksCheck: { pass: leakPass, details: leakText },
+      manifest
+    };
+  }
+
+  function renderSummary(report){
+    const lines = [];
+    lines.push(`Total replacements: ${report.manifest.length}`);
+    lines.push(`By type: ${Object.keys(report.countsByType).length ? JSON.stringify(report.countsByType) : 'none'}`);
+    lines.push(`Parts touched: ${report.partsTouched.length ? report.partsTouched.join(', ') : 'plainText only'}`);
+    lines.push(`Leaks check: ${report.leaksCheck.pass ? 'PASS' : 'FAIL'}`);
+    lines.push(`Inference enabled: ${report.policy.inferenceEnabled ? 'YES' : 'NO'}`);
+    const scrubParts = ['docProps/core.xml','docProps/app.xml','word/settings.xml'];
+    const relsTouched = report.partsTouched.some(p => /^word\/_rels\/.*\.rels$/.test(p));
+    const scrubbed = scrubParts.every(p => report.partsTouched.includes(p)) && relsTouched;
+    lines.push(`Parts scrubbed (core/app/settings + rels): ${scrubbed ? 'YES' : 'NO'}`);
+    lines.push('Review checklist: headers, tables, embedded images manually.');
+    $('summaryPane').textContent = lines.join('\n');
+  }
+
+  async function runRedaction(){
+    try{
+      state.matchLog = [];
+      resetAuditState();
+      buildPseudonymMaps();
+      updatePolicyLine();
+      const plain = $('plainInput').value || '';
+
+      state.piiCandidates = isInferenceMode()
+        ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
+        : null;
+
+      let combinedBefore = plain;
+      let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+      if (state.inputDocxBytes){
+        await processDocx(state.inputDocxBytes);
+        combinedBefore = [combinedBefore, state.originalText].filter(Boolean).join('\n');
+        combinedAfter = [combinedAfter, state.redactedText].filter(Boolean).join('\n');
+      }
+
+      state.originalText = combinedBefore;
+      state.redactedText = combinedAfter;
+
+      $('beforePane').textContent = state.originalText || '—';
+      $('afterPane').textContent = state.redactedText || '—';
+      $('leaksPane').textContent = findLeaks(state.redactedText);
+      state.report = buildReport();
+      renderSummary(state.report);
+      renderCandidates();
+      renderMatchLog();
+      $('dlTxtBtn').disabled = !state.redactedText;
+      $('dlDocxBtn').disabled = !state.redactedDocxBytes;
+      $('dlReportBtn').disabled = !(state.report && state.report.manifest.length);
+      setStatus('Redaction complete. Review leaks check, candidates, and match log.');
+    } catch (err){
+      setStatus(`Error: ${err.message}`);
+    }
+  }
+
+  $('docxInput').addEventListener('change', async (e)=>{
+    const f = e.target.files[0];
+    if (!f) return;
+    state.inputDocxBytes = new Uint8Array(await f.arrayBuffer());
+    state.piiCandidates = null;
+    setStatus(`Loaded DOCX: ${f.name} (${Math.round(f.size/1024)} KB)`);
+  });
+
+  $('runBtn').addEventListener('click', runRedaction);
+  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); });
+  $('orgDict').addEventListener('input', updatePolicyLine);
+  $('clientDict').addEventListener('input', updatePolicyLine);
+
+  $('dlTxtBtn').addEventListener('click', ()=>{
+    const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlDocxBtn').addEventListener('click', ()=>{
+    const blob = new Blob([state.redactedDocxBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'redacted.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('dlReportBtn').addEventListener('click', ()=>{
+    if (!state.report) return;
+    const blob = new Blob([JSON.stringify(state.report, null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'report.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('searchBtn').addEventListener('click', ()=>{
+    const term = $('searchTerm').value.trim();
+    if (!term){ $('searchPane').textContent = 'Enter a term.'; return; }
+    const re = new RegExp(escapeRegExp(term), 'ig');
+    const lines = [];
+    for (const [part,txt] of state.redactedPartText) lines.push(`${part}: ${[...txt.matchAll(re)].length}`);
+    $('searchPane').textContent = lines.length ? lines.join('\n') : 'No indexed docx parts. Run redaction first.';
+  });
+
+  function runHarness(){
+    const out = [];
+    const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
+    const previousMode = $('modeSel').value;
+
+    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
+Email Martin@eMote.Ltd
++44 77 202 89063
+RG6 1AA` });
+    state.matchLog = [];
+
+    const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+
+    $('modeSel').value = 'aggressive';
+    resetAuditState();
+    const aggressiveExpected = '[REDACTED_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
+    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
+
+    $('modeSel').value = 'identity';
+    state.piiCandidates = null;
+    resetAuditState();
+    const identityExpected = 'Martin FRY MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
+    assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
+
+    resetAuditState();
+    const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');
+
+    const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
+    const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
+    assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
+
+    const dbg = [];
+    redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
+    assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
+
+    $('modeSel').value = previousMode;
+    updateInferenceControls();
+    $('testsPane').textContent = out.join('\n');
+  }
+
+  $('testsBtn').addEventListener('click', runHarness);
+  updateInferenceControls();
+  updatePolicyLine();
+})();
+</script>
+</body>
+</html>

@@ -319,6 +319,7 @@
         <button class="good" id="flipBtn">Flip card</button>
         <button class="good snap-btn" id="snapBtn">SNAP!</button>
         <button id="voiceBtn">Enable voice</button>
+        <button id="voiceTestBtn">Test phrase</button>
         <button id="soundBtn">Sound: On</button>
       </div>
     </header>
@@ -335,6 +336,10 @@
       </div>
       <div class="status">
         <span class="mic-pill"><span id="micDot" class="dot"></span><span id="micLabel">Mic off</span></span>
+      </div>
+      <div class="status">
+        <label for="voiceTestInput"><strong>Voice test:</strong></label>
+        <input id="voiceTestInput" type="text" placeholder="Type a phrase to test detection" style="height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--ink);padding:0 10px;min-width:230px;" />
       </div>
     </section>
 
@@ -512,6 +517,8 @@ if (document.readyState === 'loading') {
       flipBtn: document.getElementById("flipBtn"),
       snapBtn: document.getElementById("snapBtn"),
       voiceBtn: document.getElementById("voiceBtn"),
+      voiceTestBtn: document.getElementById("voiceTestBtn"),
+      voiceTestInput: document.getElementById("voiceTestInput"),
       soundBtn: document.getElementById("soundBtn"),
       log: document.getElementById("log"),
       gameState: document.getElementById("gameState"),
@@ -1014,6 +1021,23 @@ if (document.readyState === 'loading') {
       playTurn();
     }
 
+    function processVoiceTranscript(rawTranscript, source = "voice"){
+      const transcript = String(rawTranscript || "").toLowerCase().trim();
+      const matched = /\bsnap\b/.test(transcript);
+      if (matched){
+        handleHumanSnap(source);
+      }
+      return { transcript, matched };
+    }
+
+    function testVoicePhrase(){
+      const phrase = els.voiceTestInput ? els.voiceTestInput.value : "";
+      const result = processVoiceTranscript(phrase, "voice test");
+      const verdict = result.matched ? "Matched" : "No match";
+      showToast(`Voice test: ${verdict}`, `Phrase: “${result.transcript || "(empty)"}”`);
+      log(`Voice test: ${verdict} for phrase “${result.transcript || "(empty)"}”.`);
+    }
+
     function initVoice(){
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition){
@@ -1041,10 +1065,7 @@ if (document.readyState === 'loading') {
           if (!result.isFinal){
             continue;
           }
-          const transcript = result[0].transcript.toLowerCase().trim();
-          if (/\bsnap\b/.test(transcript)){
-            handleHumanSnap("voice");
-          }
+          processVoiceTranscript(result[0].transcript, "voice");
         }
       };
 
@@ -1150,6 +1171,10 @@ if (document.readyState === 'loading') {
     els.flipBtn.addEventListener("click", handleFlip);
     els.snapBtn.addEventListener("click", () => handleHumanSnap("button"));
     els.voiceBtn.addEventListener("click", toggleVoice);
+    els.voiceTestBtn.addEventListener("click", testVoicePhrase);
+    els.voiceTestInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") testVoicePhrase();
+    });
     els.soundBtn.addEventListener("click", toggleSound);
 
     document.addEventListener("keydown", (event) => {

@@ -502,7 +502,9 @@ if (document.readyState === 'loading') {
       voiceReady: false,
       voiceOn: false,
       soundOn: true,
-      recognition: null
+      recognition: null,
+      recognitionActive: false,
+      voiceWatchdog: null
     };
 
     const els = {
@@ -1024,6 +1026,14 @@ if (document.readyState === 'loading') {
       state.recognition.lang = "en-US";
       state.recognition.continuous = true;
       state.recognition.interimResults = false;
+      state.recognition.maxAlternatives = 3;
+
+      state.recognition.onstart = () => {
+        state.recognitionActive = true;
+        if (state.voiceOn){
+          updateMic(true, "Listening for SNAP");
+        }
+      };
 
       state.recognition.onresult = (event) => {
         for (let i = event.resultIndex; i < event.results.length; i += 1){
@@ -1031,19 +1041,28 @@ if (document.readyState === 'loading') {
           if (!result.isFinal){
             continue;
           }
-          const transcript = result[0].transcript.toLowerCase();
-          if (transcript.includes("snap")){
+          const transcript = result[0].transcript.toLowerCase().trim();
+          if (/\bsnap\b/.test(transcript)){
             handleHumanSnap("voice");
           }
         }
       };
 
       state.recognition.onerror = (event) => {
+        const recoverable = ["no-speech", "aborted", "audio-capture", "network"].includes(event.error);
+        if (recoverable){
+          log(`Mic paused (${event.error}); reconnecting…`);
+          return;
+        }
         log(`Mic error: ${event.error}.`);
-        updateMic(false, "Mic error");
+        state.voiceOn = false;
+        state.recognitionActive = false;
+        updateMic(false, "Mic blocked");
+        els.voiceBtn.textContent = "Enable voice";
       };
 
       state.recognition.onend = () => {
+        state.recognitionActive = false;
         if (state.voiceOn){
           try{
             state.recognition.start();
@@ -1054,6 +1073,20 @@ if (document.readyState === 'loading') {
       };
 
       state.voiceReady = true;
+    }
+
+    function startVoiceWatchdog(){
+      clearInterval(state.voiceWatchdog);
+      state.voiceWatchdog = setInterval(() => {
+        if (!state.voiceOn || state.recognitionActive || !state.recognition){
+          return;
+        }
+        try{
+          state.recognition.start();
+        } catch (err){
+          // Ignore repeated start attempts while the browser is spinning up recognition.
+        }
+      }, 1500);
     }
 
     function updateMic(active, label){
@@ -1067,8 +1100,10 @@ if (document.readyState === 'loading') {
       }
       if (state.voiceOn){
         state.voiceOn = false;
+        state.recognitionActive = false;
         updateMic(false, "Mic off");
         els.voiceBtn.textContent = "Enable voice";
+        clearInterval(state.voiceWatchdog);
         state.recognition.stop();
         return;
       }
@@ -1077,6 +1112,7 @@ if (document.readyState === 'loading') {
         state.voiceOn = true;
         updateMic(true, "Listening for SNAP");
         els.voiceBtn.textContent = "Disable voice";
+        startVoiceWatchdog();
       } catch (err){
         log("Microphone permission denied.");
         updateMic(false, "Mic blocked");

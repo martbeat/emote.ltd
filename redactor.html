@@ -1052,6 +1052,9 @@ RG6 1AA` });
     $('redactFirstNameGlobal').checked = false;
     $('redactSurnameGlobal').checked = false;
 
+    $('redactFirstNameGlobal').checked = false;
+    $('redactSurnameGlobal').checked = false;
+
     $('modeSel').value = 'aggressive';
     resetAuditState();
     const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;

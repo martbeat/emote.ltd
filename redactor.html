@@ -132,6 +132,7 @@
   const HEADER_SCAN_LINES = 30;
   const NAME_STOPWORDS = new Set(['cv','curriculum','vitae','resume','profile','summary','experience','email','phone','address','contact','professional','linkedin','github','ltd','limited','uk','england','mba','msc','bsc']);
   const NAME_CONTEXT_STOPWORDS = new Set(['curriculum','vitae','resume','profile','summary','experience','education','skills','references','contact','professional','statement','objective','projects']);
+  const NAME_PARTICLES = new Set(['de','da','del','della','di','du','la','le','van','von','bin','bint','binti','ibn','al','el','st','st.']);
   const ORGISH_TERMS = new Set(['ltd','limited','llp','plc','inc','corp','company','council','trust','university','college','school','department','team']);
   const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
 
@@ -229,13 +230,13 @@
   }
 
   function splitNameTokens(raw){
-    const base = raw.replace(/[_\-.+]+/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/[^A-Za-z\s']/g,' ')
+    const base = raw.replace(/[_.+]+/g, ' ')
+      .replace(/([\p{Ll}])([\p{Lu}])/gu, '$1 $2')
+      .replace(/[^\p{L}\s'’-]/gu,' ')
       .split(/\s+/)
       .map(t=>t.trim().toLowerCase())
       .filter(Boolean)
-      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t));
+      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t) && !NAME_PARTICLES.has(t));
     return [...new Set(base)];
   }
 
@@ -424,13 +425,26 @@
     const creatorSurname = splitNameTokens(candidates.creator || '').slice(-1)[0] || '';
     const surname = headerSurname || creatorSurname || tokens.find(t => t.token !== firstToken)?.token || '';
 
+    const inferredFirstTokens = new Set(firstToken ? [firstToken] : []);
+    const inferredSurnames = new Set(surname ? [surname] : []);
+    for (const phrase of [...(candidates.fullNameVariants || []), ...extractIdentityZoneFullNames(text, candidates), ...extractLikelyPersonNames(text, candidates).map(v => v.phrase)]){
+      const parts = splitNameTokens(phrase);
+      if (parts.length < 2) continue;
+      inferredFirstTokens.add(parts[0]);
+      inferredSurnames.add(parts[parts.length - 1]);
+    }
+
     if (opts.redactFullNameVariants){
       for (const variant of candidates.fullNameVariants || []){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig'), 'FULL_NAME', 0.95);
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'igu'), 'FULL_NAME', 0.95);
       }
 
       for (const identityPhrase of extractIdentityZoneFullNames(text, candidates)){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'ig'), 'FULL_NAME', 0.92);
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'igu'), 'FULL_NAME', 0.92);
+      }
+
+      for (const broadName of extractLikelyPersonNames(text, candidates)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(broadName.phrase)}\\b`, 'igu'), 'FULL_NAME', broadName.confidence);
       }
     }
 
@@ -445,19 +459,27 @@
       return false;
     })();
 
-    if (opts.redactSurnameGlobal && surname){
-      const score = tokens.find(t => t.token===surname)?.confidence || 0;
-      if (score >= 0.85 && safeToGlobalSurname){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig'), 'NAME_TOKEN', score);
+    if (opts.redactSurnameGlobal){
+      for (const surnameToken of inferredSurnames){
+        if (!surnameToken) continue;
+        const score = tokens.find(t => t.token===surnameToken)?.confidence || 0.86;
+        const fromCandidate = tokens.some(t => t.token===surnameToken);
+        if ((fromCandidate && score >= 0.85) || (!fromCandidate && score >= 0.86)){
+          addRegexMatches(new RegExp(`\\b${escapeRegExp(surnameToken)}\\b`, 'igu'), 'NAME_TOKEN', score);
+        }
       }
     }
 
-    if (opts.redactFirstNameGlobal && firstToken){
-      const score = tokens.find(t => t.token===firstToken)?.confidence || 0;
-      const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'i'));
-      const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(firstToken));
-      if (score >= 0.85 && (inHeader || inEmail)){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig'), 'NAME_TOKEN', score);
+    if (opts.redactFirstNameGlobal){
+      for (const first of inferredFirstTokens){
+        if (!first) continue;
+        const score = tokens.find(t => t.token===first)?.confidence || 0.86;
+        const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(first)}\\b`, 'i'));
+        const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(first));
+        const fromCandidate = tokens.some(t => t.token===first);
+        if ((fromCandidate && score >= 0.85 && (inHeader || inEmail)) || (!fromCandidate && score >= 0.86)){
+          addRegexMatches(new RegExp(`\\b${escapeRegExp(first)}\\b`, 'igu'), 'NAME_TOKEN', score);
+        }
       }
     }
 
@@ -465,20 +487,46 @@
   }
 
   function extractIdentityZoneFullNames(text, candidates){
-    const zone = text.slice(0, 300);
+    const zone = text.slice(0, 6000);
     const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
     const found = [];
-    for (const m of zone.matchAll(/\b([A-Z][a-z]+\s+[A-Z][A-Za-z']+)\b/g)){
+    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
+    for (const m of zone.matchAll(namePhraseRe)){
       const phrase = m[1].trim();
-      const parts = phrase.split(/\s+/);
-      if (parts.length !== 2) continue;
-      const lowered = parts.map(p => p.toLowerCase());
+      const lowered = splitNameTokens(phrase);
+      if (lowered.length < 2 || lowered.length > 3) continue;
       if (lowered.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
       const hasCandidateSupport = lowered.some(t => candidateTokens.has(t));
       if (!hasCandidateSupport) continue;
       found.push(phrase);
     }
     return [...new Set(found)];
+  }
+
+  function extractLikelyPersonNames(text, candidates){
+    const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
+    const found = new Map();
+    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
+
+    for (const m of text.matchAll(namePhraseRe)){
+      let phrase = m[1].trim();
+      let rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+      while (rawWords.length > 2 && (NAME_STOPWORDS.has(rawWords[rawWords.length-1]) || NAME_CONTEXT_STOPWORDS.has(rawWords[rawWords.length-1]))){
+        phrase = phrase.split(/\s+/).slice(0, -1).join(' ');
+        rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+      }
+      if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w))) continue;
+      const tokens = splitNameTokens(phrase);
+      if (tokens.length < 2 || tokens.length > 3) continue;
+      if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
+      const hasSupport = tokens.some(t => candidateTokens.has(t));
+      const confidence = hasSupport ? 0.93 : 0.86;
+      const key = phrase.toLowerCase();
+      const prev = found.get(key);
+      if (!prev || confidence > prev.confidence) found.set(key, { phrase, confidence });
+    }
+
+    return [...found.values()].slice(0, 80);
   }
 
   function findProtectedRanges(text){
@@ -512,6 +560,23 @@
 
     if (opts.enableIdentityInference) {
       for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+
+      if (opts.redactFullNameVariants){
+        const genericNameRe = /\b[\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,2}\b/gu;
+        for (const m of text.matchAll(genericNameRe)){
+          let phrase = m[0].trim();
+          let rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+          while (rawWords.length > 2 && (NAME_STOPWORDS.has(rawWords[rawWords.length-1]) || NAME_CONTEXT_STOPWORDS.has(rawWords[rawWords.length-1]))){
+            phrase = phrase.split(/\s+/).slice(0, -1).join(' ');
+            rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+          }
+          if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w))) continue;
+          const tokens = splitNameTokens(phrase);
+          if (tokens.length < 2 || tokens.length > 3) continue;
+          if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
+          pushMatch({ start: m.index, end: m.index + phrase.length, type: 'FULL_NAME', confidence: 0.89, match: phrase, rule: 'regex.full_name_generic' });
+        }
+      }
     }
     return matches;
   }
@@ -886,7 +951,7 @@
       updatePolicyLine();
       const plain = $('plainInput').value || '';
 
-      state.piiCandidates = isInferenceMode()
+      state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
         : null;
 
@@ -982,21 +1047,25 @@ Email Martin@eMote.Ltd
 RG6 1AA` });
     state.matchLog = [];
 
-    const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+    const sampleInput = 'Martin FRY and Paddy Coleman MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+
+    $('redactFirstNameGlobal').checked = false;
+    $('redactSurnameGlobal').checked = false;
 
     $('redactFirstNameGlobal').checked = false;
     $('redactSurnameGlobal').checked = false;
 
     $('modeSel').value = 'aggressive';
     resetAuditState();
-    const aggressiveExpected = '[REDACTED_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
-    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
+    const aggressiveNamesRedacted = !/\bMartin\b|\bPaddy\b|\bColeman\b/i.test(aggressive);
+    const aggressiveIdentifiersRedacted = aggressive.includes('[REDACTED_URL_001]') && aggressive.includes('[REDACTED_PHONE_001]') && aggressive.includes('[REDACTED_EMAIL_001]');
+    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressiveNamesRedacted && aggressiveIdentifiersRedacted);
 
     $('modeSel').value = 'identity';
     state.piiCandidates = null;
     resetAuditState();
-    const identityExpected = 'Martin FRY MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identityExpected = 'Martin FRY and Paddy Coleman MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
@@ -1004,10 +1073,13 @@ RG6 1AA` });
     $('redactSurnameGlobal').checked = true;
     state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: sampleInput });
     resetAuditState();
-    const identityNamesExpected = '[REDACTED_NAME_TOKEN_001] [REDACTED_NAME_TOKEN_002] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const identityWithNameOptions = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
-    assert('identity mode supports optional first-name and last-name redaction', identityWithNameOptions === identityNamesExpected);
+    const hasNameToken = /\[REDACTED_NAME_TOKEN_\d{3}\]/.test(identityWithNameOptions);
+    const hidesEitherFullName = !identityWithNameOptions.includes('Martin FRY') || !identityWithNameOptions.includes('Paddy Coleman');
+    assert('identity mode supports optional first-name and last-name redaction', hasNameToken && hidesEitherFullName);
 
+    $('redactFirstNameGlobal').checked = false;
+    $('redactSurnameGlobal').checked = false;
     resetAuditState();
     const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
     assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');

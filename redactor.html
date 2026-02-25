@@ -51,16 +51,16 @@
         <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
         <span class="pill">mask: <span id="maskPreview">████████</span></span>
       </div>
-      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), Org anonymisation: Off, Client anonymisation: Off</div>
+      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
       <label>Name redaction controls</label>
       <div class="row">
         <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact surname globally if high confidence</label>
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact last names globally if high confidence</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
+        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first names globally if high confidence</label>
       </div>
       <div class="row">
         <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
@@ -197,9 +197,7 @@
 
   function updateInferenceControls(){
     const enabled = isInferenceMode();
-    ['redactFullNameVariants', 'redactSurnameGlobal', 'redactFirstNameGlobal'].forEach(id => {
-      $(id).disabled = !enabled;
-    });
+    $('redactFullNameVariants').disabled = !enabled;
   }
   function updatePolicyLine(){
     const mode = $('modeSel').value;
@@ -208,7 +206,9 @@
       : (mode === 'custom' ? 'Custom rules' : 'Identity removal (no inference)');
     const orgOn = $('orgDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
     const clientOn = $('clientDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
-    $('policyLine').textContent = `Policy: ${modeLabel}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
+    const firstOn = $('redactFirstNameGlobal').checked;
+    const lastOn = $('redactSurnameGlobal').checked;
+    $('policyLine').textContent = `Policy: ${modeLabel}, First-name redaction: ${firstOn ? 'On' : 'Off'}, Last-name redaction: ${lastOn ? 'On' : 'Off'}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
   }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
@@ -567,8 +567,8 @@
     if (mode === 'identity' || mode === 'aggressive'){
       text = applyPseudonyms(text, { part });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: mode === 'aggressive',
-        redactFullNameVariants: $('redactFullNameVariants').checked,
+        enableIdentityInference: mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
+        redactFullNameVariants: mode === 'aggressive' && $('redactFullNameVariants').checked,
         redactSurnameGlobal: $('redactSurnameGlobal').checked,
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
@@ -929,6 +929,8 @@
   $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); });
   $('orgDict').addEventListener('input', updatePolicyLine);
   $('clientDict').addEventListener('input', updatePolicyLine);
+  $('redactSurnameGlobal').addEventListener('change', updatePolicyLine);
+  $('redactFirstNameGlobal').addEventListener('change', updatePolicyLine);
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
@@ -971,6 +973,8 @@
     const out = [];
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
     const previousMode = $('modeSel').value;
+    const previousFirstNameGlobal = $('redactFirstNameGlobal').checked;
+    const previousSurnameGlobal = $('redactSurnameGlobal').checked;
 
     state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
 Email Martin@eMote.Ltd
@@ -979,6 +983,9 @@ RG6 1AA` });
     state.matchLog = [];
 
     const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+
+    $('redactFirstNameGlobal').checked = false;
+    $('redactSurnameGlobal').checked = false;
 
     $('modeSel').value = 'aggressive';
     resetAuditState();
@@ -993,6 +1000,14 @@ RG6 1AA` });
     const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
+    $('redactFirstNameGlobal').checked = true;
+    $('redactSurnameGlobal').checked = true;
+    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: sampleInput });
+    resetAuditState();
+    const identityNamesExpected = '[REDACTED_NAME_TOKEN_001] [REDACTED_NAME_TOKEN_002] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identityWithNameOptions = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
+    assert('identity mode supports optional first-name and last-name redaction', identityWithNameOptions === identityNamesExpected);
+
     resetAuditState();
     const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
     assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');
@@ -1006,7 +1021,10 @@ RG6 1AA` });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
 
     $('modeSel').value = previousMode;
+    $('redactFirstNameGlobal').checked = previousFirstNameGlobal;
+    $('redactSurnameGlobal').checked = previousSurnameGlobal;
     updateInferenceControls();
+    updatePolicyLine();
     $('testsPane').textContent = out.join('\n');
   }
 

@@ -184,7 +184,8 @@
     manifest: [],
     counters: {},
     report: null,
-    processedParts: new Set()
+    processedParts: new Set(),
+    replacementCache: new Map()
   };
 
   const $ = id => document.getElementById(id);
@@ -345,11 +346,11 @@
     const part = context.part || 'plainText';
     for (const [k] of state.pseudonyms.org){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length));
+      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
     }
     for (const [k] of state.pseudonyms.client){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length));
+      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
     }
     return text;
   }
@@ -370,17 +371,39 @@
     state.report = null;
     state.processedParts = new Set();
     state.counters = Object.fromEntries(Object.values(TOKEN_LABELS).map(v => [v, 0]));
+    state.replacementCache = new Map();
   }
 
-  function allocToken(type, rule, part, start, end, confidence){
+  function canonicalReplacementKey(label, sourceText){
+    return `${label}::${sourceText.replace(/\s+/g, ' ').trim().toLowerCase()}`;
+  }
+
+  function allocToken(type, rule, part, start, end, confidence, sourceText = ''){
     const label = TOKEN_LABELS[type];
     if (!label) return '';
+
+    const hasSourceText = typeof sourceText === 'string' && sourceText.trim();
+    if (hasSourceText){
+      const existing = state.replacementCache.get(canonicalReplacementKey(label, sourceText));
+      if (existing){
+        const item = { id: existing.id, type: label, rule, part, start, end, token: existing.token };
+        if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
+        state.manifest.push(item);
+        return existing.token;
+      }
+    }
+
     state.counters[label] = (state.counters[label] || 0) + 1;
     const index = String(state.counters[label]).padStart(3, '0');
     const token = `[REDACTED_${label}_${index}]`;
     const item = { id: `${label}_${index}`, type: label, rule, part, start, end, token };
     if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
     state.manifest.push(item);
+
+    if (hasSourceText){
+      state.replacementCache.set(canonicalReplacementKey(label, sourceText), { id: item.id, token });
+    }
+
     return token;
   }
 
@@ -520,7 +543,7 @@
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence);
+      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence, m.match || '');
       if (!token) continue;
       out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
     }
@@ -563,9 +586,9 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Offline Identity Anonymisation Engine</title>
+<title>AI Upload Redaction Assistant</title>
 <style>
   body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
   header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
@@ -29,8 +29,8 @@
 </head>
 <body>
 <header>
-  <strong>Offline Identity Anonymisation Engine (.docx + text)</strong>
-  <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
+  <strong>AI Upload Redaction Assistant (.docx + text)</strong>
+  <div class="muted">No network calls. Replaces underlying content (not visual hiding) before AI upload. Scrubs high-risk metadata surfaces; always manually review output.</div>
 </header>
 <main>
   <section class="card">
@@ -43,15 +43,16 @@
 
       <label>Redaction mode</label>
       <select id="modeSel">
-        <option value="identity" selected>A) Identity removal (deterministic identifiers)</option>
-        <option value="aggressive">B) Aggressive identity inference (CV / HR)</option>
-        <option value="custom">C) Custom rules</option>
+        <option value="identity" selected>A) AI upload safe (emails/phones/URLs + optional names)</option>
+        <option value="aggressive">B) AI upload strict (aggressive person-name inference)</option>
+        <option value="custom">C) Custom regex workflow</option>
       </select>
       <div class="row" style="margin-top:8px">
         <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
         <span class="pill">mask: <span id="maskPreview">████████</span></span>
       </div>
-      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
+      <div id="modeHelp" class="muted" style="margin-top:8px">Mode help: Use AI upload safe for standard PII, AI upload strict for CV-style name inference, or Custom for explicit regex rules.</div>
+      <div id="policyLine" class="muted" style="margin-top:6px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
       <label>Name redaction controls</label>
       <div class="row">
         <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
@@ -75,7 +76,7 @@
       <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
 
       <div class="row">
-        <button id="runBtn">Redact</button>
+        <button id="runBtn">Redact for AI upload</button>
         <button id="testsBtn">Run tests</button>
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
@@ -210,6 +211,26 @@
     const firstOn = $('redactFirstNameGlobal').checked;
     const lastOn = $('redactSurnameGlobal').checked;
     $('policyLine').textContent = `Policy: ${modeLabel}, First-name redaction: ${firstOn ? 'On' : 'Off'}, Last-name redaction: ${lastOn ? 'On' : 'Off'}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
+  }
+
+  function updateModeUi(){
+    const mode = $('modeSel').value;
+    const isCustom = mode === 'custom';
+    const isAggressive = mode === 'aggressive';
+
+    $('orgDict').disabled = isCustom;
+    $('clientDict').disabled = isCustom;
+    $('redactFirstNameGlobal').disabled = isCustom;
+    $('redactSurnameGlobal').disabled = isCustom;
+    $('customRules').disabled = !isCustom;
+    $('useBlock').disabled = !isCustom;
+    $('redactFullNameVariants').disabled = !isAggressive || isCustom;
+
+    $('modeHelp').textContent = isCustom
+      ? 'Mode help: Custom regex workflow active. Built-in identity inference and dictionary pseudonyms are disabled.'
+      : (isAggressive
+        ? 'Mode help: AI upload strict active. Full-name inference is enabled for CV/profile style text.'
+        : 'Mode help: AI upload safe active. Deterministic identifiers are redacted; enable first/last-name options if needed.');
   }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
@@ -991,11 +1012,11 @@
   });
 
   $('runBtn').addEventListener('click', runRedaction);
-  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); });
+  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); updateModeUi(); });
   $('orgDict').addEventListener('input', updatePolicyLine);
   $('clientDict').addEventListener('input', updatePolicyLine);
-  $('redactSurnameGlobal').addEventListener('change', updatePolicyLine);
-  $('redactFirstNameGlobal').addEventListener('change', updatePolicyLine);
+  $('redactSurnameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
+  $('redactFirstNameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
@@ -1100,6 +1121,7 @@ ZZ1 1ZZ` });
   $('testsBtn').addEventListener('click', runHarness);
   updateInferenceControls();
   updatePolicyLine();
+  updateModeUi();
 })();
 </script>
 </body>

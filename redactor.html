@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Offline Identity Anonymisation Engine</title>
+<title>AI Upload Redaction Assistant</title>
 <style>
   body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
   header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
@@ -29,8 +29,8 @@
 </head>
 <body>
 <header>
-  <strong>Offline Identity Anonymisation Engine (.docx + text)</strong>
-  <div class="muted">No network calls. Replaces underlying content (not visual hiding). Scrubs high-risk metadata surfaces. Always manually review output.</div>
+  <strong>AI Upload Redaction Assistant (.docx + text)</strong>
+  <div class="muted">No network calls. Replaces underlying content (not visual hiding) before AI upload. Scrubs high-risk metadata surfaces; always manually review output.</div>
 </header>
 <main>
   <section class="card">
@@ -43,24 +43,25 @@
 
       <label>Redaction mode</label>
       <select id="modeSel">
-        <option value="identity" selected>A) Identity removal (deterministic identifiers)</option>
-        <option value="aggressive">B) Aggressive identity inference (CV / HR)</option>
-        <option value="custom">C) Custom rules</option>
+        <option value="identity" selected>A) AI upload safe (emails/phones/URLs + optional names)</option>
+        <option value="aggressive">B) AI upload strict (aggressive person-name inference)</option>
+        <option value="custom">C) Custom regex workflow</option>
       </select>
       <div class="row" style="margin-top:8px">
         <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
         <span class="pill">mask: <span id="maskPreview">████████</span></span>
       </div>
-      <div id="policyLine" class="muted" style="margin-top:8px">Policy: Identity removal (no inference), Org anonymisation: Off, Client anonymisation: Off</div>
+      <div id="modeHelp" class="muted" style="margin-top:8px">Mode help: Use AI upload safe for standard PII, AI upload strict for CV-style name inference, or Custom for explicit regex rules.</div>
+      <div id="policyLine" class="muted" style="margin-top:6px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
       <label>Name redaction controls</label>
       <div class="row">
         <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact surname globally if high confidence</label>
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact last names globally if high confidence</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first name globally</label>
+        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first names globally if high confidence</label>
       </div>
       <div class="row">
         <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
@@ -75,7 +76,7 @@
       <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
 
       <div class="row">
-        <button id="runBtn">Redact</button>
+        <button id="runBtn">Redact for AI upload</button>
         <button id="testsBtn">Run tests</button>
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
@@ -132,6 +133,7 @@
   const HEADER_SCAN_LINES = 30;
   const NAME_STOPWORDS = new Set(['cv','curriculum','vitae','resume','profile','summary','experience','email','phone','address','contact','professional','linkedin','github','ltd','limited','uk','england','mba','msc','bsc']);
   const NAME_CONTEXT_STOPWORDS = new Set(['curriculum','vitae','resume','profile','summary','experience','education','skills','references','contact','professional','statement','objective','projects']);
+  const NAME_PARTICLES = new Set(['de','da','del','della','di','du','la','le','van','von','bin','bint','binti','ibn','al','el','st','st.']);
   const ORGISH_TERMS = new Set(['ltd','limited','llp','plc','inc','corp','company','council','trust','university','college','school','department','team']);
   const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
 
@@ -184,7 +186,8 @@
     manifest: [],
     counters: {},
     report: null,
-    processedParts: new Set()
+    processedParts: new Set(),
+    replacementCache: new Map()
   };
 
   const $ = id => document.getElementById(id);
@@ -196,9 +199,7 @@
 
   function updateInferenceControls(){
     const enabled = isInferenceMode();
-    ['redactFullNameVariants', 'redactSurnameGlobal', 'redactFirstNameGlobal'].forEach(id => {
-      $(id).disabled = !enabled;
-    });
+    $('redactFullNameVariants').disabled = !enabled;
   }
   function updatePolicyLine(){
     const mode = $('modeSel').value;
@@ -207,7 +208,29 @@
       : (mode === 'custom' ? 'Custom rules' : 'Identity removal (no inference)');
     const orgOn = $('orgDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
     const clientOn = $('clientDict').value.split(/\n+/).map(v=>v.trim()).filter(Boolean).length > 0;
-    $('policyLine').textContent = `Policy: ${modeLabel}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
+    const firstOn = $('redactFirstNameGlobal').checked;
+    const lastOn = $('redactSurnameGlobal').checked;
+    $('policyLine').textContent = `Policy: ${modeLabel}, First-name redaction: ${firstOn ? 'On' : 'Off'}, Last-name redaction: ${lastOn ? 'On' : 'Off'}, Org anonymisation: ${orgOn ? 'On' : 'Off'}, Client anonymisation: ${clientOn ? 'On' : 'Off'}`;
+  }
+
+  function updateModeUi(){
+    const mode = $('modeSel').value;
+    const isCustom = mode === 'custom';
+    const isAggressive = mode === 'aggressive';
+
+    $('orgDict').disabled = isCustom;
+    $('clientDict').disabled = isCustom;
+    $('redactFirstNameGlobal').disabled = isCustom;
+    $('redactSurnameGlobal').disabled = isCustom;
+    $('customRules').disabled = !isCustom;
+    $('useBlock').disabled = !isCustom;
+    $('redactFullNameVariants').disabled = !isAggressive || isCustom;
+
+    $('modeHelp').textContent = isCustom
+      ? 'Mode help: Custom regex workflow active. Built-in identity inference and dictionary pseudonyms are disabled.'
+      : (isAggressive
+        ? 'Mode help: AI upload strict active. Full-name inference is enabled for CV/profile style text.'
+        : 'Mode help: AI upload safe active. Deterministic identifiers are redacted; enable first/last-name options if needed.');
   }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
@@ -228,13 +251,13 @@
   }
 
   function splitNameTokens(raw){
-    const base = raw.replace(/[_\-.+]+/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/[^A-Za-z\s']/g,' ')
+    const base = raw.replace(/[_.+]+/g, ' ')
+      .replace(/([\p{Ll}])([\p{Lu}])/gu, '$1 $2')
+      .replace(/[^\p{L}\s'’-]/gu,' ')
       .split(/\s+/)
       .map(t=>t.trim().toLowerCase())
       .filter(Boolean)
-      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t));
+      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t) && !NAME_PARTICLES.has(t));
     return [...new Set(base)];
   }
 
@@ -345,11 +368,11 @@
     const part = context.part || 'plainText';
     for (const [k] of state.pseudonyms.org){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length));
+      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
     }
     for (const [k] of state.pseudonyms.client){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length));
+      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
     }
     return text;
   }
@@ -370,17 +393,39 @@
     state.report = null;
     state.processedParts = new Set();
     state.counters = Object.fromEntries(Object.values(TOKEN_LABELS).map(v => [v, 0]));
+    state.replacementCache = new Map();
   }
 
-  function allocToken(type, rule, part, start, end, confidence){
+  function canonicalReplacementKey(label, sourceText){
+    return `${label}::${sourceText.replace(/\s+/g, ' ').trim().toLowerCase()}`;
+  }
+
+  function allocToken(type, rule, part, start, end, confidence, sourceText = ''){
     const label = TOKEN_LABELS[type];
     if (!label) return '';
+
+    const hasSourceText = typeof sourceText === 'string' && sourceText.trim();
+    if (hasSourceText){
+      const existing = state.replacementCache.get(canonicalReplacementKey(label, sourceText));
+      if (existing){
+        const item = { id: existing.id, type: label, rule, part, start, end, token: existing.token };
+        if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
+        state.manifest.push(item);
+        return existing.token;
+      }
+    }
+
     state.counters[label] = (state.counters[label] || 0) + 1;
     const index = String(state.counters[label]).padStart(3, '0');
     const token = `[REDACTED_${label}_${index}]`;
     const item = { id: `${label}_${index}`, type: label, rule, part, start, end, token };
     if (typeof confidence === 'number') item.confidence = Number(confidence.toFixed(2));
     state.manifest.push(item);
+
+    if (hasSourceText){
+      state.replacementCache.set(canonicalReplacementKey(label, sourceText), { id: item.id, token });
+    }
+
     return token;
   }
 
@@ -401,13 +446,26 @@
     const creatorSurname = splitNameTokens(candidates.creator || '').slice(-1)[0] || '';
     const surname = headerSurname || creatorSurname || tokens.find(t => t.token !== firstToken)?.token || '';
 
+    const inferredFirstTokens = new Set(firstToken ? [firstToken] : []);
+    const inferredSurnames = new Set(surname ? [surname] : []);
+    for (const phrase of [...(candidates.fullNameVariants || []), ...extractIdentityZoneFullNames(text, candidates), ...extractLikelyPersonNames(text, candidates).map(v => v.phrase)]){
+      const parts = splitNameTokens(phrase);
+      if (parts.length < 2) continue;
+      inferredFirstTokens.add(parts[0]);
+      inferredSurnames.add(parts[parts.length - 1]);
+    }
+
     if (opts.redactFullNameVariants){
       for (const variant of candidates.fullNameVariants || []){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'ig'), 'FULL_NAME', 0.95);
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'igu'), 'FULL_NAME', 0.95);
       }
 
       for (const identityPhrase of extractIdentityZoneFullNames(text, candidates)){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'ig'), 'FULL_NAME', 0.92);
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(identityPhrase)}\\b`, 'igu'), 'FULL_NAME', 0.92);
+      }
+
+      for (const broadName of extractLikelyPersonNames(text, candidates)){
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(broadName.phrase)}\\b`, 'igu'), 'FULL_NAME', broadName.confidence);
       }
     }
 
@@ -422,19 +480,27 @@
       return false;
     })();
 
-    if (opts.redactSurnameGlobal && surname){
-      const score = tokens.find(t => t.token===surname)?.confidence || 0;
-      if (score >= 0.85 && safeToGlobalSurname){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(surname)}\\b`, 'ig'), 'NAME_TOKEN', score);
+    if (opts.redactSurnameGlobal){
+      for (const surnameToken of inferredSurnames){
+        if (!surnameToken) continue;
+        const score = tokens.find(t => t.token===surnameToken)?.confidence || 0.86;
+        const fromCandidate = tokens.some(t => t.token===surnameToken);
+        if ((fromCandidate && score >= 0.85) || (!fromCandidate && score >= 0.86)){
+          addRegexMatches(new RegExp(`\\b${escapeRegExp(surnameToken)}\\b`, 'igu'), 'NAME_TOKEN', score);
+        }
       }
     }
 
-    if (opts.redactFirstNameGlobal && firstToken){
-      const score = tokens.find(t => t.token===firstToken)?.confidence || 0;
-      const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'i'));
-      const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(firstToken));
-      if (score >= 0.85 && (inHeader || inEmail)){
-        addRegexMatches(new RegExp(`\\b${escapeRegExp(firstToken)}\\b`, 'ig'), 'NAME_TOKEN', score);
+    if (opts.redactFirstNameGlobal){
+      for (const first of inferredFirstTokens){
+        if (!first) continue;
+        const score = tokens.find(t => t.token===first)?.confidence || 0.86;
+        const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(first)}\\b`, 'i'));
+        const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(first));
+        const fromCandidate = tokens.some(t => t.token===first);
+        if ((fromCandidate && score >= 0.85 && (inHeader || inEmail)) || (!fromCandidate && score >= 0.86)){
+          addRegexMatches(new RegExp(`\\b${escapeRegExp(first)}\\b`, 'igu'), 'NAME_TOKEN', score);
+        }
       }
     }
 
@@ -442,20 +508,46 @@
   }
 
   function extractIdentityZoneFullNames(text, candidates){
-    const zone = text.slice(0, 300);
+    const zone = text.slice(0, 6000);
     const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
     const found = [];
-    for (const m of zone.matchAll(/\b([A-Z][a-z]+\s+[A-Z][A-Za-z']+)\b/g)){
+    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
+    for (const m of zone.matchAll(namePhraseRe)){
       const phrase = m[1].trim();
-      const parts = phrase.split(/\s+/);
-      if (parts.length !== 2) continue;
-      const lowered = parts.map(p => p.toLowerCase());
+      const lowered = splitNameTokens(phrase);
+      if (lowered.length < 2 || lowered.length > 3) continue;
       if (lowered.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
       const hasCandidateSupport = lowered.some(t => candidateTokens.has(t));
       if (!hasCandidateSupport) continue;
       found.push(phrase);
     }
     return [...new Set(found)];
+  }
+
+  function extractLikelyPersonNames(text, candidates){
+    const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
+    const found = new Map();
+    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
+
+    for (const m of text.matchAll(namePhraseRe)){
+      let phrase = m[1].trim();
+      let rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+      while (rawWords.length > 2 && (NAME_STOPWORDS.has(rawWords[rawWords.length-1]) || NAME_CONTEXT_STOPWORDS.has(rawWords[rawWords.length-1]))){
+        phrase = phrase.split(/\s+/).slice(0, -1).join(' ');
+        rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+      }
+      if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w))) continue;
+      const tokens = splitNameTokens(phrase);
+      if (tokens.length < 2 || tokens.length > 3) continue;
+      if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
+      const hasSupport = tokens.some(t => candidateTokens.has(t));
+      const confidence = hasSupport ? 0.93 : 0.86;
+      const key = phrase.toLowerCase();
+      const prev = found.get(key);
+      if (!prev || confidence > prev.confidence) found.set(key, { phrase, confidence });
+    }
+
+    return [...found.values()].slice(0, 80);
   }
 
   function findProtectedRanges(text){
@@ -489,6 +581,23 @@
 
     if (opts.enableIdentityInference) {
       for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
+
+      if (opts.redactFullNameVariants){
+        const genericNameRe = /\b[\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,2}\b/gu;
+        for (const m of text.matchAll(genericNameRe)){
+          let phrase = m[0].trim();
+          let rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+          while (rawWords.length > 2 && (NAME_STOPWORDS.has(rawWords[rawWords.length-1]) || NAME_CONTEXT_STOPWORDS.has(rawWords[rawWords.length-1]))){
+            phrase = phrase.split(/\s+/).slice(0, -1).join(' ');
+            rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
+          }
+          if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w))) continue;
+          const tokens = splitNameTokens(phrase);
+          if (tokens.length < 2 || tokens.length > 3) continue;
+          if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
+          pushMatch({ start: m.index, end: m.index + phrase.length, type: 'FULL_NAME', confidence: 0.89, match: phrase, rule: 'regex.full_name_generic' });
+        }
+      }
     }
     return matches;
   }
@@ -520,7 +629,7 @@
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence);
+      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence, m.match || '');
       if (!token) continue;
       out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
     }
@@ -544,8 +653,8 @@
     if (mode === 'identity' || mode === 'aggressive'){
       text = applyPseudonyms(text, { part });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: mode === 'aggressive',
-        redactFullNameVariants: $('redactFullNameVariants').checked,
+        enableIdentityInference: mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
+        redactFullNameVariants: mode === 'aggressive' && $('redactFullNameVariants').checked,
         redactSurnameGlobal: $('redactSurnameGlobal').checked,
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
@@ -563,9 +672,9 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length));
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
@@ -863,7 +972,7 @@
       updatePolicyLine();
       const plain = $('plainInput').value || '';
 
-      state.piiCandidates = isInferenceMode()
+      state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
         : null;
 
@@ -903,9 +1012,11 @@
   });
 
   $('runBtn').addEventListener('click', runRedaction);
-  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); });
+  $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); updateModeUi(); });
   $('orgDict').addEventListener('input', updatePolicyLine);
   $('clientDict').addEventListener('input', updatePolicyLine);
+  $('redactSurnameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
+  $('redactFirstNameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
@@ -948,33 +1059,50 @@
     const out = [];
     const assert = (name, cond) => out.push(`${cond?'✅':'❌'} ${name}`);
     const previousMode = $('modeSel').value;
+    const previousFirstNameGlobal = $('redactFirstNameGlobal').checked;
+    const previousSurnameGlobal = $('redactSurnameGlobal').checked;
 
-    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
-Email Martin@eMote.Ltd
-+44 77 202 89063
-RG6 1AA` });
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample Given Family', lastModifiedBy: 'Sample Family', fullText: `Sample FAMILY
+Email sample.person@example.org
++44 70 000 00000
+ZZ1 1ZZ` });
     state.matchLog = [];
 
-    const sampleInput = 'Martin FRY MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
+    const sampleInput = 'Sample FAMILY and Demo PERSON MBA https://example.com +44 70 000 00000 sample.person@example.org';
+
+    $('redactFirstNameGlobal').checked = false;
+    $('redactSurnameGlobal').checked = false;
 
     $('modeSel').value = 'aggressive';
     resetAuditState();
-    const aggressiveExpected = '[REDACTED_NAME_001] MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
-    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressive === aggressiveExpected);
+    const aggressiveNamesRedacted = !/\bSample\b|\bDemo\b|\bFAMILY\b/i.test(aggressive);
+    const aggressiveIdentifiersRedacted = aggressive.includes('[REDACTED_URL_001]') && aggressive.includes('[REDACTED_PHONE_001]') && aggressive.includes('[REDACTED_EMAIL_001]');
+    assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressiveNamesRedacted && aggressiveIdentifiersRedacted);
 
     $('modeSel').value = 'identity';
     state.piiCandidates = null;
     resetAuditState();
-    const identityExpected = 'Martin FRY MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identityExpected = 'Sample FAMILY and Demo PERSON MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
+    $('redactFirstNameGlobal').checked = true;
+    $('redactSurnameGlobal').checked = true;
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample Given Family', lastModifiedBy: 'Sample Family', fullText: sampleInput });
     resetAuditState();
-    const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
-    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');
+    const identityWithNameOptions = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
+    const hasNameToken = /\[REDACTED_NAME_TOKEN_\d{3}\]/.test(identityWithNameOptions);
+    const hidesEitherFullName = !identityWithNameOptions.includes('Sample FAMILY') || !identityWithNameOptions.includes('Demo PERSON');
+    assert('identity mode supports optional first-name and last-name redaction', hasNameToken && hidesEitherFullName);
 
-    const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
+    $('redactFirstNameGlobal').checked = false;
+    $('redactSurnameGlobal').checked = false;
+    resetAuditState();
+    const protectedToken = redactText('[REDACTED_NAME_001] Sample FAMILY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Sample FAMILY');
+
+    const splitXml = '<w:document><w:p><w:r><w:t>Sam</w:t></w:r><w:r><w:t>ple</w:t></w:r><w:r><w:t> USER</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
     assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
 
@@ -983,13 +1111,17 @@ RG6 1AA` });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
 
     $('modeSel').value = previousMode;
+    $('redactFirstNameGlobal').checked = previousFirstNameGlobal;
+    $('redactSurnameGlobal').checked = previousSurnameGlobal;
     updateInferenceControls();
+    updatePolicyLine();
     $('testsPane').textContent = out.join('\n');
   }
 
   $('testsBtn').addEventListener('click', runHarness);
   updateInferenceControls();
   updatePolicyLine();
+  updateModeUi();
 })();
 </script>
 </body>

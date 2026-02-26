@@ -232,7 +232,7 @@
       ? 'Mode help: Custom regex workflow active. Built-in identity inference and dictionary pseudonyms are disabled.'
       : (isAggressive
         ? 'Mode help: AI upload strict active. Full-name inference is enabled for CV/profile style text.'
-        : 'Mode help: AI upload safe active. Deterministic identifiers are redacted; enable first/last-name options if needed.');
+      : 'Mode help: AI upload safe active. Deterministic identifiers are redacted, and DOCX content always gets full-name detection across split runs.');
   }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
@@ -459,13 +459,18 @@
 
   function applyPseudonyms(text, context){
     const part = context.part || 'plainText';
+    const preserveLength = !!context.preserveLength;
     for (const [k] of state.pseudonyms.org){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
+      text = text.replace(re, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
     }
     for (const [k] of state.pseudonyms.client){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
+      text = text.replace(re, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
     }
     return text;
   }
@@ -729,23 +734,31 @@
     return selected.sort((a,b)=>a.start-b.start);
   }
 
+  function maskForLength(value){
+    return (value || '').replace(/[^\s]/g, '█');
+  }
+
   function applyEntityReplacements(text, matches, context = {}){
     const part = context.part || 'plainText';
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const token = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence, m.match || '');
-      if (!token) continue;
-      out = `${out.slice(0, m.start)}${token}${out.slice(m.end)}`;
+      const replacement = context.preserveLength
+        ? maskForLength(out.slice(m.start, m.end))
+        : allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence, m.match || '');
+      if (!replacement) continue;
+      out = `${out.slice(0, m.start)}${replacement}${out.slice(m.end)}`;
     }
     return out;
   }
 
   function redactText(rawText, context = {}){
     const part = context.part || 'plainText';
+    const isWordDocPart = /^word\/.+\.xml$/i.test(part);
     const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
     const mode = $('modeSel').value;
     const matchLog = context.matchLog || [];
+    const preserveLength = !!context.preserveLength;
     let text = rawText;
 
     const protectedTokens = [];
@@ -756,15 +769,15 @@
     });
 
     if (mode === 'identity' || mode === 'aggressive'){
-      text = applyPseudonyms(text, { part });
+      text = applyPseudonyms(text, { part, preserveLength });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
-        redactFullNameVariants: mode === 'aggressive' && $('redactFullNameVariants').checked,
+        enableIdentityInference: isWordDocPart || mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
+        redactFullNameVariants: isWordDocPart || (mode === 'aggressive' && $('redactFullNameVariants').checked),
         redactSurnameGlobal: $('redactSurnameGlobal').checked,
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
       const resolved = resolveOverlaps(text, detections);
-      text = applyEntityReplacements(text, resolved, { part });
+      text = applyEntityReplacements(text, resolved, { part, preserveLength });
 
       if (context.debugDetections){
         matchLog.push(...resolved.map(m => ({
@@ -777,9 +790,15 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
@@ -803,19 +822,27 @@
     if (!nodes.length) return { xml, before:'', after:'' };
 
     const before = nodes.map(n=>n.text).join('\u0001');
-    for (const n of nodes){
-      n.redacted = redactText(n.text, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+    const combined = nodes.map(n=>n.text).join('');
+    const combinedRedacted = redactText(combined, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked, preserveLength: true }).text;
+
+    let redactedCursor = 0;
+    for (let i=0;i<nodes.length;i++){
+      const n = nodes[i];
+      const isLast = i === nodes.length - 1;
+      const take = isLast ? (combinedRedacted.length - redactedCursor) : Math.max(0, Math.min(n.text.length, combinedRedacted.length - redactedCursor));
+      n.redacted = combinedRedacted.slice(redactedCursor, redactedCursor + take);
+      redactedCursor += take;
     }
 
     let out = '';
-    let cursor = 0;
+    let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
-      out += xml.slice(cursor, n.innerStart);
+      out += xml.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
-      cursor = n.innerEnd;
+      xmlCursor = n.innerEnd;
     }
-    out += xml.slice(cursor);
+    out += xml.slice(xmlCursor);
     return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
   }
 
@@ -1166,6 +1193,8 @@
     const previousMode = $('modeSel').value;
     const previousFirstNameGlobal = $('redactFirstNameGlobal').checked;
     const previousSurnameGlobal = $('redactSurnameGlobal').checked;
+    const previousOrgDict = $('orgDict').value;
+    const previousClientDict = $('clientDict').value;
 
     state.piiCandidates = buildPiiCandidates({ creator: 'Sample Given Family', lastModifiedBy: 'Sample Family', fullText: `Sample FAMILY
 Email sample.person@example.org
@@ -1209,7 +1238,22 @@ ZZ1 1ZZ` });
 
     const splitXml = '<w:document><w:p><w:r><w:t>Sam</w:t></w:r><w:r><w:t>ple</w:t></w:r><w:r><w:t> USER</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
-    assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
+    assert('split-token DOCX names are redacted across run boundaries', /█{3}\u0001█{3}\u0001█{4}/.test(mapped.after));
+
+    $('modeSel').value = 'identity';
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample User', lastModifiedBy: 'Sample User', fullText: 'Sample User' });
+    resetAuditState();
+    const identityDocxMapped = mapAndRewriteWT('<w:document><w:p><w:r><w:t>Sample</w:t></w:r><w:r><w:t> User</w:t></w:r></w:p></w:document>', 'word/document.xml');
+    assert('identity mode still redacts person names inside DOCX parts', /█{6}\u0001 █{4}/.test(identityDocxMapped.after));
+
+    const runLengths = [...identityDocxMapped.xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m => decodeXmlText(m[1]).length);
+    assert('DOCX run boundaries keep original character counts after redaction', runLengths.join(',') === '6,5');
+
+    $('orgDict').value = 'Acme Council';
+    $('clientDict').value = '';
+    buildPseudonymMaps();
+    const pseudonymDocx = mapAndRewriteWT('<w:document><w:p><w:r><w:t>Acme</w:t></w:r><w:r><w:t> Council</w:t></w:r></w:p></w:document>', 'word/document.xml');
+    assert('DOCX preserve-length mode does not inject broken token fragments for pseudonyms', /█{4}\u0001 █{7}/.test(pseudonymDocx.after));
 
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
@@ -1226,6 +1270,9 @@ ZZ1 1ZZ` });
     $('modeSel').value = previousMode;
     $('redactFirstNameGlobal').checked = previousFirstNameGlobal;
     $('redactSurnameGlobal').checked = previousSurnameGlobal;
+    $('orgDict').value = previousOrgDict;
+    $('clientDict').value = previousClientDict;
+    buildPseudonymMaps();
     updateInferenceControls();
     updatePolicyLine();
     $('testsPane').textContent = out.join('\n');

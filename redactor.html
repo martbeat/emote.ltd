@@ -459,13 +459,18 @@
 
   function applyPseudonyms(text, context){
     const part = context.part || 'plainText';
+    const preserveLength = !!context.preserveLength;
     for (const [k] of state.pseudonyms.org){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
+      text = text.replace(re, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
     }
     for (const [k] of state.pseudonyms.client){
       const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
+      text = text.replace(re, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
     }
     return text;
   }
@@ -729,6 +734,10 @@
     return selected.sort((a,b)=>a.start-b.start);
   }
 
+  function maskForLength(value){
+    return (value || '').replace(/[^\s]/g, '█');
+  }
+
   function applyEntityReplacements(text, matches, context = {}){
     const part = context.part || 'plainText';
     let out = text;
@@ -747,6 +756,7 @@
     const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
     const mode = $('modeSel').value;
     const matchLog = context.matchLog || [];
+    const preserveLength = !!context.preserveLength;
     let text = rawText;
 
     const protectedTokens = [];
@@ -757,7 +767,7 @@
     });
 
     if (mode === 'identity' || mode === 'aggressive'){
-      text = applyPseudonyms(text, { part });
+      text = applyPseudonyms(text, { part, preserveLength });
       const detections = detectEntities(text, state.piiCandidates, {
         enableIdentityInference: isWordDocPart || mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
         redactFullNameVariants: isWordDocPart || (mode === 'aggressive' && $('redactFullNameVariants').checked),
@@ -765,7 +775,7 @@
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
       const resolved = resolveOverlaps(text, detections);
-      text = applyEntityReplacements(text, resolved, { part });
+      text = applyEntityReplacements(text, resolved, { part, preserveLength });
 
       if (context.debugDetections){
         matchLog.push(...resolved.map(m => ({
@@ -778,9 +788,15 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
+      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => preserveLength
+        ? maskForLength(match)
+        : allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');

@@ -287,6 +287,44 @@
     return phrase.replace(/\s+/g, ' ').replace(/^['"\s]+|['"\s]+$/g, '').trim();
   }
 
+
+  function extractTranscriptSpeakerNames(text){
+    const names = new Set();
+    const anchored = /(?:^|[\n\u0001])\s*([\p{Lu}][\p{L}'’-]{1,}),\s*([\p{Lu}][\p{L}'’-]{1,})(?:\s*[\u0001\s]*\d{1,2}:\d{2})?/gu;
+    const inline = /([\p{Lu}][\p{L}'’-]{1,}),\s*([\p{Lu}][\p{L}'’-]{1,})(?:\s+\d{1,2}:\d{2})?/gu;
+
+    for (const re of [anchored, inline]){
+      for (const m of text.matchAll(re)){
+        const surname = m[1];
+        const first = m[2];
+        if (!surname || !first) continue;
+        const tokens = splitNameTokens(`${first} ${surname}`);
+        if (tokens.length < 2) continue;
+        names.add(`${first} ${surname}`);
+        names.add(`${surname}, ${first}`);
+      }
+    }
+    return [...names];
+  }
+
+  function levenshtein(a, b){
+    const x = (a || '').toLowerCase();
+    const y = (b || '').toLowerCase();
+    if (x === y) return 0;
+    if (!x.length) return y.length;
+    if (!y.length) return x.length;
+    const dp = Array.from({ length: x.length + 1 }, () => new Array(y.length + 1).fill(0));
+    for (let i = 0; i <= x.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= y.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= x.length; i++){
+      for (let j = 1; j <= y.length; j++){
+        const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      }
+    }
+    return dp[x.length][y.length];
+  }
+
   function extractCueBasedPersonNames(text){
     const found = new Set();
     const honorificWords = [...PERSON_HONORIFICS].map(escapeRegExp).join('|');
@@ -323,6 +361,7 @@
     extractIdentityZoneFullNames(text, candidates).forEach(add);
     extractLikelyPersonNames(text, candidates).forEach(v => add(v.phrase));
     extractCueBasedPersonNames(text).forEach(add);
+    extractTranscriptSpeakerNames(text).forEach(add);
 
     return [...phrases];
   }
@@ -372,6 +411,9 @@
     const cueNames = extractCueBasedPersonNames(inputs.fullText || '');
     cueNames.flatMap(splitNameTokens).forEach(t => addToken(t, 0.91, 'contextCue'));
 
+    const transcriptNames = extractTranscriptSpeakerNames(inputs.fullText || '');
+    transcriptNames.flatMap(splitNameTokens).forEach(t => addToken(t, 0.97, 'transcriptSpeaker'));
+
     const caps = extractAllCapsNearTop(inputs.fullText || '').map(w => w.toLowerCase());
     caps.forEach(t => addToken(t, 0.75, 'allCapsTop'));
 
@@ -385,6 +427,7 @@
     const surname = tokenObjects.find(t => t.token !== first)?.token || '';
     const fullNameVariants = [];
     if (headerData.phrase) fullNameVariants.push(headerData.phrase);
+    transcriptNames.forEach(v => fullNameVariants.push(v));
     if (first && surname){
       fullNameVariants.push(`${titleCase(first)} ${titleCase(surname)}`);
       fullNameVariants.push(`${titleCase(first)} ${surname.toUpperCase()}`);
@@ -650,6 +693,14 @@
           if (tokens.length < 2 || tokens.length > 3) continue;
           if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
           pushMatch({ start: m.index, end: m.index + phrase.length, type: 'FULL_NAME', confidence: 0.89, match: phrase, rule: 'regex.full_name_generic' });
+        }
+
+        const speakerCommaNameRe = /([\p{Lu}][\p{L}'’-]{1,}),\s*([\p{Lu}][\p{L}'’-]{1,})(?=\s*(?:[\u0001 ]*\d{1,2}:\d{2}|[\u0001\n]|$))/gu;
+        for (const m of text.matchAll(speakerCommaNameRe)){
+          const phrase = `${m[1]}, ${m[2]}`;
+          const tokens = splitNameTokens(phrase);
+          if (tokens.length < 2) continue;
+          pushMatch({ start: m.index, end: m.index + m[0].length, type: 'FULL_NAME', confidence: 0.93, match: m[0], rule: 'regex.speaker_comma_name' });
         }
       }
     }
@@ -1163,6 +1214,14 @@ ZZ1 1ZZ` });
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
+
+    const transcriptInput = "Transcript\u000131 October 2025\u0001Mahmood, Mohsin\u00010:57\u0001Mr Frey.\u0001Fry, Martin\u00011:01\u0001Hi all.";
+    state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: transcriptInput });
+    $('modeSel').value = 'aggressive';
+    resetAuditState();
+    const transcriptOut = redactText(transcriptInput, { part: 'test', matchLog: [] }).text;
+    assert('transcript speaker format and honorific surname are redacted', !/Mahmood, Mohsin|Fry, Martin|Mr Frey/i.test(transcriptOut));
+
 
     $('modeSel').value = previousMode;
     $('redactFirstNameGlobal').checked = previousFirstNameGlobal;

@@ -232,7 +232,7 @@
       ? 'Mode help: Custom regex workflow active. Built-in identity inference and dictionary pseudonyms are disabled.'
       : (isAggressive
         ? 'Mode help: AI upload strict active. Full-name inference is enabled for CV/profile style text.'
-        : 'Mode help: AI upload safe active. Deterministic identifiers are redacted; enable first/last-name options if needed.');
+      : 'Mode help: AI upload safe active. Deterministic identifiers are redacted, and DOCX content always gets full-name detection across split runs.');
   }
   const setStatus = msg => { $('status').textContent = msg; };
   const textEncoder = new TextEncoder();
@@ -743,6 +743,7 @@
 
   function redactText(rawText, context = {}){
     const part = context.part || 'plainText';
+    const isWordDocPart = /^word\/.+\.xml$/i.test(part);
     const whitelist = $('whitelist').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
     const mode = $('modeSel').value;
     const matchLog = context.matchLog || [];
@@ -758,8 +759,8 @@
     if (mode === 'identity' || mode === 'aggressive'){
       text = applyPseudonyms(text, { part });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
-        redactFullNameVariants: mode === 'aggressive' && $('redactFullNameVariants').checked,
+        enableIdentityInference: isWordDocPart || mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
+        redactFullNameVariants: isWordDocPart || (mode === 'aggressive' && $('redactFullNameVariants').checked),
         redactSurnameGlobal: $('redactSurnameGlobal').checked,
         redactFirstNameGlobal: $('redactFirstNameGlobal').checked
       });
@@ -803,19 +804,27 @@
     if (!nodes.length) return { xml, before:'', after:'' };
 
     const before = nodes.map(n=>n.text).join('\u0001');
-    for (const n of nodes){
-      n.redacted = redactText(n.text, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+    const combined = nodes.map(n=>n.text).join('');
+    const combinedRedacted = redactText(combined, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
+
+    let redactedCursor = 0;
+    for (let i=0;i<nodes.length;i++){
+      const n = nodes[i];
+      const isLast = i === nodes.length - 1;
+      const take = isLast ? (combinedRedacted.length - redactedCursor) : Math.max(0, Math.min(n.text.length, combinedRedacted.length - redactedCursor));
+      n.redacted = combinedRedacted.slice(redactedCursor, redactedCursor + take);
+      redactedCursor += take;
     }
 
     let out = '';
-    let cursor = 0;
+    let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
-      out += xml.slice(cursor, n.innerStart);
+      out += xml.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
-      cursor = n.innerEnd;
+      xmlCursor = n.innerEnd;
     }
-    out += xml.slice(cursor);
+    out += xml.slice(xmlCursor);
     return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
   }
 
@@ -1209,7 +1218,13 @@ ZZ1 1ZZ` });
 
     const splitXml = '<w:document><w:p><w:r><w:t>Sam</w:t></w:r><w:r><w:t>ple</w:t></w:r><w:r><w:t> USER</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
-    assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
+    assert('split-token DOCX names are redacted across run boundaries', mapped.after.includes('[REDACTED_NAME_001]'));
+
+    $('modeSel').value = 'identity';
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample User', lastModifiedBy: 'Sample User', fullText: 'Sample User' });
+    resetAuditState();
+    const identityDocxMapped = mapAndRewriteWT('<w:document><w:p><w:r><w:t>Sample</w:t></w:r><w:r><w:t> User</w:t></w:r></w:p></w:document>', 'word/document.xml');
+    assert('identity mode still redacts person names inside DOCX parts', identityDocxMapped.after.includes('[REDACTED_NAME_001]'));
 
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });

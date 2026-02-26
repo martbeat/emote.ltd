@@ -136,6 +136,8 @@
   const NAME_PARTICLES = new Set(['de','da','del','della','di','du','la','le','van','von','bin','bint','binti','ibn','al','el','st','st.']);
   const ORGISH_TERMS = new Set(['ltd','limited','llp','plc','inc','corp','company','council','trust','university','college','school','department','team']);
   const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
+  const PERSON_HONORIFICS = new Set(['mr','mrs','ms','miss','mx','dr','prof','sir','madam','dame','lord','lady','sheikh','shaykh']);
+  const PERSON_CONTEXT_WORDS = new Set(['name','candidate','applicant','author','prepared','written','signed','manager','consultant','advisor','speaker','presenter','director']);
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
@@ -257,7 +259,7 @@
       .split(/\s+/)
       .map(t=>t.trim().toLowerCase())
       .filter(Boolean)
-      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t) && !NAME_PARTICLES.has(t));
+      .filter(t=>t.length>1 && !NAME_STOPWORDS.has(t) && !NAME_CONTEXT_STOPWORDS.has(t) && !PERSON_CONTEXT_WORDS.has(t) && !JUNK_EMAIL_TOKENS.has(t) && !NAME_PARTICLES.has(t));
     return [...new Set(base)];
   }
 
@@ -268,18 +270,63 @@
     const block = headerLines.join('\n').slice(0, HEADER_SCAN_CHARS);
     const lines = block.split(/\r?\n/);
     for (const line of lines){
-      const clean = line.replace(/[^A-Za-z\s']/g,' ').trim();
+      const clean = line.replace(/[^\p{L}\s'’-]/gu,' ').trim();
       if (!clean) continue;
       const words = clean.split(/\s+/).filter(Boolean);
-      if (words.length < 2 || words.length > 4) continue;
+      if (words.length < 2 || words.length > 5) continue;
       if (words.some(w => NAME_CONTEXT_STOPWORDS.has(w.toLowerCase()) || ORGISH_TERMS.has(w.toLowerCase()))) continue;
-      const caps = words.filter(w => /^[A-Z][a-z]+$/.test(w) || /^[A-Z]{2,}$/.test(w));
-      if (caps.length >= 2){
+      const nameLike = words.filter(w => /^[\p{Lu}][\p{L}'’-]{1,}$/u.test(w) || /^[\p{Lu}]{2,}$/u.test(w));
+      if (nameLike.length >= 2){
         return { phrase: words.join(' '), tokens: splitNameTokens(words.join(' ')), headerBlock: block };
       }
     }
     return { phrase: '', tokens: [], headerBlock: block };
   }
+
+  function normalizeNamePhrase(phrase){
+    return phrase.replace(/\s+/g, ' ').replace(/^['"\s]+|['"\s]+$/g, '').trim();
+  }
+
+  function extractCueBasedPersonNames(text){
+    const found = new Set();
+    const honorificWords = [...PERSON_HONORIFICS].map(escapeRegExp).join('|');
+    const contextWords = [...PERSON_CONTEXT_WORDS].map(escapeRegExp).join('|');
+    const namePart = "[\p{Lu}][\p{L}'’-]{1,}";
+    const particles = "(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?)";
+    const personPhrase = `(${namePart}(?:[ \t]+(?:${namePart}|${particles})){1,3})`;
+
+    const honorificPattern = new RegExp(`\b(?:${honorificWords})\.?\s+${personPhrase}\b`, 'giu');
+    const contextPattern = new RegExp(`\b(?:${contextWords})(?:\s+by)?\s*[:\-]\s*${personPhrase}\b`, 'giu');
+
+    for (const m of text.matchAll(honorificPattern)){
+      const phrase = normalizeNamePhrase(m[1] || '');
+      if (splitNameTokens(phrase).length >= 2) found.add(phrase);
+    }
+    for (const m of text.matchAll(contextPattern)){
+      const phrase = normalizeNamePhrase(m[1] || '');
+      if (splitNameTokens(phrase).length >= 2) found.add(phrase);
+    }
+    return [...found];
+  }
+
+  function collectCandidateNamePhrases(text, candidates){
+    const phrases = new Set();
+    const add = phrase => {
+      const clean = normalizeNamePhrase(phrase || '');
+      const tokens = splitNameTokens(clean);
+      if (tokens.length < 2 || tokens.length > 4) return;
+      if (tokens.some(t => NAME_STOPWORDS.has(t) || NAME_CONTEXT_STOPWORDS.has(t) || PERSON_CONTEXT_WORDS.has(t) || ORGISH_TERMS.has(t))) return;
+      phrases.add(clean);
+    };
+
+    (candidates?.fullNameVariants || []).forEach(add);
+    extractIdentityZoneFullNames(text, candidates).forEach(add);
+    extractLikelyPersonNames(text, candidates).forEach(v => add(v.phrase));
+    extractCueBasedPersonNames(text).forEach(add);
+
+    return [...phrases];
+  }
+
 
   function extractEmailLocalTokens(text){
     const locals = [];
@@ -321,6 +368,9 @@
 
     const headerData = extractHeaderNamePhrase(inputs.fullText || '');
     headerData.tokens.forEach(t => addToken(t, 0.88, 'header'));
+
+    const cueNames = extractCueBasedPersonNames(inputs.fullText || '');
+    cueNames.flatMap(splitNameTokens).forEach(t => addToken(t, 0.91, 'contextCue'));
 
     const caps = extractAllCapsNearTop(inputs.fullText || '').map(w => w.toLowerCase());
     caps.forEach(t => addToken(t, 0.75, 'allCapsTop'));
@@ -448,7 +498,7 @@
 
     const inferredFirstTokens = new Set(firstToken ? [firstToken] : []);
     const inferredSurnames = new Set(surname ? [surname] : []);
-    for (const phrase of [...(candidates.fullNameVariants || []), ...extractIdentityZoneFullNames(text, candidates), ...extractLikelyPersonNames(text, candidates).map(v => v.phrase)]){
+    for (const phrase of collectCandidateNamePhrases(text, candidates)){
       const parts = splitNameTokens(phrase);
       if (parts.length < 2) continue;
       inferredFirstTokens.add(parts[0]);
@@ -456,6 +506,10 @@
     }
 
     if (opts.redactFullNameVariants){
+      for (const phrase of collectCandidateNamePhrases(text, candidates)){
+        addRegexMatches(new RegExp(`\b${escapeRegExp(phrase)}\b`, 'igu'), 'FULL_NAME', 0.94);
+      }
+
       for (const variant of candidates.fullNameVariants || []){
         addRegexMatches(new RegExp(`\\b${escapeRegExp(variant)}\\b`, 'igu'), 'FULL_NAME', 0.95);
       }
@@ -511,12 +565,12 @@
     const zone = text.slice(0, 6000);
     const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
     const found = [];
-    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
+    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:[ \t]+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
     for (const m of zone.matchAll(namePhraseRe)){
       const phrase = m[1].trim();
       const lowered = splitNameTokens(phrase);
       if (lowered.length < 2 || lowered.length > 3) continue;
-      if (lowered.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
+      if (lowered.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || PERSON_CONTEXT_WORDS.has(t) || ORGISH_TERMS.has(t))) continue;
       const hasCandidateSupport = lowered.some(t => candidateTokens.has(t));
       if (!hasCandidateSupport) continue;
       found.push(phrase);
@@ -527,7 +581,7 @@
   function extractLikelyPersonNames(text, candidates){
     const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
     const found = new Map();
-    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
+    const namePhraseRe = /\b([\p{Lu}][\p{L}'’-]{1,}(?:[ \t]+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,3})\b/gu;
 
     for (const m of text.matchAll(namePhraseRe)){
       let phrase = m[1].trim();
@@ -536,7 +590,7 @@
         phrase = phrase.split(/\s+/).slice(0, -1).join(' ');
         rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
       }
-      if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w))) continue;
+      if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w) || PERSON_CONTEXT_WORDS.has(w))) continue;
       const tokens = splitNameTokens(phrase);
       if (tokens.length < 2 || tokens.length > 3) continue;
       if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
@@ -583,7 +637,7 @@
       for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
 
       if (opts.redactFullNameVariants){
-        const genericNameRe = /\b[\p{Lu}][\p{L}'’-]{1,}(?:\s+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,2}\b/gu;
+        const genericNameRe = /\b[\p{Lu}][\p{L}'’-]{1,}(?:[ \t]+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,2}\b/gu;
         for (const m of text.matchAll(genericNameRe)){
           let phrase = m[0].trim();
           let rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
@@ -591,7 +645,7 @@
             phrase = phrase.split(/\s+/).slice(0, -1).join(' ');
             rawWords = phrase.split(/\s+/).map(w => w.toLowerCase().replace(/[^\p{L}'’-]/gu, ''));
           }
-          if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w))) continue;
+          if (rawWords.some(w => NAME_STOPWORDS.has(w) || NAME_CONTEXT_STOPWORDS.has(w) || PERSON_CONTEXT_WORDS.has(w))) continue;
           const tokens = splitNameTokens(phrase);
           if (tokens.length < 2 || tokens.length > 3) continue;
           if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;

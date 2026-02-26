@@ -743,9 +743,7 @@
     let out = text;
     const byEnd = [...matches].sort((a,b)=>b.start-a.start);
     for (const m of byEnd){
-      const replacement = context.preserveLength
-        ? maskForLength(out.slice(m.start, m.end))
-        : allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence, m.match || '');
+      const replacement = allocToken(m.type, m.rule || 'regex.unknown', part, m.start, m.end, m.confidence, m.match || '');
       if (!replacement) continue;
       out = `${out.slice(0, m.start)}${replacement}${out.slice(m.end)}`;
     }
@@ -823,7 +821,7 @@
 
     const before = nodes.map(n=>n.text).join('\u0001');
     const combined = nodes.map(n=>n.text).join('');
-    const combinedRedacted = redactText(combined, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked, preserveLength: true }).text;
+    const combinedRedacted = redactText(combined, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
 
     let redactedCursor = 0;
     for (let i=0;i<nodes.length;i++){
@@ -1238,22 +1236,14 @@ ZZ1 1ZZ` });
 
     const splitXml = '<w:document><w:p><w:r><w:t>Sam</w:t></w:r><w:r><w:t>ple</w:t></w:r><w:r><w:t> USER</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
-    assert('split-token DOCX names are redacted across run boundaries', /█{3}\u0001█{3}\u0001█{4}/.test(mapped.after));
+    assert('split-token DOCX names are redacted across run boundaries', mapped.after.includes('[REDACTED_NAME_001]'));
 
     $('modeSel').value = 'identity';
     state.piiCandidates = buildPiiCandidates({ creator: 'Sample User', lastModifiedBy: 'Sample User', fullText: 'Sample User' });
     resetAuditState();
     const identityDocxMapped = mapAndRewriteWT('<w:document><w:p><w:r><w:t>Sample</w:t></w:r><w:r><w:t> User</w:t></w:r></w:p></w:document>', 'word/document.xml');
-    assert('identity mode still redacts person names inside DOCX parts', /█{6}\u0001 █{4}/.test(identityDocxMapped.after));
+    assert('identity mode still redacts person names inside DOCX parts', identityDocxMapped.after.includes('[REDACTED_NAME_001]'));
 
-    const runLengths = [...identityDocxMapped.xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m => decodeXmlText(m[1]).length);
-    assert('DOCX run boundaries keep original character counts after redaction', runLengths.join(',') === '6,5');
-
-    $('orgDict').value = 'Acme Council';
-    $('clientDict').value = '';
-    buildPseudonymMaps();
-    const pseudonymDocx = mapAndRewriteWT('<w:document><w:p><w:r><w:t>Acme</w:t></w:r><w:r><w:t> Council</w:t></w:r></w:p></w:document>', 'word/document.xml');
-    assert('DOCX preserve-length mode does not inject broken token fragments for pseudonyms', /█{4}\u0001 █{7}/.test(pseudonymDocx.after));
 
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });

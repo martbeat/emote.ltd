@@ -807,24 +807,24 @@
     const combined = nodes.map(n=>n.text).join('');
     const combinedRedacted = redactText(combined, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
 
-    let cursor = 0;
+    let redactedCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
       const isLast = i === nodes.length - 1;
-      const take = isLast ? (combinedRedacted.length - cursor) : Math.max(0, Math.min(n.text.length, combinedRedacted.length - cursor));
-      n.redacted = combinedRedacted.slice(cursor, cursor + take);
-      cursor += take;
+      const take = isLast ? (combinedRedacted.length - redactedCursor) : Math.max(0, Math.min(n.text.length, combinedRedacted.length - redactedCursor));
+      n.redacted = combinedRedacted.slice(redactedCursor, redactedCursor + take);
+      redactedCursor += take;
     }
 
     let out = '';
-    let cursor = 0;
+    let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
-      out += xml.slice(cursor, n.innerStart);
+      out += xml.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
-      cursor = n.innerEnd;
+      xmlCursor = n.innerEnd;
     }
-    out += xml.slice(cursor);
+    out += xml.slice(xmlCursor);
     return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
   }
 

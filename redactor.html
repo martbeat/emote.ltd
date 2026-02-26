@@ -1041,16 +1041,13 @@
     const previousFirstNameGlobal = $('redactFirstNameGlobal').checked;
     const previousSurnameGlobal = $('redactSurnameGlobal').checked;
 
-    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: `Martin FRY
-Email Martin@eMote.Ltd
-+44 77 202 89063
-RG6 1AA` });
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample Given Family', lastModifiedBy: 'Sample Family', fullText: `Sample FAMILY
+Email sample.person@example.org
++44 70 000 00000
+ZZ1 1ZZ` });
     state.matchLog = [];
 
-    const sampleInput = 'Martin FRY and Paddy Coleman MBA https://example.com +44 77 202 89063 Martin@eMote.Ltd';
-
-    $('redactFirstNameGlobal').checked = false;
-    $('redactSurnameGlobal').checked = false;
+    const sampleInput = 'Sample FAMILY and Demo PERSON MBA https://example.com +44 70 000 00000 sample.person@example.org';
 
     $('redactFirstNameGlobal').checked = false;
     $('redactSurnameGlobal').checked = false;
@@ -1058,33 +1055,33 @@ RG6 1AA` });
     $('modeSel').value = 'aggressive';
     resetAuditState();
     const aggressive = redactText(sampleInput, { part: 'test', matchLog: state.matchLog }).text;
-    const aggressiveNamesRedacted = !/\bMartin\b|\bPaddy\b|\bColeman\b/i.test(aggressive);
+    const aggressiveNamesRedacted = !/\bSample\b|\bDemo\b|\bFAMILY\b/i.test(aggressive);
     const aggressiveIdentifiersRedacted = aggressive.includes('[REDACTED_URL_001]') && aggressive.includes('[REDACTED_PHONE_001]') && aggressive.includes('[REDACTED_EMAIL_001]');
     assert('aggressive mode redacts inferred names plus deterministic identifiers', aggressiveNamesRedacted && aggressiveIdentifiersRedacted);
 
     $('modeSel').value = 'identity';
     state.piiCandidates = null;
     resetAuditState();
-    const identityExpected = 'Martin FRY and Paddy Coleman MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
+    const identityExpected = 'Sample FAMILY and Demo PERSON MBA [REDACTED_URL_001] [REDACTED_PHONE_001] [REDACTED_EMAIL_001]';
     const identity = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     assert('identity mode redacts deterministic identifiers without name inference', identity === identityExpected);
 
     $('redactFirstNameGlobal').checked = true;
     $('redactSurnameGlobal').checked = true;
-    state.piiCandidates = buildPiiCandidates({ creator: 'Martin Jon Fry', lastModifiedBy: 'Martin Fry', fullText: sampleInput });
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample Given Family', lastModifiedBy: 'Sample Family', fullText: sampleInput });
     resetAuditState();
     const identityWithNameOptions = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
     const hasNameToken = /\[REDACTED_NAME_TOKEN_\d{3}\]/.test(identityWithNameOptions);
-    const hidesEitherFullName = !identityWithNameOptions.includes('Martin FRY') || !identityWithNameOptions.includes('Paddy Coleman');
+    const hidesEitherFullName = !identityWithNameOptions.includes('Sample FAMILY') || !identityWithNameOptions.includes('Demo PERSON');
     assert('identity mode supports optional first-name and last-name redaction', hasNameToken && hidesEitherFullName);
 
     $('redactFirstNameGlobal').checked = false;
     $('redactSurnameGlobal').checked = false;
     resetAuditState();
-    const protectedToken = redactText('[REDACTED_NAME_001] Martin FRY', { part: 'test', matchLog: [] }).text;
-    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Martin FRY');
+    const protectedToken = redactText('[REDACTED_NAME_001] Sample FAMILY', { part: 'test', matchLog: [] }).text;
+    assert('never redact inside existing redacted tokens', protectedToken === '[REDACTED_NAME_001] Sample FAMILY');
 
-    const splitXml = '<w:document><w:p><w:r><w:t>Mar</w:t></w:r><w:r><w:t>tin</w:t></w:r><w:r><w:t> FRY</w:t></w:r></w:p></w:document>';
+    const splitXml = '<w:document><w:p><w:r><w:t>Sam</w:t></w:r><w:r><w:t>ple</w:t></w:r><w:r><w:t> USER</w:t></w:r></w:p></w:document>';
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
     assert('split-token redaction does not reconstruct DOCX runs', !mapped.after.includes('[REDACTED_NAME]'));
 

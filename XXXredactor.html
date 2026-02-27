@@ -814,7 +814,7 @@
     }
     if (!nodes.length) return { xml, before:'', after:'' };
 
-    const before = nodes.map(n=>n.text).join('\u0001');
+    const before = nodes.map(n=>n.text).join('');
     for (const n of nodes){
       n.redacted = redactText(n.text, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
     }
@@ -828,7 +828,7 @@
       cursor = n.innerEnd;
     }
     out += xml.slice(cursor);
-    return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
+    return { xml: out, before, after: nodes.map(n=>n.redacted).join('') };
   }
 
   function scrubSettingsXml(xml){

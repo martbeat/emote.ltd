@@ -981,7 +981,7 @@
 
     let creator = '';
     let lastModifiedBy = '';
-    let docTextForCandidates = '';
+    const docxCandidateChunks = [];
     for (const [name,obj] of files){
       const xml = textDecoder.decode(obj.data);
       if (name === 'docProps/core.xml'){
@@ -989,16 +989,15 @@
         creator = props.creator;
         lastModifiedBy = props.lastModifiedBy;
       }
-      if (name === 'word/document.xml'){
+      if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
         const textBits = [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m=>decodeXmlText(m[1]));
-        docTextForCandidates += textBits.join('');
+        if (textBits.length) docxCandidateChunks.push(textBits.join('\n'));
       }
     }
 
     const plain = $('plainInput').value || '';
-    state.piiCandidates = isInferenceMode()
-      ? buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() })
-      : null;
+    const docTextForCandidates = docxCandidateChunks.join('\n');
+    state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
 
     for (const [name,obj] of files){
       let xml = textDecoder.decode(obj.data);
@@ -1254,6 +1253,13 @@ ZZ1 1ZZ` });
     const mapped = mapAndRewriteWT(splitXml, 'word/document.xml');
     assert('split-token DOCX names are redacted across run boundaries', mapped.after.includes('[REDACTED_NAME_001]'));
     assert('DOCX boundary slicing does not split redaction tokens across runs', !mapped.after.split('\u0001').some(seg => /\[REDACTED_[^\]]*$|^[^\[]*REDACTED_[A-Z0-9_]+_\d{3}\]/.test(seg)));
+
+    $('modeSel').value = 'identity';
+    const userTranscriptInput = "Transcript\u000111 February 2026, 12:59pm\u0001Onile-Ere, Ola\u00010:24\u0001It.\u0001Fry, Martin\u00010:27\u0001Hello.\u0001Snelling, Nicola\u00010:36\u0001Hi, Martin. Hi, Ola.";
+    state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: userTranscriptInput });
+    resetAuditState();
+    const userTranscriptOut = mapAndRewriteWT(`<w:document><w:p><w:r><w:t>${encodeXmlText(userTranscriptInput)}</w:t></w:r></w:p></w:document>`, 'word/document.xml').after;
+    assert('DOCX transcript-style speaker names are redacted', !/Onile-Ere, Ola|Fry, Martin|Snelling, Nicola/i.test(userTranscriptOut));
 
     $('modeSel').value = 'identity';
     state.piiCandidates = buildPiiCandidates({ creator: 'Sample User', lastModifiedBy: 'Sample User', fullText: 'Sample User' });

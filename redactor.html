@@ -1375,7 +1375,7 @@ ZZ1 1ZZ` });
     state.piiCandidates = buildPiiCandidates({ creator: 'Sample Given Family', lastModifiedBy: 'Sample Family', fullText: sampleInput });
     resetAuditState();
     const identityWithNameOptions = redactText(sampleInput, { part: 'test', matchLog: [] }).text;
-    const hasNameToken = /\[REDACTED_NAME_TOKEN_\d{3}\]/.test(identityWithNameOptions);
+    const hasNameToken = /\[REDACTED_NAME_\d{3}\]/.test(identityWithNameOptions);
     const hidesEitherFullName = !identityWithNameOptions.includes('Sample FAMILY') || !identityWithNameOptions.includes('Demo PERSON');
     assert('identity mode supports optional first-name and last-name redaction', hasNameToken && hidesEitherFullName);
 

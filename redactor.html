@@ -98,8 +98,8 @@
     <div class="bd">
       <div class="grid">
         <div>
-          <label>Before (extracted plain text)</label>
-          <pre id="beforePane">—</pre>
+          <label>Before (redaction source text)</label>
+          <textarea id="beforePane" placeholder="Source text used for redaction."></textarea>
         </div>
         <div>
           <label>After (redacted plain text)</label>
@@ -1249,7 +1249,10 @@
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-      const plain = $('plainInput').value || '';
+      const beforeSource = $('beforePane').value.trim();
+      const plain = beforeSource && beforeSource !== '—'
+        ? $('beforePane').value
+        : ($('plainInput').value || '');
 
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
@@ -1266,7 +1269,7 @@
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-      $('beforePane').textContent = state.originalText || '—';
+      $('beforePane').value = state.originalText || '';
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();
@@ -1291,6 +1294,9 @@
   });
 
   $('runBtn').addEventListener('click', runRedaction);
+  $('plainInput').addEventListener('input', ()=>{
+    if (!$('beforePane').value.trim()) $('beforePane').value = $('plainInput').value;
+  });
   $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); updateModeUi(); });
   $('orgDict').addEventListener('input', updatePolicyLine);
   $('clientDict').addEventListener('input', updatePolicyLine);

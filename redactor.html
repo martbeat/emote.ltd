@@ -25,6 +25,9 @@
   th,td{border-bottom:1px solid #2a3352;padding:6px;text-align:left}
   .ok{color:#90f7b6}.bad{color:#ff9f9f}.muted{color:#aeb8da;font-size:12px}
   .pill{padding:3px 8px;background:#0d1328;border:1px solid #34426e;border-radius:999px;font-size:12px}
+  .toggle-list{display:grid;gap:6px;margin-top:6px}
+  .toggle-row{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:#e9ecf6}
+  .toggle-row input{width:auto;flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -53,15 +56,18 @@
       </div>
       <div id="modeHelp" class="muted" style="margin-top:8px">Mode help: Use AI upload safe for standard PII, AI upload strict for CV-style name inference, or Custom for explicit regex rules.</div>
       <div id="policyLine" class="muted" style="margin-top:6px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
-      <label>Name redaction controls</label>
-      <div class="row">
-        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact last names globally if high confidence</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first names globally if high confidence</label>
+      <label>Redaction categories</label>
+      <div class="toggle-list">
+        <label class="toggle-row"><input id="redactFullNameVariants" type="checkbox" checked /><span>Full name</span></label>
+        <label class="toggle-row"><input id="redactFirstNameGlobal" type="checkbox" /><span>First Name</span></label>
+        <label class="toggle-row"><input id="redactSurnameGlobal" type="checkbox" /><span>Last Name</span></label>
+        <label class="toggle-row"><input id="redactCompanies" type="checkbox" checked /><span>Companies</span></label>
+        <label class="toggle-row"><input id="redactEmails" type="checkbox" checked /><span>Emails</span></label>
+        <label class="toggle-row"><input id="redactPhoneNumbers" type="checkbox" checked /><span>Phone Numbers</span></label>
+        <label class="toggle-row"><input id="redactAddresses" type="checkbox" checked /><span>Addresses</span></label>
+        <label class="toggle-row"><input id="redactPostcodes" type="checkbox" checked /><span>Postcodes</span></label>
+        <label class="toggle-row"><input id="redactDates" type="checkbox" checked /><span>Dates</span></label>
+        <label class="toggle-row"><input id="redactMetrics" type="checkbox" checked /><span>Other metrics</span></label>
       </div>
       <div class="row">
         <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
@@ -158,6 +164,7 @@
     PHONE: 4,
     URL: 3,
     POSTCODE: 2,
+    ADDRESS: 2,
     NAME_TOKEN: 1
   };
 
@@ -168,6 +175,7 @@
     PHONE: 'PHONE',
     URL: 'URL',
     POSTCODE: 'POSTCODE',
+    ADDRESS: 'ADDRESS',
     USERNAME: 'USERNAME',
     DATE: 'DATE',
     METRIC: 'METRIC',
@@ -203,6 +211,21 @@
     return $('modeSel').value === 'aggressive';
   }
 
+  function getRedactionToggles(){
+    return {
+      fullName: $('redactFullNameVariants').checked,
+      firstName: $('redactFirstNameGlobal').checked,
+      lastName: $('redactSurnameGlobal').checked,
+      companies: $('redactCompanies').checked,
+      emails: $('redactEmails').checked,
+      phoneNumbers: $('redactPhoneNumbers').checked,
+      addresses: $('redactAddresses').checked,
+      postcodes: $('redactPostcodes').checked,
+      dates: $('redactDates').checked,
+      metrics: $('redactMetrics').checked
+    };
+  }
+
   function updateInferenceControls(){
     const enabled = isInferenceMode();
     $('redactFullNameVariants').disabled = !enabled;
@@ -228,6 +251,13 @@
     $('clientDict').disabled = isCustom;
     $('redactFirstNameGlobal').disabled = isCustom;
     $('redactSurnameGlobal').disabled = isCustom;
+    $('redactCompanies').disabled = isCustom;
+    $('redactEmails').disabled = isCustom;
+    $('redactPhoneNumbers').disabled = isCustom;
+    $('redactAddresses').disabled = isCustom;
+    $('redactPostcodes').disabled = isCustom;
+    $('redactDates').disabled = isCustom;
+    $('redactMetrics').disabled = isCustom;
     $('customRules').disabled = !isCustom;
     $('useBlock').disabled = !isCustom;
     $('redactFullNameVariants').disabled = !isAggressive || isCustom;
@@ -461,20 +491,22 @@
     $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
   }
 
-  function applyPseudonyms(text, context){
+  function applyPseudonyms(text, context, opts = {}){
     const part = context.part || 'plainText';
     const preserveLength = !!context.preserveLength;
-    for (const [k] of state.pseudonyms.org){
-      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
-    }
-    for (const [k] of state.pseudonyms.client){
-      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
+    if (opts.companies !== false){
+      for (const [k] of state.pseudonyms.org){
+        const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+        text = text.replace(re, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
+      }
+      for (const [k] of state.pseudonyms.client){
+        const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+        text = text.replace(re, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
+      }
     }
     return text;
   }
@@ -678,12 +710,15 @@
       for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: `regex.${type.toLowerCase()}` });
     };
 
-    addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
-    addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
-    addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    if (opts.redactEmails) addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
+    if (opts.redactPhoneNumbers){
+      addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
+      addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    }
     addPatternMatches(REDACTION_PATTERNS.urlHttp, 'URL', 0.97);
     addPatternMatches(REDACTION_PATTERNS.urlWww, 'URL', 0.95);
-    addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+    if (opts.redactPostcodes) addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+    if (opts.redactAddresses) addPatternMatches(REDACTION_PATTERNS.addressLine, 'ADDRESS', 0.94);
 
     if (opts.enableIdentityInference) {
       for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
@@ -761,6 +796,7 @@
     const mode = $('modeSel').value;
     const matchLog = context.matchLog || [];
     const preserveLength = !!context.preserveLength;
+    const toggles = getRedactionToggles();
     let text = rawText;
 
     const protectedTokens = [];
@@ -771,12 +807,16 @@
     });
 
     if (mode === 'identity' || mode === 'aggressive'){
-      text = applyPseudonyms(text, { part, preserveLength });
+      text = applyPseudonyms(text, { part, preserveLength }, { companies: toggles.companies });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: isWordDocPart || mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
-        redactFullNameVariants: isWordDocPart || (mode === 'aggressive' && $('redactFullNameVariants').checked),
-        redactSurnameGlobal: $('redactSurnameGlobal').checked,
-        redactFirstNameGlobal: $('redactFirstNameGlobal').checked
+        enableIdentityInference: toggles.fullName && (isWordDocPart || mode === 'aggressive' || toggles.lastName || toggles.firstName),
+        redactFullNameVariants: toggles.fullName && (isWordDocPart || mode === 'aggressive'),
+        redactSurnameGlobal: toggles.lastName,
+        redactFirstNameGlobal: toggles.firstName,
+        redactEmails: toggles.emails,
+        redactPhoneNumbers: toggles.phoneNumbers,
+        redactPostcodes: toggles.postcodes,
+        redactAddresses: toggles.addresses
       });
       const resolved = resolveOverlaps(text, detections);
       text = applyEntityReplacements(text, resolved, { part, preserveLength });
@@ -792,15 +832,21 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
+      if (toggles.emails){
+        text = text.replace(REDACTION_PATTERNS.username, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
+      }
+      if (toggles.dates){
+        text = text.replace(REDACTION_PATTERNS.date, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
+      }
+      if (toggles.metrics){
+        text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
+      }
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
@@ -810,18 +856,36 @@
     return { text, matchLog };
   }
 
-  function mapAndRewriteWT(xml, part){
+
+  function extractReadableDocxText(xml){
+    const tokenRe = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/>|<w:br\b[^>]*\/>|<w:cr\b[^>]*\/>|<\/w:p>|<\/w:tr>|<\/w:tc>/g;
+    const out = [];
+    let m;
+    while ((m = tokenRe.exec(xml))){
+      const token = m[0];
+      if (m[1] != null){
+        out.push(decodeXmlText(m[1]));
+      } else if (/^<w:tab\b/i.test(token)){
+        out.push('\t');
+      } else if (/^<w:(?:br|cr)\b/i.test(token) || /^<\/w:(?:p|tr|tc)>/i.test(token)){
+        out.push('\n');
+      }
+    }
+    return out.join('').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function rewriteTextRunsInFragment(xmlFragment, part){
     const re = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
     const nodes = [];
     let m;
-    while ((m = re.exec(xml))){
+    while ((m = re.exec(xmlFragment))){
       nodes.push({
         innerStart: m.index + m[0].indexOf('>') + 1,
         innerEnd: re.lastIndex - 6,
         text: decodeXmlText(m[1])
       });
     }
-    if (!nodes.length) return { xml, before:'', after:'' };
+    if (!nodes.length) return { xml: xmlFragment, before: '', after: '' };
 
     const before = nodes.map(n=>n.text).join('');
     const combined = nodes.map(n=>n.text).join('');
@@ -856,12 +920,41 @@
     let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
-      out += xml.slice(xmlCursor, n.innerStart);
+      out += xmlFragment.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
       xmlCursor = n.innerEnd;
     }
-    out += xml.slice(xmlCursor);
+    out += xmlFragment.slice(xmlCursor);
     return { xml: out, before, after: nodes.map(n=>n.redacted).join('') };
+  }
+
+  function mapAndRewriteWT(xml, part){
+    const paragraphRe = /<w:p\b[\s\S]*?<\/w:p>/g;
+    const paragraphMatches = [...xml.matchAll(paragraphRe)];
+    if (!paragraphMatches.length){
+      return rewriteTextRunsInFragment(xml, part);
+    }
+
+    let out = '';
+    let cursor = 0;
+    const beforeParts = [];
+    const afterParts = [];
+
+    paragraphMatches.forEach((match, idx) => {
+      const start = match.index;
+      const fragment = match[0];
+      out += xml.slice(cursor, start);
+      const mapped = rewriteTextRunsInFragment(fragment, `${part}#p${idx+1}`);
+      out += mapped.xml;
+      cursor = start + fragment.length;
+      if (mapped.before){
+        beforeParts.push(mapped.before);
+        afterParts.push(mapped.after);
+      }
+    });
+
+    out += xml.slice(cursor);
+    return { xml: out, before: beforeParts.join(''), after: afterParts.join('') };
   }
 
   function scrubSettingsXml(xml){
@@ -994,8 +1087,8 @@
         lastModifiedBy = props.lastModifiedBy;
       }
       if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
-        const textBits = [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map(m=>decodeXmlText(m[1]));
-        if (textBits.length) docxCandidateChunks.push(textBits.join('\n'));
+        const readableText = extractReadableDocxText(xml);
+        if (readableText) docxCandidateChunks.push(readableText);
       }
     }
 
@@ -1009,10 +1102,10 @@
       if (DOCX_TEXT_PART_PATTERNS.some(re=>re.test(name))){
         state.processedParts.add(name);
         xml = scrubCommentsLike(xml);
+        const cleanBefore = extractReadableDocxText(xml);
         const mapped = mapAndRewriteWT(xml, name);
-        const cleanBefore = stripBoundaryMarkers(mapped.before);
-        const cleanAfter = stripBoundaryMarkers(mapped.after);
         xml = mapped.xml;
+        const cleanAfter = extractReadableDocxText(xml);
         changed = true;
         if (cleanBefore) { beforeAll.push(cleanBefore); afterAll.push(cleanAfter); }
         state.extractedPartText.set(name, cleanBefore);
@@ -1168,6 +1261,8 @@
   $('clientDict').addEventListener('input', updatePolicyLine);
   $('redactSurnameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
   $('redactFirstNameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
+  ['redactFullNameVariants','redactCompanies','redactEmails','redactPhoneNumbers','redactAddresses','redactPostcodes','redactDates','redactMetrics']
+    .forEach(id => $(id).addEventListener('change', updatePolicyLine));
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});

@@ -69,9 +69,9 @@
       <label>Whitelist terms (one per line)</label>
       <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
       <label>Organisation terms for deterministic pseudonyms (one per line)</label>
-      <textarea id="orgDict" placeholder="Oxford City Council"></textarea>
+      <textarea id="orgDict" placeholder="Example Borough Council"></textarea>
       <label>Client terms for deterministic pseudonyms (one per line)</label>
-      <textarea id="clientDict" placeholder="NHS Trust"></textarea>
+      <textarea id="clientDict" placeholder="Example Care Trust"></textarea>
       <label>Custom regex rules (one per line: /pattern/flags => replacement)</label>
       <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
 
@@ -1261,11 +1261,11 @@ ZZ1 1ZZ` });
     assert('DOCX boundary slicing does not split redaction tokens across runs', !mapped.after.split('\u0001').some(seg => /\[REDACTED_[^\]]*$|^[^\[]*REDACTED_[A-Z0-9_]+_\d{3}\]/.test(seg)));
 
     $('modeSel').value = 'identity';
-    const userTranscriptInput = "Transcript\u000111 February 2026, 12:59pm\u0001Onile-Ere, Ola\u00010:24\u0001It.\u0001Fry, Martin\u00010:27\u0001Hello.\u0001Snelling, Nicola\u00010:36\u0001Hi, Martin. Hi, Ola.";
+    const userTranscriptInput = "Transcript\u000111 February 2026, 12:59pm\u0001Harper-Quill, Riva\u00010:24\u0001It.\u0001Stone, Arden\u00010:27\u0001Hello.\u0001Reed, Kellan\u00010:36\u0001Hi, Arden. Hi, Riva.";
     state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: userTranscriptInput });
     resetAuditState();
     const userTranscriptOut = mapAndRewriteWT(`<w:document><w:p><w:r><w:t>${encodeXmlText(userTranscriptInput)}</w:t></w:r></w:p></w:document>`, 'word/document.xml').after;
-    assert('DOCX transcript-style speaker names are redacted', !/Onile-Ere, Ola|Fry, Martin|Snelling, Nicola/i.test(userTranscriptOut));
+    assert('DOCX transcript-style speaker names are redacted', !/Harper-Quill, Riva|Stone, Arden|Reed, Kellan/i.test(userTranscriptOut));
 
     $('modeSel').value = 'identity';
     state.piiCandidates = buildPiiCandidates({ creator: 'Sample User', lastModifiedBy: 'Sample User', fullText: 'Sample User' });
@@ -1278,12 +1278,12 @@ ZZ1 1ZZ` });
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
 
-    const transcriptInput = "Transcript\u000131 October 2025\u0001Mahmood, Mohsin\u00010:57\u0001Mr Frey.\u0001Fry, Martin\u00011:01\u0001Hi all.";
+    const transcriptInput = "Transcript\u000131 October 2025\u0001Vale, Rowan\u00010:57\u0001Mr Stone.\u0001Stone, Arden\u00011:01\u0001Hello team.";
     state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: transcriptInput });
     $('modeSel').value = 'aggressive';
     resetAuditState();
     const transcriptOut = redactText(transcriptInput, { part: 'test', matchLog: [] }).text;
-    assert('transcript speaker format and honorific surname are redacted', !/Mahmood, Mohsin|Fry, Martin|Mr Frey/i.test(transcriptOut));
+    assert('transcript speaker format and honorific surname are redacted', !/Vale, Rowan|Stone, Arden|Mr Stone/i.test(transcriptOut));
 
 
     $('modeSel').value = previousMode;

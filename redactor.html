@@ -678,8 +678,9 @@
       const tokens = splitNameTokens(phrase);
       if (tokens.length < 2 || tokens.length > 3) continue;
       if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
-      const hasSupport = tokens.some(t => candidateTokens.has(t));
-      const confidence = hasSupport ? 0.93 : 0.86;
+      const supportCount = tokens.filter(t => candidateTokens.has(t)).length;
+      if (supportCount < 1) continue;
+      const confidence = supportCount >= 2 ? 0.95 : 0.91;
       const key = phrase.toLowerCase();
       const prev = found.get(key);
       if (!prev || confidence > prev.confidence) found.set(key, { phrase, confidence });
@@ -724,6 +725,7 @@
       for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
 
       if (opts.redactFullNameVariants){
+        const candidateTokens = new Set((candidates?.nameTokens || []).map(t => t.token));
         const genericNameRe = /\b[\p{Lu}][\p{L}'’-]{1,}(?:[ \t]+(?:[\p{Lu}][\p{L}'’-]{1,}|(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?))){1,2}\b/gu;
         for (const m of text.matchAll(genericNameRe)){
           let phrase = m[0].trim();
@@ -736,7 +738,10 @@
           const tokens = splitNameTokens(phrase);
           if (tokens.length < 2 || tokens.length > 3) continue;
           if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
-          pushMatch({ start: m.index, end: m.index + phrase.length, type: 'FULL_NAME', confidence: 0.89, match: phrase, rule: 'regex.full_name_generic' });
+          const supportCount = tokens.filter(t => candidateTokens.has(t)).length;
+          if (supportCount < 1) continue;
+          const confidence = supportCount >= 2 ? 0.92 : 0.89;
+          pushMatch({ start: m.index, end: m.index + phrase.length, type: 'FULL_NAME', confidence, match: phrase, rule: 'regex.full_name_generic' });
         }
 
         const speakerCommaNameRe = /([\p{Lu}][\p{L}'’-]{1,}),\s*([\p{Lu}][\p{L}'’-]{1,})(?=\s*(?:[\u0001 ]*\d{1,2}:\d{2}|[\u0001\n]|$))/gu;
@@ -1383,6 +1388,13 @@ ZZ1 1ZZ` });
     const dbg = [];
     redactText(sampleInput, { part: 'test', matchLog: dbg, debugDetections: true });
     assert('debug detections table entries include start/end/type', dbg.some(m => typeof m.start === 'number' && typeof m.end === 'number' && !!m.type));
+
+    const overzealousInput = 'Programme Overview\nSenior Project Manager\nNorth Region Team';
+    state.piiCandidates = buildPiiCandidates({ creator: 'Sample User', lastModifiedBy: 'Sample User', fullText: sampleInput });
+    $('modeSel').value = 'aggressive';
+    resetAuditState();
+    const overzealousOut = redactText(overzealousInput, { part: 'test', matchLog: [] }).text;
+    assert('aggressive mode avoids redacting unrelated capitalised role phrases', overzealousOut === overzealousInput);
 
     const transcriptInput = "Transcript\u000131 October 2025\u0001Vale, Rowan\u00010:57\u0001Mr Stone.\u0001Stone, Arden\u00011:01\u0001Hello team.";
     state.piiCandidates = buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: transcriptInput });

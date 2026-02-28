@@ -1291,6 +1291,9 @@
   });
 
   $('runBtn').addEventListener('click', runRedaction);
+  $('plainInput').addEventListener('input', ()=>{
+    if (!$('beforePane').value.trim()) $('beforePane').value = $('plainInput').value;
+  });
   $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); updateModeUi(); });
   $('orgDict').addEventListener('input', updatePolicyLine);
   $('clientDict').addEventListener('input', updatePolicyLine);

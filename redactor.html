@@ -194,6 +194,10 @@
 
   const $ = id => document.getElementById(id);
 
+  function stripBoundaryMarkers(text){
+    return (text || '').replace(/\u0001/g, '');
+  }
+
 
   function isInferenceMode(){
     return $('modeSel').value === 'aggressive';
@@ -1006,11 +1010,13 @@
         state.processedParts.add(name);
         xml = scrubCommentsLike(xml);
         const mapped = mapAndRewriteWT(xml, name);
+        const cleanBefore = stripBoundaryMarkers(mapped.before);
+        const cleanAfter = stripBoundaryMarkers(mapped.after);
         xml = mapped.xml;
         changed = true;
-        if (mapped.before) { beforeAll.push(mapped.before); afterAll.push(mapped.after); }
-        state.extractedPartText.set(name, mapped.before);
-        state.redactedPartText.set(name, mapped.after);
+        if (cleanBefore) { beforeAll.push(cleanBefore); afterAll.push(cleanAfter); }
+        state.extractedPartText.set(name, cleanBefore);
+        state.redactedPartText.set(name, cleanAfter);
       } else if (/^word\/_rels\/.*\.rels$/.test(name)){
         state.processedParts.add(name);
         const before = xml;

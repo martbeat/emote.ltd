@@ -98,8 +98,8 @@
     <div class="bd">
       <div class="grid">
         <div>
-          <label>Before (extracted plain text)</label>
-          <pre id="beforePane">—</pre>
+          <label>Before (redaction source text)</label>
+          <textarea id="beforePane" placeholder="Source text used for redaction."></textarea>
         </div>
         <div>
           <label>After (redacted plain text)</label>
@@ -1127,7 +1127,7 @@
       }
     }
 
-    const plain = $('plainInput').value || '';
+    const plain = $('beforePane').value || '';
     const docTextForCandidates = docxCandidateChunks.join('\n');
     state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
 
@@ -1249,7 +1249,7 @@
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-      const plain = $('plainInput').value || '';
+      const plain = $('beforePane').value || '';
 
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
@@ -1266,7 +1266,7 @@
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-      $('beforePane').textContent = state.originalText || '—';
+      $('beforePane').value = state.originalText || '';
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();

@@ -144,6 +144,10 @@
   const JUNK_EMAIL_TOKENS = new Set(['mail','email','contact','info','hello','admin','team','office','support','hr']);
   const PERSON_HONORIFICS = new Set(['mr','mrs','ms','miss','mx','dr','prof','sir','madam','dame','lord','lady','sheikh','shaykh']);
   const PERSON_CONTEXT_WORDS = new Set(['name','candidate','applicant','author','prepared','written','signed','manager','consultant','advisor','speaker','presenter','director']);
+  const NON_PERSON_PROFESSIONAL_TERMS = new Set([
+    'salesforce','sage','crm','agile','excel','sql','negotiation','reading','berkshire','project','management',
+    'advanced','problem','solving','strategy','strategic','stakeholder','analysis','cloud','powerbi','tableau'
+  ]);
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
@@ -323,20 +327,23 @@
 
 
   function extractTranscriptSpeakerNames(text){
+    const transcriptSignal = /\b(?:transcript|speaker|meeting notes?)\b/i.test(text)
+      || /(?:^|[\n\u0001])\s*\d{1,2}:\d{2}\b/m.test(text)
+      || (text.match(/\u0001/g) || []).length >= 4;
+    if (!transcriptSignal) return [];
+
     const names = new Set();
     const anchored = /(?:^|[\n\u0001])\s*([\p{Lu}][\p{L}'’-]{1,}),\s*([\p{Lu}][\p{L}'’-]{1,})(?:\s*[\u0001\s]*\d{1,2}:\d{2})?/gu;
-    const inline = /([\p{Lu}][\p{L}'’-]{1,}),\s*([\p{Lu}][\p{L}'’-]{1,})(?:\s+\d{1,2}:\d{2})?/gu;
 
-    for (const re of [anchored, inline]){
-      for (const m of text.matchAll(re)){
-        const surname = m[1];
-        const first = m[2];
-        if (!surname || !first) continue;
-        const tokens = splitNameTokens(`${first} ${surname}`);
-        if (tokens.length < 2) continue;
-        names.add(`${first} ${surname}`);
-        names.add(`${surname}, ${first}`);
-      }
+    for (const m of text.matchAll(anchored)){
+      const surname = m[1];
+      const first = m[2];
+      if (!surname || !first) continue;
+      const tokens = splitNameTokens(`${first} ${surname}`);
+      if (tokens.length < 2) continue;
+      if (tokens.some(t => NON_PERSON_PROFESSIONAL_TERMS.has(t))) continue;
+      names.add(`${first} ${surname}`);
+      names.add(`${surname}, ${first}`);
     }
     return [...names];
   }
@@ -388,6 +395,7 @@
       const tokens = splitNameTokens(clean);
       if (tokens.length < 2 || tokens.length > 4) return;
       if (tokens.some(t => NAME_STOPWORDS.has(t) || NAME_CONTEXT_STOPWORDS.has(t) || PERSON_CONTEXT_WORDS.has(t) || ORGISH_TERMS.has(t))) return;
+      if (tokens.some(t => NON_PERSON_PROFESSIONAL_TERMS.has(t))) return;
       phrases.add(clean);
     };
 
@@ -428,6 +436,7 @@
     const addToken = (token, score, source) => {
       const t = token?.trim().toLowerCase();
       if (!t) return;
+      if (NON_PERSON_PROFESSIONAL_TERMS.has(t)) return;
       tokenScores.set(t, Math.max(tokenScores.get(t) || 0, score));
       const src = tokenSources.get(t) || new Set();
       src.add(source);
@@ -632,7 +641,7 @@
     if (opts.redactSurnameGlobal){
       for (const surnameToken of trustedSurnameTokens){
         if (!surnameToken || surnameToken.length < 3) continue;
-        if (NAME_STOPWORDS.has(surnameToken) || NAME_CONTEXT_STOPWORDS.has(surnameToken) || ORGISH_TERMS.has(surnameToken) || PERSON_CONTEXT_WORDS.has(surnameToken)) continue;
+        if (NAME_STOPWORDS.has(surnameToken) || NAME_CONTEXT_STOPWORDS.has(surnameToken) || ORGISH_TERMS.has(surnameToken) || PERSON_CONTEXT_WORDS.has(surnameToken) || NON_PERSON_PROFESSIONAL_TERMS.has(surnameToken)) continue;
         const score = tokens.find(t => t.token===surnameToken)?.confidence || 0.9;
         if (score >= 0.9) addRegexMatches(new RegExp(`\\b${escapeRegExp(surnameToken)}\\b`, 'igu'), 'NAME_TOKEN', score);
       }
@@ -641,6 +650,7 @@
     if (opts.redactFirstNameGlobal){
       for (const first of inferredFirstTokens){
         if (!first) continue;
+        if (NON_PERSON_PROFESSIONAL_TERMS.has(first)) continue;
         const score = tokens.find(t => t.token===first)?.confidence || 0.86;
         const inHeader = (candidates.headerBlock || '').match(new RegExp(`\\b${escapeRegExp(first)}\\b`, 'i'));
         const inEmail = (candidates.emailLocalParts || []).some(local => splitNameTokens(local).includes(first));

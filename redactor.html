@@ -25,6 +25,9 @@
   th,td{border-bottom:1px solid #2a3352;padding:6px;text-align:left}
   .ok{color:#90f7b6}.bad{color:#ff9f9f}.muted{color:#aeb8da;font-size:12px}
   .pill{padding:3px 8px;background:#0d1328;border:1px solid #34426e;border-radius:999px;font-size:12px}
+  .toggle-list{display:grid;gap:6px;margin-top:6px}
+  .toggle-row{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:#e9ecf6}
+  .toggle-row input{width:auto;flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -54,35 +57,17 @@
       <div id="modeHelp" class="muted" style="margin-top:8px">Mode help: Use AI upload safe for standard PII, AI upload strict for CV-style name inference, or Custom for explicit regex rules.</div>
       <div id="policyLine" class="muted" style="margin-top:6px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
       <label>Redaction categories</label>
-      <div class="row">
-        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Full name</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> First Name</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Last Name</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactCompanies" type="checkbox" checked /> Companies</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactEmails" type="checkbox" checked /> Emails</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactPhoneNumbers" type="checkbox" checked /> Phone Numbers</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactAddresses" type="checkbox" checked /> Addresses</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactPostcodes" type="checkbox" checked /> Postcodes</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactDates" type="checkbox" checked /> Dates</label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="redactMetrics" type="checkbox" checked /> Other metrics</label>
+      <div class="toggle-list">
+        <label class="toggle-row"><input id="redactFullNameVariants" type="checkbox" checked /><span>Full name</span></label>
+        <label class="toggle-row"><input id="redactFirstNameGlobal" type="checkbox" /><span>First Name</span></label>
+        <label class="toggle-row"><input id="redactSurnameGlobal" type="checkbox" /><span>Last Name</span></label>
+        <label class="toggle-row"><input id="redactCompanies" type="checkbox" checked /><span>Companies</span></label>
+        <label class="toggle-row"><input id="redactEmails" type="checkbox" checked /><span>Emails</span></label>
+        <label class="toggle-row"><input id="redactPhoneNumbers" type="checkbox" checked /><span>Phone Numbers</span></label>
+        <label class="toggle-row"><input id="redactAddresses" type="checkbox" checked /><span>Addresses</span></label>
+        <label class="toggle-row"><input id="redactPostcodes" type="checkbox" checked /><span>Postcodes</span></label>
+        <label class="toggle-row"><input id="redactDates" type="checkbox" checked /><span>Dates</span></label>
+        <label class="toggle-row"><input id="redactMetrics" type="checkbox" checked /><span>Other metrics</span></label>
       </div>
       <div class="row">
         <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>

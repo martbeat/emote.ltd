@@ -880,15 +880,23 @@
     let m;
     while ((m = re.exec(xmlFragment))){
       nodes.push({
+        fullStart: m.index,
+        fullEnd: re.lastIndex,
         innerStart: m.index + m[0].indexOf('>') + 1,
         innerEnd: re.lastIndex - 6,
-        text: decodeXmlText(m[1])
+        text: decodeXmlText(m[1]),
+        spacer: ''
       });
     }
     if (!nodes.length) return { xml: xmlFragment, before: '', after: '' };
 
+    for (let i=0;i<nodes.length-1;i++){
+      const gap = xmlFragment.slice(nodes[i].fullEnd, nodes[i+1].fullStart);
+      if (/<w:(?:tab|br|cr)\b/i.test(gap)) nodes[i].spacer = ' ';
+    }
+
     const before = nodes.map(n=>n.text).join('');
-    const combined = nodes.map(n=>n.text).join('');
+    const combined = nodes.map(n => n.text + n.spacer).join('');
     const combinedRedacted = redactText(combined, { part, matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
 
     const tokenRanges = [...combinedRedacted.matchAll(/\[REDACTED_[A-Z0-9_]+_\d{3}\]/g)].map(t => ({
@@ -905,7 +913,7 @@
     const boundaries = [];
     let cursor = 0;
     for (let i=0;i<nodes.length-1;i++){
-      cursor += nodes[i].text.length;
+      cursor += nodes[i].text.length + nodes[i].spacer.length;
       boundaries.push(adjustBoundary(Math.min(cursor, combinedRedacted.length)));
     }
 
@@ -920,6 +928,7 @@
     let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
+      if (n.spacer && n.redacted && !/\s$/.test(n.redacted)) n.redacted += n.spacer;
       out += xmlFragment.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
       xmlCursor = n.innerEnd;

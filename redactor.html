@@ -1127,7 +1127,7 @@
       }
     }
 
-    const plain = $('plainInput').value || '';
+    const plain = $('beforePane').value || '';
     const docTextForCandidates = docxCandidateChunks.join('\n');
     state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
 
@@ -1249,10 +1249,7 @@
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-      const beforeSource = $('beforePane').value.trim();
-      const plain = beforeSource && beforeSource !== '—'
-        ? $('beforePane').value
-        : ($('plainInput').value || '');
+      const plain = $('beforePane').value || '';
 
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })

@@ -14,7 +14,7 @@
   .bd{padding:12px}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   label{display:block;font-size:12px;color:#aeb8da;margin:8px 0 4px}
-  input[type=file],textarea,input,select{width:100%;background:#0e1324;color:#e9ecf6;border:1px solid #33406b;border-radius:8px;padding:8px}
+  input[type=file],textarea,input,select{width:100%;background:#0e1324;color:#e9ecf6;border:1px solid #33406b;border-radius:8px;padding:8px;box-sizing:border-box}
   textarea{min-height:72px}
   button{background:#243159;color:#ecf1ff;border:1px solid #3c4f87;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
   button:hover{background:#2c3b6f}
@@ -28,6 +28,8 @@
   .toggle-list{display:grid;gap:6px;margin-top:6px}
   .toggle-row{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:#e9ecf6}
   .toggle-row input{width:auto;flex:0 0 auto}
+  #beforePane{min-height:320px;max-height:320px;resize:vertical;background:#0c1020;border:1px solid #2c3964;padding:10px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,monospace;font-size:12px;line-height:1.4;overflow:auto}
+  #afterPane{min-height:320px}
 </style>
 </head>
 <body>

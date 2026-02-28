@@ -919,8 +919,10 @@
 
     let prev = 0;
     for (let i=0;i<nodes.length;i++){
-      const next = i === nodes.length - 1 ? combinedRedacted.length : Math.max(prev, boundaries[i]);
-      nodes[i].redacted = combinedRedacted.slice(prev, next);
+      const isLast = i === nodes.length - 1;
+      const next = isLast ? combinedRedacted.length : Math.max(prev, boundaries[i]);
+      const spacerLen = isLast ? 0 : nodes[i].spacer.length;
+      nodes[i].redacted = combinedRedacted.slice(prev, Math.max(prev, next - spacerLen));
       prev = next;
     }
 
@@ -928,7 +930,6 @@
     let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
-      if (n.spacer && n.redacted && !/\s$/.test(n.redacted)) n.redacted += n.spacer;
       out += xmlFragment.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
       xmlCursor = n.innerEnd;

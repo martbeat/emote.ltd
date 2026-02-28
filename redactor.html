@@ -874,18 +874,18 @@
     return out.join('').replace(/\n{3,}/g, '\n\n').trim();
   }
 
-  function mapAndRewriteWT(xml, part){
+  function rewriteTextRunsInFragment(xmlFragment, part){
     const re = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
     const nodes = [];
     let m;
-    while ((m = re.exec(xml))){
+    while ((m = re.exec(xmlFragment))){
       nodes.push({
         innerStart: m.index + m[0].indexOf('>') + 1,
         innerEnd: re.lastIndex - 6,
         text: decodeXmlText(m[1])
       });
     }
-    if (!nodes.length) return { xml, before:'', after:'' };
+    if (!nodes.length) return { xml: xmlFragment, before: '', after: '' };
 
     const before = nodes.map(n=>n.text).join('');
     const combined = nodes.map(n=>n.text).join('');
@@ -920,12 +920,41 @@
     let xmlCursor = 0;
     for (let i=0;i<nodes.length;i++){
       const n = nodes[i];
-      out += xml.slice(xmlCursor, n.innerStart);
+      out += xmlFragment.slice(xmlCursor, n.innerStart);
       out += encodeXmlText(n.redacted);
       xmlCursor = n.innerEnd;
     }
-    out += xml.slice(xmlCursor);
+    out += xmlFragment.slice(xmlCursor);
     return { xml: out, before, after: nodes.map(n=>n.redacted).join('') };
+  }
+
+  function mapAndRewriteWT(xml, part){
+    const paragraphRe = /<w:p\b[\s\S]*?<\/w:p>/g;
+    const paragraphMatches = [...xml.matchAll(paragraphRe)];
+    if (!paragraphMatches.length){
+      return rewriteTextRunsInFragment(xml, part);
+    }
+
+    let out = '';
+    let cursor = 0;
+    const beforeParts = [];
+    const afterParts = [];
+
+    paragraphMatches.forEach((match, idx) => {
+      const start = match.index;
+      const fragment = match[0];
+      out += xml.slice(cursor, start);
+      const mapped = rewriteTextRunsInFragment(fragment, `${part}#p${idx+1}`);
+      out += mapped.xml;
+      cursor = start + fragment.length;
+      if (mapped.before){
+        beforeParts.push(mapped.before);
+        afterParts.push(mapped.after);
+      }
+    });
+
+    out += xml.slice(cursor);
+    return { xml: out, before: beforeParts.join(''), after: afterParts.join('') };
   }
 
   function scrubSettingsXml(xml){

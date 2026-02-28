@@ -892,7 +892,8 @@
 
     for (let i=0;i<nodes.length-1;i++){
       const gap = xmlFragment.slice(nodes[i].fullEnd, nodes[i+1].fullStart);
-      if (/<w:(?:tab|br|cr)\b/i.test(gap)) nodes[i].spacer = ' ';
+      if (/<w:tab\b/i.test(gap)) nodes[i].spacer = '\t';
+      else if (/<w:(?:br|cr)\b/i.test(gap)) nodes[i].spacer = '\n';
     }
 
     const before = nodes.map(n=>n.text).join('');

@@ -53,15 +53,36 @@
       </div>
       <div id="modeHelp" class="muted" style="margin-top:8px">Mode help: Use AI upload safe for standard PII, AI upload strict for CV-style name inference, or Custom for explicit regex rules.</div>
       <div id="policyLine" class="muted" style="margin-top:6px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
-      <label>Name redaction controls</label>
+      <label>Redaction categories</label>
       <div class="row">
-        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Redact full name variants</label>
+        <label style="margin:0"><input id="redactFullNameVariants" type="checkbox" checked /> Full name</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Redact last names globally if high confidence</label>
+        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> First Name</label>
       </div>
       <div class="row">
-        <label style="margin:0"><input id="redactFirstNameGlobal" type="checkbox" /> Redact first names globally if high confidence</label>
+        <label style="margin:0"><input id="redactSurnameGlobal" type="checkbox" /> Last Name</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactCompanies" type="checkbox" checked /> Companies</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactEmails" type="checkbox" checked /> Emails</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactPhoneNumbers" type="checkbox" checked /> Phone Numbers</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactAddresses" type="checkbox" checked /> Addresses</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactPostcodes" type="checkbox" checked /> Postcodes</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactDates" type="checkbox" checked /> Dates</label>
+      </div>
+      <div class="row">
+        <label style="margin:0"><input id="redactMetrics" type="checkbox" checked /> Other metrics</label>
       </div>
       <div class="row">
         <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
@@ -158,6 +179,7 @@
     PHONE: 4,
     URL: 3,
     POSTCODE: 2,
+    ADDRESS: 2,
     NAME_TOKEN: 1
   };
 
@@ -168,6 +190,7 @@
     PHONE: 'PHONE',
     URL: 'URL',
     POSTCODE: 'POSTCODE',
+    ADDRESS: 'ADDRESS',
     USERNAME: 'USERNAME',
     DATE: 'DATE',
     METRIC: 'METRIC',
@@ -203,6 +226,21 @@
     return $('modeSel').value === 'aggressive';
   }
 
+  function getRedactionToggles(){
+    return {
+      fullName: $('redactFullNameVariants').checked,
+      firstName: $('redactFirstNameGlobal').checked,
+      lastName: $('redactSurnameGlobal').checked,
+      companies: $('redactCompanies').checked,
+      emails: $('redactEmails').checked,
+      phoneNumbers: $('redactPhoneNumbers').checked,
+      addresses: $('redactAddresses').checked,
+      postcodes: $('redactPostcodes').checked,
+      dates: $('redactDates').checked,
+      metrics: $('redactMetrics').checked
+    };
+  }
+
   function updateInferenceControls(){
     const enabled = isInferenceMode();
     $('redactFullNameVariants').disabled = !enabled;
@@ -228,6 +266,13 @@
     $('clientDict').disabled = isCustom;
     $('redactFirstNameGlobal').disabled = isCustom;
     $('redactSurnameGlobal').disabled = isCustom;
+    $('redactCompanies').disabled = isCustom;
+    $('redactEmails').disabled = isCustom;
+    $('redactPhoneNumbers').disabled = isCustom;
+    $('redactAddresses').disabled = isCustom;
+    $('redactPostcodes').disabled = isCustom;
+    $('redactDates').disabled = isCustom;
+    $('redactMetrics').disabled = isCustom;
     $('customRules').disabled = !isCustom;
     $('useBlock').disabled = !isCustom;
     $('redactFullNameVariants').disabled = !isAggressive || isCustom;
@@ -461,20 +506,22 @@
     $('clientDict').value.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach((v,i)=>state.pseudonyms.client.set(v.toLowerCase(), `CLIENT_${i+1}`));
   }
 
-  function applyPseudonyms(text, context){
+  function applyPseudonyms(text, context, opts = {}){
     const part = context.part || 'plainText';
     const preserveLength = !!context.preserveLength;
-    for (const [k] of state.pseudonyms.org){
-      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
-    }
-    for (const [k] of state.pseudonyms.client){
-      const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
-      text = text.replace(re, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
+    if (opts.companies !== false){
+      for (const [k] of state.pseudonyms.org){
+        const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+        text = text.replace(re, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('ORG', 'dict.org', part, offset, offset + match.length, undefined, match));
+      }
+      for (const [k] of state.pseudonyms.client){
+        const re = new RegExp(`\\b${escapeRegExp(k)}\\b`, 'ig');
+        text = text.replace(re, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('CLIENT', 'dict.client', part, offset, offset + match.length, undefined, match));
+      }
     }
     return text;
   }
@@ -678,12 +725,15 @@
       for (const m of text.matchAll(rgx)) pushMatch({ start: m.index, end: m.index + m[0].length, type, confidence, match: m[0], rule: `regex.${type.toLowerCase()}` });
     };
 
-    addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
-    addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
-    addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    if (opts.redactEmails) addPatternMatches(REDACTION_PATTERNS.email, 'EMAIL', 0.99);
+    if (opts.redactPhoneNumbers){
+      addPatternMatches(REDACTION_PATTERNS.mobileUk, 'PHONE', 0.98);
+      addPatternMatches(REDACTION_PATTERNS.landlineUk, 'PHONE', 0.95);
+    }
     addPatternMatches(REDACTION_PATTERNS.urlHttp, 'URL', 0.97);
     addPatternMatches(REDACTION_PATTERNS.urlWww, 'URL', 0.95);
-    addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+    if (opts.redactPostcodes) addPatternMatches(REDACTION_PATTERNS.postcodeUk, 'POSTCODE', 0.96);
+    if (opts.redactAddresses) addPatternMatches(REDACTION_PATTERNS.addressLine, 'ADDRESS', 0.94);
 
     if (opts.enableIdentityInference) {
       for (const m of buildNameDetections(candidates, text, opts)) pushMatch(m);
@@ -761,6 +811,7 @@
     const mode = $('modeSel').value;
     const matchLog = context.matchLog || [];
     const preserveLength = !!context.preserveLength;
+    const toggles = getRedactionToggles();
     let text = rawText;
 
     const protectedTokens = [];
@@ -771,12 +822,16 @@
     });
 
     if (mode === 'identity' || mode === 'aggressive'){
-      text = applyPseudonyms(text, { part, preserveLength });
+      text = applyPseudonyms(text, { part, preserveLength }, { companies: toggles.companies });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: isWordDocPart || mode === 'aggressive' || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked,
-        redactFullNameVariants: isWordDocPart || (mode === 'aggressive' && $('redactFullNameVariants').checked),
-        redactSurnameGlobal: $('redactSurnameGlobal').checked,
-        redactFirstNameGlobal: $('redactFirstNameGlobal').checked
+        enableIdentityInference: toggles.fullName && (isWordDocPart || mode === 'aggressive' || toggles.lastName || toggles.firstName),
+        redactFullNameVariants: toggles.fullName && (isWordDocPart || mode === 'aggressive'),
+        redactSurnameGlobal: toggles.lastName,
+        redactFirstNameGlobal: toggles.firstName,
+        redactEmails: toggles.emails,
+        redactPhoneNumbers: toggles.phoneNumbers,
+        redactPostcodes: toggles.postcodes,
+        redactAddresses: toggles.addresses
       });
       const resolved = resolveOverlaps(text, detections);
       text = applyEntityReplacements(text, resolved, { part, preserveLength });
@@ -792,15 +847,21 @@
         })));
       }
 
-      text = text.replace(REDACTION_PATTERNS.username, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.date, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
-      text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => preserveLength
-        ? maskForLength(match)
-        : allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
+      if (toggles.emails){
+        text = text.replace(REDACTION_PATTERNS.username, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('USERNAME', 'regex.username', part, offset, offset + match.length, undefined, match));
+      }
+      if (toggles.dates){
+        text = text.replace(REDACTION_PATTERNS.date, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('DATE', 'regex.date', part, offset, offset + match.length, undefined, match));
+      }
+      if (toggles.metrics){
+        text = text.replace(REDACTION_PATTERNS.metric, (match, offset) => preserveLength
+          ? maskForLength(match)
+          : allocToken('METRIC', 'regex.metric', part, offset, offset + match.length, undefined, match));
+      }
     } else {
       for (const r of parseCustomRules()) text = text.replace(r.re, r.rep);
       if ($('useBlock').checked) text = text.replace(/\[REDACTED_[A-Z0-9_]+\]/g, '████████');
@@ -1168,6 +1229,8 @@
   $('clientDict').addEventListener('input', updatePolicyLine);
   $('redactSurnameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
   $('redactFirstNameGlobal').addEventListener('change', () => { updatePolicyLine(); updateModeUi(); });
+  ['redactFullNameVariants','redactCompanies','redactEmails','redactPhoneNumbers','redactAddresses','redactPostcodes','redactDates','redactMetrics']
+    .forEach(id => $(id).addEventListener('change', updatePolicyLine));
 
   $('dlTxtBtn').addEventListener('click', ()=>{
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});

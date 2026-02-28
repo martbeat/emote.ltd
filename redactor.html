@@ -191,6 +191,7 @@
 
   const state = {
     originalText: '',
+    originalInputText: '',
     redactedText: '',
     inputDocxBytes: null,
     redactedDocxBytes: null,
@@ -1129,7 +1130,8 @@
       }
     }
 
-    const plain = $('beforePane').value || '';
+state.originalInputText = $('beforePane').value || '';
+const plain = state.originalInputText;
     const docTextForCandidates = docxCandidateChunks.join('\n');
     state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
 
@@ -1251,8 +1253,7 @@
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-      const plain = $('beforePane').value || '';
-
+const plain = state.originalInputText || '';
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
         : null;
@@ -1268,7 +1269,8 @@
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-      $('beforePane').value = state.originalText || '';
+// Keep user's original input visible
+$('beforePane').value = state.originalInputText;
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();

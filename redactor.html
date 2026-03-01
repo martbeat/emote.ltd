@@ -572,6 +572,22 @@
     };
   }
 
+  function extractTopNameLikeLines(text){
+    const topLines = (text || '').split(/\r?\n/).slice(0, HEADER_SCAN_LINES * 2);
+    const nameLineRe = /^[\p{Lu}][\p{L}'’-]{1,}(?:\s+[\p{Lu}][\p{L}'’-]{1,}){1,2}$/u;
+    const out = new Set();
+    for (const raw of topLines){
+      const line = (raw || '').trim().replace(/\s+/g, ' ');
+      if (!line || line.length < 4 || line.length > 80) continue;
+      if (!nameLineRe.test(line)) continue;
+      const tokens = splitNameTokens(line);
+      if (tokens.length < 2 || tokens.length > 3) continue;
+      if (tokens.some(t => NAME_STOPWORDS.has(t) || NAME_CONTEXT_STOPWORDS.has(t) || PERSON_CONTEXT_WORDS.has(t) || ORGISH_TERMS.has(t) || NON_PERSON_PROFESSIONAL_TERMS.has(t))) continue;
+      out.add(line);
+    }
+    return [...out];
+  }
+
   function buildPiiCandidates(inputs){
     const tokenScores = new Map();
     const tokenSources = new Map();
@@ -599,6 +615,9 @@
     const transcriptNames = extractTranscriptSpeakerNames(inputs.fullText || '');
     transcriptNames.flatMap(splitNameTokens).forEach(t => addToken(t, 0.97, 'transcriptSpeaker'));
 
+    const topNameLines = extractTopNameLikeLines(inputs.fullText || '');
+    topNameLines.flatMap(splitNameTokens).forEach(t => addToken(t, 0.89, 'topNameLine'));
+
     const caps = extractAllCapsNearTop(inputs.fullText || '').map(w => w.toLowerCase());
     caps.forEach(t => addToken(t, 0.75, 'allCapsTop'));
 
@@ -613,6 +632,7 @@
     const fullNameVariants = [];
     if (headerData.phrase) fullNameVariants.push(headerData.phrase);
     transcriptNames.forEach(v => fullNameVariants.push(v));
+    topNameLines.forEach(v => fullNameVariants.push(v));
     if (first && surname){
       fullNameVariants.push(`${titleCase(first)} ${titleCase(surname)}`);
       fullNameVariants.push(`${titleCase(first)} ${surname.toUpperCase()}`);
@@ -976,8 +996,8 @@
     if (mode === 'identity' || mode === 'aggressive'){
       text = applyPseudonyms(text, { part, preserveLength }, { companies: toggles.companies });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: toggles.fullName && (isWordDocPart || mode === 'aggressive' || toggles.lastName || toggles.firstName),
-        redactFullNameVariants: toggles.fullName && (isWordDocPart || mode === 'aggressive'),
+        enableIdentityInference: toggles.fullName && (isWordDocPart || mode === 'aggressive' || toggles.lastName || toggles.firstName || !!state.inputDocxBytes),
+        redactFullNameVariants: toggles.fullName && (isWordDocPart || mode === 'aggressive' || !!state.inputDocxBytes),
         redactSurnameGlobal: toggles.lastName,
         redactFirstNameGlobal: toggles.firstName,
         redactEmails: toggles.emails,
@@ -1421,7 +1441,11 @@
       const sourceText = (!beforePaneText || isAutoBeforeText) ? plainInputText : beforePaneText;
       if (!beforePaneText && sourceText) $('beforePane').value = sourceText;
       const plain = sourceText;
-      state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
+      const shouldBuildPlainCandidates = isInferenceMode()
+        || $('redactSurnameGlobal').checked
+        || $('redactFirstNameGlobal').checked
+        || ($('redactFullNameVariants').checked && !!state.inputDocxBytes);
+      state.piiCandidates = shouldBuildPlainCandidates
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
         : null;
 

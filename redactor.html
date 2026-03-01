@@ -1251,7 +1251,9 @@ const plain = $('beforePane').value || '';
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-const plain = $('beforePane').value || '';
+      const sourceText = $('beforePane').value || $('plainInput').value || '';
+      if (!$('beforePane').value && sourceText) $('beforePane').value = sourceText;
+      const plain = sourceText;
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
         : null;

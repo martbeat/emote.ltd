@@ -206,7 +206,8 @@
     counters: {},
     report: null,
     processedParts: new Set(),
-    replacementCache: new Map()
+    replacementCache: new Map(),
+    lastAutoBeforeText: ''
   };
 
   const $ = id => document.getElementById(id);
@@ -976,8 +977,16 @@
     for (let i=0;i<nodes.length;i++){
       const isLast = i === nodes.length - 1;
       const next = isLast ? combinedRedacted.length : Math.max(prev, boundaries[i]);
-      const spacerLen = isLast ? 0 : nodes[i].spacer.length;
-      nodes[i].redacted = combinedRedacted.slice(prev, Math.max(prev, next - spacerLen));
+      const spacer = isLast ? '' : nodes[i].spacer;
+      const spacerLen = spacer.length;
+      let end = next;
+      if (spacerLen){
+        const spacerSliceStart = Math.max(prev, next - spacerLen);
+        if (combinedRedacted.slice(spacerSliceStart, next) === spacer){
+          end = spacerSliceStart;
+        }
+      }
+      nodes[i].redacted = combinedRedacted.slice(prev, Math.max(prev, end));
       prev = next;
     }
 
@@ -1278,8 +1287,11 @@
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-      const sourceText = $('beforePane').value || $('plainInput').value || '';
-      if (!$('beforePane').value && sourceText) $('beforePane').value = sourceText;
+      const beforePaneText = $('beforePane').value || '';
+      const plainInputText = $('plainInput').value || '';
+      const isAutoBeforeText = !!beforePaneText && beforePaneText === state.lastAutoBeforeText;
+      const sourceText = (!beforePaneText || isAutoBeforeText) ? plainInputText : beforePaneText;
+      if (!beforePaneText && sourceText) $('beforePane').value = sourceText;
       const plain = sourceText;
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
@@ -1296,7 +1308,9 @@
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-      $('beforePane').value = sourceText || '';
+      const resolvedBeforeText = state.originalText || sourceText || '';
+      $('beforePane').value = resolvedBeforeText;
+      state.lastAutoBeforeText = resolvedBeforeText;
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();

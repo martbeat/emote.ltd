@@ -977,8 +977,16 @@
     for (let i=0;i<nodes.length;i++){
       const isLast = i === nodes.length - 1;
       const next = isLast ? combinedRedacted.length : Math.max(prev, boundaries[i]);
-      const spacerLen = isLast ? 0 : nodes[i].spacer.length;
-      nodes[i].redacted = combinedRedacted.slice(prev, Math.max(prev, next - spacerLen));
+      const spacer = isLast ? '' : nodes[i].spacer;
+      const spacerLen = spacer.length;
+      let end = next;
+      if (spacerLen){
+        const spacerSliceStart = Math.max(prev, next - spacerLen);
+        if (combinedRedacted.slice(spacerSliceStart, next) === spacer){
+          end = spacerSliceStart;
+        }
+      }
+      nodes[i].redacted = combinedRedacted.slice(prev, Math.max(prev, end));
       prev = next;
     }
 

@@ -516,8 +516,8 @@
     const particles = "(?:de|da|del|della|di|du|la|le|van|von|bin|bint|binti|ibn|al|el|st\.?)";
     const personPhrase = `(${namePart}(?:[ \t]+(?:${namePart}|${particles})){1,3})`;
 
-    const honorificPattern = new RegExp(`\b(?:${honorificWords})\.?\s+${personPhrase}\b`, 'giu');
-    const contextPattern = new RegExp(`\b(?:${contextWords})(?:\s+by)?\s*[:\-]\s*${personPhrase}\b`, 'giu');
+    const honorificPattern = new RegExp(`\\b(?:${honorificWords})\\.?\\s+${personPhrase}\\b`, 'giu');
+    const contextPattern = new RegExp(`\\b(?:${contextWords})(?:\\s+by)?\\s*[:\\-]\\s*${personPhrase}\\b`, 'giu');
 
     for (const m of text.matchAll(honorificPattern)){
       const phrase = normalizeNamePhrase(m[1] || '');
@@ -753,7 +753,7 @@
 
     if (opts.redactFullNameVariants){
       for (const phrase of collectCandidateNamePhrases(text, candidates)){
-        addRegexMatches(new RegExp(`\b${escapeRegExp(phrase)}\b`, 'igu'), 'FULL_NAME', 0.94);
+        addRegexMatches(new RegExp(`\\b${escapeRegExp(phrase)}\\b`, 'igu'), 'FULL_NAME', 0.94);
       }
 
       for (const variant of candidates.fullNameVariants || []){

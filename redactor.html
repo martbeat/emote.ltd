@@ -18,6 +18,8 @@
   textarea{min-height:72px}
   button{background:#243159;color:#ecf1ff;border:1px solid #3c4f87;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
   button:hover{background:#2c3b6f}
+  .btn-danger{background:#7a1f2a;border-color:#aa3042}
+  .btn-danger:hover{background:#922838}
   .warn{background:#3c2e10;border:1px solid #7b6330;color:#ffe8ac;padding:10px;border-radius:8px;font-size:12px;line-height:1.4}
   pre,.pane{background:#0c1020;border:1px solid #2c3964;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -92,7 +94,9 @@
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
         <button id="dlReportBtn" disabled>Download report.json</button>
+        <button id="dlLexiconBtn" class="btn-danger" disabled>Download latest lexicon</button>
       </div>
+      <div id="lexiconInfo" class="muted" style="margin-top:8px">Lexicon: loading…</div>
       <div id="status" class="muted" style="margin-top:8px"></div>
       <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
     </div>
@@ -214,7 +218,8 @@
       givenNames: new Set(),
       surnames: new Set(),
       loaded: false,
-      signature: ''
+      signature: '',
+      payload: null
     }
   };
 
@@ -281,6 +286,29 @@
     state.nameLexicon.surnames = new Set(surnames);
     state.nameLexicon.signature = buildLexiconSignature(json);
     state.nameLexicon.loaded = given.length > 0 && surnames.length > 0;
+    state.nameLexicon.payload = json;
+    updateLexiconUi();
+  }
+
+  function updateLexiconUi(){
+    const node = $('lexiconInfo');
+    const btn = $('dlLexiconBtn');
+    if (!node || !btn) return;
+
+    if (!state.nameLexicon.loaded){
+      node.textContent = 'Lexicon: unavailable (using heuristic-only name detection).';
+      btn.disabled = true;
+      btn.textContent = 'Download latest lexicon';
+      return;
+    }
+
+    const given = state.nameLexicon.givenNames.size;
+    const surnames = state.nameLexicon.surnames.size;
+    const total = given + surnames;
+    const updated = state.nameLexicon.payload?.metadata?.updated || 'unknown';
+    node.textContent = `Lexicon loaded: ${given.toLocaleString()} given + ${surnames.toLocaleString()} surnames (${total.toLocaleString()} total), updated ${updated}.`;
+    btn.disabled = false;
+    btn.textContent = `Download latest lexicon (${total.toLocaleString()} names)`;
   }
 
   async function checkOnlineNameLexiconUpdate(localJson){
@@ -310,6 +338,8 @@
       await checkOnlineNameLexiconUpdate(json);
     } catch (_err){
       state.nameLexicon.loaded = false;
+      state.nameLexicon.payload = null;
+      updateLexiconUi();
     }
   }
 
@@ -1464,6 +1494,19 @@
     URL.revokeObjectURL(a.href);
   });
 
+  $('dlLexiconBtn').addEventListener('click', ()=>{
+    const payload = state.nameLexicon.payload;
+    if (!payload) return;
+    const total = state.nameLexicon.givenNames.size + state.nameLexicon.surnames.size;
+    const version = String(payload?.metadata?.updated || 'latest').replace(/[^0-9a-z._-]+/ig, '-');
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `name-lexicon-${version}-${total}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
   $('searchBtn').addEventListener('click', ()=>{
     const term = $('searchTerm').value.trim();
     if (!term){ $('searchPane').textContent = 'Enter a term.'; return; }
@@ -1585,6 +1628,7 @@ ZZ1 1ZZ` });
   updatePolicyLine();
   updateModeUi();
   generateBuildId();
+  updateLexiconUi();
   loadNameLexicon();
 })();
 </script>

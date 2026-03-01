@@ -966,6 +966,22 @@
       return index;
     };
 
+    if (combinedRedacted !== combined){
+      nodes[0].redacted = combinedRedacted;
+      for (let i=1;i<nodes.length;i++) nodes[i].redacted = '';
+
+      let out = '';
+      let xmlCursor = 0;
+      for (let i=0;i<nodes.length;i++){
+        const n = nodes[i];
+        out += xmlFragment.slice(xmlCursor, n.innerStart);
+        out += encodeXmlText(n.redacted);
+        xmlCursor = n.innerEnd;
+      }
+      out += xmlFragment.slice(xmlCursor);
+      return { xml: out, before, after: nodes.map(n=>n.redacted).join('\u0001') };
+    }
+
     const boundaries = [];
     let cursor = 0;
     for (let i=0;i<nodes.length-1;i++){

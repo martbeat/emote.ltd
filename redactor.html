@@ -154,6 +154,7 @@
     'advanced','problem','solving','strategy','strategic','stakeholder','analysis','cloud','powerbi','tableau'
   ]);
   const NAME_LEXICON_PATH = 'assets/name-lexicon.json';
+  const DEFAULT_ONLINE_NAME_LEXICON_URL = 'https://raw.githubusercontent.com/emote-ltd/emote.ltd/main/assets/name-lexicon.json';
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
@@ -212,7 +213,8 @@
     nameLexicon: {
       givenNames: new Set(),
       surnames: new Set(),
-      loaded: false
+      loaded: false,
+      signature: ''
     }
   };
 
@@ -265,16 +267,47 @@
     return true;
   }
 
+  function buildLexiconSignature(json){
+    const updated = String(json?.metadata?.updated || '');
+    const given = (json?.givenNames || []).map(normalizeLexiconToken).filter(Boolean);
+    const surnames = (json?.surnames || []).map(normalizeLexiconToken).filter(Boolean);
+    return `${updated}|${given.length}|${surnames.length}|${given[0] || ''}|${given[given.length - 1] || ''}|${surnames[0] || ''}|${surnames[surnames.length - 1] || ''}`;
+  }
+
+  function applyLexiconJson(json){
+    const given = (json?.givenNames || []).map(normalizeLexiconToken).filter(Boolean);
+    const surnames = (json?.surnames || []).map(normalizeLexiconToken).filter(Boolean);
+    state.nameLexicon.givenNames = new Set(given);
+    state.nameLexicon.surnames = new Set(surnames);
+    state.nameLexicon.signature = buildLexiconSignature(json);
+    state.nameLexicon.loaded = given.length > 0 && surnames.length > 0;
+  }
+
+  async function checkOnlineNameLexiconUpdate(localJson){
+    const onlineUrl = String(localJson?.metadata?.onlineSource || DEFAULT_ONLINE_NAME_LEXICON_URL || '').trim();
+    if (!onlineUrl) return;
+
+    try {
+      const resp = await fetch(onlineUrl, { cache: 'no-store' });
+      if (!resp.ok) return;
+      const onlineJson = await resp.json();
+      const onlineSignature = buildLexiconSignature(onlineJson);
+      if (!onlineSignature || onlineSignature === state.nameLexicon.signature) return;
+      applyLexiconJson(onlineJson);
+      console.info('Name lexicon updated from online source.');
+    } catch (_err){
+      return;
+    }
+  }
+
   async function loadNameLexicon(){
     try {
       const resp = await fetch(NAME_LEXICON_PATH, { cache: 'force-cache' });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
-      const given = (json?.givenNames || []).map(normalizeLexiconToken).filter(Boolean);
-      const surnames = (json?.surnames || []).map(normalizeLexiconToken).filter(Boolean);
-      state.nameLexicon.givenNames = new Set(given);
-      state.nameLexicon.surnames = new Set(surnames);
-      state.nameLexicon.loaded = true;
+      applyLexiconJson(json);
+      if (!state.nameLexicon.loaded) throw new Error('Invalid local lexicon payload');
+      await checkOnlineNameLexiconUpdate(json);
     } catch (_err){
       state.nameLexicon.loaded = false;
     }

@@ -6,7 +6,8 @@
     "counts": {
       "givenNames": 10000,
       "surnames": 22192
-    }
+    },
+    "onlineSource": "https://raw.githubusercontent.com/emote-ltd/emote.ltd/main/assets/name-lexicon.json"
   },
   "givenNames": [
     "aaliyah",

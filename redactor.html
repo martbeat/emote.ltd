@@ -1134,7 +1134,7 @@
     return out;
   }
 
-  async function processDocx(bytes){
+  async function processDocx(bytes, plainTextForCandidates = ""){
     const files = await unzipDocx(bytes.buffer);
     state.extractedPartText.clear();
     state.redactedPartText.clear();
@@ -1157,9 +1157,8 @@
       }
     }
 
-const plain = $('beforePane').value || '';
     const docTextForCandidates = docxCandidateChunks.join('\n');
-    state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plain}\n${docTextForCandidates}`.trim() });
+    state.piiCandidates = buildPiiCandidates({ creator, lastModifiedBy, fullText: `${plainTextForCandidates}\n${docTextForCandidates}`.trim() });
 
     for (const [name,obj] of files){
       let xml = textDecoder.decode(obj.data);
@@ -1289,7 +1288,7 @@ const plain = $('beforePane').value || '';
       let combinedBefore = plain;
       let combinedAfter = redactText(plain, { part: 'plainText', matchLog: state.matchLog, debugDetections: $('debugDetections').checked }).text;
       if (state.inputDocxBytes){
-        await processDocx(state.inputDocxBytes);
+        await processDocx(state.inputDocxBytes, plain);
         combinedBefore = [combinedBefore, state.originalText].filter(Boolean).join('\n');
         combinedAfter = [combinedAfter, state.redactedText].filter(Boolean).join('\n');
       }
@@ -1297,7 +1296,7 @@ const plain = $('beforePane').value || '';
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-$('beforePane').value = state.originalText || '';
+      $('beforePane').value = sourceText || '';
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();

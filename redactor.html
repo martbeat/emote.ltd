@@ -153,6 +153,8 @@
     'salesforce','sage','crm','agile','excel','sql','negotiation','reading','berkshire','project','management',
     'advanced','problem','solving','strategy','strategic','stakeholder','analysis','cloud','powerbi','tableau'
   ]);
+  const NAME_LEXICON_PATH = 'assets/name-lexicon.json';
+  const DEFAULT_ONLINE_NAME_LEXICON_URL = 'https://raw.githubusercontent.com/emote-ltd/emote.ltd/main/assets/name-lexicon.json';
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
@@ -207,7 +209,13 @@
     report: null,
     processedParts: new Set(),
     replacementCache: new Map(),
-    lastAutoBeforeText: ''
+    lastAutoBeforeText: '',
+    nameLexicon: {
+      givenNames: new Set(),
+      surnames: new Set(),
+      loaded: false,
+      signature: ''
+    }
   };
 
   const $ = id => document.getElementById(id);
@@ -239,6 +247,70 @@
 
   function stripBoundaryMarkers(text){
     return (text || '').replace(/\u0001/g, '');
+  }
+
+  function normalizeLexiconToken(token){
+    return (token || '').toLowerCase().replace(/[^\p{L}'’-]/gu, '').trim();
+  }
+
+  function looksLikeLexiconBackedPersonName(tokens){
+    if (!tokens || tokens.length < 2 || tokens.length > 3) return false;
+    const first = normalizeLexiconToken(tokens[0]);
+    const last = normalizeLexiconToken(tokens[tokens.length - 1]);
+    if (!first || !last) return false;
+    if (!state.nameLexicon.givenNames.has(first) || !state.nameLexicon.surnames.has(last)) return false;
+    if (tokens.length === 3){
+      const middle = normalizeLexiconToken(tokens[1]);
+      const middleInitial = /^[a-z]$/i.test(tokens[1]?.replace(/\./g, ''));
+      if (!middleInitial && middle && !state.nameLexicon.givenNames.has(middle)) return false;
+    }
+    return true;
+  }
+
+  function buildLexiconSignature(json){
+    const updated = String(json?.metadata?.updated || '');
+    const given = (json?.givenNames || []).map(normalizeLexiconToken).filter(Boolean);
+    const surnames = (json?.surnames || []).map(normalizeLexiconToken).filter(Boolean);
+    return `${updated}|${given.length}|${surnames.length}|${given[0] || ''}|${given[given.length - 1] || ''}|${surnames[0] || ''}|${surnames[surnames.length - 1] || ''}`;
+  }
+
+  function applyLexiconJson(json){
+    const given = (json?.givenNames || []).map(normalizeLexiconToken).filter(Boolean);
+    const surnames = (json?.surnames || []).map(normalizeLexiconToken).filter(Boolean);
+    state.nameLexicon.givenNames = new Set(given);
+    state.nameLexicon.surnames = new Set(surnames);
+    state.nameLexicon.signature = buildLexiconSignature(json);
+    state.nameLexicon.loaded = given.length > 0 && surnames.length > 0;
+  }
+
+  async function checkOnlineNameLexiconUpdate(localJson){
+    const onlineUrl = String(localJson?.metadata?.onlineSource || DEFAULT_ONLINE_NAME_LEXICON_URL || '').trim();
+    if (!onlineUrl) return;
+
+    try {
+      const resp = await fetch(onlineUrl, { cache: 'no-store' });
+      if (!resp.ok) return;
+      const onlineJson = await resp.json();
+      const onlineSignature = buildLexiconSignature(onlineJson);
+      if (!onlineSignature || onlineSignature === state.nameLexicon.signature) return;
+      applyLexiconJson(onlineJson);
+      console.info('Name lexicon updated from online source.');
+    } catch (_err){
+      return;
+    }
+  }
+
+  async function loadNameLexicon(){
+    try {
+      const resp = await fetch(NAME_LEXICON_PATH, { cache: 'force-cache' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      applyLexiconJson(json);
+      if (!state.nameLexicon.loaded) throw new Error('Invalid local lexicon payload');
+      await checkOnlineNameLexiconUpdate(json);
+    } catch (_err){
+      state.nameLexicon.loaded = false;
+    }
   }
 
 
@@ -344,6 +416,7 @@
       const words = clean.split(/\s+/).filter(Boolean);
       if (words.length < 2 || words.length > 5) continue;
       if (words.some(w => NAME_CONTEXT_STOPWORDS.has(w.toLowerCase()) || ORGISH_TERMS.has(w.toLowerCase()))) continue;
+      if (state.nameLexicon.loaded && !looksLikeLexiconBackedPersonName(splitNameTokens(words.join(' ')).slice(0, 3))) continue;
       const nameLike = words.filter(w => /^[\p{Lu}][\p{L}'’-]{1,}$/u.test(w) || /^[\p{Lu}]{2,}$/u.test(w));
       if (nameLike.length >= 2){
         return { phrase: words.join(' '), tokens: splitNameTokens(words.join(' ')), headerBlock: block };
@@ -729,8 +802,9 @@
       if (tokens.length < 2 || tokens.length > 3) continue;
       if (tokens.some(t => NAME_CONTEXT_STOPWORDS.has(t) || NAME_STOPWORDS.has(t) || ORGISH_TERMS.has(t))) continue;
       const supportCount = tokens.filter(t => candidateTokens.has(t)).length;
-      if (supportCount < 1) continue;
-      const confidence = supportCount >= 2 ? 0.95 : 0.91;
+      const lexiconBacked = looksLikeLexiconBackedPersonName(tokens);
+      if (supportCount < 1 && !lexiconBacked) continue;
+      const confidence = supportCount >= 2 ? 0.95 : (supportCount === 1 ? 0.91 : 0.9);
       const key = phrase.toLowerCase();
       const prev = found.get(key);
       if (!prev || confidence > prev.confidence) found.set(key, { phrase, confidence });
@@ -1511,6 +1585,7 @@ ZZ1 1ZZ` });
   updatePolicyLine();
   updateModeUi();
   generateBuildId();
+  loadNameLexicon();
 })();
 </script>
 </body>

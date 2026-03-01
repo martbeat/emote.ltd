@@ -206,7 +206,8 @@
     counters: {},
     report: null,
     processedParts: new Set(),
-    replacementCache: new Map()
+    replacementCache: new Map(),
+    lastAutoBeforeText: ''
   };
 
   const $ = id => document.getElementById(id);
@@ -1278,8 +1279,11 @@
       resetAuditState();
       buildPseudonymMaps();
       updatePolicyLine();
-      const sourceText = $('beforePane').value || $('plainInput').value || '';
-      if (!$('beforePane').value && sourceText) $('beforePane').value = sourceText;
+      const beforePaneText = $('beforePane').value || '';
+      const plainInputText = $('plainInput').value || '';
+      const isAutoBeforeText = !!beforePaneText && beforePaneText === state.lastAutoBeforeText;
+      const sourceText = (!beforePaneText || isAutoBeforeText) ? plainInputText : beforePaneText;
+      if (!beforePaneText && sourceText) $('beforePane').value = sourceText;
       const plain = sourceText;
       state.piiCandidates = (isInferenceMode() || $('redactSurnameGlobal').checked || $('redactFirstNameGlobal').checked)
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
@@ -1296,7 +1300,9 @@
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-      $('beforePane').value = state.originalText || sourceText || '';
+      const resolvedBeforeText = state.originalText || sourceText || '';
+      $('beforePane').value = resolvedBeforeText;
+      state.lastAutoBeforeText = resolvedBeforeText;
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();

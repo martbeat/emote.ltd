@@ -94,7 +94,7 @@
         <button id="dlDocxBtn" disabled>Download redacted.docx</button>
         <button id="dlTxtBtn" disabled>Download redacted.txt</button>
         <button id="dlReportBtn" disabled>Download report.json</button>
-        <button id="dlLexiconBtn" class="btn-danger" disabled>Download latest lexicon</button>
+        <button id="dlLexiconBtn" class="btn-danger" disabled>Load latest lexicon from assets</button>
       </div>
       <div id="lexiconInfo" class="muted" style="margin-top:8px">Lexicon: loading…</div>
       <div id="status" class="muted" style="margin-top:8px"></div>
@@ -298,7 +298,7 @@
     if (!state.nameLexicon.loaded){
       node.textContent = 'Lexicon: unavailable (using heuristic-only name detection).';
       btn.disabled = true;
-      btn.textContent = 'Download latest lexicon';
+      btn.textContent = 'Load latest lexicon from assets';
       return;
     }
 
@@ -308,7 +308,15 @@
     const updated = state.nameLexicon.payload?.metadata?.updated || 'unknown';
     node.textContent = `Lexicon loaded: ${given.toLocaleString()} given + ${surnames.toLocaleString()} surnames (${total.toLocaleString()} total), updated ${updated}.`;
     btn.disabled = false;
-    btn.textContent = `Download latest lexicon (${total.toLocaleString()} names)`;
+    btn.textContent = `Load latest lexicon from assets (${total.toLocaleString()} names)`;
+  }
+
+  async function refreshNameLexiconFromAssets(){
+    const resp = await fetch(`${NAME_LEXICON_PATH}?ts=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = await resp.json();
+    applyLexiconJson(json);
+    if (!state.nameLexicon.loaded) throw new Error('Invalid local lexicon payload');
   }
 
   async function checkOnlineNameLexiconUpdate(localJson){
@@ -1494,17 +1502,17 @@
     URL.revokeObjectURL(a.href);
   });
 
-  $('dlLexiconBtn').addEventListener('click', ()=>{
-    const payload = state.nameLexicon.payload;
-    if (!payload) return;
-    const total = state.nameLexicon.givenNames.size + state.nameLexicon.surnames.size;
-    const version = String(payload?.metadata?.updated || 'latest').replace(/[^0-9a-z._-]+/ig, '-');
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json;charset=utf-8'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `name-lexicon-${version}-${total}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  $('dlLexiconBtn').addEventListener('click', async ()=>{
+    const btn = $('dlLexiconBtn');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing lexicon from assets…';
+    try {
+      await refreshNameLexiconFromAssets();
+      updateLexiconUi();
+    } catch (_err){
+      btn.textContent = 'Unable to refresh lexicon from assets';
+      setTimeout(updateLexiconUi, 1500);
+    }
   });
 
   $('searchBtn').addEventListener('click', ()=>{

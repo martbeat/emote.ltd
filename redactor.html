@@ -1296,7 +1296,7 @@
       state.originalText = combinedBefore;
       state.redactedText = combinedAfter;
 
-      $('beforePane').value = sourceText || '';
+      $('beforePane').value = state.originalText || sourceText || '';
       $('afterPane').textContent = state.redactedText || '—';
       $('leaksPane').textContent = findLeaks(state.redactedText);
       state.report = buildReport();

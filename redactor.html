@@ -36,6 +36,9 @@
 <header>
   <strong>AI Upload Redaction Assistant (.docx + text)</strong>
   <div class="muted">No network calls. Replaces underlying content (not visual hiding) before AI upload. Scrubs high-risk metadata surfaces; always manually review output.</div>
+  <div class="muted">
+    Build ID: <span id="buildId">calculating…</span>
+  </div>
 </header>
 <main>
   <section class="card">
@@ -207,6 +210,31 @@
   };
 
   const $ = id => document.getElementById(id);
+
+  async function generateBuildId(){
+    const buildIdNode = $('buildId');
+    if (!buildIdNode || !window.crypto?.subtle) {
+      if (buildIdNode) buildIdNode.textContent = 'unavailable';
+      return;
+    }
+
+    const clone = document.documentElement.cloneNode(true);
+    const buildEl = clone.querySelector('#buildId');
+    if (buildEl) buildEl.textContent = '';
+
+    const source = clone.outerHTML;
+    const data = new TextEncoder().encode(source);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+    const hashHex = [...new Uint8Array(hashBuffer)]
+      .map(b => b.toString(16).padStart(2,'0'))
+      .join('');
+
+    const shortId = hashHex.slice(0,16);
+
+    buildIdNode.textContent = shortId;
+    buildIdNode.title = hashHex;
+  }
 
   function stripBoundaryMarkers(text){
     return (text || '').replace(/\u0001/g, '');
@@ -1453,6 +1481,7 @@ ZZ1 1ZZ` });
   updateInferenceControls();
   updatePolicyLine();
   updateModeUi();
+  generateBuildId();
 })();
 </script>
 </body>

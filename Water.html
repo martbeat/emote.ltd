@@ -590,6 +590,7 @@
   function applyWalls(box){
     const half = box/2;
     const restitution = 0.72;
+    const eps = 1e-6;
 
     // Keep molecules together at boundaries by resolving collisions per molecule,
     // not per atom (avoids one atom bouncing while its bonded partners lag behind).
@@ -605,24 +606,52 @@
           if (a.pos[axis] > maxCoord) maxCoord = a.pos[axis];
         }
 
-        if (minCoord < -half){
-          const shift = -half - minCoord;
+        const span = maxCoord - minCoord;
+
+        // Safety for pathological settings where a molecule spans the full box on an axis.
+        if (span >= box - eps){
+          const center = 0.5 * (minCoord + maxCoord);
+          const shift = -center;
           for (const a of sites){
             a.pos[axis] += shift;
-            if (a.vel[axis] < 0) a.vel[axis] = Math.abs(a.vel[axis]) * restitution;
+            a.vel[axis] *= 0.35;
+          }
+          continue;
+        }
+
+        if (minCoord < -half || maxCoord > half){
+          // One combined correction keeps all sites in-bounds in a single move.
+          const shiftInFromMin = (minCoord < -half) ? (-half - minCoord + eps) : 0;
+          const shiftInFromMax = (maxCoord >  half) ? ( half - maxCoord - eps) : 0;
+          const shift = shiftInFromMin + shiftInFromMax;
+
+          for (const a of sites){
+            a.pos[axis] += shift;
+          }
+
+          // Reflect only if molecule is moving outwards on that axis.
+          const outward = (minCoord < -half && m.O.vel[axis] < 0) || (maxCoord > half && m.O.vel[axis] > 0);
+          if (outward){
+            for (const a of sites){
+              a.vel[axis] = -a.vel[axis] * restitution;
+            }
           }
         }
 
-        if (maxCoord > half){
-          const shift = half - maxCoord;
-          for (const a of sites){
-            a.pos[axis] += shift;
-            if (a.vel[axis] > 0) a.vel[axis] = -Math.abs(a.vel[axis]) * restitution;
+        // Hard safety clamp: all atomic centres must stay inside the simulation box.
+        for (const a of sites){
+          if (a.pos[axis] < -half){
+            a.pos[axis] = -half + eps;
+            if (a.vel[axis] < 0) a.vel[axis] = -a.vel[axis] * restitution;
+          } else if (a.pos[axis] > half){
+            a.pos[axis] = half - eps;
+            if (a.vel[axis] > 0) a.vel[axis] = -a.vel[axis] * restitution;
           }
         }
       }
     }
   }
+
 
   // -------------------------
   // Integration + thermostat

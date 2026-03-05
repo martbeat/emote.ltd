@@ -78,7 +78,7 @@
       </div>
       <div class="row">
         <label for="dt">Time step</label>
-        <input id="dt" type="range" min="0.001" max="0.012" step="0.001" value="0.006" />
+        <input id="dt" type="range" min="0.001" max="0.012" step="0.001" value="0.004" />
       </div>
       <div class="btnrow">
         <button id="pauseBtn">Pause</button>
@@ -253,9 +253,10 @@
   const qO = -0.6;
   const qH = +0.3;
 
-  // Masses (relative)
-  const mO = 16.0;
-  const mH = 1.0;
+  // Masses (relative, in atomic mass units)
+  // Oxygen is ~15.999 u and hydrogen is ~1.008 u.
+  const mO = 15.999;
+  const mH = 1.008;
 
   // Coulomb softening
   const coulSoft = 0.35;
@@ -589,15 +590,68 @@
   function applyWalls(box){
     const half = box/2;
     const restitution = 0.72;
-    for (const a of atoms){
-      if (a.pos.x < -half){ a.pos.x = -half; a.vel.x = Math.abs(a.vel.x)*restitution; }
-      if (a.pos.x >  half){ a.pos.x =  half; a.vel.x =-Math.abs(a.vel.x)*restitution; }
-      if (a.pos.y < -half){ a.pos.y = -half; a.vel.y = Math.abs(a.vel.y)*restitution; }
-      if (a.pos.y >  half){ a.pos.y =  half; a.vel.y =-Math.abs(a.vel.y)*restitution; }
-      if (a.pos.z < -half){ a.pos.z = -half; a.vel.z = Math.abs(a.vel.z)*restitution; }
-      if (a.pos.z >  half){ a.pos.z =  half; a.vel.z =-Math.abs(a.vel.z)*restitution; }
+    const eps = 1e-6;
+
+    // Keep molecules together at boundaries by resolving collisions per molecule,
+    // not per atom (avoids one atom bouncing while its bonded partners lag behind).
+    for (const m of molecules){
+      const sites = [m.O, m.H1, m.H2];
+
+      for (const axis of ["x", "y", "z"]){
+        let minCoord = Infinity;
+        let maxCoord = -Infinity;
+
+        for (const a of sites){
+          if (a.pos[axis] < minCoord) minCoord = a.pos[axis];
+          if (a.pos[axis] > maxCoord) maxCoord = a.pos[axis];
+        }
+
+        const span = maxCoord - minCoord;
+
+        // Safety for pathological settings where a molecule spans the full box on an axis.
+        if (span >= box - eps){
+          const center = 0.5 * (minCoord + maxCoord);
+          const shift = -center;
+          for (const a of sites){
+            a.pos[axis] += shift;
+            a.vel[axis] *= 0.35;
+          }
+          continue;
+        }
+
+        if (minCoord < -half || maxCoord > half){
+          // One combined correction keeps all sites in-bounds in a single move.
+          const shiftInFromMin = (minCoord < -half) ? (-half - minCoord + eps) : 0;
+          const shiftInFromMax = (maxCoord >  half) ? ( half - maxCoord - eps) : 0;
+          const shift = shiftInFromMin + shiftInFromMax;
+
+          for (const a of sites){
+            a.pos[axis] += shift;
+          }
+
+          // Reflect only if molecule is moving outwards on that axis.
+          const outward = (minCoord < -half && m.O.vel[axis] < 0) || (maxCoord > half && m.O.vel[axis] > 0);
+          if (outward){
+            for (const a of sites){
+              a.vel[axis] = -a.vel[axis] * restitution;
+            }
+          }
+        }
+
+        // Hard safety clamp: all atomic centres must stay inside the simulation box.
+        for (const a of sites){
+          if (a.pos[axis] < -half){
+            a.pos[axis] = -half + eps;
+            if (a.vel[axis] < 0) a.vel[axis] = -a.vel[axis] * restitution;
+          } else if (a.pos[axis] > half){
+            a.pos[axis] = half - eps;
+            if (a.vel[axis] > 0) a.vel[axis] = -a.vel[axis] * restitution;
+          }
+        }
+      }
     }
   }
+
 
   // -------------------------
   // Integration + thermostat
@@ -821,6 +875,7 @@
     lastPreset = kind;
 
     if (kind === "ice"){
+      ui.dt.value = 0.004;
       ui.temp.value = 120;
       ui.boxSize.value = 36;
       ui.ljEps.value = 1.05;
@@ -836,6 +891,7 @@
     }
 
     if (kind === "liquid"){
+      ui.dt.value = 0.004;
       ui.temp.value = 300;
       ui.boxSize.value = 34;
       ui.ljEps.value = 0.60;
@@ -851,12 +907,13 @@
     }
 
     if (kind === "steam"){
+      ui.dt.value = 0.003;
       ui.temp.value = 900;
       ui.boxSize.value = 70;
       ui.ljEps.value = 0.22;
       ui.coulomb.value = 0.35;
-      ui.kBond.value = 90;
-      ui.kAngle.value = 18;
+      ui.kBond.value = 130;
+      ui.kAngle.value = 26;
       ui.damping.value = 0.003;
       ui.gravity.value = 0.8;
       ui.weakMode.value = "off";

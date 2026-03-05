@@ -439,6 +439,22 @@
     }
   }
 
+function enforceBondLength(a, b, targetLength) {
+
+  const d = b.pos.clone().sub(a.pos);
+  const r = d.length();
+
+  if (r === 0) return;
+
+  const correction = (r - targetLength) / r;
+
+  const half = d.multiplyScalar(0.5 * correction);
+
+  a.pos.add(half);
+  b.pos.sub(half);
+
+}
+  
   function applyBondsAndAngles(){
     const kBond = parseFloat(ui.kBond.value);
     const kAngle = parseFloat(ui.kAngle.value);
@@ -458,6 +474,18 @@
     return pe;
   }
 
+function enforceWaterGeometry(){
+
+  for(const m of molecules){
+
+    enforceBondLength(m.O, m.H1, OH0);
+    enforceBondLength(m.O, m.H2, OH0);
+
+  }
+
+}
+
+  
 function bondForce(a, b) {
 
   const r0 = OH0;
@@ -922,7 +950,7 @@ function bondForce(a, b) {
       pe += applyIntermolecular(box);
 
       integrate(dt, box);
-
+enforceWaterGeometry();
       applyThermostat();
 
       // update meshes

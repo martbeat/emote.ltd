@@ -702,6 +702,45 @@
 
     enforceBondConstraints();
     applyWalls(box);
+    enforceBondConstraints();
+  }
+
+
+  function enforceBondConstraints(){
+    for (let iter=0; iter<bondConstraintIters; iter++){
+      for (const m of molecules){
+        constrainBondPair(m.O, m.H1, OH0);
+        constrainBondPair(m.O, m.H2, OH0);
+      }
+    }
+  }
+
+  function constrainBondPair(a, b, target){
+    const d = b.pos.clone().sub(a.pos);
+    const r = d.length();
+    if (r < 1e-8) return;
+
+    const err = r - target;
+    if (Math.abs(err) < 1e-6) return;
+
+    const u = d.multiplyScalar(1/r);
+    const invMassA = 1 / a.mass;
+    const invMassB = 1 / b.mass;
+    const w = invMassA + invMassB;
+
+    // Position Based Dynamics style correction distributed by inverse mass.
+    const corr = u.multiplyScalar(err / w);
+    a.pos.addScaledVector(corr, invMassA);
+    b.pos.addScaledVector(corr, -invMassB);
+
+    // Remove most relative radial velocity so the bond length stays almost fixed.
+    const relVel = b.vel.clone().sub(a.vel);
+    const radial = relVel.dot(u);
+    if (Math.abs(radial) > 1e-8){
+      const impulse = (radial * bondVelDamp) / w;
+      a.vel.addScaledVector(u,  impulse * invMassA);
+      b.vel.addScaledVector(u, -impulse * invMassB);
+    }
   }
 
 

@@ -78,7 +78,7 @@
       </div>
       <div class="row">
         <label for="dt">Time step</label>
-        <input id="dt" type="range" min="0.001" max="0.012" step="0.001" value="0.006" />
+        <input id="dt" type="range" min="0.001" max="0.006" step="0.001" value="0.006" />
       </div>
       <div class="btnrow">
         <button id="pauseBtn">Pause</button>
@@ -140,7 +140,7 @@
       </div>
       <div class="row">
         <label for="kAngle">Angle spring k</label>
-        <input id="kAngle" type="range" min="2" max="80" step="2" value="28" />
+        <input id="kAngle" type="range" min="40" max="60" step="2" value="28" />
       </div>
       <div class="note">
         Higher k means stiffer bonds (less vibration). Lower k allows visible vibration and bending.
@@ -458,22 +458,34 @@
     return pe;
   }
 
-  function bondForce(a, b, k, r0){
-    const d = b.pos.clone().sub(a.pos);
-    const r = d.length();
-    if (r < 1e-6) return 0;
-    const dr = r - r0;
-    const fMag = -k * dr; // force along unit vector on b
-    const u = d.multiplyScalar(1/r);
-    const f = u.multiplyScalar(fMag);
+function bondForce(a, b) {
 
-    // Apply equal and opposite
-    b.force.add(f);
-    a.force.sub(f);
+  const r0 = OH0;
+  const De = 120;     // bond energy depth
+  const alpha = 3.5;  // stiffness
 
-    return 0.5 * k * dr * dr;
-  }
+  const d = b.pos.clone().sub(a.pos);
+  const r = d.length();
 
+  if (r < 1e-6) return 0;
+
+  const dr = r - r0;
+
+  const expTerm = Math.exp(-alpha * dr);
+
+  const forceMag =
+        2 * De * alpha * (1 - expTerm) * expTerm;
+
+  const f = d.multiplyScalar(forceMag / r);
+
+  b.force.add(f);
+  a.force.sub(f);
+
+  const potential =
+        De * Math.pow(1 - expTerm, 2);
+
+  return potential;
+}
   function angleForce(a, b, c, k, theta0){
     // Angle at b: a-b-c
     const ba = a.pos.clone().sub(b.pos);

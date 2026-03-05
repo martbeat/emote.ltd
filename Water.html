@@ -261,6 +261,13 @@
   // Coulomb softening
   const coulSoft = 0.35;
 
+  // Short-range stability guards to avoid explosive forces during rare overlaps.
+  const minLJDist = 0.82;
+  const minCoulombDist = 0.75;
+  const maxLJForce = 240;
+  const maxCoulombForce = 160;
+  const maxSpeed = 24;
+
   // Constraint tuning: keep O-H bond lengths nearly rigid against external forces
   const bondConstraintIters = 2;
   const bondVelDamp = 0.85;
@@ -540,8 +547,9 @@
         // LJ between O-O only
         if (eps > 0){
           const rij = mj.O.pos.clone().sub(mi.O.pos);
-          const r2 = rij.lengthSq();
-          if (r2 > 1e-6 && r2 < rCutLJ2){
+          const r2Raw = rij.lengthSq();
+          if (r2Raw > 1e-6 && r2Raw < rCutLJ2){
+            const r2 = Math.max(r2Raw, minLJDist*minLJDist);
             const invR2 = 1.0/r2;
             const invR6 = invR2*invR2*invR2;
             const sig2 = sig*sig;
@@ -552,8 +560,9 @@
             const term12 = sig12 * invR6 * invR6;
 
             const r = Math.sqrt(r2);
-            const fMag = (24*eps / r) * (2*term12 - term6);
-            const f = rij.multiplyScalar(fMag / r);
+            const rawFMag = (24*eps / r) * (2*term12 - term6);
+            const fMag = clamp(rawFMag, -maxLJForce, maxLJForce);
+            const f = rij.multiplyScalar(fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
 
             mi.O.force.add(f);
             mj.O.force.sub(f);
@@ -571,12 +580,14 @@
           for (const ai of sitesI){
             for (const aj of sitesJ){
               const d = aj.pos.clone().sub(ai.pos);
-              const r2 = d.lengthSq();
-              if (r2 < 1e-6 || r2 > rCutC2) continue;
-              const r = Math.sqrt(r2 + coulSoft*coulSoft);
+              const r2Raw = d.lengthSq();
+              if (r2Raw < 1e-6 || r2Raw > rCutC2) continue;
+              const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
+              const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
 
               // Force magnitude for softened Coulomb: k q1 q2 / r^3
-              const fMag = (kC * ai.charge * aj.charge) / (r*r*r);
+              const rawFMag = (kC * ai.charge * aj.charge) / (r*r*r);
+              const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
               const f = d.multiplyScalar(fMag);
 
               ai.force.add(f);
@@ -697,6 +708,10 @@
     for (const a of atoms){
       a.vel.addScaledVector(a.force, dt / a.mass);
       a.vel.multiplyScalar(damp);
+
+      const speed = a.vel.length();
+      if (speed > maxSpeed) a.vel.multiplyScalar(maxSpeed / speed);
+
       a.pos.addScaledVector(a.vel, dt);
     }
 

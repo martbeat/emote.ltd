@@ -261,6 +261,13 @@
   // Coulomb softening
   const coulSoft = 0.35;
 
+  // Short-range stability guards to avoid explosive forces during rare overlaps.
+  const minLJDist = 0.82;
+  const minCoulombDist = 0.75;
+  const maxLJForce = 240;
+  const maxCoulombForce = 160;
+  const maxSpeed = 24;
+
   // Constraint tuning: keep O-H bond lengths nearly rigid against external forces
   const bondConstraintIters = 2;
   const bondVelDamp = 0.85;
@@ -540,8 +547,9 @@
         // LJ between O-O only
         if (eps > 0){
           const rij = mj.O.pos.clone().sub(mi.O.pos);
-          const r2 = rij.lengthSq();
-          if (r2 > 1e-6 && r2 < rCutLJ2){
+          const r2Raw = rij.lengthSq();
+          if (r2Raw > 1e-6 && r2Raw < rCutLJ2){
+            const r2 = Math.max(r2Raw, minLJDist*minLJDist);
             const invR2 = 1.0/r2;
             const invR6 = invR2*invR2*invR2;
             const sig2 = sig*sig;
@@ -552,8 +560,9 @@
             const term12 = sig12 * invR6 * invR6;
 
             const r = Math.sqrt(r2);
-            const fMag = (24*eps / r) * (2*term12 - term6);
-            const f = rij.multiplyScalar(fMag / r);
+            const rawFMag = (24*eps / r) * (2*term12 - term6);
+            const fMag = clamp(rawFMag, -maxLJForce, maxLJForce);
+            const f = rij.multiplyScalar(fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
 
             mi.O.force.add(f);
             mj.O.force.sub(f);
@@ -571,12 +580,14 @@
           for (const ai of sitesI){
             for (const aj of sitesJ){
               const d = aj.pos.clone().sub(ai.pos);
-              const r2 = d.lengthSq();
-              if (r2 < 1e-6 || r2 > rCutC2) continue;
-              const r = Math.sqrt(r2 + coulSoft*coulSoft);
+              const r2Raw = d.lengthSq();
+              if (r2Raw < 1e-6 || r2Raw > rCutC2) continue;
+              const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
+              const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
 
               // Force magnitude for softened Coulomb: k q1 q2 / r^3
-              const fMag = (kC * ai.charge * aj.charge) / (r*r*r);
+              const rawFMag = (kC * ai.charge * aj.charge) / (r*r*r);
+              const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
               const f = d.multiplyScalar(fMag);
 
               ai.force.add(f);
@@ -697,160 +708,16 @@
     for (const a of atoms){
       a.vel.addScaledVector(a.force, dt / a.mass);
       a.vel.multiplyScalar(damp);
+
+      const speed = a.vel.length();
+      if (speed > maxSpeed) a.vel.multiplyScalar(maxSpeed / speed);
+
       a.pos.addScaledVector(a.vel, dt);
     }
 
     globalThis.__waterBondConstraintAPI.applyStep();
     applyWalls(box);
-    enforceBondConstraints();
   }
-
-
-  function enforceBondConstraints(){
-    for (let iter=0; iter<bondConstraintIters; iter++){
-      for (const m of molecules){
-        constrainBondPair(m.O, m.H1, OH0);
-        constrainBondPair(m.O, m.H2, OH0);
-      }
-    }
-  }
-
-  function constrainBondPair(a, b, target){
-    const d = b.pos.clone().sub(a.pos);
-    const r = d.length();
-    if (r < 1e-8) return;
-
-    const err = r - target;
-    if (Math.abs(err) < 1e-6) return;
-
-    const u = d.multiplyScalar(1/r);
-    const invMassA = 1 / a.mass;
-    const invMassB = 1 / b.mass;
-    const w = invMassA + invMassB;
-
-    // Position Based Dynamics style correction distributed by inverse mass.
-    const corr = u.multiplyScalar(err / w);
-    a.pos.addScaledVector(corr, invMassA);
-    b.pos.addScaledVector(corr, -invMassB);
-
-    // Remove most relative radial velocity so the bond length stays almost fixed.
-    const relVel = b.vel.clone().sub(a.vel);
-    const radial = relVel.dot(u);
-    if (Math.abs(radial) > 1e-8){
-      const impulse = (radial * bondVelDamp) / w;
-      a.vel.addScaledVector(u,  impulse * invMassA);
-      b.vel.addScaledVector(u, -impulse * invMassB);
-    }
-  }
-
-
-  function enforceBondConstraints(){
-    for (let iter=0; iter<bondConstraintIters; iter++){
-      for (const m of molecules){
-        constrainBondPair(m.O, m.H1, OH0);
-        constrainBondPair(m.O, m.H2, OH0);
-      }
-    }
-  }
-
-  function constrainBondPair(a, b, target){
-    const d = b.pos.clone().sub(a.pos);
-    const r = d.length();
-    if (r < 1e-8 || !Number.isFinite(r)) return;
-
-    const rawErr = r - target;
-    if (Math.abs(rawErr) < 1e-6) return;
-
-    const u = d.multiplyScalar(1/r);
-
-    // Keep O anchored for O-H pairs (reduces positional drift and blow-ups from dense contacts).
-    let weightA = 0.0;
-    let weightB = 1.0;
-
-    // Generic fallback for non O-H pairs (not currently used).
-    if (!((a.type === "O" && b.type === "H") || (a.type === "H" && b.type === "O"))){
-      const invMassA = 1 / a.mass;
-      const invMassB = 1 / b.mass;
-      const w = invMassA + invMassB;
-      if (w <= 1e-12) return;
-      weightA = invMassA / w;
-      weightB = invMassB / w;
-    } else if (a.type === "H" && b.type === "O") {
-      // If ordering is H-O, keep O anchored by moving atom a (H) only.
-      weightA = 1.0;
-      weightB = 0.0;
-    }
-
-    const err = clamp(rawErr, -maxBondCorrection, maxBondCorrection);
-
-    // Position correction along bond axis.
-    a.pos.addScaledVector(u, +err * weightA);
-    b.pos.addScaledVector(u, -err * weightB);
-
-    // Dampen relative radial velocity (same weighting strategy as position correction).
-    const relVel = b.vel.clone().sub(a.vel);
-    const radial = relVel.dot(u);
-    if (Math.abs(radial) > 1e-8){
-      const dv = radial * bondVelDamp;
-      a.vel.addScaledVector(u, +dv * weightA);
-      b.vel.addScaledVector(u, -dv * weightB);
-    }
-  }
-
-
-  function applyBondConstraintsStep(){
-    for (let iter=0; iter<bondConstraintIters; iter++){
-      for (const m of molecules){
-        constrainBondPair(m.O, m.H1, OH0);
-        constrainBondPair(m.O, m.H2, OH0);
-      }
-    }
-  }
-
-  function constrainBondPair(a, b, target){
-    const d = b.pos.clone().sub(a.pos);
-    const r = d.length();
-    if (r < 1e-8 || !Number.isFinite(r)) return;
-
-    const rawErr = r - target;
-    if (Math.abs(rawErr) < 1e-6) return;
-
-    const u = d.multiplyScalar(1/r);
-
-    // Keep O anchored for O-H pairs (reduces positional drift and blow-ups from dense contacts).
-    let weightA = 0.0;
-    let weightB = 1.0;
-
-    // Generic fallback for non O-H pairs (not currently used).
-    if (!((a.type === "O" && b.type === "H") || (a.type === "H" && b.type === "O"))){
-      const invMassA = 1 / a.mass;
-      const invMassB = 1 / b.mass;
-      const w = invMassA + invMassB;
-      if (w <= 1e-12) return;
-      weightA = invMassA / w;
-      weightB = invMassB / w;
-    } else if (a.type === "H" && b.type === "O") {
-      // If ordering is H-O, keep O anchored by moving atom a (H) only.
-      weightA = 1.0;
-      weightB = 0.0;
-    }
-
-    const err = clamp(rawErr, -maxBondCorrection, maxBondCorrection);
-
-    // Position correction along bond axis.
-    a.pos.addScaledVector(u, +err * weightA);
-    b.pos.addScaledVector(u, -err * weightB);
-
-    // Dampen relative radial velocity (same weighting strategy as position correction).
-    const relVel = b.vel.clone().sub(a.vel);
-    const radial = relVel.dot(u);
-    if (Math.abs(radial) > 1e-8){
-      const dv = radial * bondVelDamp;
-      a.vel.addScaledVector(u, +dv * weightA);
-      b.vel.addScaledVector(u, -dv * weightB);
-    }
-  }
-
 
   // Use a global property-backed API to avoid duplicate identifier declaration errors
   // if this block is ever injected/reloaded more than once.

@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>H2O Simulator (toy molecular dynamics)</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#101a33; --line:#223059; --text:#e9eefc; --muted:#b9c3e6;
+      --btn:#1b2b57; --btn2:#263a73;
+    }
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;}
+    #app{display:grid; grid-template-columns: 340px 1fr; height:100%;}
+    #ui{padding:14px 14px 18px; border-right:1px solid var(--line); background:linear-gradient(180deg, rgba(16,26,51,0.9), rgba(11,16,32,0.9)); overflow:auto;}
+    h1{font-size:16px; margin:0 0 10px;}
+    .note{font-size:12px; color:var(--muted); line-height:1.35; margin:0 0 12px;}
+    .group{border:1px solid var(--line); border-radius:12px; padding:10px; margin:10px 0;}
+    .group h2{font-size:13px; margin:0 0 8px; color:#dbe4ff;}
+    .row{display:grid; grid-template-columns: 1fr 84px; gap:10px; align-items:center; margin:8px 0;}
+    label{font-size:12px; color:var(--muted);}
+    input[type="range"]{width:100%;}
+    input[type="number"]{width:84px; padding:6px 8px; border-radius:10px; border:1px solid var(--line); background:#0a1024; color:var(--text);}
+    .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+    button{border:1px solid var(--line); background:var(--btn); color:var(--text); padding:8px 10px; border-radius:12px; cursor:pointer; font-size:12px;}
+    button:hover{background:var(--btn2);}
+    #view{position:relative;}
+    #hud{
+      position:absolute; left:10px; bottom:10px; padding:8px 10px; border-radius:12px;
+      border:1px solid rgba(255,255,255,0.08); background:rgba(10,16,36,0.65); backdrop-filter: blur(8px);
+      font-size:12px; color:var(--muted); max-width: min(520px, calc(100% - 20px));
+    }
+    #hud b{color:var(--text); font-weight:600;}
+    .pill{display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); margin-right:6px;}
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside id="ui">
+    <h1>H2O simulator (toy MD)</h1>
+    <p class="note">
+      Visual demo only, not a physically accurate water model.
+      Oxygen (red), hydrogen (white), rigid bonds, LJ attraction between oxygens, partial-charge Coulomb, gravity.
+    </p>
+
+    <div class="group">
+      <h2>System</h2>
+      <div class="row"><label for="nMol">Molecules</label><input id="nMol" type="number" min="10" max="500" step="10" value="120" /></div>
+      <div class="row"><label for="boxSize">Box size</label><input id="boxSize" type="range" min="14" max="70" step="1" value="30" /></div>
+      <div class="row"><label for="dt">Time step</label><input id="dt" type="range" min="0.001" max="0.02" step="0.001" value="0.008" /></div>
+      <div class="btnrow">
+        <button id="resetBtn">Reset</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="slowBtn">Slow-mo</button>
+        <button id="kickBtn">Kick</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Thermodynamics (toy)</h2>
+      <div class="row"><label for="temp">Temperature</label><input id="temp" type="range" min="50" max="800" step="10" value="300" /></div>
+      <div class="row"><label for="thermo">Thermostat strength</label><input id="thermo" type="range" min="0" max="1" step="0.01" value="0.18" /></div>
+      <div class="row"><label for="pressureAssist">“Pressure assist”</label><input id="pressureAssist" type="range" min="0" max="1" step="0.01" value="0.15" /></div>
+      <p class="note">Pressure is approximated by density (box size) plus optional inward bias.</p>
+    </div>
+
+    <div class="group">
+      <h2>Forces</h2>
+      <div class="row"><label for="gravity">Gravity</label><input id="gravity" type="range" min="0" max="30" step="0.5" value="2.5" /></div>
+      <div class="row"><label for="coulomb">Coulomb strength</label><input id="coulomb" type="range" min="0" max="2" step="0.01" value="0.55" /></div>
+      <div class="row"><label for="ljEps">LJ attraction (ε)</label><input id="ljEps" type="range" min="0" max="2" step="0.01" value="0.55" /></div>
+      <div class="row"><label for="ljSig">LJ distance (σ)</label><input id="ljSig" type="range" min="1.8" max="4.0" step="0.05" value="3.15" /></div>
+      <div class="row"><label for="visc">Viscosity (damping)</label><input id="visc" type="range" min="0" max="0.2" step="0.001" value="0.01" /></div>
+    </div>
+
+    <div class="group">
+      <h2>Visuals</h2>
+      <div class="row"><label for="showForces">Show weak links</label><input id="showForces" type="range" min="0" max="1" step="1" value="1" /></div>
+      <div class="row"><label for="linkCutoff">Link cutoff (O–O)</label><input id="linkCutoff" type="range" min="3.0" max="7.5" step="0.1" value="4.2" /></div>
+      <div class="row"><label for="quality">Quality</label><input id="quality" type="range" min="0.5" max="2" step="0.1" value="1.2" /></div>
+    </div>
+
+    <div class="note" id="stats">
+      <span class="pill">FPS: <b id="fps">-</b></span>
+      <span class="pill">T target: <b id="tTarget">-</b></span>
+      <span class="pill">T inst: <b id="tInst">-</b></span>
+      <span class="pill">KE: <b id="ke">-</b></span>
+      <div style="margin-top:8px;">Controls: drag=orbit, right-drag=pan, scroll=zoom.</div>
+    </div>
+  </aside>
+
+  <main id="view">
+    <div id="hud">
+      <b>What you are seeing</b><br/>
+      Oxygen (red) and hydrogen (white) atoms move in a 3D box.
+      Cyan lines indicate nearby oxygen pairs (toy “weak attraction”). Gravity pulls downward.
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  // IMPORTANT: use absolute module URLs (no bare "three")
+  import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
+  import { OrbitControls } from "https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js";
+
+  const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+  const rand = (a,b)=>a+(b-a)*Math.random();
+
+  const ui = {
+    nMol: document.getElementById("nMol"),
+    boxSize: document.getElementById("boxSize"),
+    dt: document.getElementById("dt"),
+    temp: document.getElementById("temp"),
+    thermo: document.getElementById("thermo"),
+    pressureAssist: document.getElementById("pressureAssist"),
+    gravity: document.getElementById("gravity"),
+    coulomb: document.getElementById("coulomb"),
+    ljEps: document.getElementById("ljEps"),
+    ljSig: document.getElementById("ljSig"),
+    visc: document.getElementById("visc"),
+    showForces: document.getElementById("showForces"),
+    linkCutoff: document.getElementById("linkCutoff"),
+    quality: document.getElementById("quality"),
+    resetBtn: document.getElementById("resetBtn"),
+    pauseBtn: document.getElementById("pauseBtn"),
+    slowBtn: document.getElementById("slowBtn"),
+    kickBtn: document.getElementById("kickBtn"),
+    fps: document.getElementById("fps"),
+    tTarget: document.getElementById("tTarget"),
+    tInst: document.getElementById("tInst"),
+    ke: document.getElementById("ke"),
+  };
+
+  // Water geometry (toy, rigid)
+  const OH = 1.0;
+  const HOH = 104.52 * Math.PI/180;
+  const halfAngle = HOH/2;
+
+  const qO = -0.6, qH = +0.3;
+  const mO = 16.0, mH = 1.0;
+
+  let molecules = [];
+  let atoms = [];
+
+  let paused = false;
+  let slowmo = false;
+
+  // spatial hash keyed on oxygen positions
+  let cellSize = 4.5;
+  let grid = new Map();
+  const keyForCell = (ix,iy,iz)=>`${ix},${iy},${iz}`;
+  function cellCoord(p, box){
+    const s = cellSize;
+    return {
+      x: Math.floor((p.x + box/2) / s),
+      y: Math.floor((p.y + box/2) / s),
+      z: Math.floor((p.z + box/2) / s),
+    };
+  }
+  function rebuildGrid(box){
+    grid.clear();
+    for (let i=0;i<molecules.length;i++){
+      const O = molecules[i].O.pos;
+      const c = cellCoord(O, box);
+      const k = keyForCell(c.x,c.y,c.z);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push(i);
+    }
+  }
+  function neighbourMoleculeIndices(i, box){
+    const O = molecules[i].O.pos;
+    const c = cellCoord(O, box);
+    const out = [];
+    for (let dx=-1;dx<=1;dx++){
+      for (let dy=-1;dy<=1;dy++){
+        for (let dz=-1;dz<=1;dz++){
+          const k = keyForCell(c.x+dx, c.y+dy, c.z+dz);
+          const arr = grid.get(k);
+          if (arr) out.push(...arr);
+        }
+      }
+    }
+    return out;
+  }
+
+  function randomUnitVec(){
+    let x1,x2,s;
+    do { x1 = rand(-1,1); x2 = rand(-1,1); s = x1*x1 + x2*x2; } while (s>=1 || s===0);
+    const z = 1 - 2*s;
+    const t = 2*Math.sqrt(1-s);
+    const x = x1*t;
+    const y = x2*t;
+    return new THREE.Vector3(x,y,z).normalize();
+  }
+
+  function buildRigidHydrogens(Opos){
+    const h1 = new THREE.Vector3(Math.cos(halfAngle)*OH,  Math.sin(halfAngle)*OH, 0);
+    const h2 = new THREE.Vector3(Math.cos(halfAngle)*OH, -Math.sin(halfAngle)*OH, 0);
+    const axis = randomUnitVec();
+    const angle = rand(0, Math.PI*2);
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    h1.applyQuaternion(q); h2.applyQuaternion(q);
+    const H1 = h1.clone().add(Opos);
+    const H2 = h2.clone().add(Opos);
+    return {H1, H2, rel1: h1.clone(), rel2: h2.clone()};
+  }
+
+  function computeInstantTemperature(){
+    let ke = 0;
+    for (const a of atoms) ke += 0.5 * a.mass * a.vel.lengthSq();
+    const dof = Math.max(1, atoms.length*3);
+    const T = (2 * ke) / dof; // scaled kB=1
+    return {T, ke};
+  }
+
+  function applyThermostat(){
+    const targetT = parseFloat(ui.temp.value);
+    const strength = clamp(parseFloat(ui.thermo.value), 0, 1);
+    if (strength <= 0) return;
+    const {T} = computeInstantTemperature();
+    if (T <= 1e-8) return;
+    const scale = Math.sqrt(targetT / T);
+    const s = 1 + strength*(scale - 1);
+    for (const a of atoms) a.vel.multiplyScalar(s);
+  }
+
+  function randomKick(){
+    for (const a of atoms){
+      a.vel.add(new THREE.Vector3(rand(-1,1),rand(-1,1),rand(-1,1)).multiplyScalar(0.8));
+    }
+  }
+
+  function resetSimulation(){
+    const nMol = clamp(parseInt(ui.nMol.value || "120",10), 10, 500);
+    ui.nMol.value = nMol;
+    const box = parseFloat(ui.boxSize.value);
+
+    molecules = [];
+    atoms = [];
+
+    const minOO = 2.4;
+    const maxTries = 80000;
+    let tries = 0;
+
+    function tooClose(p){
+      for (const m of molecules){
+        if (m.O.pos.distanceToSquared(p) < minOO*minOO) return true;
+      }
+      return false;
+    }
+
+    while (molecules.length < nMol && tries < maxTries){
+      tries++;
+      const pos = new THREE.Vector3(
+        rand(-box/2+2, box/2-2),
+        rand(-box/2+2, box/2-2),
+        rand(-box/2+2, box/2-2)
+      );
+      if (tooClose(pos)) continue;
+
+      const {H1,H2,rel1,rel2} = buildRigidHydrogens(pos);
+      const baseV = new THREE.Vector3(rand(-1,1),rand(-1,1),rand(-1,1)).multiplyScalar(0.6);
+
+      const mol = {
+        O:  { pos: pos, vel: baseV.clone(), force: new THREE.Vector3(), mass:mO, charge:qO },
+        H1: { pos: H1,  vel: baseV.clone(), force: new THREE.Vector3(), mass:mH, charge:qH },
+        H2: { pos: H2,  vel: baseV.clone(), force: new THREE.Vector3(), mass:mH, charge:qH },
+        rel1, rel2
+      };
+      molecules.push(mol);
+    }
+
+    for (const m of molecules) atoms.push(m.O, m.H1, m.H2);
+    applyThermostat();
+    rebuildGrid(box);
+
+    buildSceneObjects();
+  }
+
+  function zeroForces(){
+    for (const a of atoms) a.force.set(0,0,0);
+  }
+  function applyGravity(){
+    const g = parseFloat(ui.gravity.value);
+    if (g<=0) return;
+    for (const a of atoms) a.force.y -= a.mass * g;
+  }
+
+  function applyWallCollisions(box){
+    const half = box/2;
+    const restitution = 0.65;
+    for (const a of atoms){
+      if (a.pos.x < -half){ a.pos.x=-half; a.vel.x = Math.abs(a.vel.x)*restitution; }
+      if (a.pos.x >  half){ a.pos.x= half; a.vel.x =-Math.abs(a.vel.x)*restitution; }
+      if (a.pos.y < -half){ a.pos.y=-half; a.vel.y = Math.abs(a.vel.y)*restitution; }
+      if (a.pos.y >  half){ a.pos.y= half; a.vel.y =-Math.abs(a.vel.y)*restitution; }
+      if (a.pos.z < -half){ a.pos.z=-half; a.vel.z = Math.abs(a.vel.z)*restitution; }
+      if (a.pos.z >  half){ a.pos.z= half; a.vel.z =-Math.abs(a.vel.z)*restitution; }
+    }
+  }
+
+  function computePairForces(box){
+    const eps = parseFloat(ui.ljEps.value);
+    const sig = parseFloat(ui.ljSig.value);
+    const kC  = parseFloat(ui.coulomb.value);
+    const pAssist = parseFloat(ui.pressureAssist.value);
+
+    const rCutLJ2 = 8.0*8.0;
+    const rCutC2  = 10.0*10.0;
+
+    for (let i=0;i<molecules.length;i++){
+      const mi = molecules[i];
+      const oi = mi.O;
+
+      if (pAssist > 0){
+        const bias = oi.pos.clone().multiplyScalar(-pAssist * 0.05);
+        oi.force.addScaledVector(bias, oi.mass);
+        mi.H1.force.addScaledVector(bias, mi.H1.mass);
+        mi.H2.force.addScaledVector(bias, mi.H2.mass);
+      }
+
+      const neigh = neighbourMoleculeIndices(i, box);
+      for (const j of neigh){
+        if (j <= i) continue;
+        const mj = molecules[j];
+
+        // O-O vector
+        const rij = mj.O.pos.clone().sub(mi.O.pos);
+        const r2 = rij.lengthSq();
+        if (r2 < 1e-6) continue;
+
+        // LJ (oxygen only)
+        if (eps > 0 && r2 < rCutLJ2){
+          const invR2 = 1.0/r2;
+          const invR6 = invR2*invR2*invR2;
+          const sig2 = sig*sig;
+          const sig6 = sig2*sig2*sig2;
+          const sig12 = sig6*sig6;
+
+          const term6  = sig6 * invR6;
+          const term12 = sig12 * invR6 * invR6;
+
+          const r = Math.sqrt(r2);
+          const fMag = (24*eps / r) * (2*term12 - term6);
+          const f = rij.multiplyScalar(fMag / r);
+
+          mi.O.force.add(f);
+          mj.O.force.sub(f);
+        }
+
+        // Coulomb between sites across molecules
+        if (kC > 0){
+          const sitesI = [mi.O, mi.H1, mi.H2];
+          const sitesJ = [mj.O, mj.H1, mj.H2];
+          for (const ai of sitesI){
+            for (const aj of sitesJ){
+              const d = aj.pos.clone().sub(ai.pos);
+              const rr2 = d.lengthSq();
+              if (rr2 < 1e-6 || rr2 > rCutC2) continue;
+              const soft = 0.35;
+              const rr = Math.sqrt(rr2 + soft*soft);
+              const fMag = (kC * ai.charge * aj.charge) / (rr*rr*rr);
+              const f = d.multiplyScalar(fMag);
+              ai.force.add(f);
+              aj.force.sub(f);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function integrate(dt, box){
+    const visc = parseFloat(ui.visc.value);
+    const damp = clamp(1.0 - visc, 0.0, 1.0);
+
+    for (const a of atoms){
+      a.vel.addScaledVector(a.force, dt / a.mass);
+      a.vel.multiplyScalar(damp);
+      a.pos.addScaledVector(a.vel, dt);
+    }
+
+    // Re-project rigid bonds
+    for (const m of molecules){
+      m.H1.pos.copy(m.O.pos).add(m.rel1);
+      m.H2.pos.copy(m.O.pos).add(m.rel2);
+      const blend = 0.55;
+      m.H1.vel.lerp(m.O.vel, blend);
+      m.H2.vel.lerp(m.O.vel, blend);
+    }
+
+    applyWallCollisions(box);
+  }
+
+  // Three.js
+  let scene, camera, renderer, controls;
+  let atomMeshes = [];
+  let bondLines, weakLinks, boxWire;
+
+  const view = document.getElementById("view");
+
+  function initThree(){
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1020);
+
+    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    camera.position.set(0, 18, 42);
+
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(window.devicePixelRatio * parseFloat(ui.quality.value));
+    renderer.setSize(view.clientWidth, view.clientHeight);
+    view.appendChild(renderer.domElement);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0,0,0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.75);
+    dir.position.set(30, 40, 20);
+    scene.add(dir);
+
+    window.addEventListener("resize", onResize);
+  }
+
+  function onResize(){
+    const w = view.clientWidth, h = view.clientHeight;
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w,h);
+  }
+
+  function clearSceneObjects(){
+    for (const m of atomMeshes) scene.remove(m);
+    atomMeshes = [];
+    if (bondLines) scene.remove(bondLines);
+    if (weakLinks) scene.remove(weakLinks);
+    if (boxWire) scene.remove(boxWire);
+  }
+
+  function makeBondLines(){
+    const positions = [];
+    for (const m of molecules){
+      positions.push(m.O.pos.x,m.O.pos.y,m.O.pos.z, m.H1.pos.x,m.H1.pos.y,m.H1.pos.z);
+      positions.push(m.O.pos.x,m.O.pos.y,m.O.pos.z, m.H2.pos.x,m.H2.pos.y,m.H2.pos.z);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return new THREE.LineSegments(geom, new THREE.LineBasicMaterial({color:0xb8c6ff, transparent:true, opacity:0.55}));
+  }
+
+  function makeWeakLinks(){
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute([], 3));
+    return new THREE.LineSegments(geom, new THREE.LineBasicMaterial({color:0x66f0ff, transparent:true, opacity:0.22}));
+  }
+
+  function updateBondLines(){
+    const arr = bondLines.geometry.attributes.position.array;
+    let k=0;
+    for (const m of molecules){
+      arr[k++]=m.O.pos.x; arr[k++]=m.O.pos.y; arr[k++]=m.O.pos.z;
+      arr[k++]=m.H1.pos.x; arr[k++]=m.H1.pos.y; arr[k++]=m.H1.pos.z;
+
+      arr[k++]=m.O.pos.x; arr[k++]=m.O.pos.y; arr[k++]=m.O.pos.z;
+      arr[k++]=m.H2.pos.x; arr[k++]=m.H2.pos.y; arr[k++]=m.H2.pos.z;
+    }
+    bondLines.geometry.attributes.position.needsUpdate = true;
+  }
+
+  function updateWeakLinks(box){
+    weakLinks.visible = parseInt(ui.showForces.value,10) === 1;
+    if (!weakLinks.visible) return;
+
+    const cutoff = parseFloat(ui.linkCutoff.value);
+    const cutoff2 = cutoff*cutoff;
+
+    rebuildGrid(box);
+    const pos = [];
+    for (let i=0;i<molecules.length;i++){
+      const oi = molecules[i].O.pos;
+      const neigh = neighbourMoleculeIndices(i, box);
+      for (const j of neigh){
+        if (j<=i) continue;
+        const oj = molecules[j].O.pos;
+        if (oi.distanceToSquared(oj) <= cutoff2){
+          pos.push(oi.x,oi.y,oi.z, oj.x,oj.y,oj.z);
+        }
+      }
+    }
+
+    weakLinks.geometry.dispose();
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    weakLinks.geometry = geom;
+  }
+
+  function updateBoxWire(){
+    const box = parseFloat(ui.boxSize.value);
+    scene.remove(boxWire);
+    const wire = new THREE.WireframeGeometry(new THREE.BoxGeometry(box, box, box));
+    boxWire = new THREE.LineSegments(wire, new THREE.LineBasicMaterial({color:0x2a3a6e, transparent:true, opacity:0.55}));
+    scene.add(boxWire);
+  }
+
+  function buildSceneObjects(){
+    clearSceneObjects();
+
+    updateBoxWire();
+
+    const matO = new THREE.MeshStandardMaterial({color:0xcc2b2b, roughness:0.35, metalness:0.05});
+    const matH = new THREE.MeshStandardMaterial({color:0xf2f2f2, roughness:0.45, metalness:0.05});
+    const gO = new THREE.SphereGeometry(0.35, 18, 18);
+    const gH = new THREE.SphereGeometry(0.23, 16, 16);
+
+    for (let i=0;i<atoms.length;i++){
+      const isO = (i % 3 === 0);
+      const mesh = new THREE.Mesh(isO ? gO : gH, isO ? matO : matH);
+      mesh.position.copy(atoms[i].pos);
+      atomMeshes.push(mesh);
+      scene.add(mesh);
+    }
+
+    bondLines = makeBondLines();
+    scene.add(bondLines);
+
+    weakLinks = makeWeakLinks();
+    scene.add(weakLinks);
+
+    updateWeakLinks(parseFloat(ui.boxSize.value));
+  }
+
+  // loop
+  let last = performance.now();
+  let fpsAcc=0, fpsN=0, fpsLast=performance.now();
+
+  function tick(now){
+    requestAnimationFrame(tick);
+    const frameDt = (now-last)/1000; last = now;
+    const dt = parseFloat(ui.dt.value) * (slowmo ? 0.25 : 1.0);
+
+    if (!paused){
+      const box = parseFloat(ui.boxSize.value);
+
+      zeroForces();
+      applyGravity();
+      rebuildGrid(box);
+      computePairForces(box);
+      integrate(dt, box);
+      applyThermostat();
+
+      for (let i=0;i<atoms.length;i++) atomMeshes[i].position.copy(atoms[i].pos);
+      updateBondLines();
+      if (Math.random() < 0.35) updateWeakLinks(box);
+
+      const {T, ke} = computeInstantTemperature();
+      ui.tTarget.textContent = `${Math.round(parseFloat(ui.temp.value))} K`;
+      ui.tInst.textContent = `${Math.round(T)} K`;
+      ui.ke.textContent = ke.toFixed(1);
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+
+    fpsAcc += 1/Math.max(1e-6, frameDt);
+    fpsN++;
+    if (now - fpsLast > 500){
+      ui.fps.textContent = (fpsAcc/fpsN).toFixed(0);
+      fpsAcc=0; fpsN=0; fpsLast=now;
+    }
+  }
+
+  // events
+  ui.resetBtn.addEventListener("click", resetSimulation);
+  ui.pauseBtn.addEventListener("click", ()=>{ paused=!paused; ui.pauseBtn.textContent = paused ? "Resume" : "Pause"; });
+  ui.slowBtn.addEventListener("click", ()=>{ slowmo=!slowmo; ui.slowBtn.textContent = slowmo ? "Normal speed" : "Slow-mo"; });
+  ui.kickBtn.addEventListener("click", randomKick);
+
+  ui.quality.addEventListener("input", ()=>{
+    renderer.setPixelRatio(window.devicePixelRatio * parseFloat(ui.quality.value));
+  });
+
+  ui.boxSize.addEventListener("input", ()=>{
+    updateBoxWire();
+  });
+
+  // boot
+  initThree();
+  resetSimulation();
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

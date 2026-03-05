@@ -384,6 +384,22 @@
     for (const m of molecules) atoms.push(m.O, m.H1, m.H2);
   }
 
+
+function insideBox(p, box){
+
+  const half = box / 2 + 1;
+
+  return (
+    Math.abs(p.x) < half &&
+    Math.abs(p.y) < half &&
+    Math.abs(p.z) < half &&
+    Number.isFinite(p.x) &&
+    Number.isFinite(p.y) &&
+    Number.isFinite(p.z)
+  );
+
+}
+  
   function initLiquid(nMol, box){
     molecules = [];
     atoms = [];
@@ -811,8 +827,11 @@
     rebuildGrid(box);
     const pos = [];
 
-    for (let i=0;i<molecules.length;i++){
-      const mi = molecules[i];
+for (let i=0;i<molecules.length;i++){
+
+  const mi = molecules[i];
+
+  if(!insideBox(mi.O.pos, box)) continue;
       const neigh = neighboursOfMol(i, box);
 
       for (const j of neigh){
@@ -828,6 +847,7 @@
 
         if (mode === "hb" || mode === "both"){
           for (const H of [mi.H1, mi.H2]){
+                        if(!insideBox(mj.O.pos, box)) continue;
             const d2 = mj.O.pos.distanceToSquared(H.pos);
             if (d2 <= hbD2){
               const ang = hbAngleDeg(mi.O, H, mj.O);
@@ -835,6 +855,8 @@
             }
           }
           for (const H of [mj.H1, mj.H2]){
+
+            if(!insideBox(H.pos, box)) continue;
             const d2 = mi.O.pos.distanceToSquared(H.pos);
             if (d2 <= hbD2){
               const ang = hbAngleDeg(mj.O, H, mi.O);

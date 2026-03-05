@@ -261,6 +261,11 @@
   // Coulomb softening
   const coulSoft = 0.35;
 
+  // Constraint tuning: keep O-H bond lengths nearly rigid against external forces
+  const bondConstraintIters = 2;
+  const bondVelDamp = 0.85;
+  const maxBondCorrection = 0.08;
+
   // Cutoffs
   const rCutLJ = 9.0;
   const rCutC  = 11.0;
@@ -695,7 +700,62 @@
       a.pos.addScaledVector(a.vel, dt);
     }
 
+    enforceBondConstraints();
     applyWalls(box);
+  }
+
+
+  function enforceBondConstraints(){
+    for (let iter=0; iter<bondConstraintIters; iter++){
+      for (const m of molecules){
+        constrainBondPair(m.O, m.H1, OH0);
+        constrainBondPair(m.O, m.H2, OH0);
+      }
+    }
+  }
+
+  function constrainBondPair(a, b, target){
+    const d = b.pos.clone().sub(a.pos);
+    const r = d.length();
+    if (r < 1e-8 || !Number.isFinite(r)) return;
+
+    const rawErr = r - target;
+    if (Math.abs(rawErr) < 1e-6) return;
+
+    const u = d.multiplyScalar(1/r);
+
+    // Keep O anchored for O-H pairs (reduces positional drift and blow-ups from dense contacts).
+    let weightA = 0.0;
+    let weightB = 1.0;
+
+    // Generic fallback for non O-H pairs (not currently used).
+    if (!((a.type === "O" && b.type === "H") || (a.type === "H" && b.type === "O"))){
+      const invMassA = 1 / a.mass;
+      const invMassB = 1 / b.mass;
+      const w = invMassA + invMassB;
+      if (w <= 1e-12) return;
+      weightA = invMassA / w;
+      weightB = invMassB / w;
+    } else if (a.type === "H" && b.type === "O") {
+      // If ordering is H-O, keep O anchored by moving atom a (H) only.
+      weightA = 1.0;
+      weightB = 0.0;
+    }
+
+    const err = clamp(rawErr, -maxBondCorrection, maxBondCorrection);
+
+    // Position correction along bond axis.
+    a.pos.addScaledVector(u, +err * weightA);
+    b.pos.addScaledVector(u, -err * weightB);
+
+    // Dampen relative radial velocity (same weighting strategy as position correction).
+    const relVel = b.vel.clone().sub(a.vel);
+    const radial = relVel.dot(u);
+    if (Math.abs(radial) > 1e-8){
+      const dv = radial * bondVelDamp;
+      a.vel.addScaledVector(u, +dv * weightA);
+      b.vel.addScaledVector(u, -dv * weightB);
+    }
   }
 
   function randomKick(){

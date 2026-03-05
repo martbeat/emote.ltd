@@ -337,7 +337,7 @@
   function initLiquid(nMol, box){
     molecules = [];
     atoms = [];
-    const minOO = 2.6;
+    const minOO = 2.9;
     const maxTries = 160000;
     let tries = 0;
 
@@ -521,24 +521,6 @@
     for (const a of atoms) a.vel.multiplyScalar(damp);
   }
 
-  function applyWallsStable(box){
-    const half = box/2;
-    const restitution = 0.65;
-
-    for (const a of atoms){
-      let hit = false;
-
-      if (a.pos.x < -half){ a.pos.x=-half; a.vel.x = Math.abs(a.vel.x)*restitution; hit=true; }
-      if (a.pos.x >  half){ a.pos.x= half; a.vel.x =-Math.abs(a.vel.x)*restitution; hit=true; }
-      if (a.pos.y < -half){ a.pos.y=-half; a.vel.y = Math.abs(a.vel.y)*restitution; hit=true; }
-      if (a.pos.y >  half){ a.pos.y= half; a.vel.y =-Math.abs(a.vel.y)*restitution; hit=true; }
-      if (a.pos.z < -half){ a.pos.z=-half; a.vel.z = Math.abs(a.vel.z)*restitution; hit=true; }
-      if (a.pos.z >  half){ a.pos.z= half; a.vel.z =-Math.abs(a.vel.z)*restitution; hit=true; }
-
-      // keep prev consistent after snapping so velocity reconstruction does not inject energy
-      if (hit) a.prev.copy(a.pos);
-    }
-  }
 
   // --- Soft constraints (PBD style) ---
   function projectBond(a, b, restLen, softness01){
@@ -894,11 +876,38 @@
     updateWeakLines(box);
   }
 
+function applySoftWalls(box){
+  const half = box/2;
+
+  // How close to the wall the repulsion starts (higher = more “room”)
+  const margin = 1.2;
+
+  // Wall stiffness (higher = harder wall). 60–200 is reasonable.
+  const kWall = 120;
+
+  const inner = half - margin;
+
+  for (const a of atoms){
+    // X
+    if (a.pos.x > inner) a.force.x -= kWall * (a.pos.x - inner);
+    else if (a.pos.x < -inner) a.force.x += kWall * (-inner - a.pos.x);
+
+    // Y
+    if (a.pos.y > inner) a.force.y -= kWall * (a.pos.y - inner);
+    else if (a.pos.y < -inner) a.force.y += kWall * (-inner - a.pos.y);
+
+    // Z
+    if (a.pos.z > inner) a.force.z -= kWall * (a.pos.z - inner);
+    else if (a.pos.z < -inner) a.force.z += kWall * (-inner - a.pos.z);
+  }
+}
+  
   function stepPhysics(dt, box){
     for (const a of atoms) a.prev.copy(a.pos);
 
     zeroForces();
     applyGravity();
+    zeroForces();
     lastPE = applyIntermolecular(box);
     capForces();
 
@@ -908,10 +917,10 @@
 
     updateVelFromPositions(dt);
 
-    applyWallsStable(box);
 
     zeroForces();
     applyGravity();
+    zeroForces();
     lastPE = applyIntermolecular(box);
     capForces();
 

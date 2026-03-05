@@ -255,7 +255,7 @@
   const SUBSTEPS = 6;         // key stability control
   const FMAX = 120;           // max force magnitude
   const VMAX = 35;            // max speed magnitude
-  const COUL_RMIN = 1.6;      // Coulomb distance floor
+  const COUL_RMIN = 2.0;      // Coulomb distance floor
 
   // State
   let molecules = [];
@@ -309,6 +309,56 @@
     const t = 2*Math.sqrt(1-s);
     return new THREE.Vector3(x1*t, x2*t, z).normalize();
   }
+
+  function sanityCheckAtoms(box){
+
+  const limit = box * 5;
+
+  for(const a of atoms){
+
+    if(!Number.isFinite(a.pos.x) ||
+       !Number.isFinite(a.pos.y) ||
+       !Number.isFinite(a.pos.z)){
+
+        resetAtom(a, box);
+        continue;
+    }
+
+    if(Math.abs(a.pos.x) > limit ||
+       Math.abs(a.pos.y) > limit ||
+       Math.abs(a.pos.z) > limit){
+
+        resetAtom(a, box);
+    }
+
+    if(!Number.isFinite(a.vel.x) ||
+       !Number.isFinite(a.vel.y) ||
+       !Number.isFinite(a.vel.z)){
+
+        a.vel.set(0,0,0);
+    }
+
+  }
+
+}
+
+  function resetAtom(a, box){
+
+  a.pos.set(
+    rand(-box/4, box/4),
+    rand(-box/4, box/4),
+    rand(-box/4, box/4)
+  );
+
+  a.prev.copy(a.pos);
+
+  a.vel.set(
+    rand(-1,1),
+    rand(-1,1),
+    rand(-1,1)
+  ).multiplyScalar(0.3);
+
+}
 
   function placeWaterAt(Opos){
     const half = HOH0/2;
@@ -929,6 +979,8 @@ function applySoftWalls(box){
     capSpeeds();
     applyDamping();
     applyThermostatClamped();
+sanityCheckAtoms(box);
+  
   }
 
   // Main loop

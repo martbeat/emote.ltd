@@ -3,41 +3,43 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>H2O Phase Demo (stable core, soft constraints, H-bonds)</title>
+  <title>H2O Phase Toy MD (ice / liquid / steam)</title>
   <style>
     :root{
       --bg:#0b1020; --panel:#101a33; --line:#223059; --text:#e9eefc; --muted:#b9c3e6;
       --btn:#1b2b57; --btn2:#263a73;
     }
     html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;}
-    #app{display:grid; grid-template-columns: 380px 1fr; height:100%;}
+    #app{display:grid; grid-template-columns: 360px 1fr; height:100%;}
     #ui{padding:14px 14px 18px; border-right:1px solid var(--line); background:linear-gradient(180deg, rgba(16,26,51,0.92), rgba(11,16,32,0.92)); overflow:auto;}
     h1{font-size:16px; margin:0 0 10px;}
     .note{font-size:12px; color:var(--muted); line-height:1.35; margin:0 0 12px;}
     .group{border:1px solid var(--line); border-radius:12px; padding:10px; margin:10px 0;}
     .group h2{font-size:13px; margin:0 0 8px; color:#dbe4ff;}
-    .row{display:grid; grid-template-columns: 1fr 120px; gap:10px; align-items:center; margin:8px 0;}
+    .row{display:grid; grid-template-columns: 1fr 96px; gap:10px; align-items:center; margin:8px 0;}
     label{font-size:12px; color:var(--muted);}
     input[type="range"]{width:100%;}
     input[type="number"], select{
-      width:120px; padding:6px 8px; border-radius:10px; border:1px solid var(--line);
+      width:96px; padding:6px 8px; border-radius:10px; border:1px solid var(--line);
       background:#0a1024; color:var(--text);
     }
     .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
     button{border:1px solid var(--line); background:var(--btn); color:var(--text); padding:8px 10px; border-radius:12px; cursor:pointer; font-size:12px;}
     button:hover{background:var(--btn2);}
-    .toggle{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-top:6px;}
-    .toggle input{transform: translateY(1px);}
     .pill{display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.10); margin-right:6px;}
     #view{position:relative;}
     #hud{
       position:absolute; left:10px; bottom:10px; padding:8px 10px; border-radius:12px;
       border:1px solid rgba(255,255,255,0.08); background:rgba(10,16,36,0.65); backdrop-filter: blur(8px);
-      font-size:12px; color:var(--muted); max-width: min(700px, calc(100% - 20px));
+      font-size:12px; color:var(--muted); max-width: min(640px, calc(100% - 20px));
     }
     #hud b{color:var(--text); font-weight:600;}
+    .split{display:grid; grid-template-columns: 1fr 1fr; gap:8px;}
+    .toggle{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-top:6px;}
+    .toggle input{transform: translateY(1px);}
   </style>
 
+  <!-- Import map so "three" and "three/addons/" resolve in-browser -->
   <script type="importmap">
   {
     "imports": {
@@ -51,10 +53,11 @@
 <body>
 <div id="app">
   <aside id="ui">
-    <h1>H2O phase demo (stable core)</h1>
+    <h1>H2O Phase Toy MD</h1>
     <p class="note">
-      This version is hardened against numerical blow-ups: physics substeps, force and speed caps, stable wall collisions,
-      clamped thermostat, short-range Coulomb floor. It should not explode into the corners after a second.
+      Visual phase demo: <b>Ice</b>, <b>Liquid</b>, <b>Steam</b>. Flexible tri-atomic water (bond stretch + angle bend)
+      so you can see <b>momentum</b>, <b>rotation</b> and <b>vibration</b>.
+      Weak links show approximate hydrogen bonding (O···H) and/or O–O proximity.
     </p>
 
     <div class="group">
@@ -70,21 +73,18 @@
         <input id="nMol" type="number" min="24" max="600" step="12" value="180" />
       </div>
       <div class="row">
-        <label for="boxSize">Box size</label>
+        <label for="boxSize">Box size (density proxy)</label>
         <input id="boxSize" type="range" min="18" max="90" step="1" value="34" />
       </div>
       <div class="row">
         <label for="dt">Time step</label>
-        <input id="dt" type="range" min="0.001" max="0.006" step="0.001" value="0.004" />
+        <input id="dt" type="range" min="0.001" max="0.012" step="0.001" value="0.006" />
       </div>
       <div class="btnrow">
         <button id="pauseBtn">Pause</button>
         <button id="slowBtn">Slow-mo</button>
         <button id="kickBtn">Kick</button>
       </div>
-      <p class="note" style="margin-top:8px;">
-        Tip: if you still see instability, reduce Coulomb, reduce LJ ε, reduce dt, or reduce molecules.
-      </p>
     </div>
 
     <div class="group">
@@ -95,74 +95,72 @@
       </div>
       <div class="toggle">
         <input id="useThermo" type="checkbox" checked />
-        <label for="useThermo" style="margin:0">Use thermostat</label>
+        <label for="useThermo" style="margin:0">Use thermostat (velocity rescale)</label>
       </div>
       <div class="row">
         <label for="thermoStrength">Thermostat strength</label>
-        <input id="thermoStrength" type="range" min="0" max="0.30" step="0.01" value="0.08" />
+        <input id="thermoStrength" type="range" min="0" max="0.5" step="0.01" value="0.12" />
       </div>
-      <p class="note">Thermostat is clamped per substep so it cannot slam velocities.</p>
+      <div class="note">
+        For more “natural” motion, turn the thermostat off once a phase settles. Energy will drift (toy integrator).
+      </div>
     </div>
 
     <div class="group">
       <h2>Forces</h2>
       <div class="row">
         <label for="gravity">Gravity</label>
-        <input id="gravity" type="range" min="0" max="30" step="0.5" value="1.2" />
+        <input id="gravity" type="range" min="0" max="30" step="0.5" value="1.5" />
       </div>
-      <div class="row">
-        <label for="ljEps">LJ ε (O–O)</label>
-        <input id="ljEps" type="range" min="0" max="2.5" step="0.01" value="0.55" />
-      </div>
-      <div class="row">
-        <label for="ljSig">LJ σ</label>
-        <input id="ljSig" type="range" min="2.4" max="4.2" step="0.05" value="3.15" />
+      <div class="split">
+        <div class="row" style="grid-template-columns: 1fr 96px;">
+          <label for="ljEps">LJ ε (O–O)</label>
+          <input id="ljEps" type="range" min="0" max="2.5" step="0.01" value="0.60" />
+        </div>
+        <div class="row" style="grid-template-columns: 1fr 96px;">
+          <label for="ljSig">LJ σ</label>
+          <input id="ljSig" type="range" min="2.4" max="4.2" step="0.05" value="3.15" />
+        </div>
       </div>
       <div class="row">
         <label for="coulomb">Coulomb strength</label>
-        <input id="coulomb" type="range" min="0" max="2.0" step="0.01" value="0.22" />
+        <input id="coulomb" type="range" min="0" max="2.0" step="0.01" value="0.55" />
       </div>
       <div class="row">
-        <label for="damping">Damping</label>
-        <input id="damping" type="range" min="0" max="0.06" step="0.001" value="0.010" />
+        <label for="damping">Viscous damping</label>
+        <input id="damping" type="range" min="0" max="0.10" step="0.001" value="0.008" />
       </div>
     </div>
 
     <div class="group">
-      <h2>Bond realism</h2>
+      <h2>Vibration and bending</h2>
       <div class="row">
-        <label for="bondSoft">Bond softness</label>
-        <input id="bondSoft" type="range" min="0" max="1" step="0.01" value="0.14" />
+        <label for="kBond">Bond spring k</label>
+        <input id="kBond" type="range" min="10" max="220" step="5" value="120" />
       </div>
       <div class="row">
-        <label for="angleSoft">Angle softness</label>
-        <input id="angleSoft" type="range" min="0" max="1" step="0.01" value="0.16" />
+        <label for="kAngle">Angle spring k</label>
+        <input id="kAngle" type="range" min="2" max="80" step="2" value="28" />
       </div>
-      <p class="note">Soft constraints keep molecules intact but allow some vibration.</p>
+      <div class="note">
+        Higher k means stiffer bonds (less vibration). Lower k allows visible vibration and bending.
+      </div>
     </div>
 
     <div class="group">
-      <h2>Weak forces visualisation</h2>
+      <h2>Visuals</h2>
       <div class="row">
         <label for="weakMode">Weak links</label>
         <select id="weakMode">
-          <option value="hb">Hydrogen bonds (distance + angle)</option>
+          <option value="hb">Hydrogen-bond heuristic (O···H)</option>
           <option value="oo">O–O proximity</option>
           <option value="both">Both</option>
           <option value="off">Off</option>
         </select>
       </div>
       <div class="row">
-        <label for="hbDist">HB O···H dist</label>
-        <input id="hbDist" type="range" min="2.2" max="4.0" step="0.1" value="2.8" />
-      </div>
-      <div class="row">
-        <label for="hbAngle">HB angle min</label>
-        <input id="hbAngle" type="range" min="110" max="175" step="5" value="150" />
-      </div>
-      <div class="row">
-        <label for="ooCut">O–O cutoff</label>
-        <input id="ooCut" type="range" min="2.8" max="6.5" step="0.1" value="3.2" />
+        <label for="weakCutoff">Weak cutoff</label>
+        <input id="weakCutoff" type="range" min="2.2" max="6.5" step="0.1" value="3.1" />
       </div>
       <div class="row">
         <label for="quality">Render quality</label>
@@ -172,17 +170,24 @@
 
     <div class="note">
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <span class="pill">T tgt: <b id="tTarget">-</b></span>
+      <span class="pill">T target: <b id="tTarget">-</b></span>
       <span class="pill">T inst: <b id="tInst">-</b></span>
       <span class="pill">KE: <b id="ke">-</b></span>
       <span class="pill">PE: <b id="pe">-</b></span>
+      <div style="margin-top:8px;">Mouse: drag=orbit, right-drag=pan, scroll=zoom.</div>
     </div>
+
+    <p class="note" style="margin-top:12px;">
+      If you want a more realistic phase boundary, the next step is a real barostat and a water model like TIP4P/2005
+      plus long-range electrostatics (PME). This demo is a controllable visual approximation.
+    </p>
   </aside>
 
   <main id="view">
     <div id="hud">
-      <b>What to look for</b><br/>
-      Ice: stable network with many HB links. Liquid: HB links break and reform. Steam: mostly isolated rotating molecules.
+      <b>Tip</b><br/>
+      For ice: click <b>Ice</b>, wait for lattice to settle, then turn the thermostat off.<br/>
+      For steam: click <b>Steam</b>, increase box size and temperature, reduce LJ ε if you want less clumping.
     </div>
   </main>
 </div>
@@ -191,9 +196,15 @@
   import * as THREE from "three";
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
+  // -------------------------
+  // Helpers
+  // -------------------------
   const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
   const rand = (a,b)=>a+(b-a)*Math.random();
 
+  // -------------------------
+  // UI
+  // -------------------------
   const ui = {
     iceBtn: document.getElementById("iceBtn"),
     liqBtn: document.getElementById("liqBtn"),
@@ -217,13 +228,11 @@
     coulomb: document.getElementById("coulomb"),
     damping: document.getElementById("damping"),
 
-    bondSoft: document.getElementById("bondSoft"),
-    angleSoft: document.getElementById("angleSoft"),
+    kBond: document.getElementById("kBond"),
+    kAngle: document.getElementById("kAngle"),
 
     weakMode: document.getElementById("weakMode"),
-    hbDist: document.getElementById("hbDist"),
-    hbAngle: document.getElementById("hbAngle"),
-    ooCut: document.getElementById("ooCut"),
+    weakCutoff: document.getElementById("weakCutoff"),
     quality: document.getElementById("quality"),
 
     fps: document.getElementById("fps"),
@@ -233,38 +242,38 @@
     pe: document.getElementById("pe"),
   };
 
-  // --- Water geometry (scaled) ---
+  // -------------------------
+  // Model parameters (scaled)
+  // -------------------------
+  // Geometry equilibrium (scaled)
   const OH0 = 1.0;
   const HOH0 = 104.52 * Math.PI/180;
 
-  // Mass and partial charges (scaled)
-  const mO = 16.0, mH = 1.0;
-  const qO = -0.62, qH = +0.31;
+  // Partial charges (scaled)
+  const qO = -0.6;
+  const qH = +0.3;
 
-  // Softened Coulomb
+  // Masses (relative)
+  const mO = 16.0;
+  const mH = 1.0;
+
+  // Coulomb softening
   const coulSoft = 0.35;
 
   // Cutoffs
   const rCutLJ = 9.0;
   const rCutC  = 11.0;
 
-  // Constraint iterations (more = stiffer, slower)
-  const CONSTRAINT_ITERS = 6;
-
-  // Stability hardening
-  const SUBSTEPS = 6;         // key stability control
-  const FMAX = 120;           // max force magnitude
-  const VMAX = 35;            // max speed magnitude
-  const COUL_RMIN = 2.0;      // Coulomb distance floor
-
+  // -------------------------
   // State
-  let molecules = [];
-  let atoms = [];
+  // -------------------------
+  let molecules = []; // each mol: {O,H1,H2} atoms with pos/vel/force/mass/charge
+  let atoms = [];     // flattened for integration
   let paused = false;
   let slowmo = false;
   let lastPreset = "liquid";
 
-  // Spatial hash on oxygens
+  // Spatial hash on oxygens for neighbour queries
   let cellSize = 5.0;
   let grid = new Map();
   const keyForCell = (ix,iy,iz)=>`${ix},${iy},${iz}`;
@@ -302,19 +311,9 @@
     return out;
   }
 
-function validVec3(v){
-
-  return (
-    Number.isFinite(v.x) &&
-    Number.isFinite(v.y) &&
-    Number.isFinite(v.z) &&
-    Math.abs(v.x) < 1000 &&
-    Math.abs(v.y) < 1000 &&
-    Math.abs(v.z) < 1000
-  );
-
-}
-  
+  // -------------------------
+  // Initialisation modes
+  // -------------------------
   function randomUnitVec(){
     let x1,x2,s;
     do { x1 = rand(-1,1); x2 = rand(-1,1); s = x1*x1 + x2*x2; } while (s>=1 || s===0);
@@ -323,57 +322,8 @@ function validVec3(v){
     return new THREE.Vector3(x1*t, x2*t, z).normalize();
   }
 
-  function sanityCheckAtoms(box){
-
-  const limit = box * 5;
-
-  for(const a of atoms){
-
-    if(!Number.isFinite(a.pos.x) ||
-       !Number.isFinite(a.pos.y) ||
-       !Number.isFinite(a.pos.z)){
-
-        resetAtom(a, box);
-        continue;
-    }
-
-    if(Math.abs(a.pos.x) > limit ||
-       Math.abs(a.pos.y) > limit ||
-       Math.abs(a.pos.z) > limit){
-
-        resetAtom(a, box);
-    }
-
-    if(!Number.isFinite(a.vel.x) ||
-       !Number.isFinite(a.vel.y) ||
-       !Number.isFinite(a.vel.z)){
-
-        a.vel.set(0,0,0);
-    }
-
-  }
-
-}
-
-  function resetAtom(a, box){
-
-  a.pos.set(
-    rand(-box/4, box/4),
-    rand(-box/4, box/4),
-    rand(-box/4, box/4)
-  );
-
-  a.prev.copy(a.pos);
-
-  a.vel.set(
-    rand(-1,1),
-    rand(-1,1),
-    rand(-1,1)
-  ).multiplyScalar(0.3);
-
-}
-
   function placeWaterAt(Opos){
+    // Create a random orientation from reference geometry in x-y plane
     const half = HOH0/2;
     const r1 = new THREE.Vector3(Math.cos(half)*OH0,  Math.sin(half)*OH0, 0);
     const r2 = new THREE.Vector3(Math.cos(half)*OH0, -Math.sin(half)*OH0, 0);
@@ -383,41 +333,24 @@ function validVec3(v){
     r1.applyQuaternion(q);
     r2.applyQuaternion(q);
 
-    const baseV = new THREE.Vector3(rand(-1,1),rand(-1,1),rand(-1,1)).multiplyScalar(0.30);
+    const H1pos = r1.clone().add(Opos);
+    const H2pos = r2.clone().add(Opos);
 
-    const O  = { pos: Opos.clone(),           prev: Opos.clone(),           vel: baseV.clone(), force: new THREE.Vector3(), mass: mO, charge: qO, type:"O" };
-    const H1 = { pos: Opos.clone().add(r1),   prev: Opos.clone().add(r1),   vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
-    const H2 = { pos: Opos.clone().add(r2),   prev: Opos.clone().add(r2),   vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
+    const baseV = new THREE.Vector3(rand(-1,1),rand(-1,1),rand(-1,1)).multiplyScalar(0.4);
+
+    const O  = { pos: Opos.clone(), vel: baseV.clone(), force: new THREE.Vector3(), mass: mO, charge: qO, type:"O" };
+    const H1 = { pos: H1pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
+    const H2 = { pos: H2pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
 
     return {O,H1,H2};
   }
 
-  function flattenAtoms(){
-    atoms = [];
-    for (const m of molecules) atoms.push(m.O, m.H1, m.H2);
-  }
-
-
-function insideBox(p, box){
-
-  const half = box / 2 + 1;
-
-  return (
-    Math.abs(p.x) < half &&
-    Math.abs(p.y) < half &&
-    Math.abs(p.z) < half &&
-    Number.isFinite(p.x) &&
-    Number.isFinite(p.y) &&
-    Number.isFinite(p.z)
-  );
-
-}
-  
   function initLiquid(nMol, box){
     molecules = [];
     atoms = [];
-    const minOO = 2.9;
-    const maxTries = 160000;
+
+    const minOO = 2.5;
+    const maxTries = 120000;
     let tries = 0;
 
     function tooClose(p){
@@ -430,27 +363,32 @@ function insideBox(p, box){
     while (molecules.length < nMol && tries < maxTries){
       tries++;
       const pos = new THREE.Vector3(
-        rand(-box/2+2.5, box/2-2.5),
-        rand(-box/2+2.5, box/2-2.5),
-        rand(-box/2+2.5, box/2-2.5)
+        rand(-box/2+2, box/2-2),
+        rand(-box/2+2, box/2-2),
+        rand(-box/2+2, box/2-2)
       );
       if (tooClose(pos)) continue;
       molecules.push(placeWaterAt(pos));
     }
+
     flattenAtoms();
   }
 
   function initSteam(nMol, box){
+    // Lower density: just spread them out, with higher velocities
     initLiquid(nMol, box);
-    for (const a of atoms) a.vel.multiplyScalar(2.0);
+    for (const a of atoms){
+      a.vel.multiplyScalar(2.2);
+    }
   }
 
   function initIce(nMol, box){
+    // Simple lattice on oxygen sites. Not real ice rules, but visually forms a solid with stiff-ish springs and higher attraction.
     molecules = [];
     atoms = [];
 
     const half = box/2;
-    const spacing = 3.25;
+    const spacing = 3.25; // visual lattice spacing
     const nx = Math.max(2, Math.floor((box-6)/spacing));
     const ny = Math.max(2, Math.floor((box-6)/spacing));
     const nz = Math.max(2, Math.floor((box-6)/spacing));
@@ -468,18 +406,27 @@ function insideBox(p, box){
       }
     }
 
+    // Pick first nMol positions, with slight jitter
     for (let i=0; i<Math.min(nMol, points.length); i++){
       const p = points[i].clone().add(new THREE.Vector3(rand(-0.08,0.08),rand(-0.08,0.08),rand(-0.08,0.08)));
       const mol = placeWaterAt(p);
-      mol.O.vel.multiplyScalar(0.18);
-      mol.H1.vel.multiplyScalar(0.18);
-      mol.H2.vel.multiplyScalar(0.18);
+      // small velocities
+      mol.O.vel.multiplyScalar(0.2);
+      mol.H1.vel.multiplyScalar(0.2);
+      mol.H2.vel.multiplyScalar(0.2);
       molecules.push(mol);
     }
     flattenAtoms();
   }
 
-  // Forces
+  function flattenAtoms(){
+    atoms = [];
+    for (const m of molecules) atoms.push(m.O, m.H1, m.H2);
+  }
+
+  // -------------------------
+  // Forces: intramolecular (bond + angle), intermolecular (LJ + Coulomb), gravity
+  // -------------------------
   function zeroForces(){
     for (const a of atoms) a.force.set(0,0,0);
   }
@@ -487,33 +434,93 @@ function insideBox(p, box){
   function applyGravity(){
     const g = parseFloat(ui.gravity.value);
     if (g <= 0) return;
-    for (const a of atoms) a.force.y -= a.mass * g;
-  }
-
-  function capForces(){
     for (const a of atoms){
-      const f2 = a.force.lengthSq();
-      if (f2 > FMAX*FMAX) a.force.multiplyScalar(FMAX / Math.sqrt(f2));
+      a.force.y -= a.mass * g;
     }
   }
 
-  function capSpeeds(){
-    for (const a of atoms){
-      const v2 = a.vel.lengthSq();
-      if (v2 > VMAX*VMAX) a.vel.multiplyScalar(VMAX / Math.sqrt(v2));
+  function applyBondsAndAngles(){
+    const kBond = parseFloat(ui.kBond.value);
+    const kAngle = parseFloat(ui.kAngle.value);
+    let pe = 0;
+
+    for (const m of molecules){
+      const O = m.O, H1 = m.H1, H2 = m.H2;
+
+      // Bond stretch O-H
+      pe += bondForce(O, H1, kBond, OH0);
+      pe += bondForce(O, H2, kBond, OH0);
+
+      // Angle bend H-O-H
+      pe += angleForce(H1, O, H2, kAngle, HOH0);
     }
+
+    return pe;
+  }
+
+  function bondForce(a, b, k, r0){
+    const d = b.pos.clone().sub(a.pos);
+    const r = d.length();
+    if (r < 1e-6) return 0;
+    const dr = r - r0;
+    const fMag = -k * dr; // force along unit vector on b
+    const u = d.multiplyScalar(1/r);
+    const f = u.multiplyScalar(fMag);
+
+    // Apply equal and opposite
+    b.force.add(f);
+    a.force.sub(f);
+
+    return 0.5 * k * dr * dr;
+  }
+
+  function angleForce(a, b, c, k, theta0){
+    // Angle at b: a-b-c
+    const ba = a.pos.clone().sub(b.pos);
+    const bc = c.pos.clone().sub(b.pos);
+    const rba = ba.length();
+    const rbc = bc.length();
+    if (rba < 1e-6 || rbc < 1e-6) return 0;
+
+    const u = ba.clone().multiplyScalar(1/rba);
+    const v = bc.clone().multiplyScalar(1/rbc);
+    const cosT = clamp(u.dot(v), -1, 1);
+    const theta = Math.acos(cosT);
+    const sinT = Math.sqrt(Math.max(1e-8, 1 - cosT*cosT));
+
+    const dTheta = theta - theta0;
+    const coef = k * dTheta; // dU/dθ = k(θ-θ0)
+
+    // dθ/da = -(1/sinθ) * dcos/da
+    // dcos/da = (v/|ba|) - cosθ * (ba/|ba|^2)
+    const dcos_dba = v.clone().multiplyScalar(1/rba).sub( ba.clone().multiplyScalar(cosT/(rba*rba)) );
+    const dcos_dbc = u.clone().multiplyScalar(1/rbc).sub( bc.clone().multiplyScalar(cosT/(rbc*rbc)) );
+
+    const dtheta_dba = dcos_dba.multiplyScalar(-1/sinT);
+    const dtheta_dbc = dcos_dbc.multiplyScalar(-1/sinT);
+
+    // Force = -dU/da = -(dU/dθ) * (dθ/da)
+    const Fa = dtheta_dba.multiplyScalar(-coef);
+    const Fc = dtheta_dbc.multiplyScalar(-coef);
+    const Fb = Fa.clone().add(Fc).multiplyScalar(-1);
+
+    a.force.add(Fa);
+    c.force.add(Fc);
+    b.force.add(Fb);
+
+    return 0.5 * k * dTheta * dTheta;
   }
 
   function applyIntermolecular(box){
     const eps = parseFloat(ui.ljEps.value);
     const sig = parseFloat(ui.ljSig.value);
     const kC  = parseFloat(ui.coulomb.value);
+    let pe = 0;
 
     const rCutLJ2 = rCutLJ*rCutLJ;
     const rCutC2  = rCutC*rCutC;
 
-    let pe = 0;
-
+    // Spatial hash based on oxygens
     rebuildGrid(box);
 
     for (let i=0;i<molecules.length;i++){
@@ -524,7 +531,7 @@ function insideBox(p, box){
         if (j <= i) continue;
         const mj = molecules[j];
 
-        // LJ: O-O only
+        // LJ between O-O only
         if (eps > 0){
           const rij = mj.O.pos.clone().sub(mi.O.pos);
           const r2 = rij.lengthSq();
@@ -545,11 +552,12 @@ function insideBox(p, box){
             mi.O.force.add(f);
             mj.O.force.sub(f);
 
+            // potential
             pe += 4*eps*(term12 - term6);
           }
         }
 
-        // Coulomb: all sites across molecules
+        // Coulomb between all sites across molecules
         if (kC > 0){
           const sitesI = [mi.O, mi.H1, mi.H2];
           const sitesJ = [mj.O, mj.H1, mj.H2];
@@ -559,10 +567,9 @@ function insideBox(p, box){
               const d = aj.pos.clone().sub(ai.pos);
               const r2 = d.lengthSq();
               if (r2 < 1e-6 || r2 > rCutC2) continue;
+              const r = Math.sqrt(r2 + coulSoft*coulSoft);
 
-              // short-range floor prevents spikes
-              const r = Math.max(COUL_RMIN, Math.sqrt(r2 + coulSoft*coulSoft));
-
+              // Force magnitude for softened Coulomb: k q1 q2 / r^3
               const fMag = (kC * ai.charge * aj.charge) / (r*r*r);
               const f = d.multiplyScalar(fMag);
 
@@ -579,128 +586,62 @@ function insideBox(p, box){
     return pe;
   }
 
-  // Velocity Verlet integration
-  function verletStep(dt){
+  function applyWalls(box){
+    const half = box/2;
+    const restitution = 0.72;
     for (const a of atoms){
-      const acc = a.force.clone().multiplyScalar(1/a.mass);
-      a.vel.addScaledVector(acc, 0.5*dt);
-      a.pos.addScaledVector(a.vel, dt);
+      if (a.pos.x < -half){ a.pos.x = -half; a.vel.x = Math.abs(a.vel.x)*restitution; }
+      if (a.pos.x >  half){ a.pos.x =  half; a.vel.x =-Math.abs(a.vel.x)*restitution; }
+      if (a.pos.y < -half){ a.pos.y = -half; a.vel.y = Math.abs(a.vel.y)*restitution; }
+      if (a.pos.y >  half){ a.pos.y =  half; a.vel.y =-Math.abs(a.vel.y)*restitution; }
+      if (a.pos.z < -half){ a.pos.z = -half; a.vel.z = Math.abs(a.vel.z)*restitution; }
+      if (a.pos.z >  half){ a.pos.z =  half; a.vel.z =-Math.abs(a.vel.z)*restitution; }
     }
   }
 
-  function verletFinish(dt){
-    for (const a of atoms){
-      const acc = a.force.clone().multiplyScalar(1/a.mass);
-      a.vel.addScaledVector(acc, 0.5*dt);
-    }
-  }
-
-  function applyDamping(){
-    const damp = clamp(1 - parseFloat(ui.damping.value), 0.0, 1.0);
-    for (const a of atoms) a.vel.multiplyScalar(damp);
-  }
-
-
-  // --- Soft constraints (PBD style) ---
-  function projectBond(a, b, restLen, softness01){
-    const d = b.pos.clone().sub(a.pos);
-    const r = d.length();
-    if (r < 1e-9) return;
-
-    const alpha = clamp(softness01, 0, 1);
-    const wA = 1/a.mass;
-    const wB = 1/b.mass;
-    const wSum = wA + wB;
-
-    const C = r - restLen;
-    const corrMag = (1 - alpha) * (C / (wSum * r));
-    const corr = d.multiplyScalar(corrMag);
-
-    a.pos.addScaledVector(corr, -wA);
-    b.pos.addScaledVector(corr, +wB);
-  }
-
-  function projectAngle(Ha, O, Hb, restAngle, softness01){
-    const alpha = clamp(softness01, 0, 1);
-    const a = Ha.pos.clone().sub(O.pos);
-    const b = Hb.pos.clone().sub(O.pos);
-    const ra = a.length();
-    const rb = b.length();
-    if (ra < 1e-9 || rb < 1e-9) return;
-
-    const ua = a.clone().multiplyScalar(1/ra);
-    const ub = b.clone().multiplyScalar(1/rb);
-
-    const cosT = clamp(ua.dot(ub), -1, 1);
-    const theta = Math.acos(cosT);
-    const err = theta - restAngle;
-    if (Math.abs(err) < 1e-5) return;
-
-    const axis = ua.clone().cross(ub);
-    const axisLen = axis.length();
-    if (axisLen < 1e-9) return;
-    axis.multiplyScalar(1/axisLen);
-
-    const step = (1 - alpha) * err * 0.5;
-    const qa = new THREE.Quaternion().setFromAxisAngle(axis, -step);
-    const qb = new THREE.Quaternion().setFromAxisAngle(axis, +step);
-
-    const a2 = a.applyQuaternion(qa);
-    const b2 = b.applyQuaternion(qb);
-
-    Ha.pos.copy(O.pos).add(a2);
-    Hb.pos.copy(O.pos).add(b2);
-  }
-
-  function applyConstraints(){
-    const bSoft = parseFloat(ui.bondSoft.value);
-    const aSoft = parseFloat(ui.angleSoft.value);
-
-    for (let it=0; it<CONSTRAINT_ITERS; it++){
-      for (const m of molecules){
-        projectBond(m.O, m.H1, OH0, bSoft);
-        projectBond(m.O, m.H2, OH0, bSoft);
-        projectAngle(m.H1, m.O, m.H2, HOH0, aSoft);
-      }
-    }
-  }
-
-  function updateVelFromPositions(dt){
-    for (const a of atoms){
-      a.vel.copy(a.pos).sub(a.prev).multiplyScalar(1/dt);
-      a.prev.copy(a.pos);
-    }
-  }
-
-  // Thermostat and stats
+  // -------------------------
+  // Integration + thermostat
+  // -------------------------
   function kineticEnergy(){
     let ke = 0;
-    for (const a of atoms) ke += 0.5 * a.mass * a.vel.lengthSq();
+    for (const a of atoms){
+      ke += 0.5 * a.mass * a.vel.lengthSq();
+    }
     return ke;
   }
+
   function instantTemperature(){
     const ke = kineticEnergy();
     const dof = Math.max(1, atoms.length*3);
-    const T = (2*ke)/dof;
+    const T = (2*ke)/dof; // scaled kB=1
     return {T, ke};
   }
 
-  function applyThermostatClamped(){
+  function applyThermostat(){
     if (!ui.useThermo.checked) return;
-
-    const strength = clamp(parseFloat(ui.thermoStrength.value), 0, 0.30);
+    const strength = clamp(parseFloat(ui.thermoStrength.value), 0, 0.5);
     if (strength <= 0) return;
 
     const targetT = parseFloat(ui.temp.value);
     const {T} = instantTemperature();
-    if (T <= 1e-9) return;
+    if (T <= 1e-8) return;
 
-    const rawScale = Math.sqrt(targetT / T);
-    const desired = 1 + strength*(rawScale - 1);
-
-    // clamp per substep
-    const s = clamp(desired, 0.98, 1.02);
+    const scale = Math.sqrt(targetT / T);
+    const s = 1 + strength*(scale - 1);
     for (const a of atoms) a.vel.multiplyScalar(s);
+  }
+
+  function integrate(dt, box){
+    const damp = clamp(1 - parseFloat(ui.damping.value), 0.0, 1.0);
+
+    // Semi-implicit Euler (stable enough for demo)
+    for (const a of atoms){
+      a.vel.addScaledVector(a.force, dt / a.mass);
+      a.vel.multiplyScalar(damp);
+      a.pos.addScaledVector(a.vel, dt);
+    }
+
+    applyWalls(box);
   }
 
   function randomKick(){
@@ -709,17 +650,9 @@ function insideBox(p, box){
     }
   }
 
-  let lastPE = 0;
-
-  // --- Hydrogen bond detection ---
-  function hbAngleDeg(Odon, H, Oacc){
-    const v1 = Odon.pos.clone().sub(H.pos).normalize();
-    const v2 = Oacc.pos.clone().sub(H.pos).normalize();
-    const c = clamp(v1.dot(v2), -1, 1);
-    return Math.acos(c) * 180/Math.PI;
-  }
-
-  // Three.js
+  // -------------------------
+  // Three.js rendering
+  // -------------------------
   const view = document.getElementById("view");
   let scene, camera, renderer, controls;
   let atomMeshes = [];
@@ -730,7 +663,7 @@ function insideBox(p, box){
     scene.background = new THREE.Color(0x0b1020);
 
     camera = new THREE.PerspectiveCamera(60, 1, 0.1, 2000);
-    camera.position.set(0, 18, 52);
+    camera.position.set(0, 18, 48);
 
     renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setPixelRatio(window.devicePixelRatio * parseFloat(ui.quality.value));
@@ -775,6 +708,7 @@ function insideBox(p, box){
   function makeBondLines(){
     const positions = [];
     for (const m of molecules){
+      // O-H1 and O-H2
       positions.push(m.O.pos.x,m.O.pos.y,m.O.pos.z, m.H1.pos.x,m.H1.pos.y,m.H1.pos.z);
       positions.push(m.O.pos.x,m.O.pos.y,m.O.pos.z, m.H2.pos.x,m.H2.pos.y,m.H2.pos.z);
     }
@@ -828,24 +762,17 @@ function insideBox(p, box){
 
   function updateWeakLines(box){
     const mode = ui.weakMode.value;
-    const MAX_LINK = 6;
     weakLines.visible = mode !== "off";
     if (!weakLines.visible) return;
 
-    const hbD = parseFloat(ui.hbDist.value);
-    const hbD2 = hbD*hbD;
-    const hbAngMin = parseFloat(ui.hbAngle.value);
-    const ooCut = parseFloat(ui.ooCut.value);
-    const ooCut2 = ooCut*ooCut;
+    const cutoff = parseFloat(ui.weakCutoff.value);
+    const cutoff2 = cutoff*cutoff;
 
     rebuildGrid(box);
+
     const pos = [];
-
-for (let i=0;i<molecules.length;i++){
-
-  const mi = molecules[i];
-
-  if(!insideBox(mi.O.pos, box)) continue;
+    for (let i=0;i<molecules.length;i++){
+      const mi = molecules[i];
       const neigh = neighboursOfMol(i, box);
 
       for (const j of neigh){
@@ -854,36 +781,27 @@ for (let i=0;i<molecules.length;i++){
 
         if (mode === "oo" || mode === "both"){
           const d2 = mi.O.pos.distanceToSquared(mj.O.pos);
-          if (d2 <= ooCut2){
-
-            if(mi.O.pos.distanceTo(mj.O.pos) > MAX_LINK) continue;
-            
-            if(validVec3(mi.O.pos) && validVec3(mj.O.pos)){
-  pos.push(mi.O.pos.x,mi.O.pos.y,mi.O.pos.z, mj.O.pos.x,mj.O.pos.y,mj.O.pos.z);
-}          }
+          if (d2 <= cutoff2){
+            pos.push(mi.O.pos.x,mi.O.pos.y,mi.O.pos.z, mj.O.pos.x,mj.O.pos.y,mj.O.pos.z);
+          }
         }
 
         if (mode === "hb" || mode === "both"){
-          for (const H of [mi.H1, mi.H2]){
-                        if(!insideBox(mj.O.pos, box)) continue;
-            const d2 = mj.O.pos.distanceToSquared(H.pos);
-            if (d2 <= hbD2){
-              const ang = hbAngleDeg(mi.O, H, mj.O);
-              if(H.pos.distanceTo(mj.O.pos) > MAX_LINK) continue;
-              if (ang >= hbAngMin) if(validVec3(mj.O.pos) && validVec3(H.pos)){
-  pos.push(mj.O.pos.x,mj.O.pos.y,mj.O.pos.z, H.pos.x,H.pos.y,H.pos.z);
-}
+          // Hydrogen bond heuristic: link O of one molecule to H of the other if close
+          // (Not an actual HB model, but visually useful.)
+          const HsI = [mi.H1, mi.H2];
+          const HsJ = [mj.H1, mj.H2];
+
+          for (const h of HsI){
+            const d2 = mj.O.pos.distanceToSquared(h.pos);
+            if (d2 <= cutoff2){
+              pos.push(mj.O.pos.x,mj.O.pos.y,mj.O.pos.z, h.pos.x,h.pos.y,h.pos.z);
             }
           }
-          for (const H of [mj.H1, mj.H2]){
-
-            if(!insideBox(H.pos, box)) continue;
-            const d2 = mi.O.pos.distanceToSquared(H.pos);
-            if (d2 <= hbD2){
-              const ang = hbAngleDeg(mj.O, H, mi.O);
-              if (ang >= hbAngMin) if(validVec3(mi.O.pos) && validVec3(H.pos)){
-  pos.push(mi.O.pos.x,mi.O.pos.y,mi.O.pos.z, H.pos.x,H.pos.y,H.pos.z);
-}
+          for (const h of HsJ){
+            const d2 = mi.O.pos.distanceToSquared(h.pos);
+            if (d2 <= cutoff2){
+              pos.push(mi.O.pos.x,mi.O.pos.y,mi.O.pos.z, h.pos.x,h.pos.y,h.pos.z);
             }
           }
         }
@@ -896,58 +814,55 @@ for (let i=0;i<molecules.length;i++){
     weakLines.geometry = geom;
   }
 
+  // -------------------------
+  // Presets
+  // -------------------------
   function setPreset(kind){
     lastPreset = kind;
 
     if (kind === "ice"){
       ui.temp.value = 120;
       ui.boxSize.value = 36;
-      ui.ljEps.value = 0.75;
-      ui.coulomb.value = 0.18;
-      ui.damping.value = 0.016;
-      ui.gravity.value = 1.0;
-      ui.bondSoft.value = 0.08;
-      ui.angleSoft.value = 0.10;
+      ui.ljEps.value = 1.05;
+      ui.coulomb.value = 0.75;
+      ui.kBond.value = 160;
+      ui.kAngle.value = 44;
+      ui.damping.value = 0.012;
+      ui.gravity.value = 1.2;
       ui.weakMode.value = "hb";
-      ui.hbDist.value = 2.9;
-      ui.hbAngle.value = 150;
-      ui.ooCut.value = 3.4;
+      ui.weakCutoff.value = 3.2;
       ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.08;
-      ui.dt.value = 0.004;
+      ui.thermoStrength.value = 0.18;
     }
 
     if (kind === "liquid"){
       ui.temp.value = 300;
       ui.boxSize.value = 34;
-      ui.ljEps.value = 0.55;
-      ui.coulomb.value = 0.22;
-      ui.damping.value = 0.010;
-      ui.gravity.value = 1.2;
-      ui.bondSoft.value = 0.14;
-      ui.angleSoft.value = 0.16;
+      ui.ljEps.value = 0.60;
+      ui.coulomb.value = 0.55;
+      ui.kBond.value = 120;
+      ui.kAngle.value = 28;
+      ui.damping.value = 0.008;
+      ui.gravity.value = 1.5;
       ui.weakMode.value = "both";
-      ui.hbDist.value = 2.8;
-      ui.hbAngle.value = 150;
-      ui.ooCut.value = 3.2;
+      ui.weakCutoff.value = 3.1;
       ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.08;
-      ui.dt.value = 0.004;
+      ui.thermoStrength.value = 0.12;
     }
 
     if (kind === "steam"){
       ui.temp.value = 900;
       ui.boxSize.value = 70;
-      ui.ljEps.value = 0.18;
-      ui.coulomb.value = 0.08;
-      ui.damping.value = 0.004;
-      ui.gravity.value = 0.6;
-      ui.bondSoft.value = 0.18;
-      ui.angleSoft.value = 0.20;
+      ui.ljEps.value = 0.22;
+      ui.coulomb.value = 0.35;
+      ui.kBond.value = 90;
+      ui.kAngle.value = 18;
+      ui.damping.value = 0.003;
+      ui.gravity.value = 0.8;
       ui.weakMode.value = "off";
+      ui.weakCutoff.value = 3.0;
       ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.08;
-      ui.dt.value = 0.005;
+      ui.thermoStrength.value = 0.10;
     }
 
     resetSimulation();
@@ -962,73 +877,16 @@ for (let i=0;i<molecules.length;i++){
     else if (lastPreset === "steam") initSteam(nMol, box);
     else initLiquid(nMol, box);
 
-    const dt = parseFloat(ui.dt.value);
-    for (const a of atoms){
-      a.prev.copy(a.pos).addScaledVector(a.vel, -dt);
-    }
+    // Apply initial temperature roughly
+    applyThermostat();
 
     rebuildSceneObjects();
     updateWeakLines(box);
   }
 
-function applySoftWalls(box){
-  const half = box/2;
-
-  // How close to the wall the repulsion starts (higher = more “room”)
-  const margin = 1.2;
-
-  // Wall stiffness (higher = harder wall). 60–200 is reasonable.
-  const kWall = 120;
-
-  const inner = half - margin;
-
-  for (const a of atoms){
-    // X
-    if (a.pos.x > inner) a.force.x -= kWall * (a.pos.x - inner);
-    else if (a.pos.x < -inner) a.force.x += kWall * (-inner - a.pos.x);
-
-    // Y
-    if (a.pos.y > inner) a.force.y -= kWall * (a.pos.y - inner);
-    else if (a.pos.y < -inner) a.force.y += kWall * (-inner - a.pos.y);
-
-    // Z
-    if (a.pos.z > inner) a.force.z -= kWall * (a.pos.z - inner);
-    else if (a.pos.z < -inner) a.force.z += kWall * (-inner - a.pos.z);
-  }
-}
-  
-  function stepPhysics(dt, box){
-    for (const a of atoms) a.prev.copy(a.pos);
-
-    zeroForces();
-    applyGravity();
-    zeroForces();
-    lastPE = applyIntermolecular(box);
-    capForces();
-
-    verletStep(dt);
-
-    applyConstraints();
-
-    updateVelFromPositions(dt);
-
-
-    zeroForces();
-    applyGravity();
-    zeroForces();
-    lastPE = applyIntermolecular(box);
-    capForces();
-
-    verletFinish(dt);
-
-    capSpeeds();
-    applyDamping();
-    applyThermostatClamped();
-sanityCheckAtoms(box);
-  
-  }
-
-  // Main loop
+  // -------------------------
+  // Loop
+  // -------------------------
   let last = performance.now();
   let fpsAcc=0, fpsN=0, fpsLast=performance.now();
 
@@ -1036,22 +894,40 @@ sanityCheckAtoms(box);
     requestAnimationFrame(tick);
     const frameDt = (now-last)/1000; last = now;
 
-    const dtFrame = parseFloat(ui.dt.value) * (slowmo ? 0.25 : 1.0);
+    const dt = parseFloat(ui.dt.value) * (slowmo ? 0.25 : 1.0);
     const box = parseFloat(ui.boxSize.value);
 
-    if (!paused){
-      const h = dtFrame / SUBSTEPS;
-      for (let s=0; s<SUBSTEPS; s++) stepPhysics(h, box);
+    let pe = 0;
 
-      for (let i=0;i<atoms.length;i++) atomMeshes[i].position.copy(atoms[i].pos);
+    if (!paused){
+      zeroForces();
+      applyGravity();
+
+      // intramolecular potentials
+      pe += applyBondsAndAngles();
+
+      // intermolecular potentials
+      pe += applyIntermolecular(box);
+
+      integrate(dt, box);
+
+      applyThermostat();
+
+      // update meshes
+      for (let i=0;i<atoms.length;i++){
+        atomMeshes[i].position.copy(atoms[i].pos);
+      }
       updateBondLines();
+
+      // update weak links less frequently for performance
       if (Math.random() < 0.30) updateWeakLines(box);
 
+      // stats
       const {T, ke} = instantTemperature();
       ui.tTarget.textContent = `${Math.round(parseFloat(ui.temp.value))}`;
       ui.tInst.textContent = `${Math.round(T)}`;
       ui.ke.textContent = ke.toFixed(1);
-      ui.pe.textContent = lastPE.toFixed(1);
+      ui.pe.textContent = pe.toFixed(1);
     }
 
     controls.update();
@@ -1065,10 +941,13 @@ sanityCheckAtoms(box);
     }
   }
 
+  // -------------------------
   // Events
+  // -------------------------
   ui.iceBtn.addEventListener("click", ()=>setPreset("ice"));
   ui.liqBtn.addEventListener("click", ()=>setPreset("liquid"));
   ui.stmBtn.addEventListener("click", ()=>setPreset("steam"));
+
   ui.resetBtn.addEventListener("click", resetSimulation);
 
   ui.pauseBtn.addEventListener("click", ()=>{
@@ -1081,7 +960,7 @@ sanityCheckAtoms(box);
     ui.slowBtn.textContent = slowmo ? "Normal speed" : "Slow-mo";
   });
 
-  ui.kickBtn.addEventListener("click", randomKick);
+  ui.kickBtn.addEventListener("click", ()=>randomKick());
 
   ui.quality.addEventListener("input", ()=>{
     if (!renderer) return;
@@ -1089,13 +968,16 @@ sanityCheckAtoms(box);
   });
 
   ui.boxSize.addEventListener("input", ()=>{
+    // Only rebuild visuals for the box, keep sim state
     if (boxWire){
       scene.remove(boxWire);
       buildBox();
     }
   });
 
+  // -------------------------
   // Boot
+  // -------------------------
   initThree();
   setPreset("liquid");
   requestAnimationFrame(tick);

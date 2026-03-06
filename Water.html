@@ -1026,10 +1026,42 @@
 
     const cutoff = parseFloat(ui.weakCutoff.value);
     const cutoff2 = cutoff*cutoff;
+    const maxOOForHB = cutoff + 1.1;
+    const maxOOForHB2 = maxOOForHB * maxOOForHB;
+    const minCosDHA = Math.cos(35 * Math.PI / 180); // D-H...A >= 145°
 
     rebuildGrid(box);
 
     const pos = [];
+    const hbBestByHydrogen = new Map();
+
+    function considerHBond(donorO, donorH, acceptorO){
+      const rOH2 = donorH.pos.distanceToSquared(acceptorO.pos);
+      if (rOH2 > cutoff2 || rOH2 < 1e-8) return;
+
+      const rOO2 = donorO.pos.distanceToSquared(acceptorO.pos);
+      if (rOO2 > maxOOForHB2 || rOO2 < 1e-8) return;
+
+      const donorToH = donorH.pos.clone().sub(donorO.pos);
+      const hToAcceptor = acceptorO.pos.clone().sub(donorH.pos);
+      const dhLen = donorToH.length();
+      const haLen = hToAcceptor.length();
+      if (dhLen < 1e-6 || haLen < 1e-6) return;
+
+      const cosDHA = donorToH.dot(hToAcceptor) / (dhLen * haLen);
+      if (cosDHA < minCosDHA) return;
+
+      // Prioritize shorter O···H distances and straighter D-H...A angles.
+      const distScore = 1 - (Math.sqrt(rOH2) / cutoff);
+      const angleScore = (cosDHA - minCosDHA) / (1 - minCosDHA);
+      const score = 0.65 * distScore + 0.35 * angleScore;
+
+      const prev = hbBestByHydrogen.get(donorH);
+      if (!prev || score > prev.score){
+        hbBestByHydrogen.set(donorH, { acceptorO, score });
+      }
+    }
+
     for (let i=0;i<molecules.length;i++){
       const mi = molecules[i];
       const neigh = neighboursOfMol(i, box);
@@ -1046,24 +1078,20 @@
         }
 
         if (mode === "hb" || mode === "both"){
-          // Hydrogen bond heuristic: link O of one molecule to H of the other if close
-          // (Not an actual HB model, but visually useful.)
-          const HsI = [mi.H1, mi.H2];
-          const HsJ = [mj.H1, mj.H2];
-
-          for (const h of HsI){
-            const d2 = mj.O.pos.distanceToSquared(h.pos);
-            if (d2 <= cutoff2){
-              pos.push(mj.O.pos.x,mj.O.pos.y,mj.O.pos.z, h.pos.x,h.pos.y,h.pos.z);
-            }
-          }
-          for (const h of HsJ){
-            const d2 = mi.O.pos.distanceToSquared(h.pos);
-            if (d2 <= cutoff2){
-              pos.push(mi.O.pos.x,mi.O.pos.y,mi.O.pos.z, h.pos.x,h.pos.y,h.pos.z);
-            }
-          }
+          considerHBond(mi.O, mi.H1, mj.O);
+          considerHBond(mi.O, mi.H2, mj.O);
+          considerHBond(mj.O, mj.H1, mi.O);
+          considerHBond(mj.O, mj.H2, mi.O);
         }
+      }
+    }
+
+    if (mode === "hb" || mode === "both"){
+      for (const [hydrogen, hb] of hbBestByHydrogen){
+        pos.push(
+          hb.acceptorO.pos.x, hb.acceptorO.pos.y, hb.acceptorO.pos.z,
+          hydrogen.pos.x, hydrogen.pos.y, hydrogen.pos.z
+        );
       }
     }
 

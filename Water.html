@@ -58,6 +58,7 @@
       Visual phase demo: <b>Ice</b>, <b>Liquid</b>, <b>Steam</b>. Flexible tri-atomic water (bond stretch + angle bend)
       so you can see <b>momentum</b>, <b>rotation</b> and <b>vibration</b>.
       Weak links show approximate hydrogen bonding (O···H) and/or O–O proximity.
+      Includes a short-range electron-cloud repulsion term to avoid unrealistic close non-bonded overlap.
     </p>
 
     <div class="group">
@@ -125,6 +126,10 @@
       <div class="row">
         <label for="coulomb">Coulomb strength</label>
         <input id="coulomb" type="range" min="0" max="2.0" step="0.01" value="0.55" />
+      </div>
+      <div class="row">
+        <label for="cloudRepel">Electron-cloud repulsion</label>
+        <input id="cloudRepel" type="range" min="0" max="3.0" step="0.01" value="1.15" />
       </div>
       <div class="row">
         <label for="damping">Viscous damping</label>
@@ -226,6 +231,7 @@
     ljEps: document.getElementById("ljEps"),
     ljSig: document.getElementById("ljSig"),
     coulomb: document.getElementById("coulomb"),
+    cloudRepel: document.getElementById("cloudRepel"),
     damping: document.getElementById("damping"),
 
     kBond: document.getElementById("kBond"),
@@ -260,6 +266,15 @@
 
   // Coulomb softening
   const coulSoft = 0.35;
+
+  // Electron-cloud (Pauli-like) short-range repulsion for non-bonded pairs.
+  // F = A * exp(-r / rho), where A is user-tunable and rho is pair-dependent.
+  const cloudRho = {
+    "O-O": 0.34,
+    "O-H": 0.26,
+    "H-H": 0.20,
+  };
+  const cloudCutoff = 2.6;
 
   // Short-range stability guards to avoid explosive forces during rare overlaps.
   const minLJDist = 0.82;
@@ -524,14 +539,24 @@
     return 0.5 * k * dTheta * dTheta;
   }
 
+  function cloudRhoForPair(a, b){
+    const t1 = a.type;
+    const t2 = b.type;
+    if (t1 === "O" && t2 === "O") return cloudRho["O-O"];
+    if (t1 === "H" && t2 === "H") return cloudRho["H-H"];
+    return cloudRho["O-H"];
+  }
+
   function applyIntermolecular(box){
     const eps = parseFloat(ui.ljEps.value);
     const sig = parseFloat(ui.ljSig.value);
     const kC  = parseFloat(ui.coulomb.value);
+    const kCloud = parseFloat(ui.cloudRepel.value);
     let pe = 0;
 
     const rCutLJ2 = rCutLJ*rCutLJ;
     const rCutC2  = rCutC*rCutC;
+    const rCloud2 = cloudCutoff*cloudCutoff;
 
     // Spatial hash based on oxygens
     rebuildGrid(box);
@@ -581,14 +606,29 @@
             for (const aj of sitesJ){
               const d = aj.pos.clone().sub(ai.pos);
               const r2Raw = d.lengthSq();
-              if (r2Raw < 1e-6 || r2Raw > rCutC2) continue;
+              if (r2Raw < 1e-6) continue;
+
+              if (kCloud > 0 && r2Raw <= rCloud2){
+                const rRaw = Math.sqrt(r2Raw);
+                const rho = cloudRhoForPair(ai, aj);
+                const expTerm = Math.exp(-rRaw / rho);
+                const cloudMag = (kCloud / rho) * expTerm;
+                const cloudF = d.clone().multiplyScalar(-cloudMag / Math.max(rRaw, 1e-8));
+
+                ai.force.add(cloudF);
+                aj.force.sub(cloudF);
+
+                pe += kCloud * expTerm;
+              }
+
+              if (kC <= 0 || r2Raw > rCutC2) continue;
               const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
               const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
 
               // Force magnitude for softened Coulomb: k q1 q2 / r^3
               const rawFMag = (kC * ai.charge * aj.charge) / (r*r*r);
               const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
-              const f = d.multiplyScalar(fMag);
+              const f = d.clone().multiplyScalar(fMag);
 
               ai.force.add(f);
               aj.force.sub(f);
@@ -949,6 +989,7 @@
       ui.boxSize.value = 36;
       ui.ljEps.value = 1.05;
       ui.coulomb.value = 0.75;
+      ui.cloudRepel.value = 1.35;
       ui.kBond.value = 160;
       ui.kAngle.value = 44;
       ui.damping.value = 0.012;
@@ -965,6 +1006,7 @@
       ui.boxSize.value = 34;
       ui.ljEps.value = 0.60;
       ui.coulomb.value = 0.55;
+      ui.cloudRepel.value = 1.15;
       ui.kBond.value = 120;
       ui.kAngle.value = 28;
       ui.damping.value = 0.008;
@@ -981,6 +1023,7 @@
       ui.boxSize.value = 70;
       ui.ljEps.value = 0.22;
       ui.coulomb.value = 0.35;
+      ui.cloudRepel.value = 0.70;
       ui.kBond.value = 130;
       ui.kAngle.value = 26;
       ui.damping.value = 0.003;

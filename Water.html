@@ -845,7 +845,7 @@
   let scene, camera, renderer, controls;
   let atomMeshes = [];
   let bondLines, weakLines, boxWire;
-  let mistPoints, mistBasePos;
+  let mistPoints, mistBasePos, mistHalfExtent;
 
   function initThree(){
     scene = new THREE.Scene();
@@ -883,16 +883,16 @@
   function createMistLayer(){
     if (mistPoints) scene.remove(mistPoints);
 
-    const count = 420;
+    const count = 220;
     const box = parseFloat(ui.boxSize.value);
-    const spread = box * 1.25;
-    const yMin = -box * 0.45;
-    const yMax = box * 0.4;
+    const half = box * 0.5;
+    const margin = 1.4;
+    mistHalfExtent = Math.max(2, half - margin);
     const positions = new Float32Array(count * 3);
     for (let i=0;i<count;i++){
-      positions[i*3 + 0] = rand(-spread, spread);
-      positions[i*3 + 1] = rand(yMin, yMax);
-      positions[i*3 + 2] = rand(-spread, spread);
+      positions[i*3 + 0] = rand(-mistHalfExtent, mistHalfExtent);
+      positions[i*3 + 1] = rand(-mistHalfExtent, mistHalfExtent);
+      positions[i*3 + 2] = rand(-mistHalfExtent, mistHalfExtent);
     }
     mistBasePos = positions.slice();
 
@@ -900,8 +900,8 @@
     sprite.width = 64; sprite.height = 64;
     const ctx = sprite.getContext("2d");
     const grad = ctx.createRadialGradient(32,32,1,32,32,30);
-    grad.addColorStop(0, "rgba(180,220,255,0.55)");
-    grad.addColorStop(0.6, "rgba(120,170,220,0.16)");
+    grad.addColorStop(0, "rgba(180,220,255,0.32)");
+    grad.addColorStop(0.6, "rgba(120,170,220,0.10)");
     grad.addColorStop(1, "rgba(80,120,170,0)");
     ctx.fillStyle = grad;
     ctx.fillRect(0,0,64,64);
@@ -912,11 +912,11 @@
     const mat = new THREE.PointsMaterial({
       map: texture,
       color: 0xaed3ff,
-      size: 2.6,
+      size: 2.1,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.12,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       sizeAttenuation: true
     });
     mistPoints = new THREE.Points(geom, mat);
@@ -1011,8 +1011,10 @@
     for (let i=0;i<arr.length;i+=3){
       const idx = i/3;
       const phase = idx * 0.081;
-      arr[i + 0] = mistBasePos[i + 0] + Math.sin(timeSec * 0.15 + phase) * 0.7;
-      arr[i + 2] = mistBasePos[i + 2] + Math.cos(timeSec * 0.13 + phase*1.2) * 0.6;
+      const driftX = mistBasePos[i + 0] + Math.sin(timeSec * 0.12 + phase) * 0.3;
+      const driftZ = mistBasePos[i + 2] + Math.cos(timeSec * 0.10 + phase*1.2) * 0.26;
+      arr[i + 0] = clamp(driftX, -mistHalfExtent, mistHalfExtent);
+      arr[i + 2] = clamp(driftZ, -mistHalfExtent, mistHalfExtent);
     }
     mistPoints.geometry.attributes.position.needsUpdate = true;
   }

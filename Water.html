@@ -909,9 +909,10 @@
 
     const matO = new THREE.MeshStandardMaterial({color:0xcc2b2b, roughness:0.35, metalness:0.05});
     const matH = new THREE.MeshStandardMaterial({color:0xf2f2f2, roughness:0.45, metalness:0.05});
-    // Slightly larger radii so bonded O/H spheres visually intersect a little.
-    const gO = new THREE.SphereGeometry(0.54, 18, 18);
-    const gH = new THREE.SphereGeometry(0.47, 16, 16);
+    // Keep O/H visual sizes proportionate while targeting ~50% O–H overlap at equilibrium bond length.
+    // Original ratio is preserved (O:H = 0.35:0.23), scaled so rO + rH ≈ 1.5 for OH0 = 1.0.
+    const gO = new THREE.SphereGeometry(0.905, 18, 18);
+    const gH = new THREE.SphereGeometry(0.595, 16, 16);
 
     for (const a of atoms){
       const isO = a.type === "O";

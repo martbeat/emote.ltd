@@ -909,8 +909,9 @@
 
     const matO = new THREE.MeshStandardMaterial({color:0xcc2b2b, roughness:0.35, metalness:0.05});
     const matH = new THREE.MeshStandardMaterial({color:0xf2f2f2, roughness:0.45, metalness:0.05});
-    const gO = new THREE.SphereGeometry(0.35, 18, 18);
-    const gH = new THREE.SphereGeometry(0.23, 16, 16);
+    // Slightly larger radii so bonded O/H spheres visually intersect a little.
+    const gO = new THREE.SphereGeometry(0.54, 18, 18);
+    const gH = new THREE.SphereGeometry(0.47, 16, 16);
 
     for (const a of atoms){
       const isO = a.type === "O";

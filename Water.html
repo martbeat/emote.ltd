@@ -344,6 +344,10 @@
   const minBoxSize = 18;
   const maxBoxSize = 90;
 
+  // Oxygen lattice tether used only in ice preset to keep a stable solid scaffold.
+  const iceAnchorK = 2.4;
+  const iceAnchorVelDamp = 0.08;
+
   // Constraint tuning: project molecule geometry toward rigid-body water when requested
   const minConstraintIters = 2;
   const maxConstraintIters = 8;

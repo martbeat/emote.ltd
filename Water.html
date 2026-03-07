@@ -353,7 +353,7 @@
   const ooHardCoreVelDamp = 0.30;
 
   // Constraint tuning: project molecule geometry toward rigid-body water when requested
-  const minConstraintIters = 2;
+  const minConstraintIters = 0;
   const maxConstraintIters = 8;
   const minBondVelDamp = 0.80;
   const maxBondVelDamp = 0.96;
@@ -1033,6 +1033,7 @@
 
     applyStep(){
       const rigid = this.rigidityFactor();
+      if (rigid <= 1e-4) return;
       const iterations = Math.round(minConstraintIters + (maxConstraintIters - minConstraintIters) * rigid);
 
       for (let iter=0; iter<iterations; iter++){
@@ -1063,7 +1064,7 @@
       const weightA = invMassA / w;
       const weightB = invMassB / w;
 
-      const maxErr = minBondCorrection + (maxBondCorrection - minBondCorrection) * rigid;
+      const maxErr = (minBondCorrection + (maxBondCorrection - minBondCorrection) * rigid) * rigid;
       const err = clamp(rawErr, -maxErr, maxErr);
 
       // Position correction along bond axis.
@@ -1074,7 +1075,7 @@
       const relVel = b.vel.clone().sub(a.vel);
       const radial = relVel.dot(u);
       if (Math.abs(radial) > 1e-8){
-        const damp = minBondVelDamp + (maxBondVelDamp - minBondVelDamp) * rigid;
+        const damp = (minBondVelDamp + (maxBondVelDamp - minBondVelDamp) * rigid) * rigid;
         const dv = radial * damp;
         a.vel.addScaledVector(u, +dv * weightA);
         b.vel.addScaledVector(u, -dv * weightB);

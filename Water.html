@@ -199,7 +199,7 @@
   <main id="view">
     <div id="hud">
       <b>Tip</b><br/>
-      For ice: click <b>Ice</b>, wait for lattice to settle, then turn the thermostat off.<br/>
+      For ice-like solid behavior: lower temperature, reduce box size (higher density), and let it settle.<br/>
       For steam: click <b>Steam</b>, increase box size and temperature, reduce LJ ε if you want less clumping.
     </div>
   </main>
@@ -292,10 +292,6 @@
   };
   const cloudCutoff = 3.4;
   const maxCloudForce = 260;
-  // Gentle oxygen tether, only active in ice preset, to keep a stable solid scaffold.
-  const iceAnchorK = 2.4;
-  const iceAnchorVelDamp = 0.08;
-
   // Short-range stability guards to avoid explosive forces during rare overlaps.
   const minLJDist = 0.82;
   const minCoulombDist = 0.75;
@@ -824,12 +820,11 @@
       const kBond = parseFloat(ui.kBond.value);
       const kAngle = parseFloat(ui.kAngle.value);
 
-      // Make high spring settings and the ice preset progressively more rigid.
+      // Make high spring settings progressively more rigid.
       const bondNorm = clamp((kBond - 120) / 80, 0, 1);
       const angleNorm = clamp((kAngle - 28) / 34, 0, 1);
       let rigid = 0.55 * bondNorm + 0.45 * angleNorm;
 
-      if (lastPreset === "ice") rigid = Math.max(rigid, 0.85);
       return clamp(rigid, 0, 1);
     },
 

@@ -276,20 +276,25 @@
   const coulSoft = 0.35;
 
   // Electron-cloud (Pauli-like) short-range repulsion for non-bonded pairs.
-  // We use a shifted Born-Mayer form so repulsion is much stronger at contact:
-  // U = A * exp((rRef - r) / rho), F = (A/rho) * exp((rRef - r) / rho).
+  // Use a gated Born-Mayer form that only activates inside a reference distance
+  // so repulsion prevents overlap without suppressing normal liquid/ice clustering.
+  // U = A * max(0, exp((rRef - r)/rho) - 1),
+  // F = (A/rho) * max(0, exp((rRef - r)/rho) - 1).
   const cloudRho = {
     "O-O": 0.32,
     "O-H": 0.24,
     "H-H": 0.18,
   };
   const cloudRefDist = {
-    "O-O": 3.3,
-    "O-H": 2.3,
-    "H-H": 1.8,
+    "O-O": 2.95,
+    "O-H": 2.05,
+    "H-H": 1.55,
   };
-  const cloudCutoff = 4.0;
+  const cloudCutoff = 3.4;
   const maxCloudForce = 260;
+  // Gentle oxygen tether, only active in ice preset, to keep a stable solid scaffold.
+  const iceAnchorK = 2.4;
+  const iceAnchorVelDamp = 0.08;
 
   // Short-range stability guards to avoid explosive forces during rare overlaps.
   const minLJDist = 0.82;
@@ -298,10 +303,14 @@
   const maxCoulombForce = 160;
   const maxSpeed = 24;
 
-  // Constraint tuning: keep O-H bond lengths nearly rigid against external forces
-  const bondConstraintIters = 2;
-  const bondVelDamp = 0.85;
-  const maxBondCorrection = 0.08;
+  // Constraint tuning: project molecule geometry toward rigid-body water when requested
+  const minConstraintIters = 2;
+  const maxConstraintIters = 8;
+  const minBondVelDamp = 0.80;
+  const maxBondVelDamp = 0.96;
+  const minBondCorrection = 0.015;
+  const maxBondCorrection = 0.06;
+  const HH0 = 2 * OH0 * Math.sin(HOH0/2);
 
   // Cutoffs
   const rCutLJ = 9.0;
@@ -310,7 +319,7 @@
   // -------------------------
   // State
   // -------------------------
-  let molecules = []; // each mol: {O,H1,H2} atoms with pos/vel/force/mass/charge
+  let molecules = []; // each mol: {O,H1,H2,iceAnchor} atoms with pos/vel/force/mass/charge
   let atoms = [];     // flattened for integration
   let paused = false;
   let slowmo = false;
@@ -385,7 +394,7 @@
     const H1 = { pos: H1pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
     const H2 = { pos: H2pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
 
-    return {O,H1,H2};
+    return {O,H1,H2, iceAnchor:null};
   }
 
   function initLiquid(nMol, box){
@@ -453,6 +462,7 @@
     for (let i=0; i<Math.min(nMol, points.length); i++){
       const p = points[i].clone().add(new THREE.Vector3(rand(-0.08,0.08),rand(-0.08,0.08),rand(-0.08,0.08)));
       const mol = placeWaterAt(p);
+      mol.iceAnchor = p.clone();
       // small velocities
       mol.O.vel.multiplyScalar(0.2);
       mol.H1.vel.multiplyScalar(0.2);
@@ -465,6 +475,25 @@
   function flattenAtoms(){
     atoms = [];
     for (const m of molecules) atoms.push(m.O, m.H1, m.H2);
+  }
+
+  function applyIceAnchors(){
+    if (lastPreset !== "ice") return 0;
+
+    let pe = 0;
+    const rigid = globalThis.__waterBondConstraintAPI.rigidityFactor();
+    const k = iceAnchorK * (0.55 + 0.9 * rigid);
+    const damp = iceAnchorVelDamp * (0.4 + 0.8 * rigid);
+
+    for (const m of molecules){
+      if (!m.iceAnchor) continue;
+      const d = m.O.pos.clone().sub(m.iceAnchor);
+      m.O.force.addScaledVector(d, -k);
+      m.O.vel.addScaledVector(d, -damp);
+      pe += 0.5 * k * d.lengthSq();
+    }
+
+    return pe;
   }
 
   // -------------------------
@@ -610,7 +639,8 @@
             const r = Math.sqrt(r2);
             const rawFMag = (24*eps / r) * (2*term12 - term6);
             const fMag = clamp(rawFMag, -maxLJForce, maxLJForce);
-            const f = rij.multiplyScalar(fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
+            // rij points i->j. Force on i is opposite rij when repulsive, along rij when attractive.
+            const f = rij.multiplyScalar(-fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
 
             mi.O.force.add(f);
             mj.O.force.sub(f);
@@ -637,22 +667,25 @@
               const rho = cloudRhoForPair(ai, aj);
               const rRef = cloudRefForPair(ai, aj);
               const expTerm = Math.exp((rRef - rRaw) / rho);
-              const rawCloudMag = (kCloud / rho) * expTerm;
-              const cloudMag = Math.min(rawCloudMag, maxCloudForce);
-              const cloudF = d.clone().multiplyScalar(-cloudMag / Math.max(rRaw, 1e-8));
+              const gated = Math.max(0, expTerm - 1);
+              if (gated > 0){
+                const rawCloudMag = (kCloud / rho) * gated;
+                const cloudMag = Math.min(rawCloudMag, maxCloudForce);
+                const cloudF = d.clone().multiplyScalar(-cloudMag / Math.max(rRaw, 1e-8));
 
-              ai.force.add(cloudF);
-              aj.force.sub(cloudF);
+                ai.force.add(cloudF);
+                aj.force.sub(cloudF);
 
-              pe += kCloud * expTerm;
+                pe += kCloud * gated;
+              }
             }
 
             if (kC <= 0 || r2Raw > rCutC2) continue;
             const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
             const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
 
-            // Force magnitude for softened Coulomb: k q1 q2 / r^3
-            const rawFMag = (kC * ai.charge * aj.charge) / (r*r*r);
+            // Force on ai from aj: -(k q_i q_j / r^3) * (r_j - r_i)
+            const rawFMag = -(kC * ai.charge * aj.charge) / (r*r*r);
             const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
             const f = d.clone().multiplyScalar(fMag);
 
@@ -787,16 +820,33 @@
   // Use a global property-backed API to avoid duplicate identifier declaration errors
   // if this block is ever injected/reloaded more than once.
   globalThis.__waterBondConstraintAPI = {
+    rigidityFactor(){
+      const kBond = parseFloat(ui.kBond.value);
+      const kAngle = parseFloat(ui.kAngle.value);
+
+      // Make high spring settings and the ice preset progressively more rigid.
+      const bondNorm = clamp((kBond - 120) / 80, 0, 1);
+      const angleNorm = clamp((kAngle - 28) / 34, 0, 1);
+      let rigid = 0.55 * bondNorm + 0.45 * angleNorm;
+
+      if (lastPreset === "ice") rigid = Math.max(rigid, 0.85);
+      return clamp(rigid, 0, 1);
+    },
+
     applyStep(){
-      for (let iter=0; iter<bondConstraintIters; iter++){
+      const rigid = this.rigidityFactor();
+      const iterations = Math.round(minConstraintIters + (maxConstraintIters - minConstraintIters) * rigid);
+
+      for (let iter=0; iter<iterations; iter++){
         for (const m of molecules){
-          this.constrainPair(m.O, m.H1, OH0);
-          this.constrainPair(m.O, m.H2, OH0);
+          this.constrainPair(m.O, m.H1, OH0, rigid);
+          this.constrainPair(m.O, m.H2, OH0, rigid);
+          this.constrainPair(m.H1, m.H2, HH0, rigid);
         }
       }
     },
 
-    constrainPair(a, b, target){
+    constrainPair(a, b, target, rigid){
       const d = b.pos.clone().sub(a.pos);
       const r = d.length();
       if (r < 1e-8 || !Number.isFinite(r)) return;
@@ -815,7 +865,8 @@
       const weightA = invMassA / w;
       const weightB = invMassB / w;
 
-      const err = clamp(rawErr, -maxBondCorrection, maxBondCorrection);
+      const maxErr = minBondCorrection + (maxBondCorrection - minBondCorrection) * rigid;
+      const err = clamp(rawErr, -maxErr, maxErr);
 
       // Position correction along bond axis.
       a.pos.addScaledVector(u, +err * weightA);
@@ -825,7 +876,8 @@
       const relVel = b.vel.clone().sub(a.vel);
       const radial = relVel.dot(u);
       if (Math.abs(radial) > 1e-8){
-        const dv = radial * bondVelDamp;
+        const damp = minBondVelDamp + (maxBondVelDamp - minBondVelDamp) * rigid;
+        const dv = radial * damp;
         a.vel.addScaledVector(u, +dv * weightA);
         b.vel.addScaledVector(u, -dv * weightB);
       }
@@ -1109,19 +1161,19 @@
 
     if (kind === "ice"){
       ui.dt.value = 0.004;
-      ui.temp.value = 120;
+      ui.temp.value = 60;
       ui.boxSize.value = 36;
-      ui.ljEps.value = 1.05;
+      ui.ljEps.value = 1.20;
       ui.coulomb.value = 0.75;
-      ui.cloudRepel.value = 4.8;
+      ui.cloudRepel.value = 4.2;
       ui.kBond.value = 160;
       ui.kAngle.value = 44;
-      ui.damping.value = 0.012;
-      ui.gravity.value = 1.2;
+      ui.damping.value = 0.016;
+      ui.gravity.value = 0.5;
       ui.weakMode.value = "hb";
       ui.weakCutoff.value = 3.2;
       ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.18;
+      ui.thermoStrength.value = 0.24;
     }
 
     if (kind === "liquid"){
@@ -1198,6 +1250,9 @@
 
       // intramolecular potentials
       pe += applyBondsAndAngles();
+
+      // ice-only lattice tether for oxygen scaffold
+      pe += applyIceAnchors();
 
       // intermolecular potentials
       pe += applyIntermolecular(box);

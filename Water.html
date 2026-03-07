@@ -298,10 +298,14 @@
   const maxCoulombForce = 160;
   const maxSpeed = 24;
 
-  // Constraint tuning: keep O-H bond lengths nearly rigid against external forces
-  const bondConstraintIters = 2;
-  const bondVelDamp = 0.85;
-  const maxBondCorrection = 0.08;
+  // Constraint tuning: project molecule geometry toward rigid-body water when requested
+  const minConstraintIters = 2;
+  const maxConstraintIters = 8;
+  const minBondVelDamp = 0.80;
+  const maxBondVelDamp = 0.96;
+  const minBondCorrection = 0.06;
+  const maxBondCorrection = 0.015;
+  const HH0 = 2 * OH0 * Math.sin(HOH0/2);
 
   // Cutoffs
   const rCutLJ = 9.0;
@@ -610,7 +614,8 @@
             const r = Math.sqrt(r2);
             const rawFMag = (24*eps / r) * (2*term12 - term6);
             const fMag = clamp(rawFMag, -maxLJForce, maxLJForce);
-            const f = rij.multiplyScalar(fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
+            // rij points i->j. Force on i is opposite rij when repulsive, along rij when attractive.
+            const f = rij.multiplyScalar(-fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
 
             mi.O.force.add(f);
             mj.O.force.sub(f);
@@ -651,8 +656,8 @@
             const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
             const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
 
-            // Force magnitude for softened Coulomb: k q1 q2 / r^3
-            const rawFMag = (kC * ai.charge * aj.charge) / (r*r*r);
+            // Force on ai from aj: -(k q_i q_j / r^3) * (r_j - r_i)
+            const rawFMag = -(kC * ai.charge * aj.charge) / (r*r*r);
             const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
             const f = d.clone().multiplyScalar(fMag);
 
@@ -787,16 +792,33 @@
   // Use a global property-backed API to avoid duplicate identifier declaration errors
   // if this block is ever injected/reloaded more than once.
   globalThis.__waterBondConstraintAPI = {
+    rigidityFactor(){
+      const kBond = parseFloat(ui.kBond.value);
+      const kAngle = parseFloat(ui.kAngle.value);
+
+      // Make high spring settings and the ice preset progressively more rigid.
+      const bondNorm = clamp((kBond - 120) / 80, 0, 1);
+      const angleNorm = clamp((kAngle - 28) / 34, 0, 1);
+      let rigid = 0.55 * bondNorm + 0.45 * angleNorm;
+
+      if (lastPreset === "ice") rigid = Math.max(rigid, 0.85);
+      return clamp(rigid, 0, 1);
+    },
+
     applyStep(){
-      for (let iter=0; iter<bondConstraintIters; iter++){
+      const rigid = this.rigidityFactor();
+      const iterations = Math.round(minConstraintIters + (maxConstraintIters - minConstraintIters) * rigid);
+
+      for (let iter=0; iter<iterations; iter++){
         for (const m of molecules){
-          this.constrainPair(m.O, m.H1, OH0);
-          this.constrainPair(m.O, m.H2, OH0);
+          this.constrainPair(m.O, m.H1, OH0, rigid);
+          this.constrainPair(m.O, m.H2, OH0, rigid);
+          this.constrainPair(m.H1, m.H2, HH0, rigid);
         }
       }
     },
 
-    constrainPair(a, b, target){
+    constrainPair(a, b, target, rigid){
       const d = b.pos.clone().sub(a.pos);
       const r = d.length();
       if (r < 1e-8 || !Number.isFinite(r)) return;
@@ -815,7 +837,8 @@
       const weightA = invMassA / w;
       const weightB = invMassB / w;
 
-      const err = clamp(rawErr, -maxBondCorrection, maxBondCorrection);
+      const maxErr = minBondCorrection + (maxBondCorrection - minBondCorrection) * rigid;
+      const err = clamp(rawErr, -maxErr, maxErr);
 
       // Position correction along bond axis.
       a.pos.addScaledVector(u, +err * weightA);
@@ -825,7 +848,8 @@
       const relVel = b.vel.clone().sub(a.vel);
       const radial = relVel.dot(u);
       if (Math.abs(radial) > 1e-8){
-        const dv = radial * bondVelDamp;
+        const damp = minBondVelDamp + (maxBondVelDamp - minBondVelDamp) * rigid;
+        const dv = radial * damp;
         a.vel.addScaledVector(u, +dv * weightA);
         b.vel.addScaledVector(u, -dv * weightB);
       }

@@ -348,6 +348,10 @@
   const iceAnchorK = 2.4;
   const iceAnchorVelDamp = 0.08;
 
+  // Intermolecular hard-core guard to stop oxygen overlap/tunnelling on large steps.
+  const ooHardCoreDist = 2.25;
+  const ooHardCoreVelDamp = 0.30;
+
   // Constraint tuning: project molecule geometry toward rigid-body water when requested
   const minConstraintIters = 2;
   const maxConstraintIters = 8;
@@ -823,6 +827,44 @@
     return sign * y;
   }
 
+  function applyOOHardCore(box){
+    const minR = ooHardCoreDist;
+    const minR2 = minR * minR;
+
+    rebuildGrid(box);
+    for (let i=0; i<molecules.length; i++){
+      const mi = molecules[i];
+      const neigh = neighboursOfMol(i, box);
+
+      for (const j of neigh){
+        if (j <= i) continue;
+        const mj = molecules[j];
+
+        const d = mj.O.pos.clone().sub(mi.O.pos);
+        const r2 = d.lengthSq();
+        if (r2 < 1e-12 || r2 >= minR2) continue;
+
+        const r = Math.sqrt(r2);
+        const n = d.multiplyScalar(1 / r);
+        const overlap = minR - r;
+        const push = 0.5 * overlap;
+
+        // Symmetric positional correction.
+        mi.O.pos.addScaledVector(n, -push);
+        mj.O.pos.addScaledVector(n, +push);
+
+        // Damp relative inward radial velocity to avoid repeated crossing.
+        const relVel = mj.O.vel.clone().sub(mi.O.vel);
+        const radial = relVel.dot(n);
+        if (radial < 0){
+          const impulse = -0.5 * (1 + ooHardCoreVelDamp) * radial;
+          mi.O.vel.addScaledVector(n, -impulse);
+          mj.O.vel.addScaledVector(n, +impulse);
+        }
+      }
+    }
+  }
+
   function applyWalls(box){
     const half = box/2;
     const restitution = 0.72;
@@ -970,6 +1012,7 @@
     }
 
     globalThis.__waterBondConstraintAPI.applyStep();
+    applyOOHardCore(box);
     applyWalls(box);
   }
 
@@ -1316,74 +1359,24 @@
   function setPreset(kind){
     lastPreset = kind;
 
+    // Phase presets should drive thermodynamic targets only.
     if (kind === "ice"){
-      ui.dt.value = 0.004;
-      ui.temp.value = 60;
-      ui.boxSize.value = 36;
-      ui.ljEps.value = 1.20;
-      ui.coulomb.value = 0.75;
-      ui.cloudRepel.value = 4.2;
-      ui.kBond.value = 160;
-      ui.kAngle.value = 44;
-      ui.damping.value = 0.016;
-      ui.gravity.value = 0.5;
-      ui.weakMode.value = "hb";
-      ui.weakCutoff.value = 3.2;
-      ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.24;
-      ui.useBarostat.checked = true;
-      ui.pTarget.value = 0.58;
-      ui.baroStrength.value = 0.24;
-      ui.waterModel.value = "tip4p";
-      ui.useEwald.checked = true;
-      ui.ewaldAlpha.value = 0.22;
+      ui.temp.value = 80;
+      ui.pTarget.value = 0.85;
     }
 
     if (kind === "liquid"){
-      ui.dt.value = 0.004;
       ui.temp.value = 300;
-      ui.boxSize.value = 34;
-      ui.ljEps.value = 0.60;
-      ui.coulomb.value = 0.55;
-      ui.cloudRepel.value = 2.8;
-      ui.kBond.value = 120;
-      ui.kAngle.value = 28;
-      ui.damping.value = 0.008;
-      ui.gravity.value = 1.5;
-      ui.weakMode.value = "both";
-      ui.weakCutoff.value = 3.1;
-      ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.12;
-      ui.useBarostat.checked = true;
       ui.pTarget.value = 0.42;
-      ui.baroStrength.value = 0.20;
-      ui.waterModel.value = "tip4p";
-      ui.useEwald.checked = true;
-      ui.ewaldAlpha.value = 0.18;
     }
 
     if (kind === "steam"){
-      ui.dt.value = 0.003;
       ui.temp.value = 900;
-      ui.boxSize.value = 70;
-      ui.ljEps.value = 0.22;
-      ui.coulomb.value = 0.35;
-      ui.cloudRepel.value = 1.4;
-      ui.kBond.value = 130;
-      ui.kAngle.value = 26;
-      ui.damping.value = 0.003;
-      ui.gravity.value = 0.8;
-      ui.weakMode.value = "off";
-      ui.weakCutoff.value = 3.0;
-      ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.10;
-      ui.useBarostat.checked = true;
-      ui.pTarget.value = 0.10;
-      ui.baroStrength.value = 0.14;
-      ui.waterModel.value = "toy3";
-      ui.useEwald.checked = true;
-      ui.ewaldAlpha.value = 0.14;
+      ui.pTarget.value = 0.08;
     }
+
+    ui.useThermo.checked = true;
+    ui.useBarostat.checked = true;
 
     resetSimulation();
   }
@@ -1394,9 +1387,11 @@
 
     const box = clamp(parseFloat(ui.boxSize.value), minBoxSize, maxBoxSize);
     ui.boxSize.value = box.toFixed(2);
-    if (lastPreset === "ice") initIce(nMol, box);
-    else if (lastPreset === "steam") initSteam(nMol, box);
-    else initLiquid(nMol, box);
+    // Start from the same unbiased random liquid-like configuration for all presets.
+    // Phase behavior should emerge from T/P targets, not different initial rules.
+    initLiquid(nMol, box);
+
+    updateVirtualSites();
 
     updateVirtualSites();
 
@@ -1429,9 +1424,6 @@
 
       // intramolecular potentials
       pe += applyBondsAndAngles();
-
-      // ice-only lattice tether for oxygen scaffold
-      pe += applyIceAnchors();
 
       // intermolecular potentials
       const interm = applyIntermolecular(box);

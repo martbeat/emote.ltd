@@ -83,7 +83,7 @@
       </div>
       <div class="row">
         <label for="boxSize">Box size (density proxy)</label>
-        <input id="boxSize" type="range" min="18" max="90" step="1" value="34" />
+        <input id="boxSize" type="range" min="18" max="90" step="0.5" value="34" />
       </div>
       <div class="row">
         <label for="dt">Time step</label>
@@ -110,8 +110,39 @@
         <label for="thermoStrength">Thermostat strength</label>
         <input id="thermoStrength" type="range" min="0" max="0.5" step="0.01" value="0.12" />
       </div>
+      <div class="toggle">
+        <input id="useBarostat" type="checkbox" checked />
+        <label for="useBarostat" style="margin:0">Use barostat (Berendsen-like)</label>
+      </div>
+      <div class="row">
+        <label for="pTarget">Pressure target</label>
+        <input id="pTarget" type="range" min="0.02" max="1.40" step="0.01" value="0.42" />
+      </div>
+      <div class="row">
+        <label for="baroStrength">Barostat strength</label>
+        <input id="baroStrength" type="range" min="0" max="1" step="0.01" value="0.20" />
+      </div>
       <div class="note">
         For more “natural” motion, turn the thermostat off once a phase settles. Energy will drift (toy integrator).
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Model realism</h2>
+      <div class="row">
+        <label for="waterModel">Water model</label>
+        <select id="waterModel">
+          <option value="toy3">Toy 3-site</option>
+          <option value="tip4p">TIP4P/2005-like charge site</option>
+        </select>
+      </div>
+      <div class="toggle">
+        <input id="useEwald" type="checkbox" checked />
+        <label for="useEwald" style="margin:0">Ewald-screened electrostatics (PME-ready)</label>
+      </div>
+      <div class="row">
+        <label for="ewaldAlpha">Ewald α</label>
+        <input id="ewaldAlpha" type="range" min="0.02" max="0.60" step="0.01" value="0.18" />
       </div>
     </div>
 
@@ -185,14 +216,15 @@
       <span class="pill">FPS: <b id="fps">-</b></span>
       <span class="pill">T target: <b id="tTarget">-</b></span>
       <span class="pill">T inst: <b id="tInst">-</b></span>
+      <span class="pill">P inst: <b id="pInst">-</b></span>
       <span class="pill">KE: <b id="ke">-</b></span>
       <span class="pill">PE: <b id="pe">-</b></span>
       <div style="margin-top:8px;">Mouse: drag=orbit, right-drag=pan, scroll=zoom.</div>
     </div>
 
     <p class="note" style="margin-top:12px;">
-      If you want a more realistic phase boundary, the next step is a real barostat and a water model like TIP4P/2005
-      plus long-range electrostatics (PME). This demo is a controllable visual approximation.
+      This version adds a Berendsen-style barostat, a TIP4P/2005-like charge-site mode, and Ewald-screened Coulomb terms
+      as a practical stepping-stone toward full PME. It is still a visual, reduced-unit approximation.
     </p>
   </aside>
 
@@ -234,6 +266,13 @@
     temp: document.getElementById("temp"),
     useThermo: document.getElementById("useThermo"),
     thermoStrength: document.getElementById("thermoStrength"),
+    useBarostat: document.getElementById("useBarostat"),
+    pTarget: document.getElementById("pTarget"),
+    baroStrength: document.getElementById("baroStrength"),
+
+    waterModel: document.getElementById("waterModel"),
+    useEwald: document.getElementById("useEwald"),
+    ewaldAlpha: document.getElementById("ewaldAlpha"),
 
     gravity: document.getElementById("gravity"),
     ljEps: document.getElementById("ljEps"),
@@ -252,6 +291,7 @@
     fps: document.getElementById("fps"),
     tTarget: document.getElementById("tTarget"),
     tInst: document.getElementById("tInst"),
+    pInst: document.getElementById("pInst"),
     ke: document.getElementById("ke"),
     pe: document.getElementById("pe"),
   };
@@ -266,6 +306,9 @@
   // Partial charges (scaled)
   const qO = -0.6;
   const qH = +0.3;
+  const qHTIP4P = +0.52;
+  const qMTIP4P = -1.04;
+  const dOM = 0.1546;
 
   // Masses (relative, in atomic mass units)
   // Oxygen is ~15.999 u and hydrogen is ~1.008 u.
@@ -298,6 +341,16 @@
   const maxLJForce = 240;
   const maxCoulombForce = 160;
   const maxSpeed = 24;
+  const minBoxSize = 18;
+  const maxBoxSize = 90;
+
+  // Oxygen lattice tether used only in ice preset to keep a stable solid scaffold.
+  const iceAnchorK = 2.4;
+  const iceAnchorVelDamp = 0.08;
+
+  // Intermolecular hard-core guard to stop oxygen overlap/tunnelling on large steps.
+  const ooHardCoreDist = 2.25;
+  const ooHardCoreVelDamp = 0.30;
 
   // Constraint tuning: project molecule geometry toward rigid-body water when requested
   const minConstraintIters = 2;
@@ -370,6 +423,27 @@
     return new THREE.Vector3(x1*t, x2*t, z).normalize();
   }
 
+  function useTIP4PModel(){
+    return ui.waterModel.value === "tip4p";
+  }
+
+  function updateVirtualSiteForMol(m){
+    if (!m) return;
+    const mid = m.H1.pos.clone().add(m.H2.pos).multiplyScalar(0.5);
+    const bis = mid.sub(m.O.pos);
+    const len = bis.length();
+    if (len < 1e-8){
+      m.mSite = m.O.pos.clone();
+      return;
+    }
+    m.mSite = m.O.pos.clone().addScaledVector(bis, dOM / len);
+  }
+
+  function updateVirtualSites(){
+    if (!useTIP4PModel()) return;
+    for (const m of molecules) updateVirtualSiteForMol(m);
+  }
+
   function placeWaterAt(Opos){
     // Create a random orientation from reference geometry in x-y plane
     const half = HOH0/2;
@@ -390,7 +464,9 @@
     const H1 = { pos: H1pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
     const H2 = { pos: H2pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
 
-    return {O,H1,H2, iceAnchor:null};
+    const mol = {O,H1,H2, iceAnchor:null, mSite: Opos.clone()};
+    updateVirtualSiteForMol(mol);
+    return mol;
   }
 
   function initLiquid(nMol, box){
@@ -595,18 +671,46 @@
     return cloudRefDist["O-H"];
   }
 
+  function chargeSitesForMol(m){
+    if (!useTIP4PModel()){
+      return [
+        { atom: m.O, pos: m.O.pos, charge: qO, owner: m },
+        { atom: m.H1, pos: m.H1.pos, charge: qH, owner: m },
+        { atom: m.H2, pos: m.H2.pos, charge: qH, owner: m },
+      ];
+    }
+
+    updateVirtualSiteForMol(m);
+    return [
+      { atom: m.H1, pos: m.H1.pos, charge: qHTIP4P, owner: m },
+      { atom: m.H2, pos: m.H2.pos, charge: qHTIP4P, owner: m },
+      { atom: null, pos: m.mSite, charge: qMTIP4P, owner: m },
+    ];
+  }
+
+  function addForceToSite(site, f){
+    if (site.atom){
+      site.atom.force.add(f);
+      return;
+    }
+    // TIP4P-like virtual site (M) is massless; project force to oxygen for this toy model.
+    site.owner.O.force.add(f);
+  }
+
   function applyIntermolecular(box){
     const eps = parseFloat(ui.ljEps.value);
     const sig = parseFloat(ui.ljSig.value);
     const kC  = parseFloat(ui.coulomb.value);
     const kCloud = parseFloat(ui.cloudRepel.value);
+    const useEwald = ui.useEwald.checked;
+    const alpha = parseFloat(ui.ewaldAlpha.value);
     let pe = 0;
+    let virial = 0;
 
     const rCutLJ2 = rCutLJ*rCutLJ;
     const rCutC2  = rCutC*rCutC;
     const rCloud2 = cloudCutoff*cloudCutoff;
 
-    // Spatial hash based on oxygens
     rebuildGrid(box);
 
     for (let i=0;i<molecules.length;i++){
@@ -617,7 +721,6 @@
         if (j <= i) continue;
         const mj = molecules[j];
 
-        // LJ between O-O only
         if (eps > 0){
           const rij = mj.O.pos.clone().sub(mi.O.pos);
           const r2Raw = rij.lengthSq();
@@ -628,32 +731,26 @@
             const sig2 = sig*sig;
             const sig6 = sig2*sig2*sig2;
             const sig12 = sig6*sig6;
-
             const term6 = sig6 * invR6;
             const term12 = sig12 * invR6 * invR6;
-
             const r = Math.sqrt(r2);
+
             const rawFMag = (24*eps / r) * (2*term12 - term6);
             const fMag = clamp(rawFMag, -maxLJForce, maxLJForce);
-            // rij points i->j. Force on i is opposite rij when repulsive, along rij when attractive.
-            const f = rij.multiplyScalar(-fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
+            const f = rij.clone().multiplyScalar(-fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
 
             mi.O.force.add(f);
             mj.O.force.sub(f);
-
-            // potential
+            virial += rij.dot(f);
             pe += 4*eps*(term12 - term6);
           }
         }
 
-        // Site-site interactions between molecules:
-        // - short-range electron-cloud repulsion (non-bonded Pauli-like)
-        // - Coulomb (softened)
-        const sitesI = [mi.O, mi.H1, mi.H2];
-        const sitesJ = [mj.O, mj.H1, mj.H2];
+        const cloudSitesI = [mi.O, mi.H1, mi.H2];
+        const cloudSitesJ = [mj.O, mj.H1, mj.H2];
 
-        for (const ai of sitesI){
-          for (const aj of sitesJ){
+        for (const ai of cloudSitesI){
+          for (const aj of cloudSitesJ){
             const d = aj.pos.clone().sub(ai.pos);
             const r2Raw = d.lengthSq();
             if (r2Raw < 1e-6) continue;
@@ -671,30 +768,101 @@
 
                 ai.force.add(cloudF);
                 aj.force.sub(cloudF);
-
+                virial += d.dot(cloudF);
                 pe += kCloud * gated;
               }
             }
+          }
+        }
 
-            if (kC <= 0 || r2Raw > rCutC2) continue;
+        if (kC <= 0) continue;
+        const chargeI = chargeSitesForMol(mi);
+        const chargeJ = chargeSitesForMol(mj);
+
+        for (const si of chargeI){
+          for (const sj of chargeJ){
+            const d = sj.pos.clone().sub(si.pos);
+            const r2Raw = d.lengthSq();
+            if (r2Raw < 1e-6 || r2Raw > rCutC2) continue;
+
             const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
             const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
+            const qq = si.charge * sj.charge;
+            let coeff;
+            let potentialScale;
 
-            // Force on ai from aj: -(k q_i q_j / r^3) * (r_j - r_i)
-            const rawFMag = -(kC * ai.charge * aj.charge) / (r*r*r);
-            const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
+            if (useEwald){
+              const ar = alpha * r;
+              const erfcTerm = 1 - erf(ar);
+              const gaussTerm = (2 * alpha / Math.sqrt(Math.PI)) * Math.exp(-ar*ar);
+              coeff = -(kC * qq) * (erfcTerm/(r*r*r) + gaussTerm/(r*r));
+              potentialScale = erfcTerm / r;
+            } else {
+              coeff = -(kC * qq) / (r*r*r);
+              potentialScale = 1 / r;
+            }
+
+            const fMag = clamp(coeff, -maxCoulombForce, maxCoulombForce);
             const f = d.clone().multiplyScalar(fMag);
 
-            ai.force.add(f);
-            aj.force.sub(f);
-
-            pe += (kC * ai.charge * aj.charge) / r;
+            addForceToSite(si, f);
+            addForceToSite(sj, f.clone().multiplyScalar(-1));
+            virial += d.dot(f);
+            pe += (kC * qq) * potentialScale;
           }
         }
       }
     }
 
-    return pe;
+    return { pe, virial };
+  }
+
+  function erf(x){
+    const sign = x < 0 ? -1 : 1;
+    const ax = Math.abs(x);
+    const t = 1 / (1 + 0.3275911 * ax);
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+    const poly = (((((a5*t + a4)*t + a3)*t + a2)*t + a1)*t);
+    const y = 1 - poly * Math.exp(-ax*ax);
+    return sign * y;
+  }
+
+  function applyOOHardCore(box){
+    const minR = ooHardCoreDist;
+    const minR2 = minR * minR;
+
+    rebuildGrid(box);
+    for (let i=0; i<molecules.length; i++){
+      const mi = molecules[i];
+      const neigh = neighboursOfMol(i, box);
+
+      for (const j of neigh){
+        if (j <= i) continue;
+        const mj = molecules[j];
+
+        const d = mj.O.pos.clone().sub(mi.O.pos);
+        const r2 = d.lengthSq();
+        if (r2 < 1e-12 || r2 >= minR2) continue;
+
+        const r = Math.sqrt(r2);
+        const n = d.multiplyScalar(1 / r);
+        const overlap = minR - r;
+        const push = 0.5 * overlap;
+
+        // Symmetric positional correction.
+        mi.O.pos.addScaledVector(n, -push);
+        mj.O.pos.addScaledVector(n, +push);
+
+        // Damp relative inward radial velocity to avoid repeated crossing.
+        const relVel = mj.O.vel.clone().sub(mi.O.vel);
+        const radial = relVel.dot(n);
+        if (radial < 0){
+          const impulse = -0.5 * (1 + ooHardCoreVelDamp) * radial;
+          mi.O.vel.addScaledVector(n, -impulse);
+          mj.O.vel.addScaledVector(n, +impulse);
+        }
+      }
+    }
   }
 
   function applyWalls(box){
@@ -795,6 +963,40 @@
     for (const a of atoms) a.vel.multiplyScalar(s);
   }
 
+  function instantPressure(T, virial, box){
+    const V = Math.max(1e-6, box*box*box);
+    const n = atoms.length;
+    return (n*T + virial/3) / V;
+  }
+
+  function applyBarostat(pInst, dt, box){
+    if (!ui.useBarostat.checked) return box;
+    const strength = clamp(parseFloat(ui.baroStrength.value), 0, 1);
+    if (strength <= 0) return box;
+
+    const pTarget = parseFloat(ui.pTarget.value);
+    const linearScale = clamp(1 - strength * 0.9 * dt * (pTarget - pInst), 0.995, 1.005);
+    const newBox = clamp(box * linearScale, minBoxSize, maxBoxSize);
+    const appliedScale = newBox / box;
+
+    if (!Number.isFinite(appliedScale) || Math.abs(appliedScale - 1) < 1e-6) return box;
+
+    for (const a of atoms){
+      a.pos.multiplyScalar(appliedScale);
+      a.vel.multiplyScalar(Math.sqrt(appliedScale));
+    }
+
+    ui.boxSize.value = newBox.toFixed(2);
+    if (boxWire){
+      scene.remove(boxWire);
+      buildBox();
+    }
+    if (mistBasePos){
+      createMistLayer();
+    }
+    return newBox;
+  }
+
   function integrate(dt, box){
     const damp = clamp(1 - parseFloat(ui.damping.value), 0.0, 1.0);
 
@@ -810,6 +1012,7 @@
     }
 
     globalThis.__waterBondConstraintAPI.applyStep();
+    applyOOHardCore(box);
     applyWalls(box);
   }
 
@@ -931,7 +1134,8 @@
     if (mistPoints) scene.remove(mistPoints);
 
     const count = 220;
-    const box = parseFloat(ui.boxSize.value);
+    const box = clamp(parseFloat(ui.boxSize.value), minBoxSize, maxBoxSize);
+    ui.boxSize.value = box.toFixed(2);
     const half = box * 0.5;
     const margin = 1.4;
     mistHalfExtent = Math.max(2, half - margin);
@@ -987,7 +1191,8 @@
   }
 
   function buildBox(){
-    const box = parseFloat(ui.boxSize.value);
+    const box = clamp(parseFloat(ui.boxSize.value), minBoxSize, maxBoxSize);
+    ui.boxSize.value = box.toFixed(2);
     const wire = new THREE.WireframeGeometry(new THREE.BoxGeometry(box, box, box));
     boxWire = new THREE.LineSegments(wire, new THREE.LineBasicMaterial({color:0x32467f, transparent:true, opacity:0.48}));
     scene.add(boxWire);
@@ -1154,56 +1359,24 @@
   function setPreset(kind){
     lastPreset = kind;
 
+    // Phase presets should drive thermodynamic targets only.
     if (kind === "ice"){
-      ui.dt.value = 0.004;
-      ui.temp.value = 60;
-      ui.boxSize.value = 36;
-      ui.ljEps.value = 1.20;
-      ui.coulomb.value = 0.75;
-      ui.cloudRepel.value = 4.2;
-      ui.kBond.value = 160;
-      ui.kAngle.value = 44;
-      ui.damping.value = 0.016;
-      ui.gravity.value = 0.5;
-      ui.weakMode.value = "hb";
-      ui.weakCutoff.value = 3.2;
-      ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.24;
+      ui.temp.value = 80;
+      ui.pTarget.value = 0.85;
     }
 
     if (kind === "liquid"){
-      ui.dt.value = 0.004;
       ui.temp.value = 300;
-      ui.boxSize.value = 34;
-      ui.ljEps.value = 0.60;
-      ui.coulomb.value = 0.55;
-      ui.cloudRepel.value = 2.8;
-      ui.kBond.value = 120;
-      ui.kAngle.value = 28;
-      ui.damping.value = 0.008;
-      ui.gravity.value = 1.5;
-      ui.weakMode.value = "both";
-      ui.weakCutoff.value = 3.1;
-      ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.12;
+      ui.pTarget.value = 0.42;
     }
 
     if (kind === "steam"){
-      ui.dt.value = 0.003;
       ui.temp.value = 900;
-      ui.boxSize.value = 70;
-      ui.ljEps.value = 0.22;
-      ui.coulomb.value = 0.35;
-      ui.cloudRepel.value = 1.4;
-      ui.kBond.value = 130;
-      ui.kAngle.value = 26;
-      ui.damping.value = 0.003;
-      ui.gravity.value = 0.8;
-      ui.weakMode.value = "off";
-      ui.weakCutoff.value = 3.0;
-      ui.useThermo.checked = true;
-      ui.thermoStrength.value = 0.10;
+      ui.pTarget.value = 0.08;
     }
+
+    ui.useThermo.checked = true;
+    ui.useBarostat.checked = true;
 
     resetSimulation();
   }
@@ -1212,10 +1385,13 @@
     const nMol = clamp(parseInt(ui.nMol.value || "180",10), 24, 600);
     ui.nMol.value = nMol;
 
-    const box = parseFloat(ui.boxSize.value);
-    if (lastPreset === "ice") initIce(nMol, box);
-    else if (lastPreset === "steam") initSteam(nMol, box);
-    else initLiquid(nMol, box);
+    const box = clamp(parseFloat(ui.boxSize.value), minBoxSize, maxBoxSize);
+    ui.boxSize.value = box.toFixed(2);
+    // Start from the same unbiased random liquid-like configuration for all presets.
+    // Phase behavior should emerge from T/P targets, not different initial rules.
+    initLiquid(nMol, box);
+
+    updateVirtualSites();
 
     // Apply initial temperature roughly
     applyThermostat();
@@ -1235,9 +1411,10 @@
     const frameDt = (now-last)/1000; last = now;
 
     const dt = parseFloat(ui.dt.value) * (slowmo ? 0.25 : 1.0);
-    const box = parseFloat(ui.boxSize.value);
+    let box = clamp(parseFloat(ui.boxSize.value), minBoxSize, maxBoxSize);
 
     let pe = 0;
+    let virial = 0;
 
     if (!paused){
       zeroForces();
@@ -1246,15 +1423,19 @@
       // intramolecular potentials
       pe += applyBondsAndAngles();
 
-      // ice-only lattice tether for oxygen scaffold
-      pe += applyIceAnchors();
-
       // intermolecular potentials
-      pe += applyIntermolecular(box);
+      const interm = applyIntermolecular(box);
+      pe += interm.pe;
+      virial = interm.virial;
 
       integrate(dt, box);
+      updateVirtualSites();
 
       applyThermostat();
+      const thermoNow = instantTemperature();
+      const pInst = instantPressure(thermoNow.T, virial, box);
+      box = applyBarostat(pInst, dt, box);
+      ui.pInst.textContent = pInst.toFixed(3);
 
       // update meshes
       for (let i=0;i<atoms.length;i++){
@@ -1269,6 +1450,7 @@
       const {T, ke} = instantTemperature();
       ui.tTarget.textContent = `${Math.round(parseFloat(ui.temp.value))}`;
       ui.tInst.textContent = `${Math.round(T)}`;
+      if (!ui.pInst.textContent || ui.pInst.textContent === "-") ui.pInst.textContent = "0.000";
       ui.ke.textContent = ke.toFixed(1);
       ui.pe.textContent = pe.toFixed(1);
     }
@@ -1312,11 +1494,15 @@
   });
 
   ui.boxSize.addEventListener("input", ()=>{
-    // Only rebuild visuals for the box, keep sim state
     if (boxWire){
       scene.remove(boxWire);
       buildBox();
     }
+    createMistLayer();
+  });
+
+  ui.waterModel.addEventListener("change", ()=>{
+    updateVirtualSites();
   });
 
   // -------------------------

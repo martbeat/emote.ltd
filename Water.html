@@ -614,7 +614,8 @@
             const r = Math.sqrt(r2);
             const rawFMag = (24*eps / r) * (2*term12 - term6);
             const fMag = clamp(rawFMag, -maxLJForce, maxLJForce);
-            const f = rij.multiplyScalar(fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
+            // rij points i->j. Force on i is opposite rij when repulsive, along rij when attractive.
+            const f = rij.multiplyScalar(-fMag / Math.sqrt(Math.max(r2Raw, 1e-10)));
 
             mi.O.force.add(f);
             mj.O.force.sub(f);
@@ -655,8 +656,8 @@
             const r2Safe = Math.max(r2Raw, minCoulombDist*minCoulombDist);
             const r = Math.sqrt(r2Safe + coulSoft*coulSoft);
 
-            // Force magnitude for softened Coulomb: k q1 q2 / r^3
-            const rawFMag = (kC * ai.charge * aj.charge) / (r*r*r);
+            // Force on ai from aj: -(k q_i q_j / r^3) * (r_j - r_i)
+            const rawFMag = -(kC * ai.charge * aj.charge) / (r*r*r);
             const fMag = clamp(rawFMag, -maxCoulombForce, maxCoulombForce);
             const f = d.clone().multiplyScalar(fMag);
 

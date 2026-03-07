@@ -276,19 +276,21 @@
   const coulSoft = 0.35;
 
   // Electron-cloud (Pauli-like) short-range repulsion for non-bonded pairs.
-  // We use a shifted Born-Mayer form so repulsion is much stronger at contact:
-  // U = A * exp((rRef - r) / rho), F = (A/rho) * exp((rRef - r) / rho).
+  // Use a gated Born-Mayer form that only activates inside a reference distance
+  // so repulsion prevents overlap without suppressing normal liquid/ice clustering.
+  // U = A * max(0, exp((rRef - r)/rho) - 1),
+  // F = (A/rho) * max(0, exp((rRef - r)/rho) - 1).
   const cloudRho = {
     "O-O": 0.32,
     "O-H": 0.24,
     "H-H": 0.18,
   };
   const cloudRefDist = {
-    "O-O": 3.3,
-    "O-H": 2.3,
-    "H-H": 1.8,
+    "O-O": 2.95,
+    "O-H": 2.05,
+    "H-H": 1.55,
   };
-  const cloudCutoff = 4.0;
+  const cloudCutoff = 3.4;
   const maxCloudForce = 260;
 
   // Short-range stability guards to avoid explosive forces during rare overlaps.
@@ -642,14 +644,17 @@
               const rho = cloudRhoForPair(ai, aj);
               const rRef = cloudRefForPair(ai, aj);
               const expTerm = Math.exp((rRef - rRaw) / rho);
-              const rawCloudMag = (kCloud / rho) * expTerm;
-              const cloudMag = Math.min(rawCloudMag, maxCloudForce);
-              const cloudF = d.clone().multiplyScalar(-cloudMag / Math.max(rRaw, 1e-8));
+              const gated = Math.max(0, expTerm - 1);
+              if (gated > 0){
+                const rawCloudMag = (kCloud / rho) * gated;
+                const cloudMag = Math.min(rawCloudMag, maxCloudForce);
+                const cloudF = d.clone().multiplyScalar(-cloudMag / Math.max(rRaw, 1e-8));
 
-              ai.force.add(cloudF);
-              aj.force.sub(cloudF);
+                ai.force.add(cloudF);
+                aj.force.sub(cloudF);
 
-              pe += kCloud * expTerm;
+                pe += kCloud * gated;
+              }
             }
 
             if (kC <= 0 || r2Raw > rCutC2) continue;

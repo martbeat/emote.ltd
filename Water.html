@@ -302,6 +302,10 @@
   // Geometry equilibrium (scaled)
   const OH0 = 1.0;
   const HOH0 = 104.52 * Math.PI/180;
+  const oxygenRenderRadius = 0.905;
+  const hydrogenRenderRadius = 0.595;
+  const minOHVisualOverlap = 0.30;
+  const maxOHCenterDistanceForVisualOverlap = (oxygenRenderRadius + hydrogenRenderRadius) * (1 - minOHVisualOverlap);
 
   // Partial charges (scaled)
   const qO = -0.6;
@@ -1041,7 +1045,35 @@
           this.constrainPair(m.O, m.H1, OH0, rigid);
           this.constrainPair(m.O, m.H2, OH0, rigid);
           this.constrainPair(m.H1, m.H2, HH0, rigid);
+          this.enforceOHOverlapFloor(m.O, m.H1);
+          this.enforceOHOverlapFloor(m.O, m.H2);
         }
+      }
+    },
+
+    enforceOHOverlapFloor(oxygen, hydrogen){
+      const d = hydrogen.pos.clone().sub(oxygen.pos);
+      const r = d.length();
+      if (r < 1e-8 || !Number.isFinite(r) || r <= maxOHCenterDistanceForVisualOverlap) return;
+
+      const u = d.multiplyScalar(1/r);
+      const excess = r - maxOHCenterDistanceForVisualOverlap;
+
+      const invMassO = 1 / oxygen.mass;
+      const invMassH = 1 / hydrogen.mass;
+      const w = invMassO + invMassH;
+      if (w <= 1e-12) return;
+      const weightO = invMassO / w;
+      const weightH = invMassH / w;
+
+      oxygen.pos.addScaledVector(u, +excess * weightO);
+      hydrogen.pos.addScaledVector(u, -excess * weightH);
+
+      const relVel = hydrogen.vel.clone().sub(oxygen.vel);
+      const radial = relVel.dot(u);
+      if (radial > 0){
+        oxygen.vel.addScaledVector(u, +radial * weightO);
+        hydrogen.vel.addScaledVector(u, -radial * weightH);
       }
     },
 
@@ -1225,10 +1257,10 @@
 
     const matO = new THREE.MeshStandardMaterial({color:0xd23b38, roughness:0.28, metalness:0.04, emissive:0x1c0506, emissiveIntensity:0.14});
     const matH = new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.35, metalness:0.02, emissive:0x0f1724, emissiveIntensity:0.06});
-    // Keep O/H visual sizes proportionate while targeting ~50% O–H overlap at equilibrium bond length.
-    // Original ratio is preserved (O:H = 0.35:0.23), scaled so rO + rH ≈ 1.5 for OH0 = 1.0.
-    const gO = new THREE.SphereGeometry(0.905, 18, 18);
-    const gH = new THREE.SphereGeometry(0.595, 16, 16);
+    // Keep O/H visual sizes proportionate while enforcing at least 30% O–H sphere overlap.
+    // With OH0 = 1.0 and rO + rH = 1.5, equilibrium overlap is ~33%.
+    const gO = new THREE.SphereGeometry(oxygenRenderRadius, 18, 18);
+    const gH = new THREE.SphereGeometry(hydrogenRenderRadius, 16, 16);
 
     for (const a of atoms){
       const isO = a.type === "O";

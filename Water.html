@@ -315,7 +315,7 @@
   // -------------------------
   // State
   // -------------------------
-  let molecules = []; // each mol: {O,H1,H2} atoms with pos/vel/force/mass/charge
+  let molecules = []; // each mol: {O,H1,H2,iceAnchor} atoms with pos/vel/force/mass/charge
   let atoms = [];     // flattened for integration
   let paused = false;
   let slowmo = false;
@@ -390,7 +390,7 @@
     const H1 = { pos: H1pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
     const H2 = { pos: H2pos,       vel: baseV.clone(), force: new THREE.Vector3(), mass: mH, charge: qH, type:"H" };
 
-    return {O,H1,H2};
+    return {O,H1,H2, iceAnchor:null};
   }
 
   function initLiquid(nMol, box){
@@ -458,6 +458,7 @@
     for (let i=0; i<Math.min(nMol, points.length); i++){
       const p = points[i].clone().add(new THREE.Vector3(rand(-0.08,0.08),rand(-0.08,0.08),rand(-0.08,0.08)));
       const mol = placeWaterAt(p);
+      mol.iceAnchor = p.clone();
       // small velocities
       mol.O.vel.multiplyScalar(0.2);
       mol.H1.vel.multiplyScalar(0.2);
@@ -470,6 +471,25 @@
   function flattenAtoms(){
     atoms = [];
     for (const m of molecules) atoms.push(m.O, m.H1, m.H2);
+  }
+
+  function applyIceAnchors(){
+    if (lastPreset !== "ice") return 0;
+
+    let pe = 0;
+    const rigid = globalThis.__waterBondConstraintAPI.rigidityFactor();
+    const k = iceAnchorK * (0.55 + 0.9 * rigid);
+    const damp = iceAnchorVelDamp * (0.4 + 0.8 * rigid);
+
+    for (const m of molecules){
+      if (!m.iceAnchor) continue;
+      const d = m.O.pos.clone().sub(m.iceAnchor);
+      m.O.force.addScaledVector(d, -k);
+      m.O.vel.addScaledVector(d, -damp);
+      pe += 0.5 * k * d.lengthSq();
+    }
+
+    return pe;
   }
 
   // -------------------------
@@ -1225,6 +1245,9 @@
 
       // intramolecular potentials
       pe += applyBondsAndAngles();
+
+      // ice-only lattice tether for oxygen scaffold
+      pe += applyIceAnchors();
 
       // intermolecular potentials
       pe += applyIntermolecular(box);

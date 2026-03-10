@@ -10,8 +10,6 @@
       --bg: #080b12;
       --panel: #111827;
       --accent: #22d3ee;
-      --danger: #ef4444;
-      --ok: #10b981;
     }
     * { box-sizing: border-box; }
     body {
@@ -23,25 +21,25 @@
       display: grid;
       grid-template-rows: auto 1fr auto;
       place-items: center;
-      gap: 12px;
+      gap: 10px;
       padding: 10px;
     }
     .hud {
-      width: min(95vw, 980px);
+      width: min(95vw, 1100px);
       background: color-mix(in srgb, var(--panel), transparent 12%);
       border: 1px solid #334155;
       border-radius: 12px;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 8px;
       padding: 10px;
-      font-size: 14px;
+      font-size: 13px;
       backdrop-filter: blur(2px);
     }
     .tile { background: #0b1220; border: 1px solid #1e293b; border-radius: 8px; padding: 8px; }
     .tile b { color: var(--accent); }
     canvas {
-      width: min(95vw, 980px);
+      width: min(95vw, 1100px);
       aspect-ratio: 16/9;
       border-radius: 14px;
       border: 1px solid #334155;
@@ -49,12 +47,12 @@
       background: #0b1020;
     }
     .help {
-      width: min(95vw, 980px);
+      width: min(95vw, 1100px);
       opacity: .9;
       font-size: 13px;
-      line-height: 1.4;
       text-align: center;
       color: #cbd5e1;
+      line-height: 1.4;
     }
     button {
       background: #0ea5e9;
@@ -62,22 +60,27 @@
       border: 0;
       font-weight: 700;
       border-radius: 8px;
-      padding: 8px 10px;
+      padding: 6px 10px;
       cursor: pointer;
+      margin-left: 6px;
     }
   </style>
 </head>
 <body>
   <div class="hud">
     <div class="tile">Score<br><b id="score">0</b></div>
-    <div class="tile">Heat<br><b id="heat">0</b>/5</div>
+    <div class="tile">Heat<br><b id="heat">0.0</b>/5</div>
     <div class="tile">Health<br><b id="health">100</b>%</div>
-    <div class="tile">Time Left<br><b id="time">120</b>s <button id="restart">Restart</button></div>
+    <div class="tile">Time<br><b id="time">180</b>s</div>
+    <div class="tile">Vehicle<br><b id="vehicle">Starter Coupe</b></div>
+    <div class="tile">Steals / Impacts<br><b id="events">0 / 0</b><button id="restart">Restart</button></div>
   </div>
+
   <canvas id="game" width="1280" height="720" aria-label="gta6 game area"></canvas>
+
   <div class="help">
-    <strong>GTA6 (Tiny Browser Edition)</strong> — Drive with <kbd>WASD</kbd> / <kbd>Arrow Keys</kbd>, drift through city blocks, collect loot crates, avoid police cars.
-    First key press enables audio. Survive 120 seconds.
+    <strong>GTA6 (Tiny Browser Edition)</strong> — Drive with <kbd>WASD</kbd>/<kbd>Arrows</kbd>. Press <kbd>E</kbd> near a civilian car to steal it.
+    Collect crates, evade cops, and cause impact chaos with pedestrians and cyclists. First keypress enables audio.
   </div>
 
   <script>
@@ -90,22 +93,35 @@
       heat: document.getElementById('heat'),
       health: document.getElementById('health'),
       time: document.getElementById('time'),
+      vehicle: document.getElementById('vehicle'),
+      events: document.getElementById('events'),
       restart: document.getElementById('restart')
     };
 
     const keys = new Set();
-    addEventListener('keydown', e => { keys.add(e.key.toLowerCase()); audio.unlock(); });
+    const justPressed = new Set();
+    addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      if (!keys.has(k)) justPressed.add(k);
+      keys.add(k);
+      audio.unlock();
+    });
     addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 
     const rand = (a, b) => Math.random() * (b - a) + a;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-    const dist2 = (a, b) => (a.x-b.x)**2 + (a.y-b.y)**2;
+    const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
-    const world = {
-      size: 4000,
-      road: 220,
-      block: 380
+    const world = { size: 5000, road: 210, block: 350 };
+
+    const vehicleTypes = {
+      starter: { name: 'Starter Coupe', accel: 640, max: 580, grip: 0.973, turn: 2.1, color: '#22d3ee' },
+      compact: { name: 'Compact', accel: 580, max: 520, grip: 0.977, turn: 2.3, color: '#f59e0b' },
+      sedan: { name: 'Sedan', accel: 610, max: 560, grip: 0.975, turn: 2.0, color: '#38bdf8' },
+      muscle: { name: 'Muscle', accel: 750, max: 700, grip: 0.968, turn: 1.8, color: '#ef4444' },
+      van: { name: 'Van', accel: 500, max: 470, grip: 0.982, turn: 1.5, color: '#84cc16' }
     };
+    const civilianKeys = ['compact', 'sedan', 'muscle', 'van'];
 
     const audio = {
       ctx: null,
@@ -115,7 +131,7 @@
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this.unlocked = true;
       },
-      blip(freq = 880, len = 0.08, type = 'square', vol = 0.06) {
+      tone(freq = 800, len = 0.08, type = 'square', vol = 0.05) {
         if (!this.unlocked) return;
         const t = this.ctx.currentTime;
         const o = this.ctx.createOscillator();
@@ -127,7 +143,7 @@
         o.connect(g).connect(this.ctx.destination);
         o.start(t); o.stop(t + len);
       },
-      engine(speedNorm=0) {
+      engine(speedNorm = 0, aggression = 0) {
         if (!this.unlocked) return;
         if (!this.engOsc) {
           this.engOsc = this.ctx.createOscillator();
@@ -138,25 +154,29 @@
           this.engOsc.start();
         }
         const t = this.ctx.currentTime;
-        this.engOsc.frequency.exponentialRampToValueAtTime(55 + speedNorm * 180, t + 0.04);
-        this.engGain.gain.linearRampToValueAtTime(0.03 + speedNorm * 0.035, t + 0.04);
+        this.engOsc.frequency.exponentialRampToValueAtTime(60 + speedNorm * 220 + aggression * 25, t + 0.04);
+        this.engGain.gain.linearRampToValueAtTime(0.02 + speedNorm * 0.04 + aggression * 0.01, t + 0.04);
       }
     };
 
     function makeCarSprite(color = '#22d3ee') {
       const c = document.createElement('canvas');
-      c.width = 72; c.height = 40;
+      c.width = 80; c.height = 44;
       const g = c.getContext('2d');
-      g.fillStyle = '#111827';
-      g.fillRect(3, 2, 66, 36);
-      g.fillStyle = color;
-      g.fillRect(8, 6, 56, 28);
-      g.fillStyle = '#93c5fd';
-      g.fillRect(20, 10, 32, 10);
-      g.fillStyle = '#030712';
-      g.fillRect(13, 30, 12, 7); g.fillRect(47, 30, 12, 7);
-      g.fillRect(13, 3, 12, 7); g.fillRect(47, 3, 12, 7);
+      g.fillStyle = '#0b1020'; g.fillRect(4, 3, 72, 38);
+      g.fillStyle = color; g.fillRect(9, 8, 62, 28);
+      g.fillStyle = '#93c5fd'; g.fillRect(23, 11, 34, 10);
+      g.fillStyle = '#020617';
+      g.fillRect(14, 2, 12, 8); g.fillRect(54, 2, 12, 8);
+      g.fillRect(14, 34, 12, 8); g.fillRect(54, 34, 12, 8);
       return c;
+    }
+
+    function roadAt(x, y) {
+      const m = world.block + world.road;
+      const ax = ((x % m) + m) % m;
+      const ay = ((y % m) + m) % m;
+      return ax < world.road || ay < world.road;
     }
 
     const player = {
@@ -166,63 +186,98 @@
       vy: 0,
       dir: 0,
       health: 100,
-      sprite: makeCarSprite('#22d3ee')
+      typeKey: 'starter',
+      sprite: makeCarSprite(vehicleTypes.starter.color)
     };
 
-    const cops = Array.from({ length: 5 }, (_, i) => ({
+    const cops = Array.from({ length: 6 }, (_, i) => ({
       x: rand(300, world.size - 300),
       y: rand(300, world.size - 300),
       vx: 0, vy: 0, dir: 0,
-      sprite: makeCarSprite(i % 2 ? '#ef4444' : '#fb7185')
+      sprite: makeCarSprite(i % 2 ? '#fb7185' : '#ef4444')
     }));
+
+    const civilianCars = [];
+    function spawnCivilianCar() {
+      const key = civilianKeys[Math.floor(rand(0, civilianKeys.length))];
+      const t = vehicleTypes[key];
+      civilianCars.push({
+        x: rand(200, world.size - 200),
+        y: rand(200, world.size - 200),
+        vx: 0,
+        vy: 0,
+        dir: rand(0, Math.PI * 2),
+        typeKey: key,
+        sprite: makeCarSprite(t.color),
+        cooldown: rand(0.5, 3)
+      });
+    }
+    for (let i = 0; i < 18; i++) spawnCivilianCar();
+
+    const pedestrians = [];
+    const cyclists = [];
+
+    function spawnPedestrian() {
+      pedestrians.push({
+        x: rand(120, world.size - 120),
+        y: rand(120, world.size - 120),
+        vx: rand(-28, 28),
+        vy: rand(-28, 28),
+        panic: 0,
+        alive: true,
+        r: 9
+      });
+    }
+    function spawnCyclist() {
+      cyclists.push({
+        x: rand(120, world.size - 120),
+        y: rand(120, world.size - 120),
+        vx: rand(-65, 65),
+        vy: rand(-65, 65),
+        dir: rand(0, Math.PI * 2),
+        down: false,
+        r: 12
+      });
+    }
+    for (let i = 0; i < 36; i++) spawnPedestrian();
+    for (let i = 0; i < 14; i++) spawnCyclist();
 
     const crates = [];
     function spawnCrate() {
-      crates.push({
-        x: rand(250, world.size - 250),
-        y: rand(250, world.size - 250),
-        value: Math.floor(rand(80, 200)),
-        r: 18
-      });
+      crates.push({ x: rand(160, world.size - 160), y: rand(160, world.size - 160), value: Math.floor(rand(80, 220)), r: 17 });
     }
-    for (let i = 0; i < 20; i++) spawnCrate();
+    for (let i = 0; i < 26; i++) spawnCrate();
 
     let score = 0;
     let heat = 0;
     let gameOver = false;
-    let remaining = 120;
+    let remaining = 180;
+    let steals = 0;
+    let impacts = 0;
     let last = performance.now();
-
-    function roadAt(x, y) {
-      const m = world.block + world.road;
-      const ax = ((x % m) + m) % m;
-      const ay = ((y % m) + m) % m;
-      return ax < world.road || ay < world.road;
-    }
 
     function drawWorld(camX, camY) {
       ctx.fillStyle = '#10243b';
-      ctx.fillRect(0,0,W,H);
-
+      ctx.fillRect(0, 0, W, H);
       const m = world.block + world.road;
-      const startX = Math.floor((camX - W/2) / m) * m;
-      const startY = Math.floor((camY - H/2) / m) * m;
+      const startX = Math.floor((camX - W / 2) / m) * m;
+      const startY = Math.floor((camY - H / 2) / m) * m;
 
       for (let x = startX; x < camX + W; x += m) {
         for (let y = startY; y < camY + H; y += m) {
-          const sx = Math.floor(x - camX + W/2), sy = Math.floor(y - camY + H/2);
+          const sx = Math.floor(x - camX + W / 2), sy = Math.floor(y - camY + H / 2);
           ctx.fillStyle = '#374151';
           ctx.fillRect(sx, sy, m, world.road);
           ctx.fillRect(sx, sy, world.road, m);
 
           ctx.fillStyle = '#1f2937';
-          ctx.fillRect(sx + world.road + 6, sy + world.road + 6, world.block - 12, world.block - 12);
+          ctx.fillRect(sx + world.road + 5, sy + world.road + 5, world.block - 10, world.block - 10);
 
           ctx.fillStyle = '#334155';
           for (let i = 0; i < 12; i++) {
-            const wx = sx + world.road + 20 + (i % 4) * 80;
-            const wy = sy + world.road + 20 + Math.floor(i / 4) * 95;
-            ctx.fillRect(wx, wy, 52, 58);
+            const wx = sx + world.road + 20 + (i % 4) * 75;
+            const wy = sy + world.road + 16 + Math.floor(i / 4) * 96;
+            ctx.fillRect(wx, wy, 48, 60);
           }
         }
       }
@@ -231,11 +286,11 @@
       ctx.lineWidth = 3;
       ctx.setLineDash([16, 18]);
       for (let x = startX; x < camX + W; x += m) {
-        const sx = Math.floor(x - camX + W/2 + world.road / 2);
+        const sx = Math.floor(x - camX + W / 2 + world.road / 2);
         ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
       }
       for (let y = startY; y < camY + H; y += m) {
-        const sy = Math.floor(y - camY + H/2 + world.road / 2);
+        const sy = Math.floor(y - camY + H / 2 + world.road / 2);
         ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
       }
       ctx.setLineDash([]);
@@ -247,8 +302,61 @@
       ctx.save();
       ctx.translate(sx, sy);
       ctx.rotate(ent.dir);
-      ctx.drawImage(ent.sprite, -36, -20);
+      ctx.drawImage(ent.sprite, -40, -22);
       ctx.restore();
+    }
+
+    function drawPedestrian(p, camX, camY) {
+      const sx = p.x - camX + W / 2;
+      const sy = p.y - camY + H / 2;
+      ctx.fillStyle = p.alive ? (p.panic > 0.2 ? '#fca5a5' : '#fde68a') : '#9ca3af';
+      ctx.beginPath();
+      ctx.arc(sx, sy, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawCyclist(c, camX, camY) {
+      const sx = c.x - camX + W / 2;
+      const sy = c.y - camY + H / 2;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(c.dir);
+      ctx.strokeStyle = c.down ? '#9ca3af' : '#93c5fd';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-9, 0, 6, 0, Math.PI * 2);
+      ctx.arc(9, 0, 6, 0, Math.PI * 2);
+      ctx.moveTo(-9, 0); ctx.lineTo(0, -8); ctx.lineTo(9, 0);
+      ctx.stroke();
+      ctx.fillStyle = c.down ? '#9ca3af' : '#fef08a';
+      ctx.beginPath(); ctx.arc(0, -12, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function getPlayerType() {
+      return vehicleTypes[player.typeKey] || vehicleTypes.starter;
+    }
+
+    function tryStealCar() {
+      let best = null;
+      let bestD = 90 * 90;
+      for (const c of civilianCars) {
+        const d = dist2(c, player);
+        if (d < bestD) { best = c; bestD = d; }
+      }
+      if (!best) return;
+      player.typeKey = best.typeKey;
+      player.sprite = makeCarSprite(vehicleTypes[player.typeKey].color);
+      player.vx = best.vx;
+      player.vy = best.vy;
+      best.typeKey = civilianKeys[Math.floor(rand(0, civilianKeys.length))];
+      best.sprite = makeCarSprite(vehicleTypes[best.typeKey].color);
+      best.x = clamp(player.x + rand(120, 180), 100, world.size - 100);
+      best.y = clamp(player.y + rand(120, 180), 100, world.size - 100);
+      steals += 1;
+      heat = clamp(heat + 1, 0, 5);
+      score += 350;
+      audio.tone(440, 0.14, 'square', 0.07);
     }
 
     function tick(dt) {
@@ -256,43 +364,133 @@
       remaining -= dt;
       if (remaining <= 0 || player.health <= 0) {
         gameOver = true;
-        audio.blip(180, 0.3, 'sawtooth', 0.08);
+        audio.tone(170, 0.35, 'sawtooth', 0.09);
       }
 
       const up = keys.has('w') || keys.has('arrowup');
       const down = keys.has('s') || keys.has('arrowdown');
       const left = keys.has('a') || keys.has('arrowleft');
       const right = keys.has('d') || keys.has('arrowright');
+      if (justPressed.has('e')) tryStealCar();
 
-      const accel = up ? 620 : down ? -380 : 0;
+      const t = getPlayerType();
+      const accel = up ? t.accel : down ? -t.accel * 0.65 : 0;
       const turn = (left ? -1 : 0) + (right ? 1 : 0);
       const speed = Math.hypot(player.vx, player.vy);
-      player.dir += turn * (1.7 + Math.min(speed / 200, 1.4)) * dt;
+      const speedNorm = clamp(speed / t.max, 0, 1);
+
+      player.dir += turn * (t.turn + Math.min(speed / 280, 1.4)) * dt;
       player.vx += Math.cos(player.dir) * accel * dt;
       player.vy += Math.sin(player.dir) * accel * dt;
 
-      const drag = roadAt(player.x, player.y) ? 0.985 : 0.94;
-      player.vx *= drag; player.vy *= drag;
-      player.x = clamp(player.x + player.vx * dt, 40, world.size - 40);
-      player.y = clamp(player.y + player.vy * dt, 40, world.size - 40);
+      const terrainGrip = roadAt(player.x, player.y) ? t.grip : t.grip - 0.04;
+      player.vx *= terrainGrip;
+      player.vy *= terrainGrip;
 
-      audio.engine(clamp(Math.hypot(player.vx, player.vy) / 520, 0, 1));
+      const maxVel = t.max;
+      const v = Math.hypot(player.vx, player.vy);
+      if (v > maxVel) {
+        const s = maxVel / v;
+        player.vx *= s;
+        player.vy *= s;
+      }
+
+      player.x = clamp(player.x + player.vx * dt, 45, world.size - 45);
+      player.y = clamp(player.y + player.vy * dt, 45, world.size - 45);
+
+      audio.engine(speedNorm, heat / 5);
+
+      for (const c of civilianCars) {
+        c.cooldown -= dt;
+        if (c.cooldown <= 0) {
+          c.dir += rand(-0.9, 0.9);
+          c.cooldown = rand(0.4, 1.8);
+        }
+        const tt = vehicleTypes[c.typeKey];
+        c.vx += Math.cos(c.dir) * tt.accel * 0.16 * dt;
+        c.vy += Math.sin(c.dir) * tt.accel * 0.16 * dt;
+        c.vx *= 0.985;
+        c.vy *= 0.985;
+        const cv = Math.hypot(c.vx, c.vy);
+        if (cv > tt.max * 0.45) {
+          const s = (tt.max * 0.45) / cv;
+          c.vx *= s;
+          c.vy *= s;
+        }
+        c.x = clamp(c.x + c.vx * dt, 50, world.size - 50);
+        c.y = clamp(c.y + c.vy * dt, 50, world.size - 50);
+      }
 
       for (const c of cops) {
         const dx = player.x - c.x, dy = player.y - c.y;
         const d = Math.hypot(dx, dy) + 0.0001;
-        const p = 130 + heat * 50;
+        const p = 150 + heat * 56;
         c.vx += (dx / d) * p * dt;
         c.vy += (dy / d) * p * dt;
-        c.vx *= 0.96; c.vy *= 0.96;
+        c.vx *= 0.965; c.vy *= 0.965;
         c.x = clamp(c.x + c.vx * dt, 35, world.size - 35);
         c.y = clamp(c.y + c.vy * dt, 35, world.size - 35);
         c.dir = Math.atan2(c.vy, c.vx);
 
-        if (dist2(c, player) < 55 * 55) {
-          player.health = Math.max(0, player.health - (20 + heat * 3) * dt);
+        if (dist2(c, player) < 58 * 58) {
+          player.health = Math.max(0, player.health - (24 + heat * 3) * dt);
           player.vx *= 0.96; player.vy *= 0.96;
-          if (Math.random() < 0.1) audio.blip(120, 0.05, 'square', 0.02);
+          if (Math.random() < 0.09) audio.tone(130, 0.06, 'square', 0.03);
+        }
+      }
+
+      for (const p of pedestrians) {
+        if (!p.alive) continue;
+        p.panic = Math.max(0, p.panic - dt * 0.7);
+
+        const d2 = dist2(p, player);
+        if (d2 < 280 * 280) {
+          const dx = p.x - player.x, dy = p.y - player.y;
+          const d = Math.hypot(dx, dy) + 0.001;
+          p.vx += (dx / d) * (70 + heat * 20) * dt;
+          p.vy += (dy / d) * (70 + heat * 20) * dt;
+          p.panic = 1;
+        }
+        p.vx *= 0.97; p.vy *= 0.97;
+        p.x = clamp(p.x + p.vx * dt, 20, world.size - 20);
+        p.y = clamp(p.y + p.vy * dt, 20, world.size - 20);
+
+        if (dist2(p, player) < (p.r + 23) ** 2 && Math.hypot(player.vx, player.vy) > 150) {
+          p.alive = false;
+          impacts += 1;
+          score += 120;
+          heat = clamp(heat + 0.28, 0, 5);
+          audio.tone(90, 0.09, 'sawtooth', 0.06);
+        }
+      }
+
+      for (const c of cyclists) {
+        if (!c.down) {
+          const d2 = dist2(c, player);
+          if (d2 < 360 * 360) {
+            const dx = c.x - player.x, dy = c.y - player.y;
+            const d = Math.hypot(dx, dy) + 0.001;
+            c.vx += (dx / d) * 130 * dt;
+            c.vy += (dy / d) * 130 * dt;
+          }
+          c.vx += Math.cos(c.dir) * 40 * dt;
+          c.vy += Math.sin(c.dir) * 40 * dt;
+        }
+        if (Math.random() < 0.03) c.dir += rand(-0.7, 0.7);
+        c.vx *= c.down ? 0.94 : 0.985;
+        c.vy *= c.down ? 0.94 : 0.985;
+        c.x = clamp(c.x + c.vx * dt, 20, world.size - 20);
+        c.y = clamp(c.y + c.vy * dt, 20, world.size - 20);
+        c.dir = Math.atan2(c.vy, c.vx);
+
+        if (!c.down && dist2(c, player) < (c.r + 24) ** 2 && Math.hypot(player.vx, player.vy) > 140) {
+          c.down = true;
+          impacts += 1;
+          score += 180;
+          heat = clamp(heat + 0.45, 0, 5);
+          player.vx *= 0.95;
+          player.vy *= 0.95;
+          audio.tone(110, 0.11, 'triangle', 0.06);
         }
       }
 
@@ -300,19 +498,23 @@
         const cr = crates[i];
         if (dist2(cr, player) < (cr.r + 24) ** 2) {
           score += cr.value;
-          heat = clamp(heat + 0.35, 0, 5);
+          heat = clamp(heat + 0.2, 0, 5);
           crates.splice(i, 1);
           spawnCrate();
-          audio.blip(980, 0.08, 'triangle', 0.08);
+          audio.tone(980, 0.08, 'triangle', 0.08);
         }
       }
 
-      heat = Math.max(0, heat - dt * 0.05);
+      heat = Math.max(0, heat - dt * 0.045);
 
       ui.score.textContent = Math.floor(score);
       ui.heat.textContent = heat.toFixed(1);
       ui.health.textContent = Math.floor(player.health);
       ui.time.textContent = Math.max(0, Math.ceil(remaining));
+      ui.vehicle.textContent = getPlayerType().name;
+      ui.events.textContent = `${steals} / ${impacts}`;
+
+      justPressed.clear();
     }
 
     function render() {
@@ -324,24 +526,42 @@
         const sy = cr.y - camY + H / 2;
         if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
         ctx.fillStyle = '#d97706';
-        ctx.fillRect(sx - 16, sy - 12, 32, 24);
+        ctx.fillRect(sx - 15, sy - 11, 30, 22);
         ctx.strokeStyle = '#f59e0b';
         ctx.lineWidth = 2;
-        ctx.strokeRect(sx - 16, sy - 12, 32, 24);
+        ctx.strokeRect(sx - 15, sy - 11, 30, 22);
       }
 
+      for (const p of pedestrians) drawPedestrian(p, camX, camY);
+      for (const c of cyclists) drawCyclist(c, camX, camY);
+      for (const c of civilianCars) drawCar(c, camX, camY);
       for (const c of cops) drawCar(c, camX, camY);
       drawCar(player, camX, camY);
 
+      // steal prompt
+      let nearCar = false;
+      for (const c of civilianCars) {
+        if (dist2(c, player) < 90 * 90) { nearCar = true; break; }
+      }
+      if (nearCar && !gameOver) {
+        ctx.fillStyle = '#000a';
+        ctx.fillRect(W / 2 - 155, H - 88, 310, 36);
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.font = '600 20px Inter, sans-serif';
+        ctx.fillText('Press E to steal nearby vehicle', W / 2, H - 62);
+      }
+
       if (gameOver) {
         ctx.fillStyle = '#000b';
-        ctx.fillRect(0,0,W,H);
+        ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
-        ctx.font = '700 58px Inter, sans-serif';
-        ctx.fillText('Mission Complete', W/2, H/2 - 30);
+        ctx.font = '700 54px Inter, sans-serif';
+        ctx.fillText('Session Over', W / 2, H / 2 - 42);
         ctx.font = '400 30px Inter, sans-serif';
-        ctx.fillText(`Score: ${Math.floor(score)}   |   Heat: ${heat.toFixed(1)}`, W/2, H/2 + 30);
+        ctx.fillText(`Score ${Math.floor(score)} | Steals ${steals} | Impacts ${impacts}`, W / 2, H / 2 + 10);
+        ctx.fillText(`Heat ${heat.toFixed(1)} | Vehicle ${getPlayerType().name}`, W / 2, H / 2 + 50);
       }
     }
 
@@ -355,20 +575,40 @@
 
     function reset() {
       player.x = world.size / 2; player.y = world.size / 2;
-      player.vx = player.vy = 0; player.dir = 0;
+      player.vx = 0; player.vy = 0; player.dir = 0;
       player.health = 100;
-      score = 0; heat = 0; remaining = 120; gameOver = false;
+      player.typeKey = 'starter';
+      player.sprite = makeCarSprite(vehicleTypes.starter.color);
+
+      score = 0;
+      heat = 0;
+      remaining = 180;
+      steals = 0;
+      impacts = 0;
+      gameOver = false;
+
       crates.length = 0;
-      for (let i = 0; i < 20; i++) spawnCrate();
+      pedestrians.length = 0;
+      cyclists.length = 0;
+      civilianCars.length = 0;
+
+      for (let i = 0; i < 26; i++) spawnCrate();
+      for (let i = 0; i < 36; i++) spawnPedestrian();
+      for (let i = 0; i < 14; i++) spawnCyclist();
+      for (let i = 0; i < 18; i++) spawnCivilianCar();
+
       for (const c of cops) {
         c.x = rand(300, world.size - 300);
         c.y = rand(300, world.size - 300);
         c.vx = c.vy = 0;
       }
+
       ui.score.textContent = '0';
-      ui.heat.textContent = '0';
+      ui.heat.textContent = '0.0';
       ui.health.textContent = '100';
-      ui.time.textContent = '120';
+      ui.time.textContent = '180';
+      ui.vehicle.textContent = 'Starter Coupe';
+      ui.events.textContent = '0 / 0';
     }
 
     ui.restart.addEventListener('click', reset);

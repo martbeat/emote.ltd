@@ -39,7 +39,7 @@
 <div id="app">
   <aside id="ui">
     <h1>Water2 — H<sub>2</sub>O with Lone Pairs</h1>
-    <p class="note">Each molecule is an oxygen atom, two hydrogens, and two lone electron pairs. Hydrogen bonding is directional: donor H points toward an acceptor lone-pair site.</p>
+    <p class="note">Each molecule is an oxygen atom, two hydrogens, and two lone electron pairs arranged on a tetrahedron around oxygen. Hydrogen bonding is directional: donor H points toward an acceptor lone-pair site.</p>
 
     <div class="group">
       <h2>System</h2>
@@ -104,8 +104,7 @@ const O_RADIUS = 0.55;
 const H_RADIUS = 0.28;
 const LP_RADIUS = 0.16;
 const BOND = 1.45;
-const THETA = THREE.MathUtils.degToRad(104.5);
-const TETRA = THREE.MathUtils.degToRad(109.47);
+const TETRA_SCALE = 1 / Math.sqrt(3);
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -120,10 +119,17 @@ const hbMat = new THREE.LineBasicMaterial({color:0x86d8ff, transparent:true, opa
 const hbLines = new THREE.LineSegments(hbGeom, hbMat);
 scene.add(hbLines);
 
-const baseH1 = new THREE.Vector3(Math.sin(THETA/2), Math.cos(THETA/2), 0).multiplyScalar(BOND);
-const baseH2 = new THREE.Vector3(-Math.sin(THETA/2), Math.cos(THETA/2), 0).multiplyScalar(BOND);
-const baseLP1 = new THREE.Vector3(Math.sin(TETRA/2), -Math.cos(TETRA/2), 0).multiplyScalar(BOND*0.95);
-const baseLP2 = new THREE.Vector3(-Math.sin(TETRA/2), -Math.cos(TETRA/2), 0).multiplyScalar(BOND*0.95);
+const tetraSites = [
+  new THREE.Vector3( 1, 1, 1),
+  new THREE.Vector3( 1,-1,-1),
+  new THREE.Vector3(-1, 1,-1),
+  new THREE.Vector3(-1,-1, 1)
+].map(v => v.multiplyScalar(TETRA_SCALE));
+
+const baseH1 = tetraSites[0].clone().multiplyScalar(BOND);
+const baseH2 = tetraSites[1].clone().multiplyScalar(BOND);
+const baseLP1 = tetraSites[2].clone().multiplyScalar(BOND*0.95);
+const baseLP2 = tetraSites[3].clone().multiplyScalar(BOND*0.95);
 
 const molecules = [];
 let boxSize = +ui.box.value;

@@ -53,8 +53,9 @@
 
     <div class="group">
       <h2>Dynamics</h2>
-      <div class="row"><label>Temperature</label><input id="temp" type="range" min="50" max="800" step="10" value="250" /></div>
+      <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="0" max="800" step="5" value="250" /></div>
       <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="1.8" step="0.02" value="0.65" /></div>
+      <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.4" step="0.02" value="0.85" /></div>
       <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.6" /></div>
       <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
     </div>
@@ -63,7 +64,7 @@
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear.</div>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial O/H charges with longer-range screened Coulomb interactions.</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
@@ -76,7 +77,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const view = document.getElementById('view');
 const ui = {
   nMol: document.getElementById('nMol'), box: document.getElementById('box'), reset: document.getElementById('reset'), pause: document.getElementById('pause'),
-  temp: document.getElementById('temp'), hb: document.getElementById('hb'), repel: document.getElementById('repel'), damp: document.getElementById('damp'),
+  temp: document.getElementById('temp'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'),
   tVal: document.getElementById('tVal'), hbVal: document.getElementById('hbVal'), fps: document.getElementById('fps')
 };
 
@@ -105,6 +106,8 @@ const H_RADIUS = 0.28;
 const LP_RADIUS = 0.16;
 const BOND = 1.45;
 const TETRA_SCALE = 1 / Math.sqrt(3);
+const QO = -0.84;
+const QH = 0.42;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -199,6 +202,7 @@ function rebuild(){
 function applyForces(dt){
   const repel = +ui.repel.value;
   const hbStrength = +ui.hb.value;
+  const electro = +ui.elec.value;
   const damp = +ui.damp.value;
   const tempTarget = +ui.temp.value;
 
@@ -225,6 +229,31 @@ function applyForces(dt){
       mi.a.addScaledVector(fvec, -1);
       mj.a.add(fvec);
 
+      // Longer-range electrostatics between partial charges (O and H sites)
+      const Oi = mi.p;
+      const Oj = mj.p;
+      const maxElecDist = 14.0;
+      if(electro > 0){
+        const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
+        const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
+        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH]];
+        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH]];
+        for(const [si, qi] of chargeSitesI){
+          for(const [sj, qj] of chargeSitesJ){
+            const rijSite = sj.clone().sub(si); minImage(rijSite);
+            const dsq = rijSite.lengthSq();
+            if(dsq < 0.06 || dsq > maxElecDist*maxElecDist) continue;
+            const d = Math.sqrt(dsq);
+            const soft = Math.sqrt(dsq + 0.08); // soft-core to avoid blowups
+            const screened = Math.exp(-d/12.0);
+            const magSite = electro * qi * qj * screened / (soft*soft*soft);
+            const fSite = rijSite.multiplyScalar(magSite);
+            mi.a.add(fSite);
+            mj.a.addScaledVector(fSite, -1);
+          }
+        }
+      }
+
       const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
       const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
       const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
@@ -250,9 +279,9 @@ function applyForces(dt){
   let ke = 0;
   molecules.forEach(m=>{ ke += 0.5*m.v.lengthSq(); });
   const tInst = (2*ke)/(3*molecules.length);
-  const scale = Math.sqrt(Math.max(0.02,tempTarget/Math.max(tInst,1e-6)));
+  const scale = Math.sqrt(Math.max(0,tempTarget/Math.max(tInst,1e-6)));
   const thermo = 0.03;
-  molecules.forEach(m=>m.v.multiplyScalar(1 + (scale-1)*thermo));
+  molecules.forEach(m=>m.v.multiplyScalar(THREE.MathUtils.clamp(1 + (scale-1)*thermo, 0, 1.2)));
 
   hbGeom.setAttribute('position', new THREE.Float32BufferAttribute(hbSegments, 3));
   hbGeom.computeBoundingSphere();

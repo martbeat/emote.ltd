@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GTA6 (Tiny Browser Edition)</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b12;
+      --panel: #111827;
+      --accent: #22d3ee;
+      --danger: #ef4444;
+      --ok: #10b981;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at 25% 15%, #1f2937 0%, var(--bg) 45%, #030712 100%);
+      color: #e5e7eb;
+      min-height: 100svh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      place-items: center;
+      gap: 12px;
+      padding: 10px;
+    }
+    .hud {
+      width: min(95vw, 980px);
+      background: color-mix(in srgb, var(--panel), transparent 12%);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 10px;
+      font-size: 14px;
+      backdrop-filter: blur(2px);
+    }
+    .tile { background: #0b1220; border: 1px solid #1e293b; border-radius: 8px; padding: 8px; }
+    .tile b { color: var(--accent); }
+    canvas {
+      width: min(95vw, 980px);
+      aspect-ratio: 16/9;
+      border-radius: 14px;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 35px #000a;
+      background: #0b1020;
+    }
+    .help {
+      width: min(95vw, 980px);
+      opacity: .9;
+      font-size: 13px;
+      line-height: 1.4;
+      text-align: center;
+      color: #cbd5e1;
+    }
+    button {
+      background: #0ea5e9;
+      color: #04121a;
+      border: 0;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="tile">Score<br><b id="score">0</b></div>
+    <div class="tile">Heat<br><b id="heat">0</b>/5</div>
+    <div class="tile">Health<br><b id="health">100</b>%</div>
+    <div class="tile">Time Left<br><b id="time">120</b>s <button id="restart">Restart</button></div>
+  </div>
+  <canvas id="game" width="1280" height="720" aria-label="gta6 game area"></canvas>
+  <div class="help">
+    <strong>GTA6 (Tiny Browser Edition)</strong> — Drive with <kbd>WASD</kbd> / <kbd>Arrow Keys</kbd>, drift through city blocks, collect loot crates, avoid police cars.
+    First key press enables audio. Survive 120 seconds.
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    const ui = {
+      score: document.getElementById('score'),
+      heat: document.getElementById('heat'),
+      health: document.getElementById('health'),
+      time: document.getElementById('time'),
+      restart: document.getElementById('restart')
+    };
+
+    const keys = new Set();
+    addEventListener('keydown', e => { keys.add(e.key.toLowerCase()); audio.unlock(); });
+    addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+    const rand = (a, b) => Math.random() * (b - a) + a;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const dist2 = (a, b) => (a.x-b.x)**2 + (a.y-b.y)**2;
+
+    const world = {
+      size: 4000,
+      road: 220,
+      block: 380
+    };
+
+    const audio = {
+      ctx: null,
+      unlocked: false,
+      unlock() {
+        if (this.unlocked) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.unlocked = true;
+      },
+      blip(freq = 880, len = 0.08, type = 'square', vol = 0.06) {
+        if (!this.unlocked) return;
+        const t = this.ctx.currentTime;
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(g).connect(this.ctx.destination);
+        o.start(t); o.stop(t + len);
+      },
+      engine(speedNorm=0) {
+        if (!this.unlocked) return;
+        if (!this.engOsc) {
+          this.engOsc = this.ctx.createOscillator();
+          this.engGain = this.ctx.createGain();
+          this.engOsc.type = 'sawtooth';
+          this.engGain.gain.value = 0.0001;
+          this.engOsc.connect(this.engGain).connect(this.ctx.destination);
+          this.engOsc.start();
+        }
+        const t = this.ctx.currentTime;
+        this.engOsc.frequency.exponentialRampToValueAtTime(55 + speedNorm * 180, t + 0.04);
+        this.engGain.gain.linearRampToValueAtTime(0.03 + speedNorm * 0.035, t + 0.04);
+      }
+    };
+
+    function makeCarSprite(color = '#22d3ee') {
+      const c = document.createElement('canvas');
+      c.width = 72; c.height = 40;
+      const g = c.getContext('2d');
+      g.fillStyle = '#111827';
+      g.fillRect(3, 2, 66, 36);
+      g.fillStyle = color;
+      g.fillRect(8, 6, 56, 28);
+      g.fillStyle = '#93c5fd';
+      g.fillRect(20, 10, 32, 10);
+      g.fillStyle = '#030712';
+      g.fillRect(13, 30, 12, 7); g.fillRect(47, 30, 12, 7);
+      g.fillRect(13, 3, 12, 7); g.fillRect(47, 3, 12, 7);
+      return c;
+    }
+
+    const player = {
+      x: world.size / 2,
+      y: world.size / 2,
+      vx: 0,
+      vy: 0,
+      dir: 0,
+      health: 100,
+      sprite: makeCarSprite('#22d3ee')
+    };
+
+    const cops = Array.from({ length: 5 }, (_, i) => ({
+      x: rand(300, world.size - 300),
+      y: rand(300, world.size - 300),
+      vx: 0, vy: 0, dir: 0,
+      sprite: makeCarSprite(i % 2 ? '#ef4444' : '#fb7185')
+    }));
+
+    const crates = [];
+    function spawnCrate() {
+      crates.push({
+        x: rand(250, world.size - 250),
+        y: rand(250, world.size - 250),
+        value: Math.floor(rand(80, 200)),
+        r: 18
+      });
+    }
+    for (let i = 0; i < 20; i++) spawnCrate();
+
+    let score = 0;
+    let heat = 0;
+    let gameOver = false;
+    let remaining = 120;
+    let last = performance.now();
+
+    function roadAt(x, y) {
+      const m = world.block + world.road;
+      const ax = ((x % m) + m) % m;
+      const ay = ((y % m) + m) % m;
+      return ax < world.road || ay < world.road;
+    }
+
+    function drawWorld(camX, camY) {
+      ctx.fillStyle = '#10243b';
+      ctx.fillRect(0,0,W,H);
+
+      const m = world.block + world.road;
+      const startX = Math.floor((camX - W/2) / m) * m;
+      const startY = Math.floor((camY - H/2) / m) * m;
+
+      for (let x = startX; x < camX + W; x += m) {
+        for (let y = startY; y < camY + H; y += m) {
+          const sx = Math.floor(x - camX + W/2), sy = Math.floor(y - camY + H/2);
+          ctx.fillStyle = '#374151';
+          ctx.fillRect(sx, sy, m, world.road);
+          ctx.fillRect(sx, sy, world.road, m);
+
+          ctx.fillStyle = '#1f2937';
+          ctx.fillRect(sx + world.road + 6, sy + world.road + 6, world.block - 12, world.block - 12);
+
+          ctx.fillStyle = '#334155';
+          for (let i = 0; i < 12; i++) {
+            const wx = sx + world.road + 20 + (i % 4) * 80;
+            const wy = sy + world.road + 20 + Math.floor(i / 4) * 95;
+            ctx.fillRect(wx, wy, 52, 58);
+          }
+        }
+      }
+
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([16, 18]);
+      for (let x = startX; x < camX + W; x += m) {
+        const sx = Math.floor(x - camX + W/2 + world.road / 2);
+        ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+      }
+      for (let y = startY; y < camY + H; y += m) {
+        const sy = Math.floor(y - camY + H/2 + world.road / 2);
+        ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    function drawCar(ent, camX, camY) {
+      const sx = ent.x - camX + W / 2;
+      const sy = ent.y - camY + H / 2;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(ent.dir);
+      ctx.drawImage(ent.sprite, -36, -20);
+      ctx.restore();
+    }
+
+    function tick(dt) {
+      if (gameOver) return;
+      remaining -= dt;
+      if (remaining <= 0 || player.health <= 0) {
+        gameOver = true;
+        audio.blip(180, 0.3, 'sawtooth', 0.08);
+      }
+
+      const up = keys.has('w') || keys.has('arrowup');
+      const down = keys.has('s') || keys.has('arrowdown');
+      const left = keys.has('a') || keys.has('arrowleft');
+      const right = keys.has('d') || keys.has('arrowright');
+
+      const accel = up ? 620 : down ? -380 : 0;
+      const turn = (left ? -1 : 0) + (right ? 1 : 0);
+      const speed = Math.hypot(player.vx, player.vy);
+      player.dir += turn * (1.7 + Math.min(speed / 200, 1.4)) * dt;
+      player.vx += Math.cos(player.dir) * accel * dt;
+      player.vy += Math.sin(player.dir) * accel * dt;
+
+      const drag = roadAt(player.x, player.y) ? 0.985 : 0.94;
+      player.vx *= drag; player.vy *= drag;
+      player.x = clamp(player.x + player.vx * dt, 40, world.size - 40);
+      player.y = clamp(player.y + player.vy * dt, 40, world.size - 40);
+
+      audio.engine(clamp(Math.hypot(player.vx, player.vy) / 520, 0, 1));
+
+      for (const c of cops) {
+        const dx = player.x - c.x, dy = player.y - c.y;
+        const d = Math.hypot(dx, dy) + 0.0001;
+        const p = 130 + heat * 50;
+        c.vx += (dx / d) * p * dt;
+        c.vy += (dy / d) * p * dt;
+        c.vx *= 0.96; c.vy *= 0.96;
+        c.x = clamp(c.x + c.vx * dt, 35, world.size - 35);
+        c.y = clamp(c.y + c.vy * dt, 35, world.size - 35);
+        c.dir = Math.atan2(c.vy, c.vx);
+
+        if (dist2(c, player) < 55 * 55) {
+          player.health = Math.max(0, player.health - (20 + heat * 3) * dt);
+          player.vx *= 0.96; player.vy *= 0.96;
+          if (Math.random() < 0.1) audio.blip(120, 0.05, 'square', 0.02);
+        }
+      }
+
+      for (let i = crates.length - 1; i >= 0; i--) {
+        const cr = crates[i];
+        if (dist2(cr, player) < (cr.r + 24) ** 2) {
+          score += cr.value;
+          heat = clamp(heat + 0.35, 0, 5);
+          crates.splice(i, 1);
+          spawnCrate();
+          audio.blip(980, 0.08, 'triangle', 0.08);
+        }
+      }
+
+      heat = Math.max(0, heat - dt * 0.05);
+
+      ui.score.textContent = Math.floor(score);
+      ui.heat.textContent = heat.toFixed(1);
+      ui.health.textContent = Math.floor(player.health);
+      ui.time.textContent = Math.max(0, Math.ceil(remaining));
+    }
+
+    function render() {
+      const camX = player.x, camY = player.y;
+      drawWorld(camX, camY);
+
+      for (const cr of crates) {
+        const sx = cr.x - camX + W / 2;
+        const sy = cr.y - camY + H / 2;
+        if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(sx - 16, sy - 12, 32, 24);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx - 16, sy - 12, 32, 24);
+      }
+
+      for (const c of cops) drawCar(c, camX, camY);
+      drawCar(player, camX, camY);
+
+      if (gameOver) {
+        ctx.fillStyle = '#000b';
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.font = '700 58px Inter, sans-serif';
+        ctx.fillText('Mission Complete', W/2, H/2 - 30);
+        ctx.font = '400 30px Inter, sans-serif';
+        ctx.fillText(`Score: ${Math.floor(score)}   |   Heat: ${heat.toFixed(1)}`, W/2, H/2 + 30);
+      }
+    }
+
+    function frame(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      tick(dt);
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    function reset() {
+      player.x = world.size / 2; player.y = world.size / 2;
+      player.vx = player.vy = 0; player.dir = 0;
+      player.health = 100;
+      score = 0; heat = 0; remaining = 120; gameOver = false;
+      crates.length = 0;
+      for (let i = 0; i < 20; i++) spawnCrate();
+      for (const c of cops) {
+        c.x = rand(300, world.size - 300);
+        c.y = rand(300, world.size - 300);
+        c.vx = c.vy = 0;
+      }
+      ui.score.textContent = '0';
+      ui.heat.textContent = '0';
+      ui.health.textContent = '100';
+      ui.time.textContent = '120';
+    }
+
+    ui.restart.addEventListener('click', reset);
+    reset();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

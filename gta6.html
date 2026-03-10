@@ -179,6 +179,32 @@
       return ax < world.road || ay < world.road;
     }
 
+
+    function roadBiasVector(x, y) {
+      if (roadAt(x, y)) return { x: 0, y: 0 };
+      const probe = 60;
+      const candidates = [
+        { x: probe, y: 0 },
+        { x: -probe, y: 0 },
+        { x: 0, y: probe },
+        { x: 0, y: -probe },
+        { x: probe, y: probe },
+        { x: probe, y: -probe },
+        { x: -probe, y: probe },
+        { x: -probe, y: -probe }
+      ];
+      let best = candidates[0];
+      let bestScore = -1e9;
+      for (const c of candidates) {
+        const nx = clamp(x + c.x, 0, world.size);
+        const ny = clamp(y + c.y, 0, world.size);
+        const score = (roadAt(nx, ny) ? 1 : -1) - (Math.abs(c.x) + Math.abs(c.y)) * 0.001;
+        if (score > bestScore) { bestScore = score; best = c; }
+      }
+      const m = Math.hypot(best.x, best.y) || 1;
+      return { x: best.x / m, y: best.y / m };
+    }
+
     const player = {
       x: world.size / 2,
       y: world.size / 2,
@@ -194,7 +220,10 @@
       x: rand(300, world.size - 300),
       y: rand(300, world.size - 300),
       vx: 0, vy: 0, dir: 0,
-      sprite: makeCarSprite(i % 2 ? '#fb7185' : '#ef4444')
+      sprite: makeCarSprite(i % 2 ? '#fb7185' : '#ef4444'),
+      mode: 'patrol',
+      think: rand(0.2, 1.0),
+      heading: rand(0, Math.PI * 2)
     }));
 
     const civilianCars = [];
@@ -421,20 +450,91 @@
         c.y = clamp(c.y + c.vy * dt, 50, world.size - 50);
       }
 
+      const chaseHeatThreshold = 1.2;
       for (const c of cops) {
-        const dx = player.x - c.x, dy = player.y - c.y;
+        const dx = player.x - c.x;
+        const dy = player.y - c.y;
         const d = Math.hypot(dx, dy) + 0.0001;
-        const p = 150 + heat * 56;
-        c.vx += (dx / d) * p * dt;
-        c.vy += (dy / d) * p * dt;
-        c.vx *= 0.965; c.vy *= 0.965;
+
+        c.think -= dt;
+        if (c.think <= 0) {
+          c.think = rand(0.2, 0.8);
+          if (heat >= chaseHeatThreshold) {
+            c.mode = (Math.random() < 0.45) ? 'intercept' : 'chase';
+          } else if (d < 300) {
+            c.mode = 'observe';
+          } else {
+            c.mode = 'patrol';
+          }
+          if (c.mode === 'patrol') {
+            c.heading += rand(-1.1, 1.1);
+          }
+        }
+
+        let tx = 0;
+        let ty = 0;
+        if (c.mode === 'chase') {
+          tx = dx / d;
+          ty = dy / d;
+        } else if (c.mode === 'intercept') {
+          const pSpeed = Math.hypot(player.vx, player.vy);
+          const look = clamp(0.5 + pSpeed / 260, 0.5, 1.8);
+          const ix = clamp(player.x + player.vx * look, 0, world.size);
+          const iy = clamp(player.y + player.vy * look, 0, world.size);
+          const idx = ix - c.x;
+          const idy = iy - c.y;
+          const id = Math.hypot(idx, idy) + 0.0001;
+          tx = idx / id;
+          ty = idy / id;
+        } else if (c.mode === 'observe') {
+          const tangent = Math.atan2(dy, dx) + (Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
+          tx = Math.cos(tangent);
+          ty = Math.sin(tangent);
+        } else {
+          tx = Math.cos(c.heading);
+          ty = Math.sin(c.heading);
+        }
+
+        const roadBias = roadBiasVector(c.x, c.y);
+        tx += roadBias.x * 1.25;
+        ty += roadBias.y * 1.25;
+
+        const tm = Math.hypot(tx, ty) + 0.0001;
+        tx /= tm;
+        ty /= tm;
+
+        const pursueBoost = heat >= chaseHeatThreshold ? 1 : 0.6;
+        const p = (110 + heat * 40) * pursueBoost;
+        c.vx += tx * p * dt;
+        c.vy += ty * p * dt;
+        c.vx *= 0.968;
+        c.vy *= 0.968;
+
+        const maxCopSpeed = heat >= chaseHeatThreshold ? 360 : 250;
+        const cv = Math.hypot(c.vx, c.vy);
+        if (cv > maxCopSpeed) {
+          const s = maxCopSpeed / cv;
+          c.vx *= s;
+          c.vy *= s;
+        }
+
         c.x = clamp(c.x + c.vx * dt, 35, world.size - 35);
         c.y = clamp(c.y + c.vy * dt, 35, world.size - 35);
+
+        if (!roadAt(c.x, c.y)) {
+          const rb = roadBiasVector(c.x, c.y);
+          c.x = clamp(c.x + rb.x * 26, 35, world.size - 35);
+          c.y = clamp(c.y + rb.y * 26, 35, world.size - 35);
+          c.vx += rb.x * 42 * dt;
+          c.vy += rb.y * 42 * dt;
+        }
+
         c.dir = Math.atan2(c.vy, c.vx);
 
-        if (dist2(c, player) < 58 * 58) {
+        if (heat >= chaseHeatThreshold && dist2(c, player) < 58 * 58) {
           player.health = Math.max(0, player.health - (24 + heat * 3) * dt);
-          player.vx *= 0.96; player.vy *= 0.96;
+          player.vx *= 0.96;
+          player.vy *= 0.96;
           if (Math.random() < 0.09) audio.tone(130, 0.06, 'square', 0.03);
         }
       }
@@ -601,6 +701,9 @@
         c.x = rand(300, world.size - 300);
         c.y = rand(300, world.size - 300);
         c.vx = c.vy = 0;
+        c.mode = 'patrol';
+        c.think = rand(0.2, 1.0);
+        c.heading = rand(0, Math.PI * 2);
       }
 
       ui.score.textContent = '0';

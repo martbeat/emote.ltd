@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Water2 — Directional Hydrogen Bonding</title>
+  <style>
+    :root{
+      --bg:#070d1f; --panel:#0f1a36; --line:#253766; --text:#e9eefc; --muted:#b8c4eb;
+      --btn:#1a2e63; --btn2:#254083;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    #app{display:grid;grid-template-columns:320px 1fr;height:100%}
+    #ui{padding:12px;border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(15,26,54,.96),rgba(7,13,31,.96));overflow:auto}
+    h1{font-size:16px;margin:0 0 8px}
+    .note{font-size:12px;color:var(--muted);line-height:1.35}
+    .group{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px}
+    .group h2{font-size:13px;margin:0 0 8px}
+    .row{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin:8px 0}
+    input[type="range"],input[type="number"]{width:100%}
+    button{border:1px solid var(--line);background:var(--btn);color:var(--text);padding:7px 10px;border-radius:10px;cursor:pointer}
+    button:hover{background:var(--btn2)}
+    .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+    #view{position:relative}
+    #hud{position:absolute;left:10px;bottom:10px;background:rgba(8,14,33,.7);border:1px solid rgba(255,255,255,.08);padding:8px 10px;border-radius:10px;font-size:12px;color:var(--muted)}
+    .pill{display:inline-block;border:1px solid rgba(255,255,255,.12);padding:2px 8px;border-radius:999px;margin:0 6px 6px 0}
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+  <aside id="ui">
+    <h1>Water2 — H<sub>2</sub>O with Lone Pairs</h1>
+    <p class="note">Each molecule is an oxygen atom, two hydrogens, and two lone electron pairs arranged on a tetrahedron around oxygen. Hydrogen bonding is directional: donor H points toward an acceptor lone-pair site.</p>
+
+    <div class="group">
+      <h2>System</h2>
+      <div class="row"><label>Molecules</label><input id="nMol" type="number" min="16" max="240" step="8" value="72" /></div>
+      <div class="row"><label>Box size</label><input id="box" type="range" min="18" max="65" step="1" value="34" /></div>
+      <div class="btnrow">
+        <button id="reset">Reset</button>
+        <button id="pause">Pause</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Dynamics</h2>
+      <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="0" max="800" step="5" value="250" /></div>
+      <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
+      <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="1.8" step="0.02" value="0.65" /></div>
+      <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.4" step="0.02" value="0.85" /></div>
+      <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.6" /></div>
+      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
+      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
+    </div>
+
+    <div class="group note">
+      <span class="pill">T: <b id="tVal">-</b></span>
+      <span class="pill">HB links: <b id="hbVal">-</b></span>
+      <span class="pill">FPS: <b id="fps">-</b></span>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial O/H charges with longer-range screened Coulomb interactions.</div>
+    </div>
+  </aside>
+  <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const view = document.getElementById('view');
+const ui = {
+  nMol: document.getElementById('nMol'), box: document.getElementById('box'), reset: document.getElementById('reset'), pause: document.getElementById('pause'),
+  temp: document.getElementById('temp'), dt: document.getElementById('dt'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'), rotDamp: document.getElementById('rotDamp'),
+  tVal: document.getElementById('tVal'), hbVal: document.getElementById('hbVal'), fps: document.getElementById('fps')
+};
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060b1a);
+scene.fog = new THREE.Fog(0x060b1a, 55, 130);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
+camera.position.set(0, 14, 42);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const key = new THREE.DirectionalLight(0xd7e5ff, 0.95); key.position.set(16,20,12); scene.add(key);
+
+const boundary = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)),
+  new THREE.LineBasicMaterial({color:0x4868a8, transparent:true, opacity:0.38})
+);
+scene.add(boundary);
+
+const O_RADIUS = 0.55;
+const H_RADIUS = 0.28;
+const LP_RADIUS = 0.16;
+const BOND = 1.45;
+const TETRA_SCALE = 1 / Math.sqrt(3);
+const QO = -0.84;
+const QH = 0.42;
+const ROT_INERTIA = 1.9;
+
+const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
+const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
+const geomLP = new THREE.SphereGeometry(LP_RADIUS, 12, 10);
+const matO = new THREE.MeshStandardMaterial({color:0xde403a, roughness:0.48, metalness:0.08});
+const matH = new THREE.MeshStandardMaterial({color:0xf2f7ff, roughness:0.25, metalness:0.02});
+const matLP = new THREE.MeshStandardMaterial({color:0x63d6ff, emissive:0x0a2a3e, roughness:0.35, metalness:0.0});
+const bondMat = new THREE.LineBasicMaterial({color:0x9eb5ea});
+
+const hbGeom = new THREE.BufferGeometry();
+const hbMat = new THREE.LineBasicMaterial({color:0x86d8ff, transparent:true, opacity:0.6});
+const hbLines = new THREE.LineSegments(hbGeom, hbMat);
+scene.add(hbLines);
+
+const tetraSites = [
+  new THREE.Vector3( 1, 1, 1),
+  new THREE.Vector3( 1,-1,-1),
+  new THREE.Vector3(-1, 1,-1),
+  new THREE.Vector3(-1,-1, 1)
+].map(v => v.multiplyScalar(TETRA_SCALE));
+
+const baseH1 = tetraSites[0].clone().multiplyScalar(BOND);
+const baseH2 = tetraSites[1].clone().multiplyScalar(BOND);
+const baseLP1 = tetraSites[2].clone().multiplyScalar(BOND*0.95);
+const baseLP2 = tetraSites[3].clone().multiplyScalar(BOND*0.95);
+
+const molecules = [];
+let boxSize = +ui.box.value;
+let paused = false;
+
+function randomQuat(){
+  const u1=Math.random(),u2=Math.random(),u3=Math.random();
+  return new THREE.Quaternion(
+    Math.sqrt(1-u1)*Math.sin(2*Math.PI*u2),
+    Math.sqrt(1-u1)*Math.cos(2*Math.PI*u2),
+    Math.sqrt(u1)*Math.sin(2*Math.PI*u3),
+    Math.sqrt(u1)*Math.cos(2*Math.PI*u3)
+  );
+}
+
+function makeMol(){
+  const group = new THREE.Group();
+  const O = new THREE.Mesh(geomO, matO);
+  const H1 = new THREE.Mesh(geomH, matH);
+  const H2 = new THREE.Mesh(geomH, matH);
+  const LP1 = new THREE.Mesh(geomLP, matLP);
+  const LP2 = new THREE.Mesh(geomLP, matLP);
+  [H1,H2,LP1,LP2].forEach(x=>group.add(x));
+  group.add(O);
+
+  const bondPts = new Float32Array(12);
+  const bond = new THREE.LineSegments(new THREE.BufferGeometry(), bondMat);
+  bond.geometry.setAttribute('position', new THREE.BufferAttribute(bondPts, 3));
+  group.add(bond);
+  scene.add(group);
+
+  return {
+    group,O,H1,H2,LP1,LP2,bond,
+    p:new THREE.Vector3(), v:new THREE.Vector3(), a:new THREE.Vector3(), tau:new THREE.Vector3(),
+    q:randomQuat(), w:new THREE.Vector3(rand(-0.4,0.4),rand(-0.4,0.4),rand(-0.4,0.4))
+  };
+}
+
+function rand(a,b){return a+(b-a)*Math.random();}
+function wrap(m){
+  const h=boxSize*0.5;
+  ['x','y','z'].forEach(k=>{if(m.p[k]>h)m.p[k]-=boxSize; else if(m.p[k]<-h)m.p[k]+=boxSize;});
+}
+function minImage(v){
+  const h=boxSize*0.5;
+  if(v.x>h)v.x-=boxSize; else if(v.x<-h)v.x+=boxSize;
+  if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
+  if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
+}
+
+function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
+
+function rebuild(){
+  molecules.forEach(m=>scene.remove(m.group));
+  molecules.length=0;
+  boxSize = +ui.box.value;
+  boundary.scale.setScalar(boxSize);
+  const n = +ui.nMol.value;
+  for(let i=0;i<n;i++){
+    const m = makeMol();
+    m.p.set(rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48));
+    m.v.set(rand(-1,1),rand(-1,1),rand(-1,1));
+    molecules.push(m);
+  }
+}
+
+function applyForces(dt){
+  const repel = +ui.repel.value;
+  const hbStrength = +ui.hb.value;
+  const electro = +ui.elec.value;
+  const damp = +ui.damp.value;
+  const rotDamp = +ui.rotDamp.value;
+  const tempTarget = +ui.temp.value;
+
+  molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
+
+  let hbSegments = [];
+  let hbCount = 0;
+
+  for(let i=0;i<molecules.length;i++){
+    const mi = molecules[i];
+    for(let j=i+1;j<molecules.length;j++){
+      const mj = molecules[j];
+      const rij = mj.p.clone().sub(mi.p); minImage(rij);
+      const r2 = rij.lengthSq();
+      if(r2<0.0001 || r2>90) continue;
+      const r = Math.sqrt(r2);
+      const dir = rij.clone().multiplyScalar(1/r);
+
+      const sigma = 2.9;
+      const sr = sigma/r;
+      const sr6 = sr**6;
+      const fOO = 24*repel*(2*sr6*sr6 - sr6)/r;
+      const fvec = dir.clone().multiplyScalar(fOO);
+      mi.a.addScaledVector(fvec, -1);
+      mj.a.add(fvec);
+
+      // Longer-range electrostatics between partial charges (O and H sites)
+      const Oi = mi.p;
+      const Oj = mj.p;
+      const maxElecDist = 14.0;
+      if(electro > 0){
+        const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
+        const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
+        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH]];
+        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH]];
+        for(const [si, qi] of chargeSitesI){
+          for(const [sj, qj] of chargeSitesJ){
+            const rijSite = sj.clone().sub(si); minImage(rijSite);
+            const dsq = rijSite.lengthSq();
+            if(dsq < 0.06 || dsq > maxElecDist*maxElecDist) continue;
+            const d = Math.sqrt(dsq);
+            const soft = Math.sqrt(dsq + 0.08); // soft-core to avoid blowups
+            const screened = Math.exp(-d/12.0);
+            const magSite = electro * qi * qj * screened / (soft*soft*soft);
+            const fSite = rijSite.multiplyScalar(magSite);
+            mi.a.add(fSite);
+            mj.a.addScaledVector(fSite, -1);
+          }
+        }
+      }
+
+      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
+      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
+      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
+      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
+
+      hbCount += hbPair(mi, mj, HsitesI, LPsitesJ, hbStrength, hbSegments);
+      hbCount += hbPair(mj, mi, HsitesJ, LPsitesI, hbStrength, hbSegments);
+    }
+  }
+
+  molecules.forEach(m=>{
+    m.v.addScaledVector(m.a, dt);
+    m.v.multiplyScalar(1-damp);
+
+    m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
+    m.w.multiplyScalar(1-rotDamp);
+    const wLen = m.w.length();
+    if(wLen > 7.5) m.w.multiplyScalar(7.5 / wLen);
+
+    const angSpeed = m.w.length();
+    if(angSpeed>1e-6){
+      const axis = m.w.clone().multiplyScalar(1/angSpeed);
+      const dq = new THREE.Quaternion().setFromAxisAngle(axis, angSpeed*dt);
+      m.q.multiply(dq).normalize();
+    }
+  });
+
+  let ke = 0;
+  molecules.forEach(m=>{ ke += 0.5*m.v.lengthSq(); });
+  const tInst = (2*ke)/(3*molecules.length);
+  const scale = Math.sqrt(Math.max(0,tempTarget/Math.max(tInst,1e-6)));
+  const thermo = 0.03;
+  molecules.forEach(m=>m.v.multiplyScalar(THREE.MathUtils.clamp(1 + (scale-1)*thermo, 0, 1.2)));
+
+  let rotKE = 0;
+  molecules.forEach(m=>{ rotKE += 0.5 * ROT_INERTIA * m.w.lengthSq(); });
+  const rotT = (2*rotKE)/(3*molecules.length);
+  const rotScale = Math.sqrt(Math.max(0,tempTarget/Math.max(rotT,1e-6)));
+  const rotThermo = 0.02;
+  molecules.forEach(m=>m.w.multiplyScalar(THREE.MathUtils.clamp(1 + (rotScale-1)*rotThermo, 0, 1.15)));
+
+  hbGeom.setAttribute('position', new THREE.Float32BufferAttribute(hbSegments, 3));
+  hbGeom.computeBoundingSphere();
+  ui.tVal.textContent = tInst.toFixed(1);
+  ui.hbVal.textContent = hbCount;
+}
+
+function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
+  let count = 0;
+  const Odon = donorMol.p;
+  LPsites.forEach(lp=>{
+    let best = null;
+    Hsites.forEach(h=>{
+      const hToLp = lp.clone().sub(h); minImage(hToLp);
+      const d = hToLp.length();
+      if(d>2.5 || d<0.6) return;
+
+      const oh = h.clone().sub(Odon); minImage(oh);
+      const cos = oh.normalize().dot(hToLp.clone().normalize());
+      const linear = Math.max(0,(cos+1)/2); // 1 when O-H...LP is linear
+      const radial = Math.exp(-((d-1.85)*(d-1.85))/0.20);
+      const outerSwitch = 1 - THREE.MathUtils.smoothstep(d, 2.15, 2.5);
+      const innerSwitch = THREE.MathUtils.smoothstep(d, 0.6, 0.85);
+      const score = linear*radial*outerSwitch*innerSwitch;
+      if(!best || score>best.score) best={h,lp,d,score,vec:hToLp};
+    });
+
+    if(best && best.score>0.12){
+      count++;
+      const mag = hbStrength * best.score * 1.6;
+      const f = best.vec.clone().normalize().multiplyScalar(mag);
+      donorMol.a.add(f);
+      acceptorMol.a.addScaledVector(f,-1);
+
+      segs.push(best.h.x,best.h.y,best.h.z,best.lp.x,best.lp.y,best.lp.z);
+
+      const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.06*hbStrength);
+      donorMol.tau.add(torqueAxis);
+      acceptorMol.tau.addScaledVector(torqueAxis,-0.5);
+    }
+  });
+  return count;
+}
+
+function updateMeshes(dt){
+  molecules.forEach(m=>{
+    m.p.addScaledVector(m.v, dt);
+    wrap(m);
+
+    m.group.position.copy(m.p);
+    m.group.quaternion.copy(m.q);
+
+    m.H1.position.copy(baseH1); m.H2.position.copy(baseH2);
+    m.LP1.position.copy(baseLP1); m.LP2.position.copy(baseLP2);
+    const arr = m.bond.geometry.attributes.position.array;
+    arr[0]=0;arr[1]=0;arr[2]=0; arr[3]=baseH1.x;arr[4]=baseH1.y;arr[5]=baseH1.z;
+    arr[6]=0;arr[7]=0;arr[8]=0; arr[9]=baseH2.x;arr[10]=baseH2.y;arr[11]=baseH2.z;
+    m.bond.geometry.attributes.position.needsUpdate = true;
+  });
+}
+
+function resize(){
+  const w=view.clientWidth,h=view.clientHeight;
+  camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);
+}
+window.addEventListener('resize',resize);
+
+ui.reset.onclick = rebuild;
+ui.pause.onclick = ()=>{paused=!paused;ui.pause.textContent=paused?'Resume':'Pause';};
+ui.box.oninput = ()=>{boxSize=+ui.box.value;boundary.scale.setScalar(boxSize);};
+
+let tPrev = performance.now(), frame=0, fAcc=0;
+function tick(now){
+  requestAnimationFrame(tick);
+  const frameDt = (now-tPrev)/1000;
+  const dt = Math.min(+ui.dt.value, Math.max(0.0005, frameDt));
+  tPrev = now;
+  if(!paused){
+    applyForces(dt);
+    updateMeshes(dt);
+  }
+  controls.update();
+  renderer.render(scene,camera);
+
+  frame++; fAcc += dt;
+  if(fAcc>0.5){ ui.fps.textContent = (frame/fAcc).toFixed(0); frame=0; fAcc=0; }
+}
+
+rebuild();
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

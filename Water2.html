@@ -54,10 +54,12 @@
     <div class="group">
       <h2>Dynamics</h2>
       <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="0" max="800" step="5" value="250" /></div>
+      <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
       <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="1.8" step="0.02" value="0.65" /></div>
       <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.4" step="0.02" value="0.85" /></div>
       <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.6" /></div>
       <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
+      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
     </div>
 
     <div class="group note">
@@ -77,7 +79,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const view = document.getElementById('view');
 const ui = {
   nMol: document.getElementById('nMol'), box: document.getElementById('box'), reset: document.getElementById('reset'), pause: document.getElementById('pause'),
-  temp: document.getElementById('temp'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'),
+  temp: document.getElementById('temp'), dt: document.getElementById('dt'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'), rotDamp: document.getElementById('rotDamp'),
   tVal: document.getElementById('tVal'), hbVal: document.getElementById('hbVal'), fps: document.getElementById('fps')
 };
 
@@ -108,6 +110,7 @@ const BOND = 1.45;
 const TETRA_SCALE = 1 / Math.sqrt(3);
 const QO = -0.84;
 const QH = 0.42;
+const ROT_INERTIA = 1.9;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -166,7 +169,7 @@ function makeMol(){
 
   return {
     group,O,H1,H2,LP1,LP2,bond,
-    p:new THREE.Vector3(), v:new THREE.Vector3(), a:new THREE.Vector3(),
+    p:new THREE.Vector3(), v:new THREE.Vector3(), a:new THREE.Vector3(), tau:new THREE.Vector3(),
     q:randomQuat(), w:new THREE.Vector3(rand(-0.4,0.4),rand(-0.4,0.4),rand(-0.4,0.4))
   };
 }
@@ -204,9 +207,10 @@ function applyForces(dt){
   const hbStrength = +ui.hb.value;
   const electro = +ui.elec.value;
   const damp = +ui.damp.value;
+  const rotDamp = +ui.rotDamp.value;
   const tempTarget = +ui.temp.value;
 
-  molecules.forEach(m=>m.a.set(0,0,0));
+  molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
 
   let hbSegments = [];
   let hbCount = 0;
@@ -268,6 +272,11 @@ function applyForces(dt){
     m.v.addScaledVector(m.a, dt);
     m.v.multiplyScalar(1-damp);
 
+    m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
+    m.w.multiplyScalar(1-rotDamp);
+    const wLen = m.w.length();
+    if(wLen > 7.5) m.w.multiplyScalar(7.5 / wLen);
+
     const angSpeed = m.w.length();
     if(angSpeed>1e-6){
       const axis = m.w.clone().multiplyScalar(1/angSpeed);
@@ -282,6 +291,13 @@ function applyForces(dt){
   const scale = Math.sqrt(Math.max(0,tempTarget/Math.max(tInst,1e-6)));
   const thermo = 0.03;
   molecules.forEach(m=>m.v.multiplyScalar(THREE.MathUtils.clamp(1 + (scale-1)*thermo, 0, 1.2)));
+
+  let rotKE = 0;
+  molecules.forEach(m=>{ rotKE += 0.5 * ROT_INERTIA * m.w.lengthSq(); });
+  const rotT = (2*rotKE)/(3*molecules.length);
+  const rotScale = Math.sqrt(Math.max(0,tempTarget/Math.max(rotT,1e-6)));
+  const rotThermo = 0.02;
+  molecules.forEach(m=>m.w.multiplyScalar(THREE.MathUtils.clamp(1 + (rotScale-1)*rotThermo, 0, 1.15)));
 
   hbGeom.setAttribute('position', new THREE.Float32BufferAttribute(hbSegments, 3));
   hbGeom.computeBoundingSphere();
@@ -303,7 +319,9 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
       const cos = oh.normalize().dot(hToLp.clone().normalize());
       const linear = Math.max(0,(cos+1)/2); // 1 when O-H...LP is linear
       const radial = Math.exp(-((d-1.85)*(d-1.85))/0.20);
-      const score = linear*radial;
+      const outerSwitch = 1 - THREE.MathUtils.smoothstep(d, 2.15, 2.5);
+      const innerSwitch = THREE.MathUtils.smoothstep(d, 0.6, 0.85);
+      const score = linear*radial*outerSwitch*innerSwitch;
       if(!best || score>best.score) best={h,lp,d,score,vec:hToLp};
     });
 
@@ -316,9 +334,9 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
 
       segs.push(best.h.x,best.h.y,best.h.z,best.lp.x,best.lp.y,best.lp.z);
 
-      const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.03*hbStrength);
-      donorMol.w.add(torqueAxis);
-      acceptorMol.w.addScaledVector(torqueAxis,-0.5);
+      const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.06*hbStrength);
+      donorMol.tau.add(torqueAxis);
+      acceptorMol.tau.addScaledVector(torqueAxis,-0.5);
     }
   });
   return count;
@@ -354,7 +372,8 @@ ui.box.oninput = ()=>{boxSize=+ui.box.value;boundary.scale.setScalar(boxSize);};
 let tPrev = performance.now(), frame=0, fAcc=0;
 function tick(now){
   requestAnimationFrame(tick);
-  const dt = Math.min(0.02,(now-tPrev)/1000);
+  const frameDt = (now-tPrev)/1000;
+  const dt = Math.min(+ui.dt.value, Math.max(0.0005, frameDt));
   tPrev = now;
   if(!paused){
     applyForces(dt);

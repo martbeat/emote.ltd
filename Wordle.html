@@ -883,24 +883,27 @@ if (it.name === lastLeaderboardPlayer) {
     }
 
     function normalizeDailyHighscores(data){
+      const normalizeItem = (item, fallbackDay) => ({
+        ...item,
+        day: item?.day || fallbackDay || data?.today?.day || data?.day,
+        player: item?.player || item?.name,
+        guesses: item?.guesses ?? item?.attempts ?? item?.score,
+        seconds: item?.seconds ?? item?.sec ?? item?.time ?? item?.avg_seconds ?? item?.total_seconds
+      });
+
       const direct = Array.isArray(data?.dailyHighscores) ? data.dailyHighscores : null;
-      if(direct && direct.length) return direct;
+      if(direct && direct.length) return direct.map(item => normalizeItem(item));
 
       const snake = Array.isArray(data?.daily_highscores) ? data.daily_highscores : null;
-      if(snake && snake.length) return snake;
+      if(snake && snake.length) return snake.map(item => normalizeItem(item));
 
       const mapObj = data?.dailyHighscores && typeof data.dailyHighscores === 'object' ? data.dailyHighscores : null;
       if(mapObj){
-        return Object.entries(mapObj).map(([day, v]) => ({
-          day,
-          player: v?.player,
-          guesses: v?.guesses ?? v?.attempts ?? v?.score,
-          seconds: v?.seconds ?? v?.sec ?? v?.time
-        }));
+        return Object.entries(mapObj).map(([day, v]) => normalizeItem(v, day));
       }
 
       const fallback = Array.isArray(data?.leaderboard) ? data.leaderboard : [];
-      return fallback;
+      return fallback.map(item => normalizeItem(item));
     }
 
     function renderServerLeaderboard(items){
@@ -937,7 +940,7 @@ if (it.name === lastLeaderboardPlayer) {
 
         const tdTime = document.createElement("td");
         tdTime.className = "mono";
-        const seconds = Number(it.seconds ?? it.sec ?? it.time);
+        const seconds = Number(it.seconds ?? it.sec ?? it.time ?? it.avg_seconds ?? it.total_seconds);
         const timeText = Number.isFinite(seconds) && seconds >= 0 ? formatTime(Math.floor(seconds)) : "—";
         const dayText = String(it.day || "—");
         tdTime.textContent = `${timeText} · ${dayText}`;
@@ -962,8 +965,8 @@ if (it.name === lastLeaderboardPlayer) {
             const aguesses = Number(a.guesses ?? a.attempts ?? a.score) || 99;
             const bguesses = Number(b.guesses ?? b.attempts ?? b.score) || 99;
             if(aguesses !== bguesses) return aguesses - bguesses;
-            const asec = Number(a.seconds ?? a.sec ?? a.time);
-            const bsec = Number(b.seconds ?? b.sec ?? b.time);
+            const asec = Number(a.seconds ?? a.sec ?? a.time ?? a.avg_seconds ?? a.total_seconds);
+            const bsec = Number(b.seconds ?? b.sec ?? b.time ?? b.avg_seconds ?? b.total_seconds);
             const atie = Number.isFinite(asec) ? asec : 999999;
             const btie = Number.isFinite(bsec) ? bsec : 999999;
             if(atie !== btie) return atie - btie;

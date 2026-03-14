@@ -357,11 +357,11 @@
             <tr>
               <th style="width:44px;">#</th>
               <th>Player</th>
-              <th style="width:72px;">Result</th>
-              <th style="width:86px;">Time</th>
+              <th id="lbCol3" style="width:72px;">Result</th>
+              <th id="lbCol4" style="width:86px;">Time</th>
             </tr>
           </thead>
-          <tbody id="lbBody"></tbody>
+          <tbody id="leaderboard"></tbody>
         </table>
 
         <div class="note">
@@ -375,6 +375,7 @@
   <script>
 let gameStartTime = Date.now();
 let gameCompletionLogged = false;
+let wordleScoreSent = false;
 
 function logEvent(params) {
   navigator.sendBeacon('/gping?' + new URLSearchParams(params));
@@ -395,6 +396,26 @@ function logCompletion() {
     game: 'wordle',
     dur: bucket
   });
+}
+
+function sendWordleScore(player, score, seconds) {
+  // Send a dedicated score beacon with clear query parameters so nginx logs
+  // can capture per-game Wordle outcomes without changing existing analytics.
+  const params = new URLSearchParams({
+    event: 'wordle_score',
+    player: String(player || ''),
+    score: String(score),
+    seconds: String(seconds),
+    day: localDateId()
+  });
+
+  navigator.sendBeacon('/gping?' + params.toString());
+}
+
+function sendWordleScoreOnce(player, score, seconds) {
+  if (wordleScoreSent) return;
+  wordleScoreSent = true;
+  sendWordleScore(player, score, seconds);
 }
 
 logEvent({ event: 'start', game: 'wordle' });
@@ -608,7 +629,9 @@ function loadDayStore(dateId){
     const elTimer = document.getElementById("timer");
     const elGrid = document.getElementById("grid");
     const elLBTitle = document.getElementById("lbTitle");
-    const elLBBody = document.getElementById("lbBody");
+    const elLBBody = document.getElementById("leaderboard");
+    const elLBCol3 = document.getElementById("lbCol3");
+    const elLBCol4 = document.getElementById("lbCol4");
 
     const kbd1 = document.getElementById("kbd1");
     const kbd2 = document.getElementById("kbd2");
@@ -645,6 +668,7 @@ function resetGameState(){
   done = false;
   won = false;
   active = false;
+  wordleScoreSent = false;
 
   // Timing
   elapsedSec = 0;
@@ -782,7 +806,7 @@ function currentWordId(){
       });
     }
 
-    function renderLeaderboard(){
+    function renderLocalLeaderboard(){
       const items = (store.leaderboard || []).slice();
 
       // Sort: wins first, then attempts, then time, then name
@@ -835,7 +859,8 @@ if (it.name === lastLeaderboardPlayer) {
 
         const tdRes = document.createElement("td");
         tdRes.className = "mono";
-        tdRes.textContent = it.result === "W" ? `${it.attempts}/6` : "X/6";
+        const score = Number(it.score ?? (it.result === "W" ? it.attempts : MAX_ROWS));
+        tdRes.textContent = Number.isFinite(score) && score > 0 ? `${score}/6` : "X/6";
         tr.appendChild(tdRes);
 
         const tdTime = document.createElement("td");
@@ -845,6 +870,115 @@ if (it.name === lastLeaderboardPlayer) {
 
         elLBBody.appendChild(tr);
       });
+    }
+
+    function setLeaderboardColumns(col3, col4){
+      elLBCol3.textContent = col3;
+      elLBCol4.textContent = col4;
+    }
+
+    function normalizeDailyHighscores(data){
+      const direct = Array.isArray(data?.dailyHighscores) ? data.dailyHighscores : null;
+      if(direct && direct.length) return direct;
+
+      const snake = Array.isArray(data?.daily_highscores) ? data.daily_highscores : null;
+      if(snake && snake.length) return snake;
+
+      const mapObj = data?.dailyHighscores && typeof data.dailyHighscores === 'object' ? data.dailyHighscores : null;
+      if(mapObj){
+        return Object.entries(mapObj).map(([day, v]) => ({
+          day,
+          player: v?.player,
+          score: v?.score ?? v?.guesses,
+          seconds: v?.seconds
+        }));
+      }
+
+      const fallback = Array.isArray(data?.leaderboard) ? data.leaderboard : [];
+      return fallback;
+    }
+
+    function renderServerLeaderboard(items){
+      setLeaderboardColumns('Score', 'Time / Day');
+      elLBBody.innerHTML = "";
+      if(items.length === 0){
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.style.color = "var(--muted)";
+        td.style.padding = "12px 8px";
+        td.textContent = "No server results available.";
+        tr.appendChild(td);
+        elLBBody.appendChild(tr);
+        return;
+      }
+
+      items.slice(0, 50).forEach((it, idx) => {
+        const tr = document.createElement("tr");
+        const tdRank = document.createElement("td");
+        tdRank.textContent = String(idx + 1);
+        tdRank.style.color = "var(--muted)";
+        tr.appendChild(tdRank);
+
+        const tdName = document.createElement("td");
+        tdName.textContent = String(it.player || it.name || "-");
+        tr.appendChild(tdName);
+
+        const tdScore = document.createElement("td");
+        tdScore.className = "mono";
+        const score = Number(it.score ?? it.guesses);
+        tdScore.textContent = Number.isFinite(score) && score > 0 ? `${score}/6` : "X/6";
+        tr.appendChild(tdScore);
+
+        const tdTime = document.createElement("td");
+        tdTime.className = "mono";
+        const seconds = Number(it.seconds);
+        const timeText = Number.isFinite(seconds) && seconds >= 0 ? formatTime(Math.floor(seconds)) : "—";
+        const dayText = String(it.day || "—");
+        tdTime.textContent = `${timeText} · ${dayText}`;
+        tr.appendChild(tdTime);
+
+        elLBBody.appendChild(tr);
+      });
+    }
+
+    async function loadLeaderboard(){
+      // Load server-aggregated daily highscores generated from /gping logs and
+      // render attempt-based scores when available.
+      try {
+        const r = await fetch('/stats/wordle-leaderboard.json', { cache: 'no-store' });
+        if(!r.ok) throw new Error('Leaderboard fetch failed');
+        const data = await r.json();
+        const dailyHighscores = normalizeDailyHighscores(data)
+          .slice()
+          .sort((a,b) => {
+            const dayCmp = String(b.day || '').localeCompare(String(a.day || ''));
+            if(dayCmp !== 0) return dayCmp;
+            const ascore = Number(a.score ?? a.guesses) || 99;
+            const bscore = Number(b.score ?? b.guesses) || 99;
+            if(ascore !== bscore) return ascore - bscore;
+            const asec = Number(a.seconds);
+            const bsec = Number(b.seconds);
+            const atie = Number.isFinite(asec) ? asec : 999999;
+            const btie = Number.isFinite(bsec) ? bsec : 999999;
+            if(atie !== btie) return atie - btie;
+            return String(a.player || a.name || "").localeCompare(String(b.player || b.name || ""));
+          });
+
+        if(dailyHighscores.length > 0){
+          renderServerLeaderboard(dailyHighscores);
+          return;
+        }
+      } catch(_err) {
+        // Fall back to local leaderboard when server JSON is unavailable.
+      }
+
+      setLeaderboardColumns('Score', 'Time');
+      renderLocalLeaderboard();
+    }
+
+    function renderLeaderboard(){
+      void loadLeaderboard();
     }
 
     function resetKeyState(){
@@ -979,7 +1113,8 @@ if (it.name === lastLeaderboardPlayer) {
         name,
         result,          // "W" or "L"
         attempts: result === "W" ? attempts : null,
-        seconds: result === "W" ? seconds : null
+        seconds: result === "W" ? seconds : null,
+        score: result === "W" ? attempts : MAX_ROWS
       };
 
       if(idx === -1){
@@ -1092,6 +1227,7 @@ if (!isValidWord(guess)) {
         stopTimer();
         const totalSec = currentElapsed();
         const attempts = row + 1;
+        sendWordleScoreOnce(player, attempts, totalSec);
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
 setStatus(`Solved in ${attempts}/6. Next player: enter your name.`);
@@ -1105,6 +1241,7 @@ resetGameState();
       if(row === MAX_ROWS - 1){
         done = true; won = false;
         stopTimer();
+        sendWordleScoreOnce(player, MAX_ROWS, currentElapsed());
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
 setStatus("No more guesses. Next player: enter your name.");
@@ -1134,6 +1271,8 @@ setStatus(`Playing as ${player}. ${MAX_ROWS - row} guesses remaining.`);
       done = true;
       won = false;
       stopTimer();
+      const guesses = Math.min(MAX_ROWS, Math.max(1, row + 1));
+      sendWordleScoreOnce(player, guesses, currentElapsed());
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
 setStatus("Gave up. Next player: enter your name.");

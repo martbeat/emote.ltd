@@ -398,23 +398,24 @@ function logCompletion() {
   });
 }
 
-function sendWordleScore(player, score) {
+function sendWordleScore(player, score, seconds) {
   // Send a dedicated score beacon with clear query parameters so nginx logs
   // can capture per-game Wordle outcomes without changing existing analytics.
   const params = new URLSearchParams({
     event: 'wordle_score',
     player: String(player || ''),
     score: String(score),
+    seconds: String(seconds),
     day: localDateId()
   });
 
   navigator.sendBeacon('/gping?' + params.toString());
 }
 
-function sendWordleScoreOnce(player, score) {
+function sendWordleScoreOnce(player, score, seconds) {
   if (wordleScoreSent) return;
   wordleScoreSent = true;
-  sendWordleScore(player, score);
+  sendWordleScore(player, score, seconds);
 }
 
 logEvent({ event: 'start', game: 'wordle' });
@@ -888,7 +889,8 @@ if (it.name === lastLeaderboardPlayer) {
         return Object.entries(mapObj).map(([day, v]) => ({
           day,
           player: v?.player,
-          score: v?.score ?? v?.guesses
+          score: v?.score ?? v?.guesses,
+          seconds: v?.seconds
         }));
       }
 
@@ -897,7 +899,7 @@ if (it.name === lastLeaderboardPlayer) {
     }
 
     function renderServerLeaderboard(items){
-      setLeaderboardColumns('Score', 'Day');
+      setLeaderboardColumns('Score', 'Time / Day');
       elLBBody.innerHTML = "";
       if(items.length === 0){
         const tr = document.createElement("tr");
@@ -928,10 +930,13 @@ if (it.name === lastLeaderboardPlayer) {
         tdScore.textContent = Number.isFinite(score) && score > 0 ? `${score}/6` : "X/6";
         tr.appendChild(tdScore);
 
-        const tdDay = document.createElement("td");
-        tdDay.className = "mono";
-        tdDay.textContent = String(it.day || "—");
-        tr.appendChild(tdDay);
+        const tdTime = document.createElement("td");
+        tdTime.className = "mono";
+        const seconds = Number(it.seconds);
+        const timeText = Number.isFinite(seconds) && seconds >= 0 ? formatTime(Math.floor(seconds)) : "—";
+        const dayText = String(it.day || "—");
+        tdTime.textContent = `${timeText} · ${dayText}`;
+        tr.appendChild(tdTime);
 
         elLBBody.appendChild(tr);
       });
@@ -952,6 +957,11 @@ if (it.name === lastLeaderboardPlayer) {
             const ascore = Number(a.score ?? a.guesses) || 99;
             const bscore = Number(b.score ?? b.guesses) || 99;
             if(ascore !== bscore) return ascore - bscore;
+            const asec = Number(a.seconds);
+            const bsec = Number(b.seconds);
+            const atie = Number.isFinite(asec) ? asec : 999999;
+            const btie = Number.isFinite(bsec) ? bsec : 999999;
+            if(atie !== btie) return atie - btie;
             return String(a.player || a.name || "").localeCompare(String(b.player || b.name || ""));
           });
 
@@ -1217,7 +1227,7 @@ if (!isValidWord(guess)) {
         stopTimer();
         const totalSec = currentElapsed();
         const attempts = row + 1;
-        sendWordleScoreOnce(player, attempts);
+        sendWordleScoreOnce(player, attempts, totalSec);
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
 setStatus(`Solved in ${attempts}/6. Next player: enter your name.`);
@@ -1231,7 +1241,7 @@ resetGameState();
       if(row === MAX_ROWS - 1){
         done = true; won = false;
         stopTimer();
-        sendWordleScoreOnce(player, MAX_ROWS);
+        sendWordleScoreOnce(player, MAX_ROWS, currentElapsed());
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
 setStatus("No more guesses. Next player: enter your name.");
@@ -1262,7 +1272,7 @@ setStatus(`Playing as ${player}. ${MAX_ROWS - row} guesses remaining.`);
       won = false;
       stopTimer();
       const guesses = Math.min(MAX_ROWS, Math.max(1, row + 1));
-      sendWordleScoreOnce(player, guesses);
+      sendWordleScoreOnce(player, guesses, currentElapsed());
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
 setStatus("Gave up. Next player: enter your name.");

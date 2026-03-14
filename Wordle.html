@@ -651,6 +651,19 @@ function loadDayStore(dateId){
       return `${pad2(m)}:${pad2(s)}`;
     }
 
+    function formatDayDdMm(day){
+      const raw = String(day || "").trim();
+      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(m) return `${m[3]}/${m[2]}`;
+
+      const d = new Date(raw);
+      if(!Number.isNaN(d.getTime())){
+        return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+      }
+
+      return raw || "—";
+    }
+
 function hasPlayedToday(name){
   return store.leaderboard.some(r => r.name === name);
 }
@@ -942,7 +955,7 @@ if (it.name === lastLeaderboardPlayer) {
         tdTime.className = "mono";
         const seconds = Number(it.seconds ?? it.sec ?? it.time ?? it.avg_seconds ?? it.total_seconds);
         const timeText = Number.isFinite(seconds) && seconds >= 0 ? formatTime(Math.floor(seconds)) : "—";
-        const dayText = String(it.day || "—");
+        const dayText = formatDayDdMm(it.day);
         tdTime.textContent = `${timeText} · ${dayText}`;
         tr.appendChild(tdTime);
 

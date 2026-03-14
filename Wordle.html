@@ -404,7 +404,7 @@ function sendWordleScore(player, score, seconds) {
   const params = new URLSearchParams({
     event: 'wordle_score',
     player: String(player || ''),
-    score: String(score),
+    guesses: String(score),
     seconds: String(seconds),
     day: localDateId()
   });

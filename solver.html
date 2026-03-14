@@ -227,6 +227,17 @@
           </div>
         </div>
 
+        <div class="row">
+          <div class="field-wide">
+            <label for="answerMode">Answer list mode</label>
+            <select id="answerMode">
+              <option value="official">Official Wordle answers</option>
+              <option value="fair">All valid words (no answer list)</option>
+              <option value="hard" selected>Hard mode guesses only</option>
+            </select>
+          </div>
+        </div>
+
         <div class="btns">
           <button class="btn-primary" id="applyBtn">Apply clue</button>
           <button class="btn-secondary" id="recalcBtn">Recalculate</button>
@@ -243,6 +254,7 @@
 
         <div class="pills">
           <span class="pill">Worker pool size: <strong id="poolSize">0</strong></span>
+          <span class="pill">Answer mode: <strong id="answerModeLabel">Hard</strong></span>
           <span class="pill">Answers: <strong id="answerCount">0</strong></span>
           <span class="pill">Guesses: <strong id="guessCount">0</strong></span>
           <span class="pill">Source: <strong id="sourceName">-</strong></span>

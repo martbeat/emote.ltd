@@ -18,7 +18,8 @@ const state = {
   nextRequestId: 1,
   pending: new Map(),
   lastRanking: [],
-  workerReady: false
+  workerReady: false,
+  answerMode: "hard"
 };
 
 const ui = {
@@ -26,6 +27,7 @@ const ui = {
   guessInput: document.getElementById("guessInput"),
   patternInput: document.getElementById("patternInput"),
   modeSelect: document.getElementById("modeSelect"),
+  answerMode: document.getElementById("answerMode"),
   applyBtn: document.getElementById("applyBtn"),
   recalcBtn: document.getElementById("recalcBtn"),
   undoBtn: document.getElementById("undoBtn"),
@@ -45,12 +47,24 @@ const ui = {
   simulationOutput: document.getElementById("simulationOutput"),
   answerCount: document.getElementById("answerCount"),
   guessCount: document.getElementById("guessCount"),
-  sourceName: document.getElementById("sourceName")
+  sourceName: document.getElementById("sourceName"),
+  answerModeLabel: document.getElementById("answerModeLabel")
 };
 
 function setStatus(message, kind = "info") {
   ui.status.textContent = message;
   ui.status.dataset.kind = kind;
+}
+
+
+function getAnswerModeLabel(mode) {
+  if (mode === "official") return "Official";
+  if (mode === "fair") return "Fair";
+  return "Hard";
+}
+
+function getGuessPool() {
+  return state.answerMode === "hard" ? state.candidates : state.guesses;
 }
 
 function renderTiles(word) {
@@ -99,6 +113,7 @@ function updateStats(best = null, poolSize = 0) {
   ui.poolSize.textContent = String(poolSize || 0);
   ui.answerCount.textContent = String(state.answers.length);
   ui.guessCount.textContent = String(state.guesses.length);
+  ui.answerModeLabel.textContent = getAnswerModeLabel(state.answerMode);
 
   if (!best) {
     ui.bestGuess.textContent = "-";
@@ -175,9 +190,11 @@ async function recalcRecommendations() {
   }
 
   setStatus("Calculating recommendations…", "working");
-  const forceMode = ui.modeSelect.value;
+  const forceMode = state.answerMode === "hard" ? "candidates" : ui.modeSelect.value;
+  const guessPool = getGuessPool();
   const result = await callWorker("rank", {
     candidates: state.candidates,
+    guesses: guessPool,
     limit: 10,
     forceMode
   });
@@ -196,8 +213,19 @@ async function recalcRecommendations() {
 }
 
 function resetState() {
-  const next = buildDefaultHistoryState(state.answers);
-  state.candidates = next.candidates;
+  if (state.answerMode === "official") {
+    state.candidates = [...state.answers];
+  }
+
+  if (state.answerMode === "fair") {
+    state.candidates = [...state.guesses];
+  }
+
+  if (state.answerMode === "hard") {
+    state.candidates = [...state.answers];
+  }
+
+  const next = buildDefaultHistoryState(state.candidates);
   state.history = next.history;
   ui.simulationOutput.innerHTML = "";
 }
@@ -227,8 +255,9 @@ async function applyClue() {
 
 async function undoClue() {
   if (!state.history.length) return;
-  state.history.pop();
-  state.candidates = [...state.answers];
+  const nextHistory = state.history.slice(0, -1);
+  resetState();
+  state.history = nextHistory;
 
   for (const step of state.history) {
     state.candidates = filterCandidates(state.candidates, step.guess, encodePatternString(step.pattern));
@@ -305,6 +334,7 @@ async function initialise() {
     state.answers = loaded.answers;
     state.guesses = loaded.guesses;
     ui.sourceName.textContent = loaded.source || "WORDS / local cache / remote list";
+    state.answerMode = ui.answerMode.value || "hard";
     resetState();
     renderHistory();
 
@@ -336,6 +366,12 @@ ui.resetBtn.addEventListener("click", () => {
   recalcRecommendations().catch(err => setStatus(err.message, "error"));
 });
 ui.simulateBtn.addEventListener("click", () => runSimulation().catch(err => setStatus(err.message, "error")));
+ui.answerMode.addEventListener("change", () => {
+  state.answerMode = ui.answerMode.value;
+  resetState();
+  renderHistory();
+  recalcRecommendations().catch(err => setStatus(err.message, "error"));
+});
 
 ui.patternInput.addEventListener("input", (e) => {
   e.target.value = normaliseWord(e.target.value).replace(/[^byg]/g, "").slice(0, 5);

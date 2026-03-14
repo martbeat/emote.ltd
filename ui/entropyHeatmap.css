@@ -1,0 +1,29 @@
+.entropy-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+.entropy-cell {
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  color: #111;
+}
+
+.entropy-low { background: #f87171; }
+.entropy-mid { background: #fde047; }
+.entropy-high { background: #4ade80; }
+
+.entropy-word { font-weight: 700; letter-spacing: 0.03em; }
+.entropy-value { opacity: 0.85; }
+
+.entropy-heatmap-empty {
+  padding: 8px;
+  font-size: 13px;
+  color: #666;
+}

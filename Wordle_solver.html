@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle Solver</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --line: #334155;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --black: #475569;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #020617, var(--bg));
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { color: var(--muted); line-height: 1.5; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 20px;
+    }
+    .card {
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .field { grid-column: span 4; }
+    .field-wide { grid-column: span 6; }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 12px;
+      font-size: 14px;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: Consolas, Monaco, monospace;
+    }
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+    button:hover { opacity: 0.95; }
+    button:active { transform: translateY(1px); }
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .btn-primary { background: #2563eb; }
+    .btn-secondary { background: #374151; }
+    .btn-danger { background: #7f1d1d; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .stat {
+      background: #0b1220;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .stat .k {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stat .v {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .table th, .table td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    .table th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .tiles {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .tile {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .g { background: var(--green); }
+    .y { background: var(--yellow); color: #111827; }
+    .b { background: var(--black); }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      margin-right: 6px;
+    }
+    .ok { color: #86efac; }
+    .warn { color: #fca5a5; }
+    .mono { font-family: Consolas, Monaco, monospace; }
+    .subtle { color: var(--muted); font-size: 13px; }
+    @media (max-width: 960px) {
+      .grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .field, .field-wide { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Wordle Solver</h1>
+    <p>
+      A client-side entropy-based solver. It filters candidate answers using only your guess and the
+      resulting green/yellow/black pattern, then ranks the next best guesses by expected information.
+    </p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Solver</h2>
+        <p class="subtle">
+          Pattern format: use <span class="pill">g</span> for green, <span class="pill">y</span> for yellow,
+          <span class="pill">b</span> for black/grey. Example: <span class="mono">bbyyg</span>
+        </p>
+
+        <div class="row">
+          <div class="field">
+            <label for="guessInput">Guess</label>
+            <input id="guessInput" maxlength="5" placeholder="crane" />
+          </div>
+          <div class="field">
+            <label for="patternInput">Pattern</label>
+            <input id="patternInput" maxlength="5" placeholder="bbyyg" />
+          </div>
+          <div class="field">
+            <label for="modeSelect">Guess scoring pool</label>
+            <select id="modeSelect">
+              <option value="all">All allowed guesses</option>
+              <option value="candidates">Remaining candidates only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="btn-primary" id="applyBtn">Apply clue</button>
+          <button class="btn-secondary" id="recommendBtn">Recalculate</button>
+          <button class="btn-secondary" id="undoBtn">Undo</button>
+          <button class="btn-danger" id="resetBtn">Reset</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="k">Possible answers</div><div class="v" id="remainingCount">0</div></div>
+          <div class="stat"><div class="k">Best guess</div><div class="v" id="bestGuess">-</div></div>
+          <div class="stat"><div class="k">Entropy</div><div class="v" id="bestEntropy">-</div></div>
+          <div class="stat"><div class="k">Expected left</div><div class="v" id="bestExpected">-</div></div>
+        </div>
+
+        <div id="bestGuessTiles" class="tiles"></div>
+
+        <h3 style="margin-top:18px;">History</h3>
+        <table class="table" id="historyTable">
+          <thead>
+            <tr><th>#</th><th>Guess</th><th>Pattern</th><th>Remaining</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 style="margin-top:18px;">Top ranked guesses</h3>
+        <table class="table" id="rankingTable">
+          <thead>
+            <tr><th>#</th><th>Guess</th><th>Entropy</th><th>Expected left</th><th>Is answer?</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Dictionary and tools</h2>
+        <p class="subtle">
+          By default, this page will try to use global arrays already present in your site such as
+          <span class="mono">ANSWERS</span>, <span class="mono">GUESSES</span>,
+          <span class="mono">WORDLE_ANSWERS</span>, or <span class="mono">WORDLE_GUESSES</span>.
+          You can also paste lists manually below.
+        </p>
+
+        <div class="row">
+          <div class="field-wide">
+            <label for="answersInput">Answers list (optional paste, one word per line or comma-separated)</label>
+            <textarea id="answersInput" placeholder="cigar\nrebut\nsissy"></textarea>
+          </div>
+          <div class="field-wide">
+            <label for="guessesInput">Allowed guesses list (optional paste, one word per line or comma-separated)</label>
+            <textarea id="guessesInput" placeholder="cigar\nrebut\nsissy\ncrane\nslate"></textarea>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="btn-primary" id="loadListsBtn">Load pasted lists</button>
+          <button class="btn-secondary" id="useGlobalsBtn">Use global arrays</button>
+        </div>
+
+        <div style="margin-top:14px;">
+          <span class="pill" id="answersStatus">Answers: not loaded</span>
+          <span class="pill" id="guessesStatus">Guesses: not loaded</span>
+          <span class="pill" id="cacheStatus">Pattern cache: 0</span>
+        </div>
+
+        <h3 style="margin-top:18px;">Auto-solve simulation</h3>
+        <p class="subtle">
+          Test the solver against a sample of possible answers and see how many guesses it needs on average.
+          Useful for comparing opening words and solver modes.
+        </p>
+        <div class="row">
+          <div class="field">
+            <label for="openingWordInput">Opening word</label>
+            <input id="openingWordInput" maxlength="5" placeholder="slate" />
+          </div>
+          <div class="field">
+            <label for="simulationCountInput">Sample size</label>
+            <input id="simulationCountInput" type="number" min="1" max="500" value="100" />
+          </div>
+          <div class="field">
+            <label for="hardModeSelect">Evaluation mode</label>
+            <select id="hardModeSelect">
+              <option value="all">All allowed guesses</option>
+              <option value="candidates">Remaining candidates only</option>
+            </select>
+          </div>
+        </div>
+        <div class="btns">
+          <button class="btn-primary" id="simulateBtn">Run simulation</button>
+        </div>
+        <div id="simulationOutput" style="margin-top: 14px;"></div>
+
+        <h3 style="margin-top:18px;">Codex prompt</h3>
+        <textarea id="codexPrompt" readonly></textarea>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      answers: [],
+      guesses: [],
+      candidates: [],
+      history: [],
+      scoreCache: new Map(),
+      lastRanking: []
+    };
+
+    const ui = {
+      guessInput: document.getElementById('guessInput'),
+      patternInput: document.getElementById('patternInput'),
+      modeSelect: document.getElementById('modeSelect'),
+      remainingCount: document.getElementById('remainingCount'),
+      bestGuess: document.getElementById('bestGuess'),
+      bestEntropy: document.getElementById('bestEntropy'),
+      bestExpected: document.getElementById('bestExpected'),
+      bestGuessTiles: document.getElementById('bestGuessTiles'),
+      historyTableBody: document.querySelector('#historyTable tbody'),
+      rankingTableBody: document.querySelector('#rankingTable tbody'),
+      answersInput: document.getElementById('answersInput'),
+      guessesInput: document.getElementById('guessesInput'),
+      answersStatus: document.getElementById('answersStatus'),
+      guessesStatus: document.getElementById('guessesStatus'),
+      cacheStatus: document.getElementById('cacheStatus'),
+      openingWordInput: document.getElementById('openingWordInput'),
+      simulationCountInput: document.getElementById('simulationCountInput'),
+      hardModeSelect: document.getElementById('hardModeSelect'),
+      simulationOutput: document.getElementById('simulationOutput'),
+      codexPrompt: document.getElementById('codexPrompt')
+    };
+
+    const CODEX_PROMPT = `Create a browser-based Wordle solver in a single HTML file using HTML, CSS and vanilla JavaScript.\n\nRequirements:\n- The solver must use two arrays already available in local variables or globals: ANSWERS and GUESSES.\n- It should also support fallback names WORDLE_ANSWERS and WORDLE_GUESSES.\n- The user enters a guess word and a 5-character pattern using g, y and b.\n- The solver filters candidate answers using exact Wordle duplicate-letter rules.\n- It ranks the next best guesses using expected information / Shannon entropy.\n- Display the best guess, top 10 guesses, entropy, expected remaining candidates and current candidate count.\n- Include history, reset and undo.\n- Add an auto-solve simulation mode that tests many answers and reports average guesses.\n- Run fully client-side.\n- Optimise with caching of guess-answer pattern results.\n- Keep the code readable and commented.`;
+
+    function normaliseWord(word) {
+      return String(word || '').trim().toLowerCase();
+    }
+
+    function parseWordList(raw) {
+      return [...new Set(
+        String(raw || '')
+          .toLowerCase()
+          .split(/[^a-z]+/)
+          .map(w => w.trim())
+          .filter(w => w.length === 5)
+      )];
+    }
+
+    function getGlobalWordLists() {
+      const answers = window.ANSWERS || window.WORDLE_ANSWERS || window.wordleAnswers || [];
+      const guesses = window.GUESSES || window.WORDLE_GUESSES || window.wordleGuesses || answers || [];
+      return {
+        answers: Array.isArray(answers) ? answers.map(normaliseWord).filter(w => w.length === 5) : [],
+        guesses: Array.isArray(guesses) ? guesses.map(normaliseWord).filter(w => w.length === 5) : []
+      };
+    }
+
+    function scoreGuess(guess, answer) {
+      const key = guess + '|' + answer;
+      if (state.scoreCache.has(key)) return state.scoreCache.get(key);
+
+      const result = ['b', 'b', 'b', 'b', 'b'];
+      const taken = [false, false, false, false, false];
+
+      for (let i = 0; i < 5; i++) {
+        if (guess[i] === answer[i]) {
+          result[i] = 'g';
+          taken[i] = true;
+        }
+      }
+
+      for (let i = 0; i < 5; i++) {
+        if (result[i] === 'g') continue;
+        for (let j = 0; j < 5; j++) {
+          if (!taken[j] && guess[i] === answer[j]) {
+            result[i] = 'y';
+            taken[j] = true;
+            break;
+          }
+        }
+      }
+
+      const pattern = result.join('');
+      state.scoreCache.set(key, pattern);
+      return pattern;
+    }
+
+    function filterCandidates(candidates, guess, pattern) {
+      return candidates.filter(answer => scoreGuess(guess, answer) === pattern);
+    }
+
+    function entropyForGuess(guess, candidates) {
+      const buckets = new Map();
+      for (const answer of candidates) {
+        const pattern = scoreGuess(guess, answer);
+        buckets.set(pattern, (buckets.get(pattern) || 0) + 1);
+      }
+
+      const total = candidates.length;
+      let entropy = 0;
+      let expectedLeft = 0;
+      let maxBucket = 0;
+
+      for (const count of buckets.values()) {
+        const p = count / total;
+        entropy -= p * Math.log2(p);
+        expectedLeft += p * count;
+        if (count > maxBucket) maxBucket = count;
+      }
+
+      return { entropy, expectedLeft, partitions: buckets.size, worstCase: maxBucket };
+    }
+
+    function rankGuesses(candidates, guesses, limit = 10) {
+      const ranked = [];
+      for (const guess of guesses) {
+        const info = entropyForGuess(guess, candidates);
+        ranked.push({
+          guess,
+          entropy: info.entropy,
+          expectedLeft: info.expectedLeft,
+          partitions: info.partitions,
+          worstCase: info.worstCase,
+          isCandidate: candidates.includes(guess)
+        });
+      }
+      ranked.sort((a, b) => {
+        if (b.entropy !== a.entropy) return b.entropy - a.entropy;
+        if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
+        if (a.isCandidate !== b.isCandidate) return a.isCandidate ? -1 : 1;
+        return a.guess.localeCompare(b.guess);
+      });
+      return ranked.slice(0, limit);
+    }
+
+    function getGuessPool() {
+      return ui.modeSelect.value === 'candidates' ? state.candidates : state.guesses;
+    }
+
+    function renderTiles(word) {
+      ui.bestGuessTiles.innerHTML = '';
+      if (!word || word === '-') return;
+      for (const ch of word) {
+        const span = document.createElement('span');
+        span.className = 'tile b';
+        span.textContent = ch;
+        ui.bestGuessTiles.appendChild(span);
+      }
+    }
+
+    function renderHistory() {
+      ui.historyTableBody.innerHTML = '';
+      state.history.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td class="mono">${item.guess}</td>
+          <td class="mono">${item.pattern}</td>
+          <td>${item.remaining}</td>
+        `;
+        ui.historyTableBody.appendChild(tr);
+      });
+    }
+
+    function renderRanking(rows) {
+      ui.rankingTableBody.innerHTML = '';
+      rows.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td class="mono">${row.guess}</td>
+          <td>${row.entropy.toFixed(3)}</td>
+          <td>${row.expectedLeft.toFixed(2)}</td>
+          <td>${row.isCandidate ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'}</td>
+        `;
+        ui.rankingTableBody.appendChild(tr);
+      });
+    }
+
+    function updateStatuses() {
+      ui.answersStatus.textContent = `Answers: ${state.answers.length}`;
+      ui.guessesStatus.textContent = `Guesses: ${state.guesses.length}`;
+      ui.cacheStatus.textContent = `Pattern cache: ${state.scoreCache.size}`;
+    }
+
+    function resetCandidates() {
+      state.candidates = [...state.answers];
+      state.history = [];
+      ui.simulationOutput.innerHTML = '';
+    }
+
+    function recalcRecommendations() {
+      if (!state.answers.length || !state.guesses.length) {
+        ui.bestGuess.textContent = '-';
+        ui.bestEntropy.textContent = '-';
+        ui.bestExpected.textContent = '-';
+        ui.remainingCount.textContent = '0';
+        renderTiles('-');
+        renderHistory();
+        renderRanking([]);
+        updateStatuses();
+        return;
+      }
+
+      ui.remainingCount.textContent = String(state.candidates.length);
+
+      if (state.candidates.length === 0) {
+        ui.bestGuess.textContent = 'none';
+        ui.bestEntropy.textContent = '0';
+        ui.bestExpected.textContent = '0';
+        renderTiles('-');
+        renderHistory();
+        renderRanking([]);
+        updateStatuses();
+        return;
+      }
+
+      if (state.candidates.length === 1) {
+        const only = state.candidates[0];
+        ui.bestGuess.textContent = only;
+        ui.bestEntropy.textContent = '0.000';
+        ui.bestExpected.textContent = '1.00';
+        renderTiles(only);
+        renderHistory();
+        renderRanking([{ guess: only, entropy: 0, expectedLeft: 1, isCandidate: true }]);
+        updateStatuses();
+        return;
+      }
+
+      const pool = getGuessPool();
+      const top = rankGuesses(state.candidates, pool, 10);
+      state.lastRanking = top;
+      const best = top[0];
+
+      ui.bestGuess.textContent = best ? best.guess : '-';
+      ui.bestEntropy.textContent = best ? best.entropy.toFixed(3) : '-';
+      ui.bestExpected.textContent = best ? best.expectedLeft.toFixed(2) : '-';
+      renderTiles(best ? best.guess : '-');
+      renderHistory();
+      renderRanking(top);
+      updateStatuses();
+    }
+
+    function validateGuessAndPattern(guess, pattern) {
+      guess = normaliseWord(guess);
+      pattern = normaliseWord(pattern);
+      if (!/^[a-z]{5}$/.test(guess)) return 'Guess must be exactly 5 letters.';
+      if (!/^[gyb]{5}$/.test(pattern)) return 'Pattern must be exactly 5 characters using only g, y or b.';
+      if (!state.guesses.includes(guess) && !state.answers.includes(guess)) return 'Guess is not in the loaded word lists.';
+      return '';
+    }
+
+    function applyClue() {
+      const guess = normaliseWord(ui.guessInput.value);
+      const pattern = normaliseWord(ui.patternInput.value);
+      const error = validateGuessAndPattern(guess, pattern);
+      if (error) {
+        alert(error);
+        return;
+      }
+      state.candidates = filterCandidates(state.candidates, guess, pattern);
+      state.history.push({ guess, pattern, remaining: state.candidates.length });
+      ui.guessInput.value = '';
+      ui.patternInput.value = '';
+      recalcRecommendations();
+    }
+
+    function undoLast() {
+      if (!state.history.length) return;
+      state.history.pop();
+      state.candidates = [...state.answers];
+      for (const step of state.history) {
+        state.candidates = filterCandidates(state.candidates, step.guess, step.pattern);
+        step.remaining = state.candidates.length;
+      }
+      recalcRecommendations();
+    }
+
+    function loadWordLists(answers, guesses) {
+      const cleanAnswers = [...new Set(answers.map(normaliseWord).filter(w => w.length === 5))];
+      let cleanGuesses = [...new Set(guesses.map(normaliseWord).filter(w => w.length === 5))];
+
+      if (!cleanAnswers.length) {
+        alert('No valid 5-letter answer words were found.');
+        return;
+      }
+      if (!cleanGuesses.length) cleanGuesses = [...cleanAnswers];
+      for (const answer of cleanAnswers) {
+        if (!cleanGuesses.includes(answer)) cleanGuesses.push(answer);
+      }
+
+      state.answers = cleanAnswers;
+      state.guesses = cleanGuesses;
+      resetCandidates();
+      recalcRecommendations();
+    }
+
+    function loadFromGlobals() {
+      const globalLists = getGlobalWordLists();
+      if (!globalLists.answers.length) {
+        alert('No global arrays were found. Either include this file after your Wordle dictionary scripts or paste lists manually.');
+        return;
+      }
+      loadWordLists(globalLists.answers, globalLists.guesses);
+    }
+
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function bestGuessFor(candidates, mode) {
+      if (candidates.length <= 1) return candidates[0] || null;
+      const pool = mode === 'candidates' ? candidates : state.guesses;
+      return rankGuesses(candidates, pool, 1)[0]?.guess || null;
+    }
+
+    function simulateOne(answer, openingWord, mode) {
+      let candidates = [...state.answers];
+      let guess = openingWord;
+      let steps = 0;
+      const seen = new Set();
+
+      while (steps < 10) {
+        steps += 1;
+        if (!guess || seen.has(guess)) {
+          guess = bestGuessFor(candidates, mode);
+        }
+        seen.add(guess);
+        const pattern = scoreGuess(guess, answer);
+        if (pattern === 'ggggg') return steps;
+        candidates = filterCandidates(candidates, guess, pattern);
+        guess = bestGuessFor(candidates, mode);
+      }
+      return 10;
+    }
+
+    function runSimulation() {
+      if (!state.answers.length || !state.guesses.length) {
+        alert('Load word lists first.');
+        return;
+      }
+      const openingWord = normaliseWord(ui.openingWordInput.value || ui.bestGuess.textContent);
+      const sampleSize = Math.max(1, Math.min(500, Number(ui.simulationCountInput.value || 100)));
+      const mode = ui.hardModeSelect.value;
+
+      if (!openingWord || openingWord.length !== 5 || (!state.guesses.includes(openingWord) && !state.answers.includes(openingWord))) {
+        alert('Opening word must be a valid loaded 5-letter word.');
+        return;
+      }
+
+      const sample = shuffleArray(state.answers).slice(0, Math.min(sampleSize, state.answers.length));
+      const dist = new Map();
+      let total = 0;
+      let failures = 0;
+
+      ui.simulationOutput.innerHTML = '<p class="subtle">Running simulation...</p>';
+      setTimeout(() => {
+        for (const answer of sample) {
+          const guessesNeeded = simulateOne(answer, openingWord, mode);
+          total += guessesNeeded;
+          dist.set(guessesNeeded, (dist.get(guessesNeeded) || 0) + 1);
+          if (guessesNeeded > 6) failures += 1;
+        }
+
+        const average = total / sample.length;
+        const rows = [...dist.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => {
+          const label = k > 6 ? '7+' : String(k);
+          return `<tr><td>${label}</td><td>${v}</td></tr>`;
+        }).join('');
+
+        ui.simulationOutput.innerHTML = `
+          <div class="stats">
+            <div class="stat"><div class="k">Opening word</div><div class="v mono">${openingWord}</div></div>
+            <div class="stat"><div class="k">Sample tested</div><div class="v">${sample.length}</div></div>
+            <div class="stat"><div class="k">Average guesses</div><div class="v">${average.toFixed(2)}</div></div>
+            <div class="stat"><div class="k">Over 6 guesses</div><div class="v">${failures}</div></div>
+          </div>
+          <table class="table" style="margin-top:14px;">
+            <thead><tr><th>Guesses</th><th>Count</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }, 20);
+    }
+
+    document.getElementById('applyBtn').addEventListener('click', applyClue);
+    document.getElementById('recommendBtn').addEventListener('click', recalcRecommendations);
+    document.getElementById('undoBtn').addEventListener('click', undoLast);
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      resetCandidates();
+      recalcRecommendations();
+    });
+    document.getElementById('loadListsBtn').addEventListener('click', () => {
+      loadWordLists(parseWordList(ui.answersInput.value), parseWordList(ui.guessesInput.value));
+    });
+    document.getElementById('useGlobalsBtn').addEventListener('click', loadFromGlobals);
+    document.getElementById('simulateBtn').addEventListener('click', runSimulation);
+
+    ui.patternInput.addEventListener('input', e => {
+      e.target.value = normaliseWord(e.target.value).replace(/[^gyb]/g, '').slice(0, 5);
+    });
+    ui.guessInput.addEventListener('input', e => {
+      e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, '').slice(0, 5);
+    });
+    ui.openingWordInput.addEventListener('input', e => {
+      e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, '').slice(0, 5);
+    });
+
+    ui.codexPrompt.value = CODEX_PROMPT;
+    recalcRecommendations();
+
+    // Optional auto-load from globals if the page is included after existing Wordle scripts.
+    try {
+      const globals = getGlobalWordLists();
+      if (globals.answers.length) {
+        loadWordLists(globals.answers, globals.guesses);
+      }
+    } catch (err) {
+      console.error('Auto-load failed', err);
+    }
+  </script>
+</body>
+</html>

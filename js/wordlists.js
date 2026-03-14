@@ -3,6 +3,16 @@ import { ANSWER_COUNT, uniqueWords } from "./solver-core.js";
 export const WORD_SOURCE_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words";
 export const WORD_CACHE_KEY = "dwl:words:v1";
 
+function getPreloadedWordLists() {
+  if (!window.WordleWordlists) return null;
+  const words = uniqueWords(window.WordleWordlists.WORDS);
+  if (words.length < ANSWER_COUNT) return null;
+  return {
+    words,
+    source: "WordleWordlists"
+  };
+}
+
 function readCachedWords() {
   const cached = localStorage.getItem(WORD_CACHE_KEY);
   if (!cached) return [];
@@ -33,14 +43,27 @@ function getWindowWords() {
 }
 
 export async function loadWordLists() {
+  const preloaded = getPreloadedWordLists();
+  if (preloaded) {
+    return {
+      words: preloaded.words,
+      answers: preloaded.words.slice(0, ANSWER_COUNT),
+      guesses: preloaded.words,
+      source: preloaded.source
+    };
+  }
+
   let words = getWindowWords();
+  let source = "window.WORDS";
 
   if (!words.length) {
     words = readCachedWords();
+    source = "localStorage";
   }
 
   if (!words.length) {
     words = await fetchWords();
+    source = "remote";
   }
 
   if (words.length < ANSWER_COUNT) {
@@ -50,6 +73,7 @@ export async function loadWordLists() {
   return {
     words,
     answers: words.slice(0, ANSWER_COUNT),
-    guesses: words
+    guesses: words,
+    source
   };
 }

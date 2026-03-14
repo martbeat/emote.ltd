@@ -304,7 +304,7 @@ async function initialise() {
     state.words = loaded.words;
     state.answers = loaded.answers;
     state.guesses = loaded.guesses;
-    ui.sourceName.textContent = "WORDS / local cache / remote list";
+    ui.sourceName.textContent = loaded.source || "WORDS / local cache / remote list";
     resetState();
     renderHistory();
 

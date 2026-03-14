@@ -49,33 +49,50 @@ export function encodePatternString(pattern) {
 }
 
 export function scoreGuessEncoded(guess, answer) {
-  guess = normaliseWord(guess);
-  answer = normaliseWord(answer);
 
-  const result = [0, 0, 0, 0, 0];
-  const used = [false, false, false, false, false];
+  guess = guess.toLowerCase();
+  answer = answer.toLowerCase();
 
+  const result = [0,0,0,0,0];   // 0=black, 1=yellow, 2=green
+  const answerLetters = answer.split("");
+  const guessLetters = guess.split("");
+
+  const used = [false,false,false,false,false];
+
+  // PASS 1 — greens
   for (let i = 0; i < 5; i++) {
-    if (guess[i] === answer[i]) {
+    if (guessLetters[i] === answerLetters[i]) {
       result[i] = 2;
       used[i] = true;
+      guessLetters[i] = null;
     }
   }
 
+  // PASS 2 — yellows
   for (let i = 0; i < 5; i++) {
+
     if (result[i] === 2) continue;
+
     for (let j = 0; j < 5; j++) {
-      if (!used[j] && guess[i] === answer[j]) {
+
+      if (!used[j] && guessLetters[i] === answerLetters[j]) {
         result[i] = 1;
         used[j] = true;
         break;
       }
+
     }
+
   }
 
-  return encodePatternArray(result);
-}
+  // encode base-3 pattern
+  let code = 0;
+  for (let i = 0; i < 5; i++) {
+    code = code * 3 + result[i];
+  }
 
+  return code;
+}
 export function filterCandidates(candidates, guess, encodedPattern) {
   const out = [];
   for (const candidate of candidates) {

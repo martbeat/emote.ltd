@@ -332,6 +332,9 @@
 
     const CODEX_PROMPT = `Create a browser-based Wordle solver in a single HTML file using HTML, CSS and vanilla JavaScript.\n\nRequirements:\n- The solver must use two arrays already available in local variables or globals: ANSWERS and GUESSES.\n- It should also support fallback names WORDLE_ANSWERS and WORDLE_GUESSES.\n- The user enters a guess word and a 5-character pattern using g, y and b.\n- The solver filters candidate answers using exact Wordle duplicate-letter rules.\n- It ranks the next best guesses using expected information / Shannon entropy.\n- Display the best guess, top 10 guesses, entropy, expected remaining candidates and current candidate count.\n- Include history, reset and undo.\n- Add an auto-solve simulation mode that tests many answers and reports average guesses.\n- Run fully client-side.\n- Optimise with caching of guess-answer pattern results.\n- Keep the code readable and commented.`;
 
+    const WORD_SOURCE_URL = 'https://raw.githubusercontent.com/tabatkins/wordle-list/main/words';
+    const WORD_CACHE_KEY = 'dwl:words:v1';
+
     function normaliseWord(word) {
       return String(word || '').trim().toLowerCase();
     }
@@ -344,6 +347,39 @@
           .map(w => w.trim())
           .filter(w => w.length === 5)
       )];
+    }
+
+    function getLocalWordleDictionary() {
+      const cached = localStorage.getItem(WORD_CACHE_KEY);
+      if (!cached) return [];
+      try {
+        const words = JSON.parse(cached);
+        if (!Array.isArray(words)) return [];
+        return [...new Set(words.map(normaliseWord).filter(w => /^[a-z]{5}$/.test(w)))];
+      } catch {
+        return [];
+      }
+    }
+
+    async function ensureLocalWordleDictionary() {
+      const cachedWords = getLocalWordleDictionary();
+      if (cachedWords.length > 1000) return cachedWords;
+
+      const res = await fetch(WORD_SOURCE_URL, { cache: 'force-cache' });
+      if (!res.ok) throw new Error('Word list download failed');
+
+      const text = await res.text();
+      const words = [...new Set(
+        text
+          .split('\n')
+          .map(normaliseWord)
+          .filter(w => /^[a-z]{5}$/.test(w))
+      )];
+
+      if (words.length < 1000) throw new Error('Downloaded word list too small');
+
+      localStorage.setItem(WORD_CACHE_KEY, JSON.stringify(words));
+      return words;
     }
 
     function getGlobalWordLists() {
@@ -595,10 +631,24 @@
       recalcRecommendations();
     }
 
-    function loadFromGlobals() {
+    async function loadFromGlobals() {
+      const localDictionary = getLocalWordleDictionary();
+      if (localDictionary.length > 1000) {
+        loadWordLists(localDictionary, localDictionary);
+        return;
+      }
+
+      try {
+        const createdDictionary = await ensureLocalWordleDictionary();
+        loadWordLists(createdDictionary, createdDictionary);
+        return;
+      } catch (err) {
+        console.warn('Could not build local dictionary cache', err);
+      }
+
       const globalLists = getGlobalWordLists();
       if (!globalLists.answers.length) {
-        alert('No global arrays were found. Either include this file after your Wordle dictionary scripts or paste lists manually.');
+        alert('No local dictionary or global arrays were found. Open Wordle.html once to seed the cache, or paste lists manually.');
         return;
       }
       loadWordLists(globalLists.answers, globalLists.guesses);
@@ -698,7 +748,9 @@
     document.getElementById('loadListsBtn').addEventListener('click', () => {
       loadWordLists(parseWordList(ui.answersInput.value), parseWordList(ui.guessesInput.value));
     });
-    document.getElementById('useGlobalsBtn').addEventListener('click', loadFromGlobals);
+    document.getElementById('useGlobalsBtn').addEventListener('click', () => {
+      loadFromGlobals();
+    });
     document.getElementById('simulateBtn').addEventListener('click', runSimulation);
 
     ui.patternInput.addEventListener('input', e => {
@@ -714,15 +766,10 @@
     ui.codexPrompt.value = CODEX_PROMPT;
     recalcRecommendations();
 
-    // Optional auto-load from globals if the page is included after existing Wordle scripts.
-    try {
-      const globals = getGlobalWordLists();
-      if (globals.answers.length) {
-        loadWordLists(globals.answers, globals.guesses);
-      }
-    } catch (err) {
+    // Optional auto-load from local Wordle dictionary cache (and then globals fallback).
+    loadFromGlobals().catch(err => {
       console.error('Auto-load failed', err);
-    }
+    });
   </script>
 </body>
 </html>

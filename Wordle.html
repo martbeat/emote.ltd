@@ -406,6 +406,11 @@ function sendWordleScore(player, guesses, seconds) {
     player: String(player || ''),
     guesses: String(guesses),
     seconds: String(seconds),
+    // Backward-compatible aliases for existing log parsers.
+    score: String(guesses),
+    attempts: String(guesses),
+    sec: String(seconds),
+    time: String(seconds),
     day: localDateId()
   });
 
@@ -889,8 +894,8 @@ if (it.name === lastLeaderboardPlayer) {
         return Object.entries(mapObj).map(([day, v]) => ({
           day,
           player: v?.player,
-          guesses: v?.guesses ?? v?.score,
-          seconds: v?.seconds
+          guesses: v?.guesses ?? v?.attempts ?? v?.score,
+          seconds: v?.seconds ?? v?.sec ?? v?.time
         }));
       }
 
@@ -926,13 +931,13 @@ if (it.name === lastLeaderboardPlayer) {
 
         const tdGuesses = document.createElement("td");
         tdGuesses.className = "mono";
-        const guesses = Number(it.guesses ?? it.score);
+        const guesses = Number(it.guesses ?? it.attempts ?? it.score);
         tdGuesses.textContent = Number.isFinite(guesses) && guesses > 0 ? `${guesses}/6` : "X/6";
         tr.appendChild(tdGuesses);
 
         const tdTime = document.createElement("td");
         tdTime.className = "mono";
-        const seconds = Number(it.seconds);
+        const seconds = Number(it.seconds ?? it.sec ?? it.time);
         const timeText = Number.isFinite(seconds) && seconds >= 0 ? formatTime(Math.floor(seconds)) : "—";
         const dayText = String(it.day || "—");
         tdTime.textContent = `${timeText} · ${dayText}`;
@@ -954,11 +959,11 @@ if (it.name === lastLeaderboardPlayer) {
           .sort((a,b) => {
             const dayCmp = String(b.day || '').localeCompare(String(a.day || ''));
             if(dayCmp !== 0) return dayCmp;
-            const aguesses = Number(a.guesses ?? a.score) || 99;
-            const bguesses = Number(b.guesses ?? b.score) || 99;
+            const aguesses = Number(a.guesses ?? a.attempts ?? a.score) || 99;
+            const bguesses = Number(b.guesses ?? b.attempts ?? b.score) || 99;
             if(aguesses !== bguesses) return aguesses - bguesses;
-            const asec = Number(a.seconds);
-            const bsec = Number(b.seconds);
+            const asec = Number(a.seconds ?? a.sec ?? a.time);
+            const bsec = Number(b.seconds ?? b.sec ?? b.time);
             const atie = Number.isFinite(asec) ? asec : 999999;
             const btie = Number.isFinite(bsec) ? bsec : 999999;
             if(atie !== btie) return atie - btie;

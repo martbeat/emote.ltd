@@ -357,8 +357,8 @@
             <tr>
               <th style="width:44px;">#</th>
               <th>Player</th>
-              <th style="width:72px;">Result</th>
-              <th style="width:86px;">Time</th>
+              <th id="lbCol3" style="width:72px;">Result</th>
+              <th id="lbCol4" style="width:86px;">Time</th>
             </tr>
           </thead>
           <tbody id="leaderboard"></tbody>
@@ -630,6 +630,8 @@ function loadDayStore(dateId){
     const elGrid = document.getElementById("grid");
     const elLBTitle = document.getElementById("lbTitle");
     const elLBBody = document.getElementById("leaderboard");
+    const elLBCol3 = document.getElementById("lbCol3");
+    const elLBCol4 = document.getElementById("lbCol4");
 
     const kbd1 = document.getElementById("kbd1");
     const kbd2 = document.getElementById("kbd2");
@@ -869,7 +871,34 @@ if (it.name === lastLeaderboardPlayer) {
       });
     }
 
+    function setLeaderboardColumns(col3, col4){
+      elLBCol3.textContent = col3;
+      elLBCol4.textContent = col4;
+    }
+
+    function normalizeDailyHighscores(data){
+      const direct = Array.isArray(data?.dailyHighscores) ? data.dailyHighscores : null;
+      if(direct && direct.length) return direct;
+
+      const snake = Array.isArray(data?.daily_highscores) ? data.daily_highscores : null;
+      if(snake && snake.length) return snake;
+
+      const mapObj = data?.dailyHighscores && typeof data.dailyHighscores === 'object' ? data.dailyHighscores : null;
+      if(mapObj){
+        return Object.entries(mapObj).map(([day, v]) => ({
+          day,
+          player: v?.player,
+          guesses: v?.guesses,
+          seconds: v?.seconds
+        }));
+      }
+
+      const fallback = Array.isArray(data?.leaderboard) ? data.leaderboard : [];
+      return fallback;
+    }
+
     function renderServerLeaderboard(items){
+      setLeaderboardColumns('Guesses', 'Day');
       elLBBody.innerHTML = "";
       if(items.length === 0){
         const tr = document.createElement("tr");
@@ -891,42 +920,53 @@ if (it.name === lastLeaderboardPlayer) {
         tr.appendChild(tdRank);
 
         const tdName = document.createElement("td");
-        tdName.textContent = String(it.player || "-");
+        tdName.textContent = String(it.player || it.name || "-");
         tr.appendChild(tdName);
 
-        const tdScore = document.createElement("td");
-        tdScore.className = "mono";
-        tdScore.textContent = String(it.score ?? "—");
-        tr.appendChild(tdScore);
+        const tdGuesses = document.createElement("td");
+        tdGuesses.className = "mono";
+        const guesses = Number(it.guesses);
+        tdGuesses.textContent = Number.isFinite(guesses) && guesses > 0 ? `${guesses}/6` : "X/6";
+        tr.appendChild(tdGuesses);
 
-        const tdMeta = document.createElement("td");
-        tdMeta.className = "mono";
-        tdMeta.textContent = String(it.day || "—");
-        tr.appendChild(tdMeta);
+        const tdDay = document.createElement("td");
+        tdDay.className = "mono";
+        tdDay.textContent = String(it.day || "—");
+        tr.appendChild(tdDay);
 
         elLBBody.appendChild(tr);
       });
     }
 
     async function loadLeaderboard(){
-      // Load server-aggregated scores generated from /gping logs and use them
-      // to populate the leaderboard with a clear, server-derived ranking.
+      // Load server-aggregated daily highscores generated from /gping logs and
+      // render guess counts (not score values) when available.
       try {
         const r = await fetch('/stats/wordle-leaderboard.json', { cache: 'no-store' });
         if(!r.ok) throw new Error('Leaderboard fetch failed');
         const data = await r.json();
-        const serverItems = Array.isArray(data?.leaderboard)
-          ? data.leaderboard.slice().sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0))
-          : [];
+        const dailyHighscores = normalizeDailyHighscores(data)
+          .slice()
+          .sort((a,b) => {
+            const dayCmp = String(b.day || '').localeCompare(String(a.day || ''));
+            if(dayCmp !== 0) return dayCmp;
+            const ag = Number(a.guesses) || 99;
+            const bg = Number(b.guesses) || 99;
+            if(ag !== bg) return ag - bg;
+            const as = Number(a.seconds) || 999999;
+            const bs = Number(b.seconds) || 999999;
+            return as - bs;
+          });
 
-        if(serverItems.length > 0){
-          renderServerLeaderboard(serverItems);
+        if(dailyHighscores.length > 0){
+          renderServerLeaderboard(dailyHighscores);
           return;
         }
       } catch(_err) {
         // Fall back to local leaderboard when server JSON is unavailable.
       }
 
+      setLeaderboardColumns('Result', 'Time');
       renderLocalLeaderboard();
     }
 

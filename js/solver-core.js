@@ -2,6 +2,8 @@ export const ANSWER_COUNT = 2315;
 export const PATTERN_SPACE = 243; // 3^5
 export const MODE_THRESHOLD = 120;
 
+let positionalFrequencyTable = null;
+
 export function normaliseWord(word) {
   return String(word || "").trim().toLowerCase();
 }
@@ -106,10 +108,56 @@ export function filterCandidates(candidates, guess, encodedPattern) {
 export function chooseGuessPool(candidates, guesses, threshold = MODE_THRESHOLD, forceMode = "auto") {
   if (forceMode === "candidates") return candidates;
   if (forceMode === "all") return guesses;
-  return candidates.length > threshold ? candidates : guesses;
+  return candidates.length <= 15 ? candidates : guesses;
 }
 
-export function analyseGuess(guess, candidates, candidateSet = null) {
+function buildPositionalFrequencyTable(dictionary) {
+  const table = Array.from({ length: 5 }, () => Object.create(null));
+  for (const word of dictionary) {
+    for (let i = 0; i < 5; i++) {
+      const letter = word[i];
+      table[i][letter] = (table[i][letter] || 0) + 1;
+    }
+  }
+  return table;
+}
+
+function resolveMode(candidateCount) {
+  if (candidateCount > 60) return "exploration";
+  if (candidateCount > 15) return "mixed";
+  return "exploitation";
+}
+
+export function uniqueLetterScore(word) {
+  return new Set(word).size;
+}
+
+export function positionalScore(word) {
+  if (!positionalFrequencyTable) return 0;
+  let score = 0;
+  for (let i = 0; i < 5; i++) {
+    const letter = word[i];
+    score += positionalFrequencyTable[i][letter] || 0;
+  }
+  return score;
+}
+
+export function expectedRemainingCandidates(guess, candidates) {
+  const buckets = new Uint16Array(PATTERN_SPACE);
+  for (const answer of candidates) {
+    buckets[scoreGuessEncoded(guess, answer)]++;
+  }
+
+  let totalSquared = 0;
+  for (let i = 0; i < PATTERN_SPACE; i++) {
+    const count = buckets[i];
+    if (count) totalSquared += count * count;
+  }
+
+  return totalSquared / candidates.length;
+}
+
+export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
   const buckets = new Uint16Array(PATTERN_SPACE);
 
   for (const answer of candidates) {
@@ -120,49 +168,62 @@ export function analyseGuess(guess, candidates, candidateSet = null) {
   let entropy = 0;
   let expectedLeft = 0;
   let worstCase = 0;
-  let partitions = 0;
 
   for (let i = 0; i < PATTERN_SPACE; i++) {
     const count = buckets[i];
     if (!count) continue;
-    partitions++;
     const p = count / total;
     entropy -= p * Math.log2(p);
     expectedLeft += p * count;
     if (count > worstCase) worstCase = count;
   }
 
+  if (mode === "exploitation") {
+    expectedLeft = expectedRemainingCandidates(guess, candidates);
+  }
+
   const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
-  const answerProbability = isCandidate ? 1 / total : 0;
-  const combined = entropy + 0.15 * answerProbability - 0.0005 * worstCase;
+
+  let score = entropy;
+  if (mode === "mixed") {
+    score = entropy + 0.02 * uniqueLetterScore(guess) + 0.02 * positionalScore(guess);
+  } else if (mode === "exploitation") {
+    score = -expectedLeft;
+  }
 
   return {
+    word: guess,
     guess,
     entropy,
     expectedLeft,
     worstCase,
-    partitions,
-    answerProbability,
     isCandidate,
-    combined
+    score
   };
 }
 
 export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto") {
-  const pool = chooseGuessPool(candidates, guesses, MODE_THRESHOLD, forceMode);
-  const candidateSet = new Set(candidates);
+  const mode = forceMode === "candidates"
+    ? "exploitation"
+    : forceMode === "all"
+      ? (candidates.length > 60 ? "exploration" : "mixed")
+      : resolveMode(candidates.length);
+
+  const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
+  positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
+  const pool = mode === "exploitation" ? candidates : dictionary;
   const ranked = [];
+  const candidateSet = new Set(candidates);
 
   for (const guess of pool) {
-    ranked.push(analyseGuess(guess, candidates, candidateSet));
+    ranked.push(analyseGuess(guess, candidates, mode, candidateSet));
   }
 
   ranked.sort((a, b) => {
-    if (b.combined !== a.combined) return b.combined - a.combined;
+    if (b.score !== a.score) return b.score - a.score;
     if (b.entropy !== a.entropy) return b.entropy - a.entropy;
     if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
-    if (a.isCandidate !== b.isCandidate) return a.isCandidate ? -1 : 1;
-    return a.guess.localeCompare(b.guess);
+    return a.word.localeCompare(b.word);
   });
 
   return ranked.slice(0, limit);

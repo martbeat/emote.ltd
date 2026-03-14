@@ -19,7 +19,12 @@ function runRank(payload) {
   const limit = Number(payload.limit || 10);
   const forceMode = payload.forceMode || "auto";
   const pool = chooseGuessPool(candidates, workerGuesses, undefined, forceMode);
-  const top = rankGuesses(candidates, workerGuesses, limit, forceMode);
+  const top = rankGuesses(candidates, workerGuesses, limit, forceMode).map((row) => ({
+    ...row,
+    word: row.word || row.guess,
+    entropy: row.entropy,
+    score: row.score
+  }));
 
   postMessage({
     type: "rankResult",

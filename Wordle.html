@@ -375,6 +375,7 @@
   <script>
 let gameStartTime = Date.now();
 let gameCompletionLogged = false;
+let wordleScoreSent = false;
 
 function logEvent(params) {
   navigator.sendBeacon('/gping?' + new URLSearchParams(params));
@@ -395,6 +396,26 @@ function logCompletion() {
     game: 'wordle',
     dur: bucket
   });
+}
+
+function sendWordleScore(player, guesses, seconds) {
+  // Send a dedicated score beacon with clear query parameters so nginx logs
+  // can capture per-game Wordle outcomes without changing existing analytics.
+  const params = new URLSearchParams({
+    event: 'wordle_score',
+    player: String(player || ''),
+    guesses: String(guesses),
+    seconds: String(seconds),
+    day: localDateId()
+  });
+
+  navigator.sendBeacon('/gping?' + params.toString());
+}
+
+function sendWordleScoreOnce(player, guesses, seconds) {
+  if (wordleScoreSent) return;
+  wordleScoreSent = true;
+  sendWordleScore(player, guesses, seconds);
 }
 
 logEvent({ event: 'start', game: 'wordle' });
@@ -645,6 +666,7 @@ function resetGameState(){
   done = false;
   won = false;
   active = false;
+  wordleScoreSent = false;
 
   // Timing
   elapsedSec = 0;
@@ -1092,6 +1114,7 @@ if (!isValidWord(guess)) {
         stopTimer();
         const totalSec = currentElapsed();
         const attempts = row + 1;
+        sendWordleScoreOnce(player, attempts, totalSec);
         upsertResult(player, "W", attempts, totalSec);
         clearProgressFor(player); // completed
 setStatus(`Solved in ${attempts}/6. Next player: enter your name.`);
@@ -1105,6 +1128,7 @@ resetGameState();
       if(row === MAX_ROWS - 1){
         done = true; won = false;
         stopTimer();
+        sendWordleScoreOnce(player, MAX_ROWS, currentElapsed());
         upsertResult(player, "L", null, null);
         clearProgressFor(player); // completed
 setStatus("No more guesses. Next player: enter your name.");
@@ -1134,6 +1158,8 @@ setStatus(`Playing as ${player}. ${MAX_ROWS - row} guesses remaining.`);
       done = true;
       won = false;
       stopTimer();
+      const guesses = Math.min(MAX_ROWS, Math.max(1, row + 1));
+      sendWordleScoreOnce(player, guesses, currentElapsed());
       upsertResult(player, "L", null, null);
       clearProgressFor(player);
 setStatus("Gave up. Next player: enter your name.");

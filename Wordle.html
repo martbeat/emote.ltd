@@ -257,6 +257,52 @@
       letter-spacing:.2px;
     }
 
+    .insights{
+      display:grid;
+      gap:8px;
+      margin:0 0 10px;
+    }
+    .insight-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:8px;
+    }
+    .insight-card{
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:12px;
+      background: rgba(0,0,0,.18);
+      padding:8px 10px;
+    }
+    .insight-card .k{
+      color:var(--muted);
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+    }
+    .insight-card .v{
+      font-size:16px;
+      font-weight:800;
+      margin-top:2px;
+    }
+    .insight-card .s{
+      color:var(--muted);
+      font-size:11.5px;
+      margin-top:2px;
+      line-height:1.25;
+    }
+    .insight-list{
+      margin:0;
+      padding:10px 10px 10px 24px;
+      border:1px dashed rgba(255,255,255,.14);
+      border-radius:12px;
+      background: rgba(0,0,0,.14);
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      display:grid;
+      gap:5px;
+    }
+
     table{
       width:100%;
       border-collapse: collapse;
@@ -352,6 +398,7 @@
       </header>
       <div class="main">
         <h2 id="lbTitle"></h2>
+        <div id="lbInsights" class="insights"></div>
         <table aria-label="leaderboard">
           <thead>
             <tr>
@@ -637,6 +684,7 @@ function loadDayStore(dateId){
     const elLBBody = document.getElementById("leaderboard");
     const elLBCol3 = document.getElementById("lbCol3");
     const elLBCol4 = document.getElementById("lbCol4");
+    const elLBInsights = document.getElementById("lbInsights");
 
     const kbd1 = document.getElementById("kbd1");
     const kbd2 = document.getElementById("kbd2");
@@ -895,6 +943,105 @@ if (it.name === lastLeaderboardPlayer) {
       elLBCol4.textContent = col4;
     }
 
+    function toFiniteNumber(v){
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatGuessAvg(v){
+      const n = toFiniteNumber(v);
+      return n == null ? "—" : n.toFixed(2);
+    }
+
+    function normalizePeriod(period){
+      if(!period || typeof period !== 'object') return null;
+      return {
+        day: period.day || period.cutoff,
+        players: toFiniteNumber(period.players),
+        avgGuesses: toFiniteNumber(period.avg_guesses),
+        avgSeconds: toFiniteNumber(period.avg_seconds),
+        fastest: period.fastest || null,
+        best: period.best || null,
+        leaderboard: Array.isArray(period.leaderboard) ? period.leaderboard : []
+      };
+    }
+
+    function topPerformer(items){
+      return (items || []).slice().sort((a,b) => {
+        const ag = toFiniteNumber(a?.score ?? a?.guesses ?? a?.attempts) ?? 99;
+        const bg = toFiniteNumber(b?.score ?? b?.guesses ?? b?.attempts) ?? 99;
+        if(ag !== bg) return bg - ag;
+        const as = toFiniteNumber(a?.avg_seconds ?? a?.seconds ?? a?.sec ?? a?.time) ?? 999999;
+        const bs = toFiniteNumber(b?.avg_seconds ?? b?.seconds ?? b?.sec ?? b?.time) ?? 999999;
+        return as - bs;
+      })[0] || null;
+    }
+
+    function renderLeaderboardInsights(payload){
+      if(!payload){
+        elLBInsights.innerHTML = "";
+        return;
+      }
+
+      const today = normalizePeriod(payload.today);
+      const yesterday = normalizePeriod(payload.yesterday);
+      const week = normalizePeriod(payload.week);
+      const weekTop = topPerformer(week?.leaderboard);
+      const speedDelta = (today?.avgSeconds != null && yesterday?.avgSeconds != null)
+        ? today.avgSeconds - yesterday.avgSeconds
+        : null;
+
+      const cards = [
+        {
+          k: "Today's players",
+          v: today?.players != null ? String(today.players) : "—",
+          s: today?.day ? `On ${formatDayDdMm(today.day)}` : "No day provided"
+        },
+        {
+          k: "Avg guesses",
+          v: formatGuessAvg(today?.avgGuesses),
+          s: yesterday?.avgGuesses != null
+            ? `Yesterday: ${formatGuessAvg(yesterday.avgGuesses)}`
+            : "Need yesterday data"
+        },
+        {
+          k: "Pace",
+          v: today?.avgSeconds != null ? formatTime(Math.max(0, Math.floor(today.avgSeconds))) : "—",
+          s: speedDelta == null
+            ? "No comparison yet"
+            : speedDelta > 0
+              ? `${formatTime(Math.floor(speedDelta))} slower than yesterday`
+              : `${formatTime(Math.floor(Math.abs(speedDelta)))} faster than yesterday`
+        },
+        {
+          k: "Week mvp",
+          v: weekTop?.player || "—",
+          s: weekTop ? `${weekTop.score ?? weekTop.guesses}/6 over ${weekTop.games ?? 1} game(s)` : "No weekly board"
+        }
+      ];
+
+      const insights = [];
+      if(today?.fastest?.player){
+        insights.push(`⚡ Fastest today: ${today.fastest.player} in ${formatTime(Math.floor(today.fastest.seconds || 0))}.`);
+      }
+      if(today?.best?.player){
+        insights.push(`🎯 Best result today: ${today.best.player} with ${today.best.score}/6.`);
+      }
+      if(week?.leaderboard?.length){
+        insights.push(`📈 Weekly leaderboard has ${week.leaderboard.length} active player${week.leaderboard.length === 1 ? '' : 's'}.`);
+      }
+      if(!insights.length){
+        insights.push('Waiting for more server rounds to build trends.');
+      }
+
+      elLBInsights.innerHTML = `
+        <div class="insight-grid">
+          ${cards.map(c => `<div class="insight-card"><div class="k">${c.k}</div><div class="v mono">${c.v}</div><div class="s">${c.s}</div></div>`).join('')}
+        </div>
+        <ul class="insight-list">${insights.map(item => `<li>${item}</li>`).join('')}</ul>
+      `;
+    }
+
     function normalizeDailyHighscores(data){
       const normalizeItem = (item, fallbackDay) => ({
         ...item,
@@ -916,7 +1063,13 @@ if (it.name === lastLeaderboardPlayer) {
       }
 
       const fallback = Array.isArray(data?.leaderboard) ? data.leaderboard : [];
-      return fallback.map(item => normalizeItem(item));
+      if(fallback.length) return fallback.map(item => normalizeItem(item));
+
+      const todayBoard = Array.isArray(data?.today?.leaderboard) ? data.today.leaderboard.map(item => ({ ...item, day: data?.today?.day })) : [];
+      const yesterdayBoard = Array.isArray(data?.yesterday?.leaderboard) ? data.yesterday.leaderboard.map(item => ({ ...item, day: data?.yesterday?.day })) : [];
+      const weekBoard = Array.isArray(data?.week?.leaderboard) ? data.week.leaderboard.map(item => ({ ...item, day: data?.today?.day || data?.updated })) : [];
+      const chosen = weekBoard.length ? weekBoard : (todayBoard.length ? todayBoard : yesterdayBoard);
+      return chosen.map(item => normalizeItem(item, item.day));
     }
 
     function renderServerLeaderboard(items){
@@ -970,6 +1123,7 @@ if (it.name === lastLeaderboardPlayer) {
         const r = await fetch('/stats/wordle-leaderboard.json', { cache: 'no-store' });
         if(!r.ok) throw new Error('Leaderboard fetch failed');
         const data = await r.json();
+        renderLeaderboardInsights(data);
         const dailyHighscores = normalizeDailyHighscores(data)
           .slice()
           .sort((a,b) => {
@@ -994,6 +1148,7 @@ if (it.name === lastLeaderboardPlayer) {
         // Fall back to local leaderboard when server JSON is unavailable.
       }
 
+      renderLeaderboardInsights(null);
       setLeaderboardColumns('Guesses', 'Time');
       renderLocalLeaderboard();
     }

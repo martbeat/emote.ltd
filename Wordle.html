@@ -439,6 +439,21 @@
           </table>
         </div>
 
+        <div id="lbWeekWrap" class="board-wrap" style="display:none; margin-top:12px;">
+          <h3 id="lbWeekTitle" class="board-title">Weekly</h3>
+          <table aria-label="leaderboard weekly">
+            <thead>
+              <tr>
+                <th style="width:44px;">#</th>
+                <th>Player</th>
+                <th style="width:72px;">Best</th>
+                <th style="width:86px;">Avg Time</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardWeek"></tbody>
+          </table>
+        </div>
+
         <div class="note">
           Scoring: lower guesses is better. Ties broken by faster time. Loss is shown as <span class="mono">X/6</span>.
           <br />All data is stored locally in <span class="mono">localStorage</span> on this browser.
@@ -717,6 +732,9 @@ function loadDayStore(dateId){
     const elLBYesterdayWrap = document.getElementById("lbYesterdayWrap");
     const elLBYesterdayTitle = document.getElementById("lbYesterdayTitle");
     const elLBYesterdayBody = document.getElementById("leaderboardYesterday");
+    const elLBWeekWrap = document.getElementById("lbWeekWrap");
+    const elLBWeekTitle = document.getElementById("lbWeekTitle");
+    const elLBWeekBody = document.getElementById("leaderboardWeek");
 
     const kbd1 = document.getElementById("kbd1");
     const kbd2 = document.getElementById("kbd2");
@@ -1116,7 +1134,7 @@ if (it.name === lastLeaderboardPlayer) {
       return String(a?.player || a?.name || "").localeCompare(String(b?.player || b?.name || ""));
     }
 
-    function renderLeaderboardRows(bodyEl, items, emptyMessage, day){
+    function renderLeaderboardRows(bodyEl, items, emptyMessage){
       bodyEl.innerHTML = "";
       if(!items.length){
         const tr = document.createElement("tr");
@@ -1151,8 +1169,52 @@ if (it.name === lastLeaderboardPlayer) {
         tdTime.className = "mono";
         const seconds = Number(it.seconds ?? it.sec ?? it.time ?? it.avg_seconds ?? it.total_seconds);
         const timeText = Number.isFinite(seconds) && seconds >= 0 ? formatTime(Math.floor(seconds)) : "—";
-        tdTime.textContent = day ? `${timeText} · ${formatDayDdMm(day)}` : timeText;
+        tdTime.textContent = timeText;
         tr.appendChild(tdTime);
+
+        bodyEl.appendChild(tr);
+      });
+    }
+
+    function renderWeeklyRows(bodyEl, items, emptyMessage){
+      bodyEl.innerHTML = "";
+      if(!items.length){
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.style.color = "var(--muted)";
+        td.style.padding = "12px 8px";
+        td.textContent = emptyMessage;
+        tr.appendChild(td);
+        bodyEl.appendChild(tr);
+        return;
+      }
+
+      items.slice(0, 50).forEach((it, idx) => {
+        const tr = document.createElement("tr");
+
+        const tdRank = document.createElement("td");
+        tdRank.textContent = String(idx + 1);
+        tdRank.style.color = "var(--muted)";
+        tr.appendChild(tdRank);
+
+        const tdName = document.createElement("td");
+        tdName.textContent = String(it.player || it.name || "-");
+        tr.appendChild(tdName);
+
+        const tdBest = document.createElement("td");
+        tdBest.className = "mono";
+        const score = Number(it.score ?? it.guesses ?? it.attempts);
+        tdBest.textContent = Number.isFinite(score) && score > 0 ? `${score}/6` : "X/6";
+        tr.appendChild(tdBest);
+
+        const tdAvg = document.createElement("td");
+        tdAvg.className = "mono";
+        const avgSeconds = Number(it.avg_seconds ?? it.seconds ?? it.sec ?? it.time ?? it.total_seconds);
+        const games = Number(it.games);
+        const avgText = Number.isFinite(avgSeconds) && avgSeconds >= 0 ? formatTime(Math.floor(avgSeconds)) : "—";
+        tdAvg.textContent = Number.isFinite(games) && games > 1 ? `${avgText} · ${games}g` : avgText;
+        tr.appendChild(tdAvg);
 
         bodyEl.appendChild(tr);
       });
@@ -1163,6 +1225,7 @@ if (it.name === lastLeaderboardPlayer) {
 
       const todayDay = data?.today?.day || data?.day || dateId;
       const yesterdayDay = data?.yesterday?.day || null;
+      const weekCutoff = data?.week?.cutoff || null;
 
       const todayItems = (Array.isArray(data?.today?.leaderboard) ? data.today.leaderboard : normalizeDailyHighscores(data))
         .slice()
@@ -1170,17 +1233,31 @@ if (it.name === lastLeaderboardPlayer) {
       const yesterdayItems = (Array.isArray(data?.yesterday?.leaderboard) ? data.yesterday.leaderboard : [])
         .slice()
         .sort(leaderboardSort);
+      const weekItems = (Array.isArray(data?.week?.leaderboard) ? data.week.leaderboard : [])
+        .slice()
+        .sort(leaderboardSort);
 
       elLBTodayTitle.textContent = `Today · ${formatDayDdMm(todayDay)}`;
-      renderLeaderboardRows(elLBBody, todayItems, "No server results available for today.", null);
+      renderLeaderboardRows(elLBBody, todayItems, "No server results available for today.");
 
       if(yesterdayItems.length){
         elLBYesterdayWrap.style.display = "block";
         elLBYesterdayTitle.textContent = `Yesterday · ${formatDayDdMm(yesterdayDay)}`;
-        renderLeaderboardRows(elLBYesterdayBody, yesterdayItems, "No server results available for yesterday.", null);
+        renderLeaderboardRows(elLBYesterdayBody, yesterdayItems, "No server results available for yesterday.");
       } else {
         elLBYesterdayWrap.style.display = "none";
         elLBYesterdayBody.innerHTML = "";
+      }
+
+      if(weekItems.length){
+        elLBWeekWrap.style.display = "block";
+        elLBWeekTitle.textContent = weekCutoff
+          ? `Weekly · since ${formatDayDdMm(weekCutoff)}`
+          : "Weekly";
+        renderWeeklyRows(elLBWeekBody, weekItems, "No weekly results available.");
+      } else {
+        elLBWeekWrap.style.display = "none";
+        elLBWeekBody.innerHTML = "";
       }
     }
 
@@ -1200,6 +1277,8 @@ if (it.name === lastLeaderboardPlayer) {
       renderLeaderboardInsights(null);
       elLBYesterdayWrap.style.display = "none";
       elLBYesterdayBody.innerHTML = "";
+      elLBWeekWrap.style.display = "none";
+      elLBWeekBody.innerHTML = "";
       elLBTodayTitle.textContent = `Today · ${formatDayDdMm(dateId)} (local)`;
       setLeaderboardColumns('Guesses', 'Time');
       renderLocalLeaderboard();

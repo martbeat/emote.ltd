@@ -187,6 +187,13 @@ function minImage(v){
   if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
   if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
 }
+function wrapPoint(v){
+  const h=boxSize*0.5;
+  if(v.x>h)v.x-=boxSize; else if(v.x<-h)v.x+=boxSize;
+  if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
+  if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
+  return v;
+}
 
 function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
 
@@ -338,7 +345,9 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
       donorMol.a.add(f);
       acceptorMol.a.addScaledVector(f,-1);
 
-      segs.push(best.h.x,best.h.y,best.h.z,best.lp.x,best.lp.y,best.lp.z);
+      const visVec = best.vec.clone();
+      const visLp = wrapPoint(best.h.clone().add(visVec));
+      segs.push(best.h.x,best.h.y,best.h.z,visLp.x,visLp.y,visLp.z);
 
       const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.06*hbStrength);
       donorMol.tau.add(torqueAxis);

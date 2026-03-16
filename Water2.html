@@ -62,6 +62,13 @@
       <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
     </div>
 
+    <div class="group">
+      <h2>External Electrostatic Field</h2>
+      <div class="row"><label>Field strength</label><input id="field" type="range" min="0" max="2.5" step="0.01" value="0.9" /></div>
+      <div class="row"><label>Field azimuth (°)</label><input id="fieldAz" type="range" min="0" max="360" step="1" value="30" /></div>
+      <div class="row"><label>Field elevation (°)</label><input id="fieldEl" type="range" min="-85" max="85" step="1" value="20" /></div>
+    </div>
+
     <div class="group note">
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
@@ -80,6 +87,7 @@ const view = document.getElementById('view');
 const ui = {
   nMol: document.getElementById('nMol'), box: document.getElementById('box'), reset: document.getElementById('reset'), pause: document.getElementById('pause'),
   temp: document.getElementById('temp'), dt: document.getElementById('dt'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'), rotDamp: document.getElementById('rotDamp'),
+  field: document.getElementById('field'), fieldAz: document.getElementById('fieldAz'), fieldEl: document.getElementById('fieldEl'),
   tVal: document.getElementById('tVal'), hbVal: document.getElementById('hbVal'), fps: document.getElementById('fps')
 };
 
@@ -111,6 +119,7 @@ const TETRA_SCALE = 1 / Math.sqrt(3);
 const QO = -0.84;
 const QH = 0.42;
 const ROT_INERTIA = 1.9;
+const DIPOLE_MU = 1.35;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -209,8 +218,27 @@ function applyForces(dt){
   const damp = +ui.damp.value;
   const rotDamp = +ui.rotDamp.value;
   const tempTarget = +ui.temp.value;
+  const fieldStrength = +ui.field.value;
+  const az = THREE.MathUtils.degToRad(+ui.fieldAz.value);
+  const el = THREE.MathUtils.degToRad(+ui.fieldEl.value);
+  const fieldDir = new THREE.Vector3(
+    Math.cos(el)*Math.cos(az),
+    Math.sin(el),
+    Math.cos(el)*Math.sin(az)
+  );
+  const eField = fieldDir.multiplyScalar(fieldStrength);
 
   molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
+
+  if(fieldStrength > 0){
+    for(const m of molecules){
+      const hMid = worldSite(m, baseH1).add(worldSite(m, baseH2)).multiplyScalar(0.5);
+      const dipole = hMid.sub(m.p).normalize().multiplyScalar(DIPOLE_MU);
+      const alignTau = dipole.clone().cross(eField);
+      m.tau.addScaledVector(alignTau, 0.9);
+      m.w.addScaledVector(alignTau, dt * 0.02);
+    }
+  }
 
   let hbSegments = [];
   let hbCount = 0;

@@ -62,11 +62,12 @@
       <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
     </div>
 
+
     <div class="group note">
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial O/H charges with longer-range screened Coulomb interactions.</div>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial H/lone-pair charges with longer-range screened Coulomb interactions and induced torques.</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
@@ -108,8 +109,9 @@ const H_RADIUS = 0.28;
 const LP_RADIUS = 0.16;
 const BOND = 1.45;
 const TETRA_SCALE = 1 / Math.sqrt(3);
-const QO = -0.84;
+const QO = 0.00;
 const QH = 0.42;
+const QLP = -0.42;
 const ROT_INERTIA = 1.9;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
@@ -185,6 +187,13 @@ function minImage(v){
   if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
   if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
 }
+function wrapPoint(v){
+  const h=boxSize*0.5;
+  if(v.x>h)v.x-=boxSize; else if(v.x<-h)v.x+=boxSize;
+  if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
+  if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
+  return v;
+}
 
 function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
 
@@ -233,35 +242,39 @@ function applyForces(dt){
       mi.a.addScaledVector(fvec, -1);
       mj.a.add(fvec);
 
-      // Longer-range electrostatics between partial charges (O and H sites)
+      // Intermolecular electrostatics (H and lone-pair sites) with torque from off-center forces.
       const Oi = mi.p;
       const Oj = mj.p;
+      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
+      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
+      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
+      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
       const maxElecDist = 14.0;
       if(electro > 0){
-        const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
-        const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
-        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH]];
-        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH]];
+        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH], [LPsitesI[0], QLP], [LPsitesI[1], QLP]];
+        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH], [LPsitesJ[0], QLP], [LPsitesJ[1], QLP]];
         for(const [si, qi] of chargeSitesI){
           for(const [sj, qj] of chargeSitesJ){
             const rijSite = sj.clone().sub(si); minImage(rijSite);
             const dsq = rijSite.lengthSq();
             if(dsq < 0.06 || dsq > maxElecDist*maxElecDist) continue;
             const d = Math.sqrt(dsq);
-            const soft = Math.sqrt(dsq + 0.08); // soft-core to avoid blowups
-            const screened = Math.exp(-d/12.0);
-            const magSite = electro * qi * qj * screened / (soft*soft*soft);
+            const soft = Math.sqrt(dsq + 0.10); // soft-core to avoid blowups
+            const screened = Math.exp(-d/8.5);
+            const hLpBoost = ((qi > 0 && qj < 0) || (qi < 0 && qj > 0)) ? 1.25 : 1.0;
+            const magSite = electro * hLpBoost * qi * qj * screened / (soft*soft*soft);
             const fSite = rijSite.multiplyScalar(magSite);
+
             mi.a.add(fSite);
             mj.a.addScaledVector(fSite, -1);
+
+            const ri = si.clone().sub(mi.p);
+            const rj = sj.clone().sub(mj.p);
+            mi.tau.add(ri.cross(fSite));
+            mj.tau.add(rj.cross(fSite.clone().multiplyScalar(-1)));
           }
         }
       }
-
-      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
-      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
-      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
-      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
 
       hbCount += hbPair(mi, mj, HsitesI, LPsitesJ, hbStrength, hbSegments);
       hbCount += hbPair(mj, mi, HsitesJ, LPsitesI, hbStrength, hbSegments);
@@ -332,7 +345,9 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
       donorMol.a.add(f);
       acceptorMol.a.addScaledVector(f,-1);
 
-      segs.push(best.h.x,best.h.y,best.h.z,best.lp.x,best.lp.y,best.lp.z);
+      const visVec = best.vec.clone();
+      const visLp = wrapPoint(best.h.clone().add(visVec));
+      segs.push(best.h.x,best.h.y,best.h.z,visLp.x,visLp.y,visLp.z);
 
       const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.06*hbStrength);
       donorMol.tau.add(torqueAxis);

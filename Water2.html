@@ -62,18 +62,12 @@
       <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
     </div>
 
-    <div class="group">
-      <h2>External Electrostatic Field</h2>
-      <div class="row"><label>Field strength</label><input id="field" type="range" min="0" max="2.5" step="0.01" value="0.9" /></div>
-      <div class="row"><label>Field azimuth (°)</label><input id="fieldAz" type="range" min="0" max="360" step="1" value="30" /></div>
-      <div class="row"><label>Field elevation (°)</label><input id="fieldEl" type="range" min="-85" max="85" step="1" value="20" /></div>
-    </div>
 
     <div class="group note">
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial O/H charges with longer-range screened Coulomb interactions.</div>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial H/lone-pair charges with longer-range screened Coulomb interactions and induced torques.</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
@@ -87,7 +81,6 @@ const view = document.getElementById('view');
 const ui = {
   nMol: document.getElementById('nMol'), box: document.getElementById('box'), reset: document.getElementById('reset'), pause: document.getElementById('pause'),
   temp: document.getElementById('temp'), dt: document.getElementById('dt'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'), rotDamp: document.getElementById('rotDamp'),
-  field: document.getElementById('field'), fieldAz: document.getElementById('fieldAz'), fieldEl: document.getElementById('fieldEl'),
   tVal: document.getElementById('tVal'), hbVal: document.getElementById('hbVal'), fps: document.getElementById('fps')
 };
 
@@ -116,10 +109,10 @@ const H_RADIUS = 0.28;
 const LP_RADIUS = 0.16;
 const BOND = 1.45;
 const TETRA_SCALE = 1 / Math.sqrt(3);
-const QO = -0.84;
+const QO = 0.00;
 const QH = 0.42;
+const QLP = -0.42;
 const ROT_INERTIA = 1.9;
-const DIPOLE_MU = 1.35;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -218,27 +211,8 @@ function applyForces(dt){
   const damp = +ui.damp.value;
   const rotDamp = +ui.rotDamp.value;
   const tempTarget = +ui.temp.value;
-  const fieldStrength = +ui.field.value;
-  const az = THREE.MathUtils.degToRad(+ui.fieldAz.value);
-  const el = THREE.MathUtils.degToRad(+ui.fieldEl.value);
-  const fieldDir = new THREE.Vector3(
-    Math.cos(el)*Math.cos(az),
-    Math.sin(el),
-    Math.cos(el)*Math.sin(az)
-  );
-  const eField = fieldDir.multiplyScalar(fieldStrength);
 
   molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
-
-  if(fieldStrength > 0){
-    for(const m of molecules){
-      const hMid = worldSite(m, baseH1).add(worldSite(m, baseH2)).multiplyScalar(0.5);
-      const dipole = hMid.sub(m.p).normalize().multiplyScalar(DIPOLE_MU);
-      const alignTau = dipole.clone().cross(eField);
-      m.tau.addScaledVector(alignTau, 0.9);
-      m.w.addScaledVector(alignTau, dt * 0.02);
-    }
-  }
 
   let hbSegments = [];
   let hbCount = 0;
@@ -261,35 +235,39 @@ function applyForces(dt){
       mi.a.addScaledVector(fvec, -1);
       mj.a.add(fvec);
 
-      // Longer-range electrostatics between partial charges (O and H sites)
+      // Intermolecular electrostatics (H and lone-pair sites) with torque from off-center forces.
       const Oi = mi.p;
       const Oj = mj.p;
+      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
+      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
+      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
+      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
       const maxElecDist = 14.0;
       if(electro > 0){
-        const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
-        const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
-        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH]];
-        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH]];
+        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH], [LPsitesI[0], QLP], [LPsitesI[1], QLP]];
+        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH], [LPsitesJ[0], QLP], [LPsitesJ[1], QLP]];
         for(const [si, qi] of chargeSitesI){
           for(const [sj, qj] of chargeSitesJ){
             const rijSite = sj.clone().sub(si); minImage(rijSite);
             const dsq = rijSite.lengthSq();
             if(dsq < 0.06 || dsq > maxElecDist*maxElecDist) continue;
             const d = Math.sqrt(dsq);
-            const soft = Math.sqrt(dsq + 0.08); // soft-core to avoid blowups
-            const screened = Math.exp(-d/12.0);
-            const magSite = electro * qi * qj * screened / (soft*soft*soft);
+            const soft = Math.sqrt(dsq + 0.10); // soft-core to avoid blowups
+            const screened = Math.exp(-d/8.5);
+            const hLpBoost = ((qi > 0 && qj < 0) || (qi < 0 && qj > 0)) ? 1.25 : 1.0;
+            const magSite = electro * hLpBoost * qi * qj * screened / (soft*soft*soft);
             const fSite = rijSite.multiplyScalar(magSite);
+
             mi.a.add(fSite);
             mj.a.addScaledVector(fSite, -1);
+
+            const ri = si.clone().sub(mi.p);
+            const rj = sj.clone().sub(mj.p);
+            mi.tau.add(ri.cross(fSite));
+            mj.tau.add(rj.cross(fSite.clone().multiplyScalar(-1)));
           }
         }
       }
-
-      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
-      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
-      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
-      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
 
       hbCount += hbPair(mi, mj, HsitesI, LPsitesJ, hbStrength, hbSegments);
       hbCount += hbPair(mj, mi, HsitesJ, LPsitesI, hbStrength, hbSegments);

@@ -67,7 +67,7 @@
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Temperature uses a Kelvin-to-simulation mapping with extra low-temperature ordering so networks rigidify as you cool.</div>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Dynamics are calibrated so water transitions toward a rigid hydrogen-bond network around freezing (≈273 K).</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
@@ -116,9 +116,9 @@ const QLP = -0.42;
 const ROT_INERTIA = 1.9;
 const PAIR_DAMP = 0.55;
 const MAX_REPULSIVE_FORCE = 9.0;
-const KELVIN_TO_SIM = 160;
-const ORDERING_START_K = 240;
-const ORDERING_FULL_K = 120;
+const KELVIN_TO_SIM = 0.0065;
+const ORDERING_START_K = 320;
+const ORDERING_FULL_K = 273;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -231,7 +231,7 @@ function applyForces(dt){
   const damp = +ui.damp.value;
   const rotDamp = +ui.rotDamp.value;
   const tempTarget = +ui.temp.value;
-  const targetSimTemp = tempTarget * KELVIN_TO_SIM;
+  const targetSimTemp = Math.max(0.0005, tempTarget * KELVIN_TO_SIM);
   const ordering = THREE.MathUtils.clamp((ORDERING_START_K - tempTarget) / (ORDERING_START_K - ORDERING_FULL_K), 0, 1);
 
   molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
@@ -310,11 +310,11 @@ function applyForces(dt){
 
   molecules.forEach(m=>{
     m.v.addScaledVector(m.a, dt);
-    const lowTTransDrag = 0.035 * ordering;
+    const lowTTransDrag = 0.020 + 0.070 * ordering;
     m.v.multiplyScalar(Math.max(0, 1-damp-lowTTransDrag));
 
     m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
-    const lowTRotDrag = 0.045 * ordering;
+    const lowTRotDrag = 0.025 + 0.095 * ordering;
     m.w.multiplyScalar(Math.max(0, 1-rotDamp-lowTRotDrag));
     const wLen = m.w.length();
     if(wLen > 7.5) m.w.multiplyScalar(7.5 / wLen);
@@ -331,14 +331,14 @@ function applyForces(dt){
   molecules.forEach(m=>{ ke += 0.5*m.v.lengthSq(); });
   const tInst = (2*ke)/(3*molecules.length);
   const scale = Math.sqrt(Math.max(0,targetSimTemp/Math.max(tInst,1e-6)));
-  const thermo = 0.12 + 0.12*ordering;
+  const thermo = 0.08 + 0.22*ordering;
   molecules.forEach(m=>m.v.multiplyScalar(THREE.MathUtils.clamp(1 + (scale-1)*thermo, 0, 1.2)));
 
   let rotKE = 0;
   molecules.forEach(m=>{ rotKE += 0.5 * ROT_INERTIA * m.w.lengthSq(); });
   const rotT = (2*rotKE)/(3*molecules.length);
   const rotScale = Math.sqrt(Math.max(0,targetSimTemp/Math.max(rotT,1e-6)));
-  const rotThermo = 0.10 + 0.14*ordering;
+  const rotThermo = 0.08 + 0.24*ordering;
   molecules.forEach(m=>m.w.multiplyScalar(THREE.MathUtils.clamp(1 + (rotScale-1)*rotThermo, 0, 1.15)));
 
   hbGeom.setAttribute('position', new THREE.Float32BufferAttribute(hbSegments, 3));

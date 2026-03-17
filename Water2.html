@@ -55,18 +55,19 @@
       <h2>Dynamics</h2>
       <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="0" max="800" step="5" value="250" /></div>
       <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
-      <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="1.8" step="0.02" value="0.65" /></div>
+      <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="2.6" step="0.02" value="1.25" /></div>
       <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.4" step="0.02" value="0.85" /></div>
-      <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.6" /></div>
+      <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.1" /></div>
       <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
       <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
     </div>
+
 
     <div class="group note">
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial O/H charges with longer-range screened Coulomb interactions.</div>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Electrostatics use partial H/lone-pair charges with longer-range screened Coulomb interactions and induced torques.</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
@@ -108,9 +109,12 @@ const H_RADIUS = 0.28;
 const LP_RADIUS = 0.16;
 const BOND = 1.45;
 const TETRA_SCALE = 1 / Math.sqrt(3);
-const QO = -0.84;
+const QO = 0.00;
 const QH = 0.42;
+const QLP = -0.42;
 const ROT_INERTIA = 1.9;
+const PAIR_DAMP = 0.55;
+const MAX_REPULSIVE_FORCE = 9.0;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -185,6 +189,13 @@ function minImage(v){
   if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
   if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
 }
+function wrapPoint(v){
+  const h=boxSize*0.5;
+  if(v.x>h)v.x-=boxSize; else if(v.x<-h)v.x+=boxSize;
+  if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
+  if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
+  return v;
+}
 
 function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
 
@@ -197,7 +208,7 @@ function rebuild(){
   for(let i=0;i<n;i++){
     const m = makeMol();
     m.p.set(rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48));
-    m.v.set(rand(-1,1),rand(-1,1),rand(-1,1));
+    m.v.set(rand(-0.35,0.35),rand(-0.35,0.35),rand(-0.35,0.35));
     molecules.push(m);
   }
 }
@@ -228,40 +239,56 @@ function applyForces(dt){
       const sigma = 2.9;
       const sr = sigma/r;
       const sr6 = sr**6;
-      const fOO = 24*repel*(2*sr6*sr6 - sr6)/r;
+      let fOO = 24*repel*(2*sr6*sr6 - sr6)/r;
+      if(fOO > MAX_REPULSIVE_FORCE) fOO = MAX_REPULSIVE_FORCE;
       const fvec = dir.clone().multiplyScalar(fOO);
       mi.a.addScaledVector(fvec, -1);
       mj.a.add(fvec);
 
-      // Longer-range electrostatics between partial charges (O and H sites)
+      if(r < 3.2){
+        const relV = mj.v.clone().sub(mi.v);
+        const radialV = relV.dot(dir);
+        if(radialV < 0){
+          const dampMag = -PAIR_DAMP * radialV * (1 - (r-2.2));
+          const dampF = dir.clone().multiplyScalar(Math.max(0, dampMag));
+          mi.a.addScaledVector(dampF, -1);
+          mj.a.add(dampF);
+        }
+      }
+
+      // Intermolecular electrostatics (H and lone-pair sites) with torque from off-center forces.
       const Oi = mi.p;
       const Oj = mj.p;
+      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
+      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
+      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
+      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
       const maxElecDist = 14.0;
       if(electro > 0){
-        const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
-        const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
-        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH]];
-        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH]];
+        const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH], [LPsitesI[0], QLP], [LPsitesI[1], QLP]];
+        const chargeSitesJ = [[Oj, QO], [HsitesJ[0], QH], [HsitesJ[1], QH], [LPsitesJ[0], QLP], [LPsitesJ[1], QLP]];
         for(const [si, qi] of chargeSitesI){
           for(const [sj, qj] of chargeSitesJ){
             const rijSite = sj.clone().sub(si); minImage(rijSite);
             const dsq = rijSite.lengthSq();
             if(dsq < 0.06 || dsq > maxElecDist*maxElecDist) continue;
             const d = Math.sqrt(dsq);
-            const soft = Math.sqrt(dsq + 0.08); // soft-core to avoid blowups
-            const screened = Math.exp(-d/12.0);
-            const magSite = electro * qi * qj * screened / (soft*soft*soft);
+            const soft = Math.sqrt(dsq + 0.10); // soft-core to avoid blowups
+            const screened = Math.exp(-d/10.5);
+            const hLpBoost = ((qi > 0 && qj < 0) || (qi < 0 && qj > 0)) ? 1.8 : 1.0;
+            const magSite = electro * hLpBoost * qi * qj * screened / (soft*soft*soft);
             const fSite = rijSite.multiplyScalar(magSite);
+
             mi.a.add(fSite);
             mj.a.addScaledVector(fSite, -1);
+
+            const ri = si.clone().sub(mi.p);
+            const rj = sj.clone().sub(mj.p);
+            mi.tau.add(ri.cross(fSite));
+            mj.tau.add(rj.cross(fSite.clone().multiplyScalar(-1)));
           }
         }
       }
-
-      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2)];
-      const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
-      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
-      const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
 
       hbCount += hbPair(mi, mj, HsitesI, LPsitesJ, hbStrength, hbSegments);
       hbCount += hbPair(mj, mi, HsitesJ, LPsitesI, hbStrength, hbSegments);
@@ -270,7 +297,8 @@ function applyForces(dt){
 
   molecules.forEach(m=>{
     m.v.addScaledVector(m.a, dt);
-    m.v.multiplyScalar(1-damp);
+    const thermalDrag = damp + (tempTarget < 30 ? 0.012 : 0.0);
+    m.v.multiplyScalar(1-thermalDrag);
 
     m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
     m.w.multiplyScalar(1-rotDamp);
@@ -318,25 +346,31 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
       const oh = h.clone().sub(Odon); minImage(oh);
       const cos = oh.normalize().dot(hToLp.clone().normalize());
       const linear = Math.max(0,(cos+1)/2); // 1 when O-H...LP is linear
-      const radial = Math.exp(-((d-1.85)*(d-1.85))/0.20);
+      const radial = Math.exp(-((d-1.78)*(d-1.78))/0.32);
       const outerSwitch = 1 - THREE.MathUtils.smoothstep(d, 2.15, 2.5);
       const innerSwitch = THREE.MathUtils.smoothstep(d, 0.6, 0.85);
       const score = linear*radial*outerSwitch*innerSwitch;
       if(!best || score>best.score) best={h,lp,d,score,vec:hToLp};
     });
 
-    if(best && best.score>0.12){
+    if(best && best.score>0.06){
       count++;
-      const mag = hbStrength * best.score * 1.6;
+      const mag = hbStrength * best.score * 3.4;
       const f = best.vec.clone().normalize().multiplyScalar(mag);
       donorMol.a.add(f);
       acceptorMol.a.addScaledVector(f,-1);
 
-      segs.push(best.h.x,best.h.y,best.h.z,best.lp.x,best.lp.y,best.lp.z);
+      const visVec = best.vec.clone();
+      const visLp = wrapPoint(best.h.clone().add(visVec));
+      segs.push(best.h.x,best.h.y,best.h.z,visLp.x,visLp.y,visLp.z);
 
-      const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.06*hbStrength);
+      const torqueAxis = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.14*hbStrength);
       donorMol.tau.add(torqueAxis);
-      acceptorMol.tau.addScaledVector(torqueAxis,-0.5);
+      acceptorMol.tau.addScaledVector(torqueAxis,-0.9);
+
+      const accArm = best.lp.clone().sub(acceptorMol.p); minImage(accArm);
+      const lpAlign = accArm.cross(best.vec.clone().multiplyScalar(-1)).multiplyScalar(0.08*hbStrength*best.score);
+      acceptorMol.tau.add(lpAlign);
     }
   });
   return count;

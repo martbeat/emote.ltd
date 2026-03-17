@@ -193,12 +193,19 @@ function minImage(v){
   if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
   if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
 }
-function wrapPoint(v){
+function wrapSegment(a,b){
   const h=boxSize*0.5;
-  if(v.x>h)v.x-=boxSize; else if(v.x<-h)v.x+=boxSize;
-  if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
-  if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
-  return v;
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  let sx=0,sy=0,sz=0;
+  if(mid.x>h)sx=-boxSize; else if(mid.x<-h)sx=boxSize;
+  if(mid.y>h)sy=-boxSize; else if(mid.y<-h)sy=boxSize;
+  if(mid.z>h)sz=-boxSize; else if(mid.z<-h)sz=boxSize;
+  if(sx||sy||sz){
+    const shift = new THREE.Vector3(sx,sy,sz);
+    a.add(shift);
+    b.add(shift);
+  }
+  return [a,b];
 }
 
 function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
@@ -369,9 +376,15 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs, orderi
       donorMol.a.add(f);
       acceptorMol.a.addScaledVector(f,-1);
 
-      const visVec = best.vec.clone();
-      const visLp = wrapPoint(best.h.clone().add(visVec));
-      segs.push(best.h.x,best.h.y,best.h.z,visLp.x,visLp.y,visLp.z);
+      const visH = best.h.clone();
+      const visLp = best.h.clone().add(best.vec);
+      const [lineStart, lineEnd] = wrapSegment(visH, visLp);
+      if(
+        Math.abs(lineStart.x) <= boxSize*0.5 && Math.abs(lineStart.y) <= boxSize*0.5 && Math.abs(lineStart.z) <= boxSize*0.5 &&
+        Math.abs(lineEnd.x) <= boxSize*0.5 && Math.abs(lineEnd.y) <= boxSize*0.5 && Math.abs(lineEnd.z) <= boxSize*0.5
+      ){
+        segs.push(lineStart.x,lineStart.y,lineStart.z,lineEnd.x,lineEnd.y,lineEnd.z);
+      }
 
       const hToLpDir = best.vec.clone().normalize();
       const donorOhDir = best.h.clone().sub(Odon); minImage(donorOhDir); donorOhDir.normalize();

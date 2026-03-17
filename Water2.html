@@ -115,7 +115,9 @@ const QH = 0.42;
 const QLP = -0.42;
 const ROT_INERTIA = 1.9;
 const PAIR_DAMP = 0.55;
-const MAX_REPULSIVE_FORCE = 9.0;
+const MAX_REPULSIVE_FORCE = 28.0;
+const SITE_CORE_SCALE = 0.92;
+const SITE_REPULSION = 22.0;
 const KELVIN_TO_SIM = 0.0065;
 const ORDERING_START_K = 320;
 const ORDERING_FULL_K = 273;
@@ -276,6 +278,31 @@ function applyForces(dt){
       const LPsitesI = [worldSite(mi, baseLP1), worldSite(mi, baseLP2)];
       const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2)];
       const LPsitesJ = [worldSite(mj, baseLP1), worldSite(mj, baseLP2)];
+
+      const hardSitesI = [[Oi, O_RADIUS], [HsitesI[0], H_RADIUS], [HsitesI[1], H_RADIUS]];
+      const hardSitesJ = [[Oj, O_RADIUS], [HsitesJ[0], H_RADIUS], [HsitesJ[1], H_RADIUS]];
+      for(const [si, ri] of hardSitesI){
+        for(const [sj, rj] of hardSitesJ){
+          const sep = sj.clone().sub(si); minImage(sep);
+          const d2 = sep.lengthSq();
+          if(d2 < 1e-6) continue;
+          const d = Math.sqrt(d2);
+          const minDist = SITE_CORE_SCALE * (ri + rj);
+          if(d < minDist){
+            const overlap = minDist - d;
+            const mag = SITE_REPULSION * overlap * overlap;
+            const fSite = sep.multiplyScalar(mag / d);
+            mi.a.addScaledVector(fSite, -1);
+            mj.a.add(fSite);
+
+            const riArm = si.clone().sub(mi.p);
+            const rjArm = sj.clone().sub(mj.p);
+            mi.tau.add(riArm.cross(fSite.clone().multiplyScalar(-1)));
+            mj.tau.add(rjArm.cross(fSite));
+          }
+        }
+      }
+
       const maxElecDist = 14.0;
       if(electro > 0){
         const chargeSitesI = [[Oi, QO], [HsitesI[0], QH], [HsitesI[1], QH], [LPsitesI[0], QLP], [LPsitesI[1], QLP]];

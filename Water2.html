@@ -57,7 +57,7 @@
       <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
       <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="2.6" step="0.02" value="1.25" /></div>
       <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.4" step="0.02" value="0.85" /></div>
-      <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.6" /></div>
+      <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.1" /></div>
       <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
       <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
     </div>
@@ -113,6 +113,8 @@ const QO = 0.00;
 const QH = 0.42;
 const QLP = -0.42;
 const ROT_INERTIA = 1.9;
+const PAIR_DAMP = 0.55;
+const MAX_REPULSIVE_FORCE = 9.0;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -206,7 +208,7 @@ function rebuild(){
   for(let i=0;i<n;i++){
     const m = makeMol();
     m.p.set(rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48));
-    m.v.set(rand(-1,1),rand(-1,1),rand(-1,1));
+    m.v.set(rand(-0.35,0.35),rand(-0.35,0.35),rand(-0.35,0.35));
     molecules.push(m);
   }
 }
@@ -237,10 +239,22 @@ function applyForces(dt){
       const sigma = 2.9;
       const sr = sigma/r;
       const sr6 = sr**6;
-      const fOO = 24*repel*(2*sr6*sr6 - sr6)/r;
+      let fOO = 24*repel*(2*sr6*sr6 - sr6)/r;
+      if(fOO > MAX_REPULSIVE_FORCE) fOO = MAX_REPULSIVE_FORCE;
       const fvec = dir.clone().multiplyScalar(fOO);
       mi.a.addScaledVector(fvec, -1);
       mj.a.add(fvec);
+
+      if(r < 3.2){
+        const relV = mj.v.clone().sub(mi.v);
+        const radialV = relV.dot(dir);
+        if(radialV < 0){
+          const dampMag = -PAIR_DAMP * radialV * (1 - (r-2.2));
+          const dampF = dir.clone().multiplyScalar(Math.max(0, dampMag));
+          mi.a.addScaledVector(dampF, -1);
+          mj.a.add(dampF);
+        }
+      }
 
       // Intermolecular electrostatics (H and lone-pair sites) with torque from off-center forces.
       const Oi = mi.p;
@@ -283,7 +297,8 @@ function applyForces(dt){
 
   molecules.forEach(m=>{
     m.v.addScaledVector(m.a, dt);
-    m.v.multiplyScalar(1-damp);
+    const thermalDrag = damp + (tempTarget < 30 ? 0.012 : 0.0);
+    m.v.multiplyScalar(1-thermalDrag);
 
     m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
     m.w.multiplyScalar(1-rotDamp);

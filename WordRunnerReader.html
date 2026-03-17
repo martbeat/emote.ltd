@@ -3,13 +3,111 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WordRunner Reader</title>
-    <link rel="stylesheet" href="WordRunnerReader.css" />
+    <title>WordRunner Reader (Single File)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --panel: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --pivot: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: radial-gradient(circle at top, #1e293b, var(--bg));
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+      }
+      .app {
+        width: min(920px, 100%);
+        background: color-mix(in srgb, var(--panel), black 8%);
+        border: 1px solid #1f2937;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      }
+      h1 { margin: 0; font-size: clamp(1.5rem, 2.5vw, 2rem); }
+      .subtitle { margin: 0.4rem 0 1.2rem; color: var(--muted); }
+      .controls { display: grid; gap: 1rem; }
+      .file-picker {
+        border: 1px dashed #374151;
+        border-radius: 10px;
+        padding: 0.8rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+      .file-picker input { width: min(100%, 360px); }
+      .row { display: grid; gap: 0.4rem; }
+      .jump-grid { display: grid; gap: 0.8rem; }
+      input[type='range'], select { width: 100%; }
+      .buttons { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+      button {
+        background: #1f2937;
+        color: var(--text);
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        cursor: pointer;
+      }
+      button:disabled, select:disabled, input:disabled { opacity: 0.5; cursor: not-allowed; }
+      progress { width: 100%; }
+      .progress-row { display: grid; gap: 0.35rem; }
+      .status { margin: 0; color: var(--muted); min-height: 1.2em; }
+      .runner {
+        margin-top: 1.5rem;
+        min-height: 240px;
+        border: 1px solid #243041;
+        border-radius: 12px;
+        background: rgba(2, 6, 23, 0.85);
+        display: grid;
+        place-items: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .focus-line {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 100%;
+        background: rgba(56, 189, 248, 0.4);
+      }
+      .section-badge {
+        position: absolute;
+        top: 0.7rem;
+        left: 0.7rem;
+        font-size: 0.8rem;
+        color: #d1d5db;
+        background: rgba(31, 41, 55, 0.8);
+        border: 1px solid #374151;
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+      }
+      .word-display {
+        font-family: 'Courier New', ui-monospace, Menlo, Consolas, monospace;
+        font-size: clamp(2rem, 7vw, 4.2rem);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-align: center;
+        z-index: 1;
+        min-height: 1.2em;
+      }
+      .pivot { color: var(--pivot); }
+    </style>
   </head>
   <body>
     <main class="app">
       <h1>WordRunner Reader</h1>
-      <p class="subtitle">Upload TXT, PDF, DOCX, or EPUB and read one word at a time.</p>
+      <p class="subtitle">Single-file reader. Upload TXT, PDF, DOCX, or EPUB and read word-by-word.</p>
 
       <section class="controls">
         <label class="file-picker">
@@ -53,8 +151,359 @@
       </section>
     </main>
 
-    <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
-    <script type="module" src="WordRunnerReader.js"></script>
+    <script>
+      const fileInput = document.getElementById('fileInput');
+      const speedRange = document.getElementById('speedRange');
+      const speedValue = document.getElementById('speedValue');
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const restartBtn = document.getElementById('restartBtn');
+      const wordDisplay = document.getElementById('wordDisplay');
+      const statusText = document.getElementById('statusText');
+      const progressText = document.getElementById('progressText');
+      const progressBar = document.getElementById('progressBar');
+      const sectionSelect = document.getElementById('sectionSelect');
+      const positionRange = document.getElementById('positionRange');
+      const positionValue = document.getElementById('positionValue');
+      const sectionBadge = document.getElementById('sectionBadge');
+
+      let words = [];
+      let sections = [];
+      let currentIndex = 0;
+      let timerId = null;
+      let isPlaying = false;
+      let pdfjsLib = null;
+      let mammothLib = null;
+
+      const ORP_POSITION_MAP = [0, 0, 1, 1, 1, 2, 2, 2, 3];
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const existing = document.querySelector(`script[src="${src}"]`);
+          if (existing) {
+            existing.addEventListener('load', resolve, { once: true });
+            existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
+            if (existing.dataset.loaded === 'true') resolve();
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = () => {
+            script.dataset.loaded = 'true';
+            resolve();
+          };
+          script.onerror = () => reject(new Error(`Failed to load ${src}`));
+          document.head.appendChild(script);
+        });
+      }
+
+      function tokenize(text) {
+        return text.replace(/[\r\n]+/g, ' ').split(/\s+/).map((w) => w.trim()).filter(Boolean);
+      }
+
+      function isLikelyHeading(line) {
+        const cleaned = line.trim();
+        if (!cleaned) return false;
+        if (/^(chapter|section|part|prologue|epilogue)\b/i.test(cleaned)) return true;
+        if (/^#{1,6}\s+/.test(cleaned)) return true;
+        if (/^\d+(\.\d+)*\s+/.test(cleaned)) return true;
+        const alpha = cleaned.replace(/[^a-z]/gi, '');
+        const uppercaseRatio = alpha ? (alpha.match(/[A-Z]/g) || []).length / alpha.length : 0;
+        return cleaned.length <= 70 && uppercaseRatio > 0.75;
+      }
+
+      function buildSectionsFromText(text) {
+        const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        const detected = [];
+        let currentTitle = 'Start';
+        let currentBuffer = [];
+
+        for (const line of lines) {
+          if (isLikelyHeading(line)) {
+            if (currentBuffer.length) {
+              detected.push({ title: currentTitle, words: tokenize(currentBuffer.join(' ')) });
+              currentBuffer = [];
+            }
+            currentTitle = line.replace(/^#{1,6}\s+/, '');
+          } else {
+            currentBuffer.push(line);
+          }
+        }
+
+        if (currentBuffer.length) {
+          detected.push({ title: currentTitle, words: tokenize(currentBuffer.join(' ')) });
+        }
+
+        const normalized = detected.filter((s) => s.words.length > 0);
+        if (normalized.length > 1) return normalized;
+
+        const allWords = tokenize(text);
+        const chunkSize = 300;
+        const fallback = [];
+        for (let i = 0; i < allWords.length; i += chunkSize) {
+          fallback.push({ title: `Part ${Math.floor(i / chunkSize) + 1}`, words: allWords.slice(i, i + chunkSize) });
+        }
+        return fallback;
+      }
+
+      function flattenSections(sectionData) {
+        const fullWords = [];
+        const normalizedSections = [];
+
+        for (const section of sectionData) {
+          const start = fullWords.length;
+          fullWords.push(...section.words);
+          if (fullWords.length > start) {
+            normalizedSections.push({ title: section.title, startIndex: start, endIndex: fullWords.length - 1 });
+          }
+        }
+        return { fullWords, normalizedSections };
+      }
+
+      function getPivotIndex(word) {
+        if (word.length <= ORP_POSITION_MAP.length) return ORP_POSITION_MAP[word.length - 1];
+        return Math.floor(word.length * 0.35);
+      }
+
+      function decorateWord(rawWord) {
+        const cleanWord = rawWord.trim();
+        if (!cleanWord) return '';
+        const pivotIndex = Math.min(getPivotIndex(cleanWord), cleanWord.length - 1);
+        return `${cleanWord.slice(0, pivotIndex)}<span class="pivot">${cleanWord.charAt(pivotIndex)}</span>${cleanWord.slice(pivotIndex + 1)}`;
+      }
+
+      function getSectionForIndex(index) {
+        return sections.find((section) => index >= section.startIndex && index <= section.endIndex) || sections[0] || null;
+      }
+
+      function updateJumpControls() {
+        const effectiveIndex = Math.min(currentIndex, Math.max(0, words.length - 1));
+        const percent = words.length > 1 ? Math.round((effectiveIndex / (words.length - 1)) * 100) : 0;
+        positionRange.value = String(percent);
+        positionValue.textContent = `${percent}%`;
+
+        const activeSection = getSectionForIndex(effectiveIndex);
+        if (activeSection) {
+          sectionSelect.value = String(activeSection.startIndex);
+          sectionBadge.textContent = activeSection.title;
+        } else {
+          sectionBadge.textContent = 'No section';
+        }
+      }
+
+      function updateProgress() {
+        progressText.textContent = `${Math.min(currentIndex, words.length)} / ${words.length}`;
+        progressBar.max = words.length || 1;
+        progressBar.value = Math.min(currentIndex, words.length);
+        updateJumpControls();
+      }
+
+      function getIntervalMs() {
+        return 60000 / Number(speedRange.value);
+      }
+
+      function stopPlayback(setButtonText = true) {
+        if (timerId) clearTimeout(timerId);
+        timerId = null;
+        isPlaying = false;
+        if (setButtonText) playPauseBtn.textContent = 'Play';
+      }
+
+      function showWord(index) {
+        if (!words[index]) {
+          wordDisplay.textContent = 'Done';
+          return;
+        }
+        wordDisplay.innerHTML = decorateWord(words[index]);
+      }
+
+      function jumpToIndex(index) {
+        currentIndex = Math.max(0, Math.min(index, Math.max(0, words.length - 1)));
+        showWord(currentIndex);
+        updateProgress();
+        statusText.textContent = `Jumped to word ${currentIndex + 1}.`;
+      }
+
+      function tick() {
+        if (!isPlaying) return;
+        if (currentIndex >= words.length) {
+          stopPlayback();
+          statusText.textContent = 'Finished reading.';
+          return;
+        }
+        showWord(currentIndex);
+        currentIndex += 1;
+        updateProgress();
+        timerId = setTimeout(tick, getIntervalMs());
+      }
+
+      function startPlayback() {
+        if (!words.length) return;
+        isPlaying = true;
+        playPauseBtn.textContent = 'Pause';
+        statusText.textContent = `Reading at ${speedRange.value} WPM.`;
+        tick();
+      }
+
+      function togglePlayback() {
+        if (!words.length) return;
+        if (isPlaying) {
+          stopPlayback();
+          statusText.textContent = 'Paused.';
+        } else {
+          startPlayback();
+        }
+      }
+
+      function resetReader() {
+        stopPlayback();
+        currentIndex = 0;
+        showWord(0);
+        updateProgress();
+        statusText.textContent = words.length ? 'Ready to read.' : 'Choose a file to begin.';
+      }
+
+      function populateSections() {
+        sectionSelect.innerHTML = '';
+        sections.forEach((section) => {
+          const option = document.createElement('option');
+          option.value = String(section.startIndex);
+          option.textContent = `${section.title} (${section.startIndex + 1})`;
+          sectionSelect.appendChild(option);
+        });
+      }
+
+      async function parseTextFile(file) {
+        return file.text();
+      }
+
+      async function parsePdf(file) {
+        if (!pdfjsLib) {
+          pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.mjs';
+        }
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+        let text = '';
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+          const page = await pdf.getPage(pageNum);
+          const content = await page.getTextContent();
+          text += `${content.items.map((item) => item.str).join(' ')}\n`;
+        }
+        return text;
+      }
+
+      async function parseDocx(file) {
+        if (!mammothLib) {
+          await loadScript('https://unpkg.com/mammoth/mammoth.browser.min.js');
+          mammothLib = window.mammoth;
+        }
+        if (!mammothLib) throw new Error('DOCX parser failed to load.');
+        const { value } = await mammothLib.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+        return value;
+      }
+
+      async function parseEpub(file) {
+        await loadScript('https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js');
+        if (!window.ePub) throw new Error('EPUB parser failed to load.');
+
+        const objectUrl = URL.createObjectURL(file);
+        try {
+          const book = window.ePub(objectUrl);
+          await book.ready;
+          await book.loaded.navigation;
+          const spine = await book.loaded.spine;
+          let collected = '';
+          for (const section of spine.items) {
+            const doc = await section.load(book.load.bind(book));
+            collected += `${doc.body?.textContent || ''}\n`;
+            section.unload();
+          }
+          return collected;
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      }
+
+      async function parseFileToText(file) {
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        if (extension === 'txt') return parseTextFile(file);
+        if (extension === 'pdf') return parsePdf(file);
+        if (extension === 'docx') return parseDocx(file);
+        if (extension === 'epub') return parseEpub(file);
+        throw new Error('Unsupported file type. Please use TXT, PDF, DOCX, or EPUB.');
+      }
+
+      async function handleFileSelection(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        stopPlayback();
+        statusText.textContent = `Loading ${file.name}...`;
+        wordDisplay.textContent = 'Loading…';
+        playPauseBtn.disabled = true;
+        restartBtn.disabled = true;
+        sectionSelect.disabled = true;
+        positionRange.disabled = true;
+
+        try {
+          const text = await parseFileToText(file);
+          const parsedSections = buildSectionsFromText(text);
+          const flattened = flattenSections(parsedSections);
+          words = flattened.fullWords;
+          sections = flattened.normalizedSections;
+          currentIndex = 0;
+
+          if (!words.length) throw new Error('No readable words found in this file.');
+
+          populateSections();
+          showWord(0);
+          updateProgress();
+          playPauseBtn.disabled = false;
+          restartBtn.disabled = false;
+          sectionSelect.disabled = false;
+          positionRange.disabled = false;
+          playPauseBtn.textContent = 'Play';
+          statusText.textContent = `${words.length} words loaded from ${file.name}. ${sections.length} jump points available.`;
+        } catch (error) {
+          words = [];
+          sections = [];
+          currentIndex = 0;
+          wordDisplay.textContent = 'Error';
+          updateProgress();
+          statusText.textContent = error?.message || 'Could not parse the selected file.';
+          stopPlayback(false);
+        }
+      }
+
+      speedRange.addEventListener('input', () => {
+        speedValue.textContent = speedRange.value;
+        if (isPlaying) {
+          stopPlayback(false);
+          startPlayback();
+        }
+      });
+
+      sectionSelect.addEventListener('change', (event) => {
+        if (!words.length) return;
+        stopPlayback();
+        jumpToIndex(Number(event.target.value));
+      });
+
+      positionRange.addEventListener('input', () => {
+        positionValue.textContent = `${positionRange.value}%`;
+      });
+
+      positionRange.addEventListener('change', () => {
+        if (!words.length) return;
+        stopPlayback();
+        const target = Math.floor((Number(positionRange.value) / 100) * Math.max(0, words.length - 1));
+        jumpToIndex(target);
+      });
+
+      fileInput.addEventListener('change', handleFileSelection);
+      playPauseBtn.addEventListener('click', togglePlayback);
+      restartBtn.addEventListener('click', resetReader);
+      updateProgress();
+    </script>
   </body>
 </html>

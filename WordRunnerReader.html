@@ -205,10 +205,30 @@
         if (!cleaned) return false;
         if (/^(chapter|section|part|prologue|epilogue)\b/i.test(cleaned)) return true;
         if (/^#{1,6}\s+/.test(cleaned)) return true;
-        if (/^\d+(\.\d+)*\s+/.test(cleaned)) return true;
+        if (/^\d+(\.\d+)*(\s+.*)?$/.test(cleaned)) return true;
         const alpha = cleaned.replace(/[^a-z]/gi, '');
         const uppercaseRatio = alpha ? (alpha.match(/[A-Z]/g) || []).length / alpha.length : 0;
         return cleaned.length <= 70 && uppercaseRatio > 0.75;
+      }
+
+      function summarizeWords(words, count = 6) {
+        const snippet = words.slice(0, count).join(' ');
+        return snippet.length > 48 ? `${snippet.slice(0, 48).trim()}…` : snippet;
+      }
+
+      function enrichSectionTitle(rawTitle, words, fallbackPrefix = 'Part') {
+        const title = (rawTitle || '').replace(/^#{1,6}\s+/, '').trim();
+        const baseTitle = title || fallbackPrefix;
+        const preview = summarizeWords(words);
+        const titleHasGoodText = /[A-Za-z]{3}/.test(baseTitle);
+        const mostlyNumber = /^\d+(\.\d+)*$/.test(baseTitle);
+        const isShort = baseTitle.length < 10;
+
+        if (!preview) return baseTitle;
+        if (!titleHasGoodText || mostlyNumber || isShort) {
+          return `${baseTitle} — ${preview}`;
+        }
+        return baseTitle;
       }
 
       function buildSectionsFromText(text) {
@@ -217,20 +237,26 @@
         let currentTitle = 'Start';
         let currentBuffer = [];
 
+        const pushSection = (title, bufferWords) => {
+          const wordsForSection = tokenize(bufferWords.join(' '));
+          if (!wordsForSection.length) return;
+          detected.push({ title: enrichSectionTitle(title, wordsForSection, `Part ${detected.length + 1}`), words: wordsForSection });
+        };
+
         for (const line of lines) {
           if (isLikelyHeading(line)) {
             if (currentBuffer.length) {
-              detected.push({ title: currentTitle, words: tokenize(currentBuffer.join(' ')) });
+              pushSection(currentTitle, currentBuffer);
               currentBuffer = [];
             }
-            currentTitle = line.replace(/^#{1,6}\s+/, '');
+            currentTitle = line;
           } else {
             currentBuffer.push(line);
           }
         }
 
         if (currentBuffer.length) {
-          detected.push({ title: currentTitle, words: tokenize(currentBuffer.join(' ')) });
+          pushSection(currentTitle, currentBuffer);
         }
 
         const normalized = detected.filter((s) => s.words.length > 0);
@@ -240,7 +266,11 @@
         const chunkSize = 300;
         const fallback = [];
         for (let i = 0; i < allWords.length; i += chunkSize) {
-          fallback.push({ title: `Part ${Math.floor(i / chunkSize) + 1}`, words: allWords.slice(i, i + chunkSize) });
+          const chunkWords = allWords.slice(i, i + chunkSize);
+          fallback.push({
+            title: enrichSectionTitle(`Part ${Math.floor(i / chunkSize) + 1}`, chunkWords),
+            words: chunkWords,
+          });
         }
         return fallback;
       }

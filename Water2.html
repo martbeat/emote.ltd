@@ -67,7 +67,7 @@
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">HB links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Temperature uses a Kelvin-to-simulation mapping calibrated so ambient values produce liquid-like mobility.</div>
+      <div>Hydrogen bond heuristic: H···LP distance short and O-H···LP angle near linear. Temperature uses a Kelvin-to-simulation mapping with extra low-temperature ordering so networks rigidify as you cool.</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
@@ -117,6 +117,8 @@ const ROT_INERTIA = 1.9;
 const PAIR_DAMP = 0.55;
 const MAX_REPULSIVE_FORCE = 9.0;
 const KELVIN_TO_SIM = 160;
+const ORDERING_START_K = 240;
+const ORDERING_FULL_K = 120;
 
 const geomO = new THREE.SphereGeometry(O_RADIUS, 20, 16);
 const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
@@ -223,6 +225,7 @@ function applyForces(dt){
   const rotDamp = +ui.rotDamp.value;
   const tempTarget = +ui.temp.value;
   const targetSimTemp = tempTarget * KELVIN_TO_SIM;
+  const ordering = THREE.MathUtils.clamp((ORDERING_START_K - tempTarget) / (ORDERING_START_K - ORDERING_FULL_K), 0, 1);
 
   molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
 
@@ -293,17 +296,19 @@ function applyForces(dt){
         }
       }
 
-      hbCount += hbPair(mi, mj, HsitesI, LPsitesJ, hbStrength, hbSegments);
-      hbCount += hbPair(mj, mi, HsitesJ, LPsitesI, hbStrength, hbSegments);
+      hbCount += hbPair(mi, mj, HsitesI, LPsitesJ, hbStrength, hbSegments, ordering);
+      hbCount += hbPair(mj, mi, HsitesJ, LPsitesI, hbStrength, hbSegments, ordering);
     }
   }
 
   molecules.forEach(m=>{
     m.v.addScaledVector(m.a, dt);
-    m.v.multiplyScalar(Math.max(0, 1-damp));
+    const lowTTransDrag = 0.035 * ordering;
+    m.v.multiplyScalar(Math.max(0, 1-damp-lowTTransDrag));
 
     m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
-    m.w.multiplyScalar(Math.max(0, 1-rotDamp));
+    const lowTRotDrag = 0.045 * ordering;
+    m.w.multiplyScalar(Math.max(0, 1-rotDamp-lowTRotDrag));
     const wLen = m.w.length();
     if(wLen > 7.5) m.w.multiplyScalar(7.5 / wLen);
 
@@ -319,14 +324,14 @@ function applyForces(dt){
   molecules.forEach(m=>{ ke += 0.5*m.v.lengthSq(); });
   const tInst = (2*ke)/(3*molecules.length);
   const scale = Math.sqrt(Math.max(0,targetSimTemp/Math.max(tInst,1e-6)));
-  const thermo = 0.12;
+  const thermo = 0.12 + 0.12*ordering;
   molecules.forEach(m=>m.v.multiplyScalar(THREE.MathUtils.clamp(1 + (scale-1)*thermo, 0, 1.2)));
 
   let rotKE = 0;
   molecules.forEach(m=>{ rotKE += 0.5 * ROT_INERTIA * m.w.lengthSq(); });
   const rotT = (2*rotKE)/(3*molecules.length);
   const rotScale = Math.sqrt(Math.max(0,targetSimTemp/Math.max(rotT,1e-6)));
-  const rotThermo = 0.10;
+  const rotThermo = 0.10 + 0.14*ordering;
   molecules.forEach(m=>m.w.multiplyScalar(THREE.MathUtils.clamp(1 + (rotScale-1)*rotThermo, 0, 1.15)));
 
   hbGeom.setAttribute('position', new THREE.Float32BufferAttribute(hbSegments, 3));
@@ -335,7 +340,7 @@ function applyForces(dt){
   ui.hbVal.textContent = hbCount;
 }
 
-function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
+function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs, ordering){
   let count = 0;
   const Odon = donorMol.p;
   LPsites.forEach(lp=>{
@@ -355,9 +360,11 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
       if(!best || score>best.score) best={h,lp,d,score,vec:hToLp};
     });
 
-    if(best && best.score>0.04){
+    const hbThreshold = 0.04 - 0.018*ordering;
+    if(best && best.score>hbThreshold){
       count++;
-      const mag = hbStrength * best.score * 4.6;
+      const hbGain = 1 + 1.35*ordering;
+      const mag = hbStrength * hbGain * best.score * 4.6;
       const f = best.vec.clone().normalize().multiplyScalar(mag);
       donorMol.a.add(f);
       acceptorMol.a.addScaledVector(f,-1);
@@ -368,15 +375,15 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs){
 
       const hToLpDir = best.vec.clone().normalize();
       const donorOhDir = best.h.clone().sub(Odon); minImage(donorOhDir); donorOhDir.normalize();
-      const donorAlign = donorOhDir.clone().cross(hToLpDir).multiplyScalar(-0.30 * hbStrength * best.score);
+      const donorAlign = donorOhDir.clone().cross(hToLpDir).multiplyScalar(-0.30 * hbStrength * hbGain * best.score);
       donorMol.tau.add(donorAlign);
 
       const accArm = best.lp.clone().sub(acceptorMol.p); minImage(accArm);
       const lpDir = accArm.clone().normalize();
-      const acceptAlign = lpDir.clone().cross(hToLpDir.clone().multiplyScalar(-1)).multiplyScalar(-0.24 * hbStrength * best.score);
+      const acceptAlign = lpDir.clone().cross(hToLpDir.clone().multiplyScalar(-1)).multiplyScalar(-0.24 * hbStrength * hbGain * best.score);
       acceptorMol.tau.add(acceptAlign);
 
-      const couplingTau = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.16*hbStrength);
+      const couplingTau = best.h.clone().sub(Odon).cross(best.vec).multiplyScalar(-0.16*hbStrength*hbGain);
       donorMol.tau.add(couplingTau);
       acceptorMol.tau.addScaledVector(couplingTau,-1.1);
     }

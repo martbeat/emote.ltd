@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WordRunner Reader</title>
+    <link rel="stylesheet" href="WordRunnerReader.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>WordRunner Reader</h1>
+      <p class="subtitle">Upload TXT, PDF, DOCX, or EPUB and read one word at a time.</p>
+
+      <section class="controls">
+        <label class="file-picker">
+          <span>Select file</span>
+          <input id="fileInput" type="file" accept=".txt,.pdf,.docx,.epub,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip" />
+        </label>
+
+        <div class="row">
+          <label for="speedRange">Speed: <strong><span id="speedValue">300</span> WPM</strong></label>
+          <input id="speedRange" type="range" min="90" max="900" value="300" step="10" />
+        </div>
+
+        <div class="buttons">
+          <button id="playPauseBtn" disabled>Play</button>
+          <button id="restartBtn" disabled>Restart</button>
+        </div>
+
+        <div class="progress-row">
+          <span id="progressText">0 / 0</span>
+          <progress id="progressBar" value="0" max="1"></progress>
+        </div>
+
+        <p id="statusText" class="status">Choose a file to begin.</p>
+      </section>
+
+      <section class="runner">
+        <div class="focus-line" aria-hidden="true"></div>
+        <div id="wordDisplay" class="word-display">Ready</div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <script type="module" src="WordRunnerReader.js"></script>
+  </body>
+</html>

@@ -22,6 +22,17 @@
           <input id="speedRange" type="range" min="90" max="900" value="300" step="10" />
         </div>
 
+        <div class="jump-grid">
+          <label class="row" for="sectionSelect">
+            Jump to heading / section
+            <select id="sectionSelect" disabled></select>
+          </label>
+          <label class="row" for="positionRange">
+            Or jump by position: <strong><span id="positionValue">0%</span></strong>
+            <input id="positionRange" type="range" min="0" max="100" value="0" step="1" disabled />
+          </label>
+        </div>
+
         <div class="buttons">
           <button id="playPauseBtn" disabled>Play</button>
           <button id="restartBtn" disabled>Restart</button>
@@ -37,6 +48,7 @@
 
       <section class="runner">
         <div class="focus-line" aria-hidden="true"></div>
+        <div id="sectionBadge" class="section-badge">No section</div>
         <div id="wordDisplay" class="word-display">Ready</div>
       </section>
     </main>

@@ -1,7 +1,7 @@
 export const ANSWER_COUNT = 2315;
 export const PATTERN_SPACE = 243; // 3^5
 export const MODE_THRESHOLD = 120;
-export const FINISHING_THRESHOLD = 20;
+export const FINISHING_THRESHOLD = 10;
 export const CANDIDATE_ONLY_THRESHOLD = 4;
 export const SOLVE_SEARCH_THRESHOLD = 25;
 export const SOLVE_MAX_DEPTH = 6;
@@ -153,7 +153,7 @@ function buildPositionalFrequencyTable(dictionary) {
 }
 
 function resolveMode(candidateCount) {
-  if (candidateCount > 60) return "exploration";
+  if (candidateCount > 80) return "exploration";
   if (candidateCount > FINISHING_THRESHOLD) return "mixed";
   return "exploitation";
 }

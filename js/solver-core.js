@@ -366,21 +366,34 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
     }
   }
     
-    for (const guess of pool) {
-      const analysis = analyseGuess(guess, candidates, "exploitation", candidateSet);
-      const expectedTurns = expectedSolveCost(guess, candidates, pool);
-      ranked.push({
-        word: guess,
-        guess,
-        entropy: analysis.entropy,
-        expectedLeft: analysis.expectedLeft,
-        expectedTurns,
-        worstCase: analysis.worstCase,
-        usagePrior: usagePriorScore(guess),
-        isCandidate: analysis.isCandidate,
-        score: -expectedTurns
-      });
-    }
+for (const guess of pool) {
+  const analysis = analyseGuess(guess, candidates, "exploitation", candidateSet);
+  const expectedTurns = expectedSolveCost(guess, candidates, pool);
+
+  const worstCaseNorm = analysis.worstCase / candidateCount;
+
+  let score =
+    -expectedTurns
+    + 0.25 * analysis.entropy
+    - 0.5 * worstCaseNorm;
+
+  // 🔥 CRITICAL: prefer actual possible answers
+  if (analysis.isCandidate) {
+score += Math.min(1.2, 0.3 + 5 / candidateCount);
+  }
+
+  ranked.push({
+    word: guess,
+    guess,
+    entropy: analysis.entropy,
+    expectedLeft: analysis.expectedLeft,
+    expectedTurns,
+    worstCase: analysis.worstCase,
+    usagePrior: usagePriorScore(guess),
+    isCandidate: analysis.isCandidate,
+    score
+  });
+}
 
     ranked.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;

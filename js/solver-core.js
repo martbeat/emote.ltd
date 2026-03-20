@@ -2,6 +2,7 @@ export const ANSWER_COUNT = 2315;
 export const PATTERN_SPACE = 243; // 3^5
 export const MODE_THRESHOLD = 120;
 export const FINISHING_THRESHOLD = 20;
+export const CANDIDATE_ONLY_THRESHOLD = 50;
 
 let positionalFrequencyTable = null;
 let usagePriorTable = null;
@@ -207,25 +208,17 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
   }
 
   const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
+  const solvedBucket = buckets[242];
+  const expectedTurns = 1 + expectedLeft - ((solvedBucket * solvedBucket) / total);
 
-  let score = entropy;
-  if (mode === "mixed") {
-    const candidateCount = candidates.length;
-    const endgamePressure = clamp((30 - candidateCount) / 20, 0, 1);
-    const exploratoryBoost = 0.02 * uniqueLetterScore(guess) + 0.02 * positionalScore(guess);
-    const candidateBonus = isCandidate ? 0.35 + 0.85 * endgamePressure : 0;
-    const expectedLeftPenalty = 0.08 * endgamePressure * expectedLeft;
-    score = entropy + exploratoryBoost + candidateBonus - expectedLeftPenalty;
-  } else if (mode === "exploitation") {
-    const worstCasePenalty = 0.12 * worstCase;
-    score = -(expectedLeft + worstCasePenalty);
-  }
+  const score = -expectedTurns;
 
   return {
     word: guess,
     guess,
     entropy,
     expectedLeft,
+    expectedTurns,
     worstCase,
     usagePrior: usagePriorScore(guess),
     isCandidate,
@@ -244,7 +237,8 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
   usagePriorTable = buildUsagePriorTable(dictionary);
-  const pool = mode === "exploitation" ? candidates : dictionary;
+  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
+  const pool = restrictToCandidates || mode === "exploitation" ? candidates : dictionary;
   const ranked = [];
   const candidateSet = new Set(candidates);
 

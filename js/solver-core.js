@@ -339,20 +339,39 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 // 🔥 ALWAYS run this first
 if (candidateCount <= 10) {
 
-  const ordered = candidates.slice().sort((a, b) => {
+const ordered = candidates.slice().sort((a, b) => {
 
-    const wa = analyseGuess(a, candidates, "exploitation", candidateSet).worstCase;
-    const wb = analyseGuess(b, candidates, "exploitation", candidateSet).worstCase;
-    if (wa !== wb) return wa - wb;
+  const aa = analyseGuess(a, candidates, "exploitation", candidateSet);
+  const bb = analyseGuess(b, candidates, "exploitation", candidateSet);
 
-    const ua = usagePriorScore(b) - usagePriorScore(a);
-    if (ua !== 0) return ua;
+  // 🔥 PRIMARY: minimise expected remaining candidates
+  if (aa.expectedLeft !== bb.expectedLeft) {
+    return aa.expectedLeft - bb.expectedLeft;
+  }
+// 🔥 direct-hit bias (critical)
+if (aa.isCandidate !== bb.isCandidate) {
+  return bb.isCandidate - aa.isCandidate;
+}
+  // 🔥 SECONDARY: minimise worst-case bucket
+  if (aa.worstCase !== bb.worstCase) {
+    return aa.worstCase - bb.worstCase;
+  }
 
-    const pa = positionalScore(b) - positionalScore(a);
-    if (pa !== 0) return pa;
+  // 🔥 THIRD: prefer actual answers
+  if (aa.isCandidate !== bb.isCandidate) {
+    return Number(bb.isCandidate) - Number(aa.isCandidate);
+  }
 
-    return a.localeCompare(b);
-  });
+  // 🔥 FOURTH: prefer common words
+  const ua = usagePriorScore(b) - usagePriorScore(a);
+  if (ua !== 0) return ua;
+
+  // 🔥 FIFTH: positional likelihood
+  const pa = positionalScore(b) - positionalScore(a);
+  if (pa !== 0) return pa;
+
+  return a.localeCompare(b);
+});
 
   return ordered.slice(0, limit).map((word, index) => {
     const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);

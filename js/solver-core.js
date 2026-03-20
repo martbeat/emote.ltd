@@ -601,7 +601,7 @@ if (candidateCount <= 10) {
       score
     });
   }
-
+}
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;

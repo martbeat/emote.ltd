@@ -342,7 +342,7 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
     if (candidateCount <= 6 || strength > 0.6) {
 
       const ordered = candidates.slice().sort((a, b) => {
-        const pa = positionalWordScore(b) - positionalWordScore(a);
+        const pa = positionalScore(b) - positionalScore(a);
         if (pa !== 0) return pa;
 
         const ua = usagePriorScore(b) - usagePriorScore(a);
@@ -351,31 +351,28 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
         return a.localeCompare(b);
       });
 
-      return ordered.slice(0, limit).map(word => ({
-        word,
-        guess: word,
-        entropy: 0,
-        expectedLeft: 1,
-        expectedTurns: 1,
-        worstCase: 1,
-        usagePrior: usagePriorScore(word),
-        isCandidate: true,
-        score: 999
-      }));
+      return ordered.slice(0, limit).map((word, index) => {
+        const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
+        return {
+          ...analysis,
+          score: 999 - index
+        };
+      });
     }
   }
     
     for (const guess of pool) {
+      const analysis = analyseGuess(guess, candidates, "exploitation", candidateSet);
       const expectedTurns = expectedSolveCost(guess, candidates, pool);
       ranked.push({
         word: guess,
         guess,
-        entropy: 0,
-        expectedLeft: 0,
+        entropy: analysis.entropy,
+        expectedLeft: analysis.expectedLeft,
         expectedTurns,
-        worstCase: 0,
+        worstCase: analysis.worstCase,
         usagePrior: usagePriorScore(guess),
-        isCandidate: candidateSet.has(guess),
+        isCandidate: analysis.isCandidate,
         score: -expectedTurns
       });
     }

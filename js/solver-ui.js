@@ -356,6 +356,7 @@ async function initialise() {
     resetState();
     renderHistory();
 
+    setStatus("Initializing solver worker…", "working");
     createWorker();
     const initResult = await callWorker("init", {
       answers: state.answers,

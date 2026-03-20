@@ -201,16 +201,6 @@ function keyForSet(words) {
   return words.slice().sort().join(",");
 }
 
-function partitionCandidates(guess, candidates) {
-  const map = new Map();
-  for (const answer of candidates) {
-    const code = scoreGuessEncoded(guess, answer);
-    if (!map.has(code)) map.set(code, []);
-    map.get(code).push(answer);
-  }
-  return map;
-}
-
 function solvedPatternCode() {
   return 242; // ggggg in base-3 with your encoding
 }
@@ -378,9 +368,6 @@ export function expectedRemainingCandidates(guess, candidates) {
   return totalSquared / candidates.length;
 }
 
-function keyForSet(words) {
-  return words.join(",");
-}
 
 function partitionCandidates(guess, candidates) {
   const map = new Map();

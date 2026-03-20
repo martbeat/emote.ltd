@@ -338,9 +338,16 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 
 // 🔥 ALWAYS run this first
 if (candidateCount <= 10) {
+  const vowels = new Set(["a", "e", "i", "o", "u"]);
   const ordered = candidates.slice().sort((a, b) => {
-    const sa = lateAnswerScore(a);
-    const sb = lateAnswerScore(b);
+    let sa = 2 * positionalScore(a) + 1.2 * uniqueLetterScore(a);
+    let sb = 2 * positionalScore(b) + 1.2 * uniqueLetterScore(b);
+    for (const ch of a) {
+      if (vowels.has(ch)) sa++;
+    }
+    for (const ch of b) {
+      if (vowels.has(ch)) sb++;
+    }
     if (sb !== sa) return sb - sa;
     return a.localeCompare(b);
   });
@@ -428,23 +435,4 @@ export function buildDefaultHistoryState(answers) {
     candidates: [...answers],
     history: []
   };
-}
-function lateAnswerScore(word) {
-  let score = 0;
-
-  // prefer common letter positions from your current dictionary
-  score += 2 * positionalScore(word);
-
-  // prefer unique letters a bit less at this stage
-  score += 1.2 * uniqueLetterScore(word);
-
-  // mild vowel preference
-  const vowels = new Set(["a", "e", "i", "o", "u"]);
-  let vowelCount = 0;
-  for (const ch of word) {
-    if (vowels.has(ch)) vowelCount++;
-  }
-  score += vowelCount;
-
-  return score;
 }

@@ -218,8 +218,7 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
     score = entropy + exploratoryBoost + candidateBonus - expectedLeftPenalty;
   } else if (mode === "exploitation") {
     const worstCasePenalty = 0.12 * worstCase;
-    const usageBonus = 0.22 * usagePriorScore(guess);
-    score = -(expectedLeft + worstCasePenalty) + usageBonus;
+    score = -(expectedLeft + worstCasePenalty);
   }
 
   return {
@@ -228,6 +227,7 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
     entropy,
     expectedLeft,
     worstCase,
+    usagePrior: usagePriorScore(guess),
     isCandidate,
     score
   };
@@ -254,6 +254,7 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
     if (b.entropy !== a.entropy) return b.entropy - a.entropy;
     if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
     return a.word.localeCompare(b.word);

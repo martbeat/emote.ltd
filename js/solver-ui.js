@@ -8,8 +8,8 @@ import {
   clearSolveMemo,
   validateGuessPattern,
   buildDefaultHistoryState
-} from "./solver-core.js?v=20260320";
-import { loadWordLists } from "./wordlists.js?v=20260320";
+} from "./solver-core.js?v=20260321";
+import { loadWordLists } from "./wordlists.js?v=20260321";
 
 const state = {
   answers: [],
@@ -24,7 +24,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260320";
+const SOLVER_ASSET_VERSION = "20260321";
 
 const ui = {
   status: document.getElementById("status"),

@@ -197,6 +197,142 @@ export function positionalScore(word) {
   return score;
 }
 
+function keyForSet(words) {
+  return words.slice().sort().join(",");
+}
+
+function partitionCandidates(guess, candidates) {
+  const map = new Map();
+  for (const answer of candidates) {
+    const code = scoreGuessEncoded(guess, answer);
+    if (!map.has(code)) map.set(code, []);
+    map.get(code).push(answer);
+  }
+  return map;
+}
+
+function solvedPatternCode() {
+  return 242; // ggggg in base-3 with your encoding
+}
+
+function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 12) {
+  // Always include candidates
+  const pool = new Set(candidates);
+
+  // Add a few strong breaker guesses from the wider guess list
+  const ranked = [];
+  for (const guess of guesses) {
+    if (pool.has(guess)) continue;
+    const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
+    ranked.push({
+      guess,
+      entropy: analysis.entropy,
+      worstCase: analysis.worstCase
+    });
+  }
+
+  ranked.sort((a, b) => {
+    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
+    if (a.worstCase !== b.worstCase) return a.worstCase - b.worstCase;
+    return a.guess.localeCompare(b.guess);
+  });
+
+  for (const row of ranked.slice(0, maxExtra)) {
+    pool.add(row.guess);
+  }
+
+  return [...pool];
+}
+
+function recursiveExpectedSolveDepth(candidates, guesses, memo, depth = 0, maxDepth = 8) {
+  if (candidates.length <= 1) return 1;
+  if (depth >= maxDepth) return candidates.length;
+
+  const key = keyForSet(candidates);
+  if (memo.has(key)) return memo.get(key);
+
+  const candidateSet = new Set(candidates);
+  const guessPool = selectRecursivePool(candidates, guesses, candidateSet);
+
+  let best = Infinity;
+
+  for (const guess of guessPool) {
+    const parts = partitionCandidates(guess, candidates);
+    let totalCost = 0;
+    const total = candidates.length;
+
+    for (const [code, subset] of parts.entries()) {
+      const p = subset.length / total;
+
+      if (code === solvedPatternCode()) {
+        totalCost += p * 1;
+      } else {
+        const future = recursiveExpectedSolveDepth(subset, guesses, memo, depth + 1, maxDepth);
+        totalCost += p * (1 + future);
+      }
+    }
+
+    if (totalCost < best) best = totalCost;
+  }
+
+  memo.set(key, best);
+  return best;
+}
+
+function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8) {
+  const memo = new Map();
+  const candidateSet = new Set(candidates);
+  const guessPool = selectRecursivePool(candidates, guesses, candidateSet);
+
+  const ranked = [];
+
+  for (const guess of guessPool) {
+    const parts = partitionCandidates(guess, candidates);
+    let totalCost = 0;
+    const total = candidates.length;
+
+    for (const [code, subset] of parts.entries()) {
+      const p = subset.length / total;
+
+      if (code === solvedPatternCode()) {
+        totalCost += p * 1;
+      } else {
+        const future = recursiveExpectedSolveDepth(subset, guesses, memo, 1, maxDepth);
+        totalCost += p * (1 + future);
+      }
+    }
+
+    const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
+
+    ranked.push({
+      word: guess,
+      guess,
+      entropy: analysis.entropy,
+      expectedLeft: analysis.expectedLeft,
+      expectedTurns: totalCost,
+      worstCase: analysis.worstCase,
+      usagePrior: usagePriorScore(guess),
+      isCandidate: candidateSet.has(guess),
+      score: -totalCost
+    });
+  }
+
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.isCandidate !== a.isCandidate) return Number(b.isCandidate) - Number(a.isCandidate);
+    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
+    if (a.worstCase !== b.worstCase) return a.worstCase - b.worstCase;
+    return a.word.localeCompare(b.word);
+  });
+
+  return ranked.slice(0, limit);
+}
+
+
+
+
+
+
 function buildUsagePriorTable(guesses) {
   const table = Object.create(null);
   const answerLike = Array.isArray(guesses) ? guesses.slice(0, ANSWER_COUNT) : [];
@@ -359,28 +495,9 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 
 // 🔥 ALWAYS run this first
 if (candidateCount <= 10) {
-  const vowels = new Set(["a", "e", "i", "o", "u"]);
-  const ordered = candidates.slice().sort((a, b) => {
-    let sa = 2 * positionalScore(a) + 1.2 * uniqueLetterScore(a);
-    let sb = 2 * positionalScore(b) + 1.2 * uniqueLetterScore(b);
-    for (const ch of a) {
-      if (vowels.has(ch)) sa++;
-    }
-    for (const ch of b) {
-      if (vowels.has(ch)) sb++;
-    }
-    if (sb !== sa) return sb - sa;
-    return a.localeCompare(b);
-  });
-
-  return ordered.slice(0, limit).map((word, index) => {
-    const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
-    return {
-      ...analysis,
-      score: 999 - index
-    };
-  });
+  return rankByRecursiveSolveDepth(candidates, dictionary, limit, 8);
 }
+ 
   const mode = forceMode === "candidates"
     ? "exploitation"
     : forceMode === "all"

@@ -433,10 +433,10 @@ function lateAnswerScore(word) {
   let score = 0;
 
   // prefer common letter positions from your current dictionary
-  score += positionalScore(word);
+  score += 2 * positionalScore(word);
 
   // prefer unique letters a bit less at this stage
-  score += 2 * uniqueLetterScore(word);
+  score += 1.2 * uniqueLetterScore(word);
 
   // mild vowel preference
   const vowels = new Set(["a", "e", "i", "o", "u"]);

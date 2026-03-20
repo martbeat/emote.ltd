@@ -319,21 +319,29 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
     const ranked = [];
     const pool = candidates; // only real answers
 
-    for (const guess of pool) {
-      const expectedTurns = expectedSolveCost(guess, candidates, pool);
+for (const guess of pool) {
+  const expectedTurns = expectedSolveCost(guess, candidates, pool);
+  const worstCaseNorm = worstCase / candidates.length;
+  const entropy = computeEntropy(guess, candidates);
+  const worstCase = computeWorstCasePartition(guess, candidates);
 
-      ranked.push({
-        word: guess,
-        guess,
-        entropy: 0,
-        expectedLeft: 0,
-        expectedTurns,
-        worstCase: 0,
-        usagePrior: usagePriorScore(guess),
-        isCandidate: true,
-        score: -expectedTurns
-      });
-    }
+  const score =
+    -expectedTurns
+    + 0.25 * entropy
+    - 0.15 * worstCaseNorm;
+
+  ranked.push({
+    word: guess,
+    guess,
+    entropy,              // ✅ keep real value
+    expectedLeft: 0,      // optional: you can improve this later
+    expectedTurns,
+    worstCase,            // ✅ keep real value
+    usagePrior: usagePriorScore(guess),
+    isCandidate: true,
+    score                 // ✅ use computed score
+  });
+}
 
     ranked.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
@@ -384,4 +392,24 @@ export function buildDefaultHistoryState(answers) {
     candidates: [...answers],
     history: []
   };
+}
+function computeEntropy(guess, candidates) {
+  const parts = partitionCandidates(guess, candidates);
+  const total = candidates.length;
+
+  let entropy = 0;
+  for (const subset of parts.values()) {
+    const p = subset.length / total;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+
+function computeWorstCasePartition(guess, candidates) {
+  const parts = partitionCandidates(guess, candidates);
+  let max = 0;
+  for (const subset of parts.values()) {
+    if (subset.length > max) max = subset.length;
+  }
+  return max;
 }

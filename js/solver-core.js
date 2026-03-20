@@ -351,17 +351,13 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
         return a.localeCompare(b);
       });
 
-      return ordered.slice(0, limit).map(word => ({
-        word,
-        guess: word,
-        entropy: 0,
-        expectedLeft: 1,
-        expectedTurns: 1,
-        worstCase: 1,
-        usagePrior: usagePriorScore(word),
-        isCandidate: true,
-        score: 999
-      }));
+      return ordered.slice(0, limit).map((word, index) => {
+        const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
+        return {
+          ...analysis,
+          score: 999 - index
+        };
+      });
     }
   }
     

@@ -2,7 +2,7 @@ export const ANSWER_COUNT = 2315;
 export const PATTERN_SPACE = 243; // 3^5
 export const MODE_THRESHOLD = 120;
 export const FINISHING_THRESHOLD = 20;
-export const CANDIDATE_ONLY_THRESHOLD = 50;
+export const CANDIDATE_ONLY_THRESHOLD = 4;
 export const SOLVE_SEARCH_THRESHOLD = 25;
 export const SOLVE_MAX_DEPTH = 6;
 

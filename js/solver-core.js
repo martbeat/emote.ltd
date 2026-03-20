@@ -344,26 +344,36 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 
     const strength = computePatternStrength(candidates);
 
-    if (candidateCount <= 6 || strength > 0.6) {
+if (candidateCount <= 10) {
 
-      const ordered = candidates.slice().sort((a, b) => {
-        const pa = positionalScore(b) - positionalScore(a);
-        if (pa !== 0) return pa;
+  const ordered = candidates.slice().sort((a, b) => {
 
-        const ua = usagePriorScore(b) - usagePriorScore(a);
-        if (ua !== 0) return ua;
+    // 1. Maximise chance of immediate solve (uniform → equal, so skip)
 
-        return a.localeCompare(b);
-      });
+    // 2. Minimise worst-case bucket (critical)
+    const wa = analyseGuess(a, candidates, "exploitation", candidateSet).worstCase;
+    const wb = analyseGuess(b, candidates, "exploitation", candidateSet).worstCase;
+    if (wa !== wb) return wa - wb;
 
-      return ordered.slice(0, limit).map((word, index) => {
-        const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
-        return {
-          ...analysis,
-          score: 999 - index
-        };
-      });
-    }
+    // 3. Prefer common / natural words
+    const ua = usagePriorScore(b) - usagePriorScore(a);
+    if (ua !== 0) return ua;
+
+    // 4. Positional likelihood
+    const pa = positionalScore(b) - positionalScore(a);
+    if (pa !== 0) return pa;
+
+    return a.localeCompare(b);
+  });
+
+  return ordered.slice(0, limit).map((word, index) => {
+    const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
+    return {
+      ...analysis,
+      score: 999 - index
+    };
+  });
+}
   }
     
 for (const guess of pool) {

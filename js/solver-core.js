@@ -103,9 +103,6 @@ export function scoreGuessEncoded(guess, answer) {
 }
 export function filterCandidates(candidates, guess, encodedPattern) {
   const out = [];
-  if (out.length === 0) {
-  console.warn("⚠️ Candidate collapse", { guess, encodedPattern });
-}
   for (const candidate of candidates) {
     if (scoreGuessEncoded(guess, candidate) === encodedPattern) {
       out.push(candidate);
@@ -173,6 +170,18 @@ export function usagePriorScore(word) {
   return -0.2;
 }
 
+function coverageScore(guess, usedLetters) {
+  let score = 0;
+  for (const ch of new Set(guess)) {
+    if (!usedLetters.has(ch)) score++;
+  }
+  return score;
+}
+
+function repeatPenalty(word) {
+  return word.length - new Set(word).size;
+}
+
 export function expectedRemainingCandidates(guess, candidates) {
   const buckets = new Uint16Array(PATTERN_SPACE);
   for (const answer of candidates) {
@@ -188,78 +197,8 @@ export function expectedRemainingCandidates(guess, candidates) {
   return totalSquared / candidates.length;
 }
 
-// --- SOLVE CONFIG ---
-const SOLVE_SEARCH_THRESHOLD = 25;
-const SOLVE_MAX_DEPTH = 6;
-
-// Use a fresh memo per ranking run (important!)
-let solveMemo = new Map();
-
-// --- CANONICAL KEY (FIXES YOUR BUG) ---
-function keyForSet(words) {
-  // Sort to ensure identical sets produce identical keys
-  return words.length <= 1 ? words.join(",") : words.slice().sort().join(",");
-}
-
-function partitionCandidates(guess, candidates) {
-  const map = new Map();
-
-  for (const answer of candidates) {
-    const code = scoreGuessEncoded(guess, answer);
-    if (!map.has(code)) map.set(code, []);
-    map.get(code).push(answer);
-  }
-
-  return map;
-}
-
-function bestSolveCost(candidates, guessPool, depth = 0) {
-  if (candidates.length <= 1) return 1;
-  if (depth >= SOLVE_MAX_DEPTH) return candidates.length;
-
-  const key = keyForSet(candidates);
-  if (solveMemo.has(key)) return solveMemo.get(key);
-
-  let best = Infinity;
-
-  for (const guess of guessPool) {
-    const cost = expectedSolveCost(guess, candidates, guessPool, depth);
-    if (cost < best) best = cost;
-  }
-
-  solveMemo.set(key, best);
-  return best;
-}
-
-function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
-  const total = candidates.length;
-  const parts = partitionCandidates(guess, candidates);
-
-  let cost = 0;
-
-  for (const [code, subset] of parts) {
-
-    // solved
-    if (code === 242) {
-      cost += subset.length * 1;
-      continue;
-    }
-
-    // recurse
-    const future = bestSolveCost(subset, guessPool, depth + 1);
-    cost += subset.length * (1 + future);
-  }
-
-  return cost / total;
-}
-
-export function clearSolveMemo() {
-  solveMemo.clear();
-}
-
-export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
+export function computePatternStrength(guess, candidates) {
   const buckets = new Uint16Array(PATTERN_SPACE);
-
   for (const answer of candidates) {
     buckets[scoreGuessEncoded(guess, answer)]++;
   }
@@ -278,15 +217,86 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
     if (count > worstCase) worstCase = count;
   }
 
+  return {
+    buckets,
+    entropy,
+    expectedLeft,
+    worstCase,
+    solvedBucket: buckets[242]
+  };
+}
+
+function keyForSet(words) {
+  return words.join(",");
+}
+
+function partitionCandidates(guess, candidates) {
+  const map = new Map();
+  for (const answer of candidates) {
+    const code = scoreGuessEncoded(guess, answer);
+    if (!map.has(code)) map.set(code, []);
+    map.get(code).push(answer);
+  }
+  return map;
+}
+
+function bestSolveCost(candidates, guessPool, depth = 0) {
+  if (candidates.length <= 1) return 1;
+  if (depth > SOLVE_MAX_DEPTH) return candidates.length;
+
+  const key = keyForSet(candidates);
+  const cached = solveMemo.get(key);
+  if (cached != null) return cached;
+
+  let best = Infinity;
+  for (const guess of guessPool) {
+    const cost = expectedSolveCost(guess, candidates, guessPool, depth);
+    if (cost < best) best = cost;
+  }
+
+  solveMemo.set(key, best);
+  return best;
+}
+
+function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
+  const total = candidates.length;
+  const parts = partitionCandidates(guess, candidates);
+  let cost = 0;
+
+  for (const [code, subset] of parts) {
+    if (code === 242) {
+      cost += subset.length;
+    } else {
+      const future = bestSolveCost(subset, guessPool, depth + 1);
+      cost += subset.length * (1 + future);
+    }
+  }
+
+  return cost / total;
+}
+
+export function clearSolveMemo() {
+  solveMemo.clear();
+}
+
+export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
+  const { buckets, entropy, expectedLeft: rawExpectedLeft, worstCase, solvedBucket } = computePatternStrength(guess, candidates);
+  const total = candidates.length;
+  let expectedLeft = rawExpectedLeft;
+
   if (mode === "exploitation") {
     expectedLeft = expectedRemainingCandidates(guess, candidates);
   }
 
   const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
-  const solvedBucket = buckets[242];
   const expectedTurns = 1 + expectedLeft - ((solvedBucket * solvedBucket) / total);
 
-  const score = -expectedTurns;
+  let score = entropy;
+  if (mode === "mixed") {
+    score = entropy + 0.02 * uniqueLetterScore(guess) + 0.02 * positionalScore(guess);
+  } else if (mode === "exploitation") {
+    score = -expectedLeft;
+  }
 
   return {
     word: guess,
@@ -301,125 +311,89 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
   };
 }
 
-export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto") {
+export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode = [], explicitForceMode = "auto") {
+  const hasHistory = Array.isArray(historyOrForceMode);
+  const history = hasHistory ? historyOrForceMode : [];
+  const forceMode = hasHistory ? explicitForceMode : (historyOrForceMode || "auto");
   const candidateCount = candidates.length;
 
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
   usagePriorTable = buildUsagePriorTable(dictionary);
-
+  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
+  const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
   const candidateSet = new Set(candidates);
 
-  // 🔥 CRITICAL: reset memo per run (prevents corruption)
-  solveMemo = new Map();
-
-  // 🔥 TRUE SOLVE OPTIMISATION (late game)
   if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
-
     const ranked = [];
-    const pool = candidates; // only real answers
-if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
-  const ranked = [];
-  const pool = candidates;
-
-  // 🔥 COMMIT EARLY (structure detection)
-  if (candidateCount <= 8) {
-    const strength = computePatternStrength(candidates);
-
-    if (strength > 0.85) {
-      const ordered = candidates.slice().sort((a, b) => {
-        const pa = positionalWordScore(a);
-        const pb = positionalWordScore(b);
-        if (pb !== pa) return pb - pa;
-
-        const ua = usagePriorScore(a);
-        const ub = usagePriorScore(b);
-        if (ub !== ua) return ub - ua;
-
-        return a.localeCompare(b);
-      });
-
-      return ordered.slice(0, limit).map(word => ({
-        word,
-        guess: word,
+    for (const guess of pool) {
+      const expectedTurns = expectedSolveCost(guess, candidates, pool);
+      ranked.push({
+        word: guess,
+        guess,
         entropy: 0,
-        expectedLeft: 1,
-        expectedTurns: 1,
-        worstCase: 1,
-        usagePrior: usagePriorScore(word),
-        isCandidate: true,
-        score: 999
-      }));
+        expectedLeft: 0,
+        expectedTurns,
+        worstCase: 0,
+        usagePrior: usagePriorScore(guess),
+        isCandidate: candidateSet.has(guess),
+        score: -expectedTurns
+      });
     }
-  }
-
-  // 👇 existing scoring loop continues here
-for (const guess of pool) {
-  const expectedTurns = expectedSolveCost(guess, candidates, pool);
-  const entropy = computeEntropy(guess, candidates);
-  const worstCase = computeWorstCasePartition(guess, candidates);
-
-  let score;
-
-  if (candidates.length <= 6) {
-    // 🔥 FINISH FAST MODE
-    const finishScore = finishSoonScore(guess, candidates, pool);
-
-    score =
-      2.0 * finishScore       // strongly favour finishing
-      - expectedTurns         // still care about efficiency
-      + 0.1 * entropy;        // light info bias
-
-  } else {
-    // normal mode
-    const worstCaseNorm = worstCase / candidates.length;
-
-    score =
-      -expectedTurns
-      + 0.25 * entropy
-      - 0.5 * worstCaseNorm;
-  }
-
-  ranked.push({
-    word: guess,
-    guess,
-    entropy,
-    expectedLeft: 0,
-    expectedTurns,
-    worstCase,
-    usagePrior: usagePriorScore(guess),
-    isCandidate: true,
-    score
-  });
-}
 
     ranked.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
+      if (b.isCandidate !== a.isCandidate) return Number(b.isCandidate) - Number(a.isCandidate);
       if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
-if (b.usagePrior !== a.usagePrior) {
-  return b.usagePrior - a.usagePrior;
-}
-
-// positional likelihood (THIS is the key)
-const pa = positionalWordScore(a.word);
-const pb = positionalWordScore(b.word);
-if (pb !== pa) return pb - pa;
-
-return a.word.localeCompare(b.word);
+      return a.word.localeCompare(b.word);
     });
 
     return ranked.slice(0, limit);
   }
 
-  // ⚡ FAST MODE (early game)
-  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
-  const pool = restrictToCandidates ? candidates : dictionary;
+  const mode = forceMode === "candidates"
+    ? "exploitation"
+    : forceMode === "all"
+      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
+      : resolveMode(candidateCount);
+  const usedLetters = new Set();
+  for (const h of history || []) {
+    if (!h || !h.guess) continue;
+    for (const ch of h.guess) usedLetters.add(ch);
+  }
 
-  const mode = resolveMode(candidateCount);
+  const fastPool = (mode === "exploration" && pool.length > 2500)
+    ? pool
+      .slice()
+      .sort((a, b) => {
+        const aCoverage = coverageScore(a, usedLetters);
+        const bCoverage = coverageScore(b, usedLetters);
+        if (bCoverage !== aCoverage) return bCoverage - aCoverage;
+
+        const aUnique = uniqueLetterScore(a);
+        const bUnique = uniqueLetterScore(b);
+        if (bUnique !== aUnique) return bUnique - aUnique;
+
+        const aPos = positionalScore(a);
+        const bPos = positionalScore(b);
+        if (bPos !== aPos) return bPos - aPos;
+
+        return a.localeCompare(b);
+      })
+      .slice(0, 2500)
+    : pool;
+
   const ranked = [];
+  for (const guess of fastPool) {
+    const analysis = analyseGuess(guess, candidates, mode, candidateSet);
+    const score = mode === "exploration"
+      ? (1.5 * coverageScore(guess, usedLetters)) + analysis.entropy - (0.2 * repeatPenalty(guess))
+      : analysis.score;
 
-  for (const guess of pool) {
-    ranked.push(analyseGuess(guess, candidates, mode, candidateSet));
+    ranked.push({
+      ...analysis,
+      score
+    });
   }
 
   ranked.sort((a, b) => {
@@ -432,6 +406,7 @@ return a.word.localeCompare(b.word);
 
   return ranked.slice(0, limit);
 }
+
 export function validateGuessPattern(guess, pattern, answers = [], guesses = []) {
   guess = normaliseWord(guess);
   pattern = normaliseWord(pattern);
@@ -451,96 +426,4 @@ export function buildDefaultHistoryState(answers) {
     candidates: [...answers],
     history: []
   };
-}
-function computeEntropy(guess, candidates) {
-  const parts = partitionCandidates(guess, candidates);
-  const total = candidates.length;
-
-  let entropy = 0;
-  for (const subset of parts.values()) {
-    const p = subset.length / total;
-    entropy -= p * Math.log2(p);
-  }
-  return entropy;
-}
-
-function computeWorstCasePartition(guess, candidates) {
-  const parts = partitionCandidates(guess, candidates);
-  let max = 0;
-  for (const subset of parts.values()) {
-    if (subset.length > max) max = subset.length;
-  }
-  return max;
-}
-function finishSoonScore(guess, candidates, guessPool) {
-  const parts = partitionCandidates(guess, candidates);
-  const total = candidates.length;
-
-  let solveNow = 0;
-  let solveNext = 0;
-
-  for (const [code, subset] of parts) {
-
-    // solved immediately
-    if (code === 242) {
-      solveNow += subset.length;
-      continue;
-    }
-
-    // if only 1 left → guaranteed next turn
-    if (subset.length === 1) {
-      solveNext += subset.length;
-      continue;
-    }
-
-    // check if next move can always solve
-    let canSolveNext = true;
-
-    for (const answer of subset) {
-      let distinguishable = false;
-
-      for (const g of guessPool) {
-        const code1 = scoreGuessEncoded(g, answer);
-
-        // check if this guess uniquely identifies it
-        let unique = true;
-        for (const other of subset) {
-          if (other === answer) continue;
-          if (scoreGuessEncoded(g, other) === code1) {
-            unique = false;
-            break;
-          }
-        }
-
-        if (unique) {
-          distinguishable = true;
-          break;
-        }
-      }
-
-      if (!distinguishable) {
-        canSolveNext = false;
-        break;
-      }
-    }
-
-    if (canSolveNext) {
-      solveNext += subset.length;
-    }
-  }
-
-  return (solveNow + solveNext) / total;
-}
-function computePatternStrength(candidates) {
-  if (candidates.length <= 1) return 1;
-
-  const length = candidates[0].length;
-  let fixedPositions = 0;
-
-  for (let i = 0; i < length; i++) {
-    const chars = new Set(candidates.map(w => w[i]));
-    if (chars.size === 1) fixedPositions++;
-  }
-
-  return fixedPositions / length;
 }

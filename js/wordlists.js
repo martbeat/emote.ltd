@@ -2,6 +2,7 @@ import { ANSWER_COUNT, uniqueWords } from "./solver-core.js";
 
 export const WORD_SOURCE_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words";
 export const WORD_CACHE_KEY = "dwl:words:v1";
+const WORD_FETCH_TIMEOUT_MS = 8000;
 
 function getPreloadedWordLists() {
   if (!window.WordleWordlists) return null;
@@ -24,15 +25,30 @@ function readCachedWords() {
 }
 
 async function fetchWords() {
-  const res = await fetch(WORD_SOURCE_URL, { cache: "force-cache" });
-  if (!res.ok) throw new Error("Word list download failed.");
-  const text = await res.text();
-  const words = uniqueWords(text.split(/\r?\n/));
-  if (words.length < ANSWER_COUNT) {
-    throw new Error("Downloaded word list is too small.");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WORD_FETCH_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(WORD_SOURCE_URL, {
+      cache: "force-cache",
+      signal: controller.signal
+    });
+    if (!res.ok) throw new Error("Word list download failed.");
+    const text = await res.text();
+    const words = uniqueWords(text.split(/\r?\n/));
+    if (words.length < ANSWER_COUNT) {
+      throw new Error("Downloaded word list is too small.");
+    }
+    localStorage.setItem(WORD_CACHE_KEY, JSON.stringify(words));
+    return words;
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error("Timed out downloading word list. Check your network and retry.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  localStorage.setItem(WORD_CACHE_KEY, JSON.stringify(words));
-  return words;
 }
 
 function getWindowWords() {

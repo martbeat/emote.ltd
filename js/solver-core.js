@@ -418,6 +418,21 @@ export function clearSolveMemo() {
   solveMemo.clear();
 }
 
+function isFlatInformationLandscape(candidates, guesses) {
+  const sample = candidates.slice(0, Math.min(6, candidates.length));
+
+  let maxEntropy = 0;
+
+  for (const guess of sample) {
+    const analysis = analyseGuess(guess, candidates, "exploration");
+    if (analysis.entropy > maxEntropy) {
+      maxEntropy = analysis.entropy;
+    }
+  }
+
+  return maxEntropy < 0.5; // threshold tweakable
+}
+
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
   const buckets = new Uint16Array(PATTERN_SPACE);
 
@@ -481,6 +496,36 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
   const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
   const candidateSet = new Set(candidates);
 
+// 🔥 CLUSTER BREAK DETECTION
+if (candidateCount > 4 && isFlatInformationLandscape(candidates, dictionary)) {
+
+  const breakers = [];
+
+  for (const guess of dictionary) {
+    if (candidateSet.has(guess)) continue;
+
+    const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
+
+    breakers.push({
+      word: guess,
+      guess,
+      entropy: analysis.entropy,
+      expectedLeft: analysis.expectedLeft,
+      worstCase: analysis.worstCase,
+      usagePrior: usagePriorScore(guess),
+      isCandidate: false,
+      score:
+        (2.0 * analysis.entropy) -
+        (0.7 * (analysis.worstCase / candidateCount)) -
+        (0.2 * repeatPenalty(guess))
+    });
+  }
+
+  breakers.sort((a, b) => b.score - a.score);
+
+  return breakers.slice(0, limit);
+}
+  
   if (candidateCount <= 10) {
     return rankByRecursiveSolveDepth(candidates, dictionary, limit, 8);
   }

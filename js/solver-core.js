@@ -416,9 +416,98 @@ if (candidateCount <= 10) {
   const ranked = [];
   for (const guess of fastPool) {
     const analysis = analyseGuess(guess, candidates, mode, candidateSet);
+export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode = [], explicitForceMode = "auto") {
+  const hasHistory = Array.isArray(historyOrForceMode);
+  const history = hasHistory ? historyOrForceMode : [];
+  const forceMode = hasHistory ? explicitForceMode : (historyOrForceMode || "auto");
+  const candidateCount = candidates.length;
+
+  const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
+  positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
+  usagePriorTable = buildUsagePriorTable(dictionary);
+  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
+  const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
+  const candidateSet = new Set(candidates);
+
+// 🔥 ALWAYS run this first
+if (candidateCount <= 10) {
+  const vowels = new Set(["a", "e", "i", "o", "u"]);
+  const ordered = candidates.slice().sort((a, b) => {
+    let sa = 2 * positionalScore(a) + 1.2 * uniqueLetterScore(a);
+    let sb = 2 * positionalScore(b) + 1.2 * uniqueLetterScore(b);
+    for (const ch of a) {
+      if (vowels.has(ch)) sa++;
+    }
+    for (const ch of b) {
+      if (vowels.has(ch)) sb++;
+    }
+    if (sb !== sa) return sb - sa;
+    return a.localeCompare(b);
+  });
+
+  return ordered.slice(0, limit).map((word, index) => {
+    const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
+    return {
+      ...analysis,
+      score: 999 - index
+    };
+  });
+}
+  const mode = forceMode === "candidates"
+    ? "exploitation"
+    : forceMode === "all"
+      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
+      : resolveMode(candidateCount);
+  const usedLetters = new Set();
+  for (const h of history || []) {
+    if (!h || !h.guess) continue;
+    for (const ch of h.guess) usedLetters.add(ch);
+  }
+
+  const fastPool = (mode === "exploration" && pool.length > 2500)
+    ? pool
+      .slice()
+      .sort((a, b) => {
+        const aCoverage = coverageScore(a, usedLetters);
+        const bCoverage = coverageScore(b, usedLetters);
+        if (bCoverage !== aCoverage) return bCoverage - aCoverage;
+
+        const aUnique = uniqueLetterScore(a);
+        const bUnique = uniqueLetterScore(b);
+        if (bUnique !== aUnique) return bUnique - aUnique;
+
+        const aPos = positionalScore(a);
+        const bPos = positionalScore(b);
+        if (bPos !== aPos) return bPos - aPos;
+
+        return a.localeCompare(b);
+      })
+      .slice(0, 2500)
+    : pool;
+
+  const ranked = [];
+  for (const guess of fastPool) {
+    const analysis = analyseGuess(guess, candidates, mode, candidateSet);
     const score = mode === "exploration"
       ? (1.5 * coverageScore(guess, usedLetters)) + analysis.entropy - (0.2 * repeatPenalty(guess))
       : analysis.score;
+
+    ranked.push({
+      ...analysis,
+      score
+    });
+  }
+
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
+    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
+    if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
+    return a.word.localeCompare(b.word);
+  });
+
+  return ranked.slice(0, limit);
+}
 
     ranked.push({
       ...analysis,

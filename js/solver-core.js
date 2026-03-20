@@ -216,6 +216,35 @@ export function expectedRemainingCandidates(guess, candidates) {
   return totalSquared / candidates.length;
 }
 
+export function computePatternStrength(guess, candidates) {
+  const buckets = new Uint16Array(PATTERN_SPACE);
+  for (const answer of candidates) {
+    buckets[scoreGuessEncoded(guess, answer)]++;
+  }
+
+  const total = candidates.length;
+  let entropy = 0;
+  let expectedLeft = 0;
+  let worstCase = 0;
+
+  for (let i = 0; i < PATTERN_SPACE; i++) {
+    const count = buckets[i];
+    if (!count) continue;
+    const p = count / total;
+    entropy -= p * Math.log2(p);
+    expectedLeft += p * count;
+    if (count > worstCase) worstCase = count;
+  }
+
+  return {
+    buckets,
+    entropy,
+    expectedLeft,
+    worstCase,
+    solvedBucket: buckets[242]
+  };
+}
+
 function keyForSet(words) {
   return words.join(",");
 }
@@ -270,32 +299,15 @@ export function clearSolveMemo() {
 }
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
-  const buckets = new Uint16Array(PATTERN_SPACE);
-
-  for (const answer of candidates) {
-    buckets[scoreGuessEncoded(guess, answer)]++;
-  }
-
+  const { buckets, entropy, expectedLeft: rawExpectedLeft, worstCase, solvedBucket } = computePatternStrength(guess, candidates);
   const total = candidates.length;
-  let entropy = 0;
-  let expectedLeft = 0;
-  let worstCase = 0;
-
-  for (let i = 0; i < PATTERN_SPACE; i++) {
-    const count = buckets[i];
-    if (!count) continue;
-    const p = count / total;
-    entropy -= p * Math.log2(p);
-    expectedLeft += p * count;
-    if (count > worstCase) worstCase = count;
-  }
+  let expectedLeft = rawExpectedLeft;
 
   if (mode === "exploitation") {
     expectedLeft = expectedRemainingCandidates(guess, candidates);
   }
 
   const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
-  const solvedBucket = buckets[242];
   const expectedTurns = 1 + expectedLeft - ((solvedBucket * solvedBucket) / total);
 
   let score = entropy;
@@ -333,38 +345,6 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 
   if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
     const ranked = [];
-
-  // 🚀 EARLY COMMIT (fixes 6-guess problem)
-  if (candidateCount <= 10) {
-
-    const strength = computePatternStrength(candidates);
-
-    if (candidateCount <= 6 || strength > 0.6) {
-
-      const ordered = candidates.slice().sort((a, b) => {
-        const pa = positionalWordScore(b) - positionalWordScore(a);
-        if (pa !== 0) return pa;
-
-        const ua = usagePriorScore(b) - usagePriorScore(a);
-        if (ua !== 0) return ua;
-
-        return a.localeCompare(b);
-      });
-
-      return ordered.slice(0, limit).map(word => ({
-        word,
-        guess: word,
-        entropy: 0,
-        expectedLeft: 1,
-        expectedTurns: 1,
-        worstCase: 1,
-        usagePrior: usagePriorScore(word),
-        isCandidate: true,
-        score: 999
-      }));
-    }
-  }
-    
     for (const guess of pool) {
       const expectedTurns = expectedSolveCost(guess, candidates, pool);
       ranked.push({

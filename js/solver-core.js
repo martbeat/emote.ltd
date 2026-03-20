@@ -353,49 +353,6 @@ if (candidateCount <= 10) {
     };
   });
 }
-    const ranked = [];
-
-
-    
-for (const guess of pool) {
-  const analysis = analyseGuess(guess, candidates, "exploitation", candidateSet);
-  const expectedTurns = expectedSolveCost(guess, candidates, pool);
-
-  const worstCaseNorm = analysis.worstCase / candidateCount;
-
-  let score =
-    -expectedTurns
-    + 0.25 * analysis.entropy
-    - 0.5 * worstCaseNorm;
-
-  // 🔥 CRITICAL: prefer actual possible answers
-  if (analysis.isCandidate) {
-score += Math.min(1.2, 0.3 + 5 / candidateCount);
-  }
-
-  ranked.push({
-    word: guess,
-    guess,
-    entropy: analysis.entropy,
-    expectedLeft: analysis.expectedLeft,
-    expectedTurns,
-    worstCase: analysis.worstCase,
-    usagePrior: usagePriorScore(guess),
-    isCandidate: analysis.isCandidate,
-    score
-  });
-}
-
-    ranked.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      if (b.isCandidate !== a.isCandidate) return Number(b.isCandidate) - Number(a.isCandidate);
-      if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
-      return a.word.localeCompare(b.word);
-    });
-
-    return ranked.slice(0, limit);
-  }
-
   const mode = forceMode === "candidates"
     ? "exploitation"
     : forceMode === "all"

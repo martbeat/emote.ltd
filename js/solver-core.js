@@ -37,6 +37,24 @@ export function encodePatternArray(values) {
   return code;
 }
 
+function computePatternStrength(candidates) {
+  if (!Array.isArray(candidates) || candidates.length <= 1) return 1;
+
+  const wordLength = candidates[0].length;
+  let fixedPositions = 0;
+
+  for (let i = 0; i < wordLength; i++) {
+    const letters = new Set();
+    for (const word of candidates) {
+      letters.add(word[i]);
+      if (letters.size > 1) break;
+    }
+    if (letters.size === 1) fixedPositions++;
+  }
+
+  return fixedPositions / wordLength;
+}
+
 export function decodePattern(code) {
   const chars = ["b", "b", "b", "b", "b"];
   for (let i = 4; i >= 0; i--) {
@@ -101,6 +119,7 @@ export function scoreGuessEncoded(guess, answer) {
 
   return code;
 }
+
 export function filterCandidates(candidates, guess, encodedPattern) {
   const out = [];
   for (const candidate of candidates) {

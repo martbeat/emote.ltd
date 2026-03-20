@@ -359,9 +359,16 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 
 // 🔥 ALWAYS run this first
 if (candidateCount <= 10) {
+  const vowels = new Set(["a", "e", "i", "o", "u"]);
   const ordered = candidates.slice().sort((a, b) => {
-    const sa = lateAnswerScore(a);
-    const sb = lateAnswerScore(b);
+    let sa = 2 * positionalScore(a) + 1.2 * uniqueLetterScore(a);
+    let sb = 2 * positionalScore(b) + 1.2 * uniqueLetterScore(b);
+    for (const ch of a) {
+      if (vowels.has(ch)) sa++;
+    }
+    for (const ch of b) {
+      if (vowels.has(ch)) sb++;
+    }
     if (sb !== sa) return sb - sa;
     return a.localeCompare(b);
   });

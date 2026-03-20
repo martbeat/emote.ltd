@@ -563,40 +563,43 @@ if (candidateCount > 4 && isFlatInformationLandscape(candidates, dictionary)) {
         .slice(0, 2500)
     : pool;
 
-  const ranked = [];
-  for (const guess of fastPool) {
-    const analysis = analyseGuess(guess, candidates, mode, candidateSet);
-let score;
+const ranked = [];
+for (const guess of fastPool) {
+  const analysis = analyseGuess(guess, candidates, mode, candidateSet);
 
-if (mode === "exploration") {
-  score =
-    (1.5 * coverageScore(guess, usedLetters)) +
-    analysis.entropy -
-    (0.2 * repeatPenalty(guess));
-} else {
-  const worstCaseNorm = analysis.worstCase / candidateCount;
+  let score;
 
-  score =
-    analysis.entropy
-    - 0.8 * worstCaseNorm
-    - 0.5 * analysis.expectedLeft;
+  if (mode === "exploration") {
+    score =
+      (1.5 * coverageScore(guess, usedLetters)) +
+      analysis.entropy -
+      (0.2 * repeatPenalty(guess));
+  } else {
+    // 🔥 THIS is your tweak zone
+    const worstCaseNorm = analysis.worstCase / candidateCount;
 
-  // 🔥 hard penalty for useless guesses
-  if (analysis.entropy === 0) {
-    score -= 5;
+    score =
+      analysis.entropy * 1.2              // keep information strong
+      - 0.6 * worstCaseNorm              // avoid bad splits
+      - 0.4 * analysis.expectedLeft      // still care about narrowing
+      + 0.15 * positionalScore(guess);   // ⭐ NEW: word-shape awareness
+
+    // small bias toward real answers
+    if (analysis.isCandidate) {
+      score += 0.3;
+    }
+
+    // kill useless guesses
+    if (analysis.entropy === 0) {
+      score -= 5;
+    }
   }
 
-  // 🔥 small candidate bias (not dominant)
-  if (analysis.isCandidate) {
-    score += 0.3;
-  }
+  ranked.push({
+    ...analysis,
+    score
+  });
 }
-
-    ranked.push({
-      ...analysis,
-      score
-    });
-  }
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;

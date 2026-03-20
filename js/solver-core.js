@@ -321,25 +321,40 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
 
 for (const guess of pool) {
   const expectedTurns = expectedSolveCost(guess, candidates, pool);
-  const worstCaseNorm = worstCase / candidates.length;
   const entropy = computeEntropy(guess, candidates);
   const worstCase = computeWorstCasePartition(guess, candidates);
 
-  const score =
-    -expectedTurns
-    + 0.25 * entropy
-    - 0.15 * worstCaseNorm;
+  let score;
+
+  if (candidates.length <= 6) {
+    // 🔥 FINISH FAST MODE
+    const finishScore = finishSoonScore(guess, candidates, pool);
+
+    score =
+      2.0 * finishScore       // strongly favour finishing
+      - expectedTurns         // still care about efficiency
+      + 0.1 * entropy;        // light info bias
+
+  } else {
+    // normal mode
+    const worstCaseNorm = worstCase / candidates.length;
+
+    score =
+      -expectedTurns
+      + 0.25 * entropy
+      - 0.5 * worstCaseNorm;
+  }
 
   ranked.push({
     word: guess,
     guess,
-    entropy,              // ✅ keep real value
-    expectedLeft: 0,      // optional: you can improve this later
+    entropy,
+    expectedLeft: 0,
     expectedTurns,
-    worstCase,            // ✅ keep real value
+    worstCase,
     usagePrior: usagePriorScore(guess),
     isCandidate: true,
-    score                 // ✅ use computed score
+    score
   });
 }
 
@@ -421,4 +436,63 @@ function computeWorstCasePartition(guess, candidates) {
     if (subset.length > max) max = subset.length;
   }
   return max;
+}
+function finishSoonScore(guess, candidates, guessPool) {
+  const parts = partitionCandidates(guess, candidates);
+  const total = candidates.length;
+
+  let solveNow = 0;
+  let solveNext = 0;
+
+  for (const [code, subset] of parts) {
+
+    // solved immediately
+    if (code === 242) {
+      solveNow += subset.length;
+      continue;
+    }
+
+    // if only 1 left → guaranteed next turn
+    if (subset.length === 1) {
+      solveNext += subset.length;
+      continue;
+    }
+
+    // check if next move can always solve
+    let canSolveNext = true;
+
+    for (const answer of subset) {
+      let distinguishable = false;
+
+      for (const g of guessPool) {
+        const code1 = scoreGuessEncoded(g, answer);
+
+        // check if this guess uniquely identifies it
+        let unique = true;
+        for (const other of subset) {
+          if (other === answer) continue;
+          if (scoreGuessEncoded(g, other) === code1) {
+            unique = false;
+            break;
+          }
+        }
+
+        if (unique) {
+          distinguishable = true;
+          break;
+        }
+      }
+
+      if (!distinguishable) {
+        canSolveNext = false;
+        break;
+      }
+    }
+
+    if (canSolveNext) {
+      solveNext += subset.length;
+    }
+  }
+
+  return (solveNow + solveNext) / total;
 }

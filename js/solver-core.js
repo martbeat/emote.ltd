@@ -162,6 +162,27 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function lateAnswerScore(word) {
+  let score = 0;
+
+  // prefer common letter positions from your current dictionary
+  score += 2 * positionalScore(word);
+
+  // prefer unique letters a bit less at this stage
+  score += 1.2 * uniqueLetterScore(word);
+
+  // mild vowel preference
+  const vowels = new Set(["a", "e", "i", "o", "u"]);
+  let vowelCount = 0;
+  for (const ch of word) {
+    if (vowels.has(ch)) vowelCount++;
+  }
+  score += vowelCount;
+
+  return score;
+}
+
+
 export function uniqueLetterScore(word) {
   return new Set(word).size;
 }

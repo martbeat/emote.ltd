@@ -1,8 +1,10 @@
 export const ANSWER_COUNT = 2315;
 export const PATTERN_SPACE = 243; // 3^5
 export const MODE_THRESHOLD = 120;
+export const FINISHING_THRESHOLD = 20;
 
 let positionalFrequencyTable = null;
+let usagePriorTable = null;
 
 export function normaliseWord(word) {
   return String(word || "").trim().toLowerCase();
@@ -124,8 +126,12 @@ function buildPositionalFrequencyTable(dictionary) {
 
 function resolveMode(candidateCount) {
   if (candidateCount > 60) return "exploration";
-  if (candidateCount > 15) return "mixed";
+  if (candidateCount > FINISHING_THRESHOLD) return "mixed";
   return "exploitation";
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 export function uniqueLetterScore(word) {
@@ -140,6 +146,24 @@ export function positionalScore(word) {
     score += positionalFrequencyTable[i][letter] || 0;
   }
   return score;
+}
+
+function buildUsagePriorTable(guesses) {
+  const table = Object.create(null);
+  const answerLike = Array.isArray(guesses) ? guesses.slice(0, ANSWER_COUNT) : [];
+  const maxRank = Math.max(1, answerLike.length - 1);
+  for (let i = 0; i < answerLike.length; i++) {
+    table[answerLike[i]] = 1 - (i / maxRank);
+  }
+  return table;
+}
+
+export function usagePriorScore(word) {
+  if (!usagePriorTable) return 0;
+  if (Object.prototype.hasOwnProperty.call(usagePriorTable, word)) {
+    return usagePriorTable[word];
+  }
+  return -0.2;
 }
 
 export function expectedRemainingCandidates(guess, candidates) {
@@ -186,9 +210,15 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
 
   let score = entropy;
   if (mode === "mixed") {
-    score = entropy + 0.02 * uniqueLetterScore(guess) + 0.02 * positionalScore(guess);
+    const candidateCount = candidates.length;
+    const endgamePressure = clamp((30 - candidateCount) / 20, 0, 1);
+    const exploratoryBoost = 0.02 * uniqueLetterScore(guess) + 0.02 * positionalScore(guess);
+    const candidateBonus = isCandidate ? 0.35 + 0.85 * endgamePressure : 0;
+    const expectedLeftPenalty = 0.08 * endgamePressure * expectedLeft;
+    score = entropy + exploratoryBoost + candidateBonus - expectedLeftPenalty;
   } else if (mode === "exploitation") {
-    score = -expectedLeft;
+    const worstCasePenalty = 0.12 * worstCase;
+    score = -(expectedLeft + worstCasePenalty);
   }
 
   return {
@@ -197,20 +227,23 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
     entropy,
     expectedLeft,
     worstCase,
+    usagePrior: usagePriorScore(guess),
     isCandidate,
     score
   };
 }
 
 export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto") {
+  const candidateCount = candidates.length;
   const mode = forceMode === "candidates"
     ? "exploitation"
     : forceMode === "all"
-      ? (candidates.length > 60 ? "exploration" : "mixed")
-      : resolveMode(candidates.length);
+      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
+      : resolveMode(candidateCount);
 
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
+  usagePriorTable = buildUsagePriorTable(dictionary);
   const pool = mode === "exploitation" ? candidates : dictionary;
   const ranked = [];
   const candidateSet = new Set(candidates);
@@ -221,6 +254,7 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
     if (b.entropy !== a.entropy) return b.entropy - a.entropy;
     if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
     return a.word.localeCompare(b.word);

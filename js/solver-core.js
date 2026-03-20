@@ -103,6 +103,9 @@ export function scoreGuessEncoded(guess, answer) {
 }
 export function filterCandidates(candidates, guess, encodedPattern) {
   const out = [];
+  if (out.length === 0) {
+  console.warn("⚠️ Candidate collapse", { guess, encodedPattern });
+}
   for (const candidate of candidates) {
     if (scoreGuessEncoded(guess, candidate) === encodedPattern) {
       out.push(candidate);
@@ -185,29 +188,40 @@ export function expectedRemainingCandidates(guess, candidates) {
   return totalSquared / candidates.length;
 }
 
+// --- SOLVE CONFIG ---
+const SOLVE_SEARCH_THRESHOLD = 25;
+const SOLVE_MAX_DEPTH = 6;
+
+// Use a fresh memo per ranking run (important!)
+let solveMemo = new Map();
+
+// --- CANONICAL KEY (FIXES YOUR BUG) ---
 function keyForSet(words) {
-  return words.join(",");
+  // Sort to ensure identical sets produce identical keys
+  return words.length <= 1 ? words.join(",") : words.slice().sort().join(",");
 }
 
 function partitionCandidates(guess, candidates) {
   const map = new Map();
+
   for (const answer of candidates) {
     const code = scoreGuessEncoded(guess, answer);
     if (!map.has(code)) map.set(code, []);
     map.get(code).push(answer);
   }
+
   return map;
 }
 
 function bestSolveCost(candidates, guessPool, depth = 0) {
   if (candidates.length <= 1) return 1;
-  if (depth > SOLVE_MAX_DEPTH) return candidates.length;
+  if (depth >= SOLVE_MAX_DEPTH) return candidates.length;
 
   const key = keyForSet(candidates);
-  const cached = solveMemo.get(key);
-  if (cached != null) return cached;
+  if (solveMemo.has(key)) return solveMemo.get(key);
 
   let best = Infinity;
+
   for (const guess of guessPool) {
     const cost = expectedSolveCost(guess, candidates, guessPool, depth);
     if (cost < best) best = cost;
@@ -220,15 +234,20 @@ function bestSolveCost(candidates, guessPool, depth = 0) {
 function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
   const total = candidates.length;
   const parts = partitionCandidates(guess, candidates);
+
   let cost = 0;
 
   for (const [code, subset] of parts) {
+
+    // solved
     if (code === 242) {
-      cost += subset.length;
-    } else {
-      const future = bestSolveCost(subset, guessPool, depth + 1);
-      cost += subset.length * (1 + future);
+      cost += subset.length * 1;
+      continue;
     }
+
+    // recurse
+    const future = bestSolveCost(subset, guessPool, depth + 1);
+    cost += subset.length * (1 + future);
   }
 
   return cost / total;
@@ -288,14 +307,21 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
   usagePriorTable = buildUsagePriorTable(dictionary);
-  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
-  const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
+
   const candidateSet = new Set(candidates);
 
+  // 🔥 CRITICAL: reset memo per run (prevents corruption)
+  solveMemo = new Map();
+
+  // 🔥 TRUE SOLVE OPTIMISATION (late game)
   if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
+
     const ranked = [];
+    const pool = candidates; // only real answers
+
     for (const guess of pool) {
       const expectedTurns = expectedSolveCost(guess, candidates, pool);
+
       ranked.push({
         word: guess,
         guess,
@@ -304,14 +330,13 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
         expectedTurns,
         worstCase: 0,
         usagePrior: usagePriorScore(guess),
-        isCandidate: candidateSet.has(guess),
+        isCandidate: true,
         score: -expectedTurns
       });
     }
 
     ranked.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      if (b.isCandidate !== a.isCandidate) return Number(b.isCandidate) - Number(a.isCandidate);
       if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
       return a.word.localeCompare(b.word);
     });
@@ -319,12 +344,13 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
     return ranked.slice(0, limit);
   }
 
-  const mode = forceMode === "candidates"
-    ? "exploitation"
-    : forceMode === "all"
-      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
-      : resolveMode(candidateCount);
+  // ⚡ FAST MODE (early game)
+  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
+  const pool = restrictToCandidates ? candidates : dictionary;
+
+  const mode = resolveMode(candidateCount);
   const ranked = [];
+
   for (const guess of pool) {
     ranked.push(analyseGuess(guess, candidates, mode, candidateSet));
   }
@@ -339,7 +365,6 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
 
   return ranked.slice(0, limit);
 }
-
 export function validateGuessPattern(guess, pattern, answers = [], guesses = []) {
   guess = normaliseWord(guess);
   pattern = normaliseWord(pattern);

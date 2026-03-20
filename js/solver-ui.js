@@ -5,6 +5,7 @@ import {
   filterCandidates,
   rankGuesses,
   chooseGuessPool,
+  clearSolveMemo,
   validateGuessPattern,
   buildDefaultHistoryState
 } from "./solver-core.js";
@@ -228,6 +229,7 @@ async function recalcRecommendations() {
 }
 
 function resetState() {
+  clearSolveMemo();
   if (state.answerMode === "official") {
     state.candidates = [...state.answers];
   }

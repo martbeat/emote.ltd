@@ -3,9 +3,12 @@ export const PATTERN_SPACE = 243; // 3^5
 export const MODE_THRESHOLD = 120;
 export const FINISHING_THRESHOLD = 20;
 export const CANDIDATE_ONLY_THRESHOLD = 50;
+export const SOLVE_SEARCH_THRESHOLD = 25;
+export const SOLVE_MAX_DEPTH = 6;
 
 let positionalFrequencyTable = null;
 let usagePriorTable = null;
+const solveMemo = new Map();
 
 export function normaliseWord(word) {
   return String(word || "").trim().toLowerCase();
@@ -182,6 +185,59 @@ export function expectedRemainingCandidates(guess, candidates) {
   return totalSquared / candidates.length;
 }
 
+function keyForSet(words) {
+  return words.join(",");
+}
+
+function partitionCandidates(guess, candidates) {
+  const map = new Map();
+  for (const answer of candidates) {
+    const code = scoreGuessEncoded(guess, answer);
+    if (!map.has(code)) map.set(code, []);
+    map.get(code).push(answer);
+  }
+  return map;
+}
+
+function bestSolveCost(candidates, guessPool, depth = 0) {
+  if (candidates.length <= 1) return 1;
+  if (depth > SOLVE_MAX_DEPTH) return candidates.length;
+
+  const key = keyForSet(candidates);
+  const cached = solveMemo.get(key);
+  if (cached != null) return cached;
+
+  let best = Infinity;
+  for (const guess of guessPool) {
+    const cost = expectedSolveCost(guess, candidates, guessPool, depth);
+    if (cost < best) best = cost;
+  }
+
+  solveMemo.set(key, best);
+  return best;
+}
+
+function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
+  const total = candidates.length;
+  const parts = partitionCandidates(guess, candidates);
+  let cost = 0;
+
+  for (const [code, subset] of parts) {
+    if (code === 242) {
+      cost += subset.length;
+    } else {
+      const future = bestSolveCost(subset, guessPool, depth + 1);
+      cost += subset.length * (1 + future);
+    }
+  }
+
+  return cost / total;
+}
+
+export function clearSolveMemo() {
+  solveMemo.clear();
+}
+
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
   const buckets = new Uint16Array(PATTERN_SPACE);
 
@@ -228,20 +284,47 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
 
 export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto") {
   const candidateCount = candidates.length;
-  const mode = forceMode === "candidates"
-    ? "exploitation"
-    : forceMode === "all"
-      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
-      : resolveMode(candidateCount);
 
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
   usagePriorTable = buildUsagePriorTable(dictionary);
   const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
-  const pool = restrictToCandidates || mode === "exploitation" ? candidates : dictionary;
-  const ranked = [];
+  const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
   const candidateSet = new Set(candidates);
 
+  if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
+    const ranked = [];
+    for (const guess of pool) {
+      const expectedTurns = expectedSolveCost(guess, candidates, pool);
+      ranked.push({
+        word: guess,
+        guess,
+        entropy: 0,
+        expectedLeft: 0,
+        expectedTurns,
+        worstCase: 0,
+        usagePrior: usagePriorScore(guess),
+        isCandidate: candidateSet.has(guess),
+        score: -expectedTurns
+      });
+    }
+
+    ranked.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.isCandidate !== a.isCandidate) return Number(b.isCandidate) - Number(a.isCandidate);
+      if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
+      return a.word.localeCompare(b.word);
+    });
+
+    return ranked.slice(0, limit);
+  }
+
+  const mode = forceMode === "candidates"
+    ? "exploitation"
+    : forceMode === "all"
+      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
+      : resolveMode(candidateCount);
+  const ranked = [];
   for (const guess of pool) {
     ranked.push(analyseGuess(guess, candidates, mode, candidateSet));
   }

@@ -3,7 +3,8 @@ import {
   filterCandidates,
   scoreGuessEncoded,
   decodePattern,
-  chooseGuessPool
+  chooseGuessPool,
+  clearSolveMemo
 } from "./solver-core.js";
 
 let workerAnswers = [];
@@ -12,6 +13,7 @@ let workerGuesses = [];
 function setWordLists(payload) {
   workerAnswers = Array.isArray(payload.answers) ? payload.answers : [];
   workerGuesses = Array.isArray(payload.guesses) ? payload.guesses : [];
+  clearSolveMemo();
 }
 
 function runRank(payload) {

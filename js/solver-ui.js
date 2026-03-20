@@ -24,6 +24,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
+const SOLVER_ASSET_VERSION = "20260320";
 
 const ui = {
   status: document.getElementById("status"),
@@ -135,7 +136,7 @@ function updateStats(best = null, poolSize = 0) {
 function createWorker() {
   if (state.worker) state.worker.terminate();
   state.workerReady = false;
-  state.worker = new Worker("./js/solver-worker.js", { type: "module" });
+  state.worker = new Worker(`./js/solver-worker.js?v=${SOLVER_ASSET_VERSION}`, { type: "module" });
 
   state.worker.onmessage = (event) => {
     const { type, requestId, result, error } = event.data || {};

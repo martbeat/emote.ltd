@@ -346,7 +346,16 @@ for (const guess of pool) {
     ranked.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
-      return a.word.localeCompare(b.word);
+if (b.usagePrior !== a.usagePrior) {
+  return b.usagePrior - a.usagePrior;
+}
+
+// positional likelihood (THIS is the key)
+const pa = positionalWordScore(a.word);
+const pb = positionalWordScore(b.word);
+if (pb !== pa) return pb - pa;
+
+return a.word.localeCompare(b.word);
     });
 
     return ranked.slice(0, limit);

@@ -267,12 +267,7 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
   const solvedBucket = buckets[242];
   const expectedTurns = 1 + expectedLeft - ((solvedBucket * solvedBucket) / total);
 
-  let score = entropy;
-  if (mode === "mixed") {
-    score = entropy + 0.02 * uniqueLetterScore(guess) + 0.02 * positionalScore(guess);
-  } else if (mode === "exploitation") {
-    score = -expectedLeft;
-  }
+  const score = -expectedTurns;
 
   return {
     word: guess,

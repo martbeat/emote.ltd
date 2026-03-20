@@ -4,6 +4,7 @@ export const MODE_THRESHOLD = 120;
 export const FINISHING_THRESHOLD = 20;
 
 let positionalFrequencyTable = null;
+let usagePriorTable = null;
 
 export function normaliseWord(word) {
   return String(word || "").trim().toLowerCase();
@@ -147,6 +148,24 @@ export function positionalScore(word) {
   return score;
 }
 
+function buildUsagePriorTable(guesses) {
+  const table = Object.create(null);
+  const answerLike = Array.isArray(guesses) ? guesses.slice(0, ANSWER_COUNT) : [];
+  const maxRank = Math.max(1, answerLike.length - 1);
+  for (let i = 0; i < answerLike.length; i++) {
+    table[answerLike[i]] = 1 - (i / maxRank);
+  }
+  return table;
+}
+
+export function usagePriorScore(word) {
+  if (!usagePriorTable) return 0;
+  if (Object.prototype.hasOwnProperty.call(usagePriorTable, word)) {
+    return usagePriorTable[word];
+  }
+  return -0.2;
+}
+
 export function expectedRemainingCandidates(guess, candidates) {
   const buckets = new Uint16Array(PATTERN_SPACE);
   for (const answer of candidates) {
@@ -199,7 +218,8 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
     score = entropy + exploratoryBoost + candidateBonus - expectedLeftPenalty;
   } else if (mode === "exploitation") {
     const worstCasePenalty = 0.12 * worstCase;
-    score = -(expectedLeft + worstCasePenalty);
+    const usageBonus = 0.22 * usagePriorScore(guess);
+    score = -(expectedLeft + worstCasePenalty) + usageBonus;
   }
 
   return {
@@ -223,6 +243,7 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
 
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
+  usagePriorTable = buildUsagePriorTable(dictionary);
   const pool = mode === "exploitation" ? candidates : dictionary;
   const ranked = [];
   const candidateSet = new Set(candidates);

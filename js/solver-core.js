@@ -570,7 +570,10 @@ if (candidateCount > 4 && isFlatInformationLandscape(candidates, dictionary)) {
     if (!h || !h.guess) continue;
     for (const ch of h.guess) usedLetters.add(ch);
   }
-
+const usedGuesses = new Set();
+for (const h of history || []) {
+  if (h?.guess) usedGuesses.add(h.guess);
+}
   const fastPool = (mode === "exploration" && pool.length > 2500)
     ? pool
         .slice()
@@ -631,7 +634,10 @@ score =
     if (analysis.isCandidate) {
       score += 0.3;
     }
-
+    
+if (usedGuesses.has(guess)) {
+  score -= 10; // 🔥 strong penalty
+}
     // kill useless guesses
     if (analysis.entropy === 0) {
       score -= 5;

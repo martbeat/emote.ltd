@@ -336,30 +336,18 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
   const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
   const candidateSet = new Set(candidates);
 
-  if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
-    const ranked = [];
-
-  // 🚀 EARLY COMMIT (fixes 6-guess problem)
-  if (candidateCount <= 10) {
-
-    const strength = computePatternStrength(candidates);
-
+// 🔥 ALWAYS run this first
 if (candidateCount <= 10) {
 
   const ordered = candidates.slice().sort((a, b) => {
 
-    // 1. Maximise chance of immediate solve (uniform → equal, so skip)
-
-    // 2. Minimise worst-case bucket (critical)
     const wa = analyseGuess(a, candidates, "exploitation", candidateSet).worstCase;
     const wb = analyseGuess(b, candidates, "exploitation", candidateSet).worstCase;
     if (wa !== wb) return wa - wb;
 
-    // 3. Prefer common / natural words
     const ua = usagePriorScore(b) - usagePriorScore(a);
     if (ua !== 0) return ua;
 
-    // 4. Positional likelihood
     const pa = positionalScore(b) - positionalScore(a);
     if (pa !== 0) return pa;
 
@@ -374,7 +362,9 @@ if (candidateCount <= 10) {
     };
   });
 }
-  }
+    const ranked = [];
+
+
     
 for (const guess of pool) {
   const analysis = analyseGuess(guess, candidates, "exploitation", candidateSet);

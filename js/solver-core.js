@@ -65,7 +65,7 @@ export function decodePattern(code) {
   return chars.join("");
 }
 
-export function encodePatternString(pattern) {
+export function encodePattern(pattern) {
   pattern = normaliseWord(pattern);
   if (!/^[byg]{5}$/.test(pattern)) {
     throw new Error("Pattern must be exactly 5 characters using only b, y or g.");
@@ -73,6 +73,8 @@ export function encodePatternString(pattern) {
   const values = Array.from(pattern, ch => (ch === "g" ? 2 : ch === "y" ? 1 : 0));
   return encodePatternArray(values);
 }
+
+export const encodePatternString = encodePattern;
 
 export function scoreGuessEncoded(guess, answer) {
 
@@ -121,9 +123,12 @@ export function scoreGuessEncoded(guess, answer) {
 }
 
 export function filterCandidates(candidates, guess, encodedPattern) {
+  const targetPattern = typeof encodedPattern === "string"
+    ? encodePattern(encodedPattern)
+    : encodedPattern;
   const out = [];
   for (const candidate of candidates) {
-    if (scoreGuessEncoded(guess, candidate) === encodedPattern) {
+    if (scoreGuessEncoded(guess, candidate) === targetPattern) {
       out.push(candidate);
     }
   }

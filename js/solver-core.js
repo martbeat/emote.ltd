@@ -521,9 +521,31 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
   const ranked = [];
   for (const guess of fastPool) {
     const analysis = analyseGuess(guess, candidates, mode, candidateSet);
-    const score = mode === "exploration"
-      ? (1.5 * coverageScore(guess, usedLetters)) + analysis.entropy - (0.2 * repeatPenalty(guess))
-      : analysis.score;
+let score;
+
+if (mode === "exploration") {
+  score =
+    (1.5 * coverageScore(guess, usedLetters)) +
+    analysis.entropy -
+    (0.2 * repeatPenalty(guess));
+} else {
+  const worstCaseNorm = analysis.worstCase / candidateCount;
+
+  score =
+    analysis.entropy
+    - 0.8 * worstCaseNorm
+    - 0.5 * analysis.expectedLeft;
+
+  // 🔥 hard penalty for useless guesses
+  if (analysis.entropy === 0) {
+    score -= 5;
+  }
+
+  // 🔥 small candidate bias (not dominant)
+  if (analysis.isCandidate) {
+    score += 0.3;
+  }
+}
 
     ranked.push({
       ...analysis,

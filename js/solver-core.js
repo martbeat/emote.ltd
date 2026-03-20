@@ -197,6 +197,35 @@ export function positionalScore(word) {
   return score;
 }
 
+function positionEntropyScore(candidates) {
+  if (!candidates.length) return 0;
+
+  const length = 5;
+  let totalEntropy = 0;
+
+  for (let i = 0; i < length; i++) {
+    const counts = Object.create(null);
+
+    for (const word of candidates) {
+      const ch = word[i];
+      counts[ch] = (counts[ch] || 0) + 1;
+    }
+
+    let entropy = 0;
+    const total = candidates.length;
+
+    for (const ch in counts) {
+      const p = counts[ch] / total;
+      entropy -= p * Math.log2(p);
+    }
+
+    totalEntropy += entropy;
+  }
+
+  return totalEntropy; // higher = more uncertainty
+}
+
+
 function keyForSet(words) {
   return words.slice().sort().join(",");
 }
@@ -578,11 +607,24 @@ for (const guess of fastPool) {
     // 🔥 THIS is your tweak zone
     const worstCaseNorm = analysis.worstCase / candidateCount;
 
-    score =
-      analysis.entropy * 1.2              // keep information strong
-      - 0.6 * worstCaseNorm              // avoid bad splits
-      - 0.4 * analysis.expectedLeft      // still care about narrowing
-      + 0.15 * positionalScore(guess);   // ⭐ NEW: word-shape awareness
+const currentEntropy = positionEntropyScore(candidates);
+
+// simulate partitions
+let expectedPositionReduction = 0;
+const parts = partitionCandidates(guess, candidates);
+
+for (const subset of parts.values()) {
+  const p = subset.length / candidateCount;
+  const subEntropy = positionEntropyScore(subset);
+  expectedPositionReduction += p * (currentEntropy - subEntropy);
+}
+
+score =
+  1.0 * expectedPositionReduction   // ⭐ NEW: core signal
+  + 0.8 * analysis.entropy          // still useful
+  - 0.5 * worstCaseNorm
+  - 0.3 * analysis.expectedLeft
+  + 0.1 * positionalScore(guess);
 
     // small bias toward real answers
     if (analysis.isCandidate) {

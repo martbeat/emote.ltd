@@ -338,40 +338,12 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
 
 // 🔥 ALWAYS run this first
 if (candidateCount <= 10) {
-
-const ordered = candidates.slice().sort((a, b) => {
-
-  const aa = analyseGuess(a, candidates, "exploitation", candidateSet);
-  const bb = analyseGuess(b, candidates, "exploitation", candidateSet);
-
-  // 🔥 PRIMARY: minimise expected remaining candidates
-  if (aa.expectedLeft !== bb.expectedLeft) {
-    return aa.expectedLeft - bb.expectedLeft;
-  }
-// 🔥 direct-hit bias (critical)
-if (aa.isCandidate !== bb.isCandidate) {
-  return bb.isCandidate - aa.isCandidate;
-}
-  // 🔥 SECONDARY: minimise worst-case bucket
-  if (aa.worstCase !== bb.worstCase) {
-    return aa.worstCase - bb.worstCase;
-  }
-
-  // 🔥 THIRD: prefer actual answers
-  if (aa.isCandidate !== bb.isCandidate) {
-    return Number(bb.isCandidate) - Number(aa.isCandidate);
-  }
-
-  // 🔥 FOURTH: prefer common words
-  const ua = usagePriorScore(b) - usagePriorScore(a);
-  if (ua !== 0) return ua;
-
-  // 🔥 FIFTH: positional likelihood
-  const pa = positionalScore(b) - positionalScore(a);
-  if (pa !== 0) return pa;
-
-  return a.localeCompare(b);
-});
+  const ordered = candidates.slice().sort((a, b) => {
+    const sa = lateAnswerScore(a);
+    const sb = lateAnswerScore(b);
+    if (sb !== sa) return sb - sa;
+    return a.localeCompare(b);
+  });
 
   return ordered.slice(0, limit).map((word, index) => {
     const analysis = analyseGuess(word, candidates, "exploitation", candidateSet);
@@ -499,4 +471,23 @@ export function buildDefaultHistoryState(answers) {
     candidates: [...answers],
     history: []
   };
+}
+function lateAnswerScore(word) {
+  let score = 0;
+
+  // prefer common letter positions from your current dictionary
+  score += positionalScore(word);
+
+  // prefer unique letters a bit less at this stage
+  score += 2 * uniqueLetterScore(word);
+
+  // mild vowel preference
+  const vowels = new Set(["a", "e", "i", "o", "u"]);
+  let vowelCount = 0;
+  for (const ch of word) {
+    if (vowels.has(ch)) vowelCount++;
+  }
+  score += vowelCount;
+
+  return score;
 }

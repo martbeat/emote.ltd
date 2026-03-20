@@ -318,7 +318,42 @@ export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto")
 
     const ranked = [];
     const pool = candidates; // only real answers
+if (candidateCount <= SOLVE_SEARCH_THRESHOLD) {
+  const ranked = [];
+  const pool = candidates;
 
+  // 🔥 COMMIT EARLY (structure detection)
+  if (candidateCount <= 8) {
+    const strength = computePatternStrength(candidates);
+
+    if (strength > 0.85) {
+      const ordered = candidates.slice().sort((a, b) => {
+        const pa = positionalWordScore(a);
+        const pb = positionalWordScore(b);
+        if (pb !== pa) return pb - pa;
+
+        const ua = usagePriorScore(a);
+        const ub = usagePriorScore(b);
+        if (ub !== ua) return ub - ua;
+
+        return a.localeCompare(b);
+      });
+
+      return ordered.slice(0, limit).map(word => ({
+        word,
+        guess: word,
+        entropy: 0,
+        expectedLeft: 1,
+        expectedTurns: 1,
+        worstCase: 1,
+        usagePrior: usagePriorScore(word),
+        isCandidate: true,
+        score: 999
+      }));
+    }
+  }
+
+  // 👇 existing scoring loop continues here
 for (const guess of pool) {
   const expectedTurns = expectedSolveCost(guess, candidates, pool);
   const entropy = computeEntropy(guess, candidates);
@@ -495,4 +530,17 @@ function finishSoonScore(guess, candidates, guessPool) {
   }
 
   return (solveNow + solveNext) / total;
+}
+function computePatternStrength(candidates) {
+  if (candidates.length <= 1) return 1;
+
+  const length = candidates[0].length;
+  let fixedPositions = 0;
+
+  for (let i = 0; i < length; i++) {
+    const chars = new Set(candidates.map(w => w[i]));
+    if (chars.size === 1) fixedPositions++;
+  }
+
+  return fixedPositions / length;
 }

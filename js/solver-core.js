@@ -198,7 +198,8 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
     const expectedLeftPenalty = 0.08 * endgamePressure * expectedLeft;
     score = entropy + exploratoryBoost + candidateBonus - expectedLeftPenalty;
   } else if (mode === "exploitation") {
-    score = -expectedLeft;
+    const worstCasePenalty = 0.12 * worstCase;
+    score = -(expectedLeft + worstCasePenalty);
   }
 
   return {
@@ -213,11 +214,12 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
 }
 
 export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto") {
+  const candidateCount = candidates.length;
   const mode = forceMode === "candidates"
     ? "exploitation"
     : forceMode === "all"
-      ? (candidates.length > 60 ? "exploration" : "mixed")
-      : resolveMode(candidates.length);
+      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
+      : resolveMode(candidateCount);
 
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);

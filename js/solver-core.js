@@ -620,11 +620,12 @@ for (const subset of parts.values()) {
 }
 
 score =
-  1.0 * expectedPositionReduction   // ⭐ NEW: core signal
+  0.5 * expectedPositionReduction   // ⭐ NEW: core signal
   + 0.8 * analysis.entropy          // still useful
-  - 0.5 * worstCaseNorm
+  - 0.6 * worstCaseNorm
   - 0.3 * analysis.expectedLeft
-  + 0.1 * positionalScore(guess);
+  + 0.1 * positionalScore(guess)
+  + (0.8 * lateGameFactor * analysis.isCandidate); // 🔥 key fix;
 
     // small bias toward real answers
     if (analysis.isCandidate) {

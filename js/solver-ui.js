@@ -204,12 +204,13 @@ async function recalcRecommendations() {
       candidates: state.candidates,
       guesses: guessPool,
       limit: 10,
+      history: state.history,
       forceMode
     });
   } else {
     const pool = chooseGuessPool(state.candidates, guessPool, undefined, forceMode);
     result = {
-      top: rankGuesses(state.candidates, guessPool, 10, forceMode),
+      top: rankGuesses(state.candidates, guessPool, 10, state.history, forceMode),
       poolSize: pool.length
     };
     setStatus("Worker unavailable; used local fallback ranking.", "warn");

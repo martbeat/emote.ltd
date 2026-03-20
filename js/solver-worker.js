@@ -19,9 +19,10 @@ function setWordLists(payload) {
 function runRank(payload) {
   const candidates = Array.isArray(payload.candidates) ? payload.candidates : workerAnswers;
   const limit = Number(payload.limit || 10);
+  const history = Array.isArray(payload.history) ? payload.history : [];
   const forceMode = payload.forceMode || "auto";
   const pool = chooseGuessPool(candidates, workerGuesses, undefined, forceMode);
-  const top = rankGuesses(candidates, workerGuesses, limit, forceMode).map((row) => ({
+  const top = rankGuesses(candidates, workerGuesses, limit, history, forceMode).map((row) => ({
     ...row,
     word: row.word || row.guess,
     entropy: row.entropy,
@@ -45,20 +46,22 @@ function simulateOne(answer, openingWord, forceMode) {
   let guess = openingWord;
   let steps = 0;
   const seen = new Set();
+  const history = [];
 
   while (steps < 10) {
     steps++;
     if (!guess || seen.has(guess)) {
-      guess = rankGuesses(candidates, workerGuesses, 1, forceMode)[0]?.guess || candidates[0] || null;
+      guess = rankGuesses(candidates, workerGuesses, 1, history, forceMode)[0]?.guess || candidates[0] || null;
     }
     if (!guess) return 10;
 
     seen.add(guess);
     const patternCode = scoreGuessEncoded(guess, answer);
+    history.push({ guess, pattern: decodePattern(patternCode) });
     if (patternCode === 242) return steps;
 
     candidates = filterCandidates(candidates, guess, patternCode);
-    guess = rankGuesses(candidates, workerGuesses, 1, forceMode)[0]?.guess || candidates[0] || null;
+    guess = rankGuesses(candidates, workerGuesses, 1, history, forceMode)[0]?.guess || candidates[0] || null;
   }
   return 10;
 }

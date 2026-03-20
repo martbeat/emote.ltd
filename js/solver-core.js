@@ -173,6 +173,18 @@ export function usagePriorScore(word) {
   return -0.2;
 }
 
+function coverageScore(guess, usedLetters) {
+  let score = 0;
+  for (const ch of new Set(guess)) {
+    if (!usedLetters.has(ch)) score++;
+  }
+  return score;
+}
+
+function repeatPenalty(word) {
+  return word.length - new Set(word).size;
+}
+
 export function expectedRemainingCandidates(guess, candidates) {
   const buckets = new Uint16Array(PATTERN_SPACE);
   for (const answer of candidates) {
@@ -301,7 +313,10 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
   };
 }
 
-export function rankGuesses(candidates, guesses, limit = 10, forceMode = "auto") {
+export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode = [], explicitForceMode = "auto") {
+  const hasHistory = Array.isArray(historyOrForceMode);
+  const history = hasHistory ? historyOrForceMode : [];
+  const forceMode = hasHistory ? explicitForceMode : (historyOrForceMode || "auto");
   const candidateCount = candidates.length;
 
   const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
@@ -417,9 +432,26 @@ return a.word.localeCompare(b.word);
 
   const mode = resolveMode(candidateCount);
   const ranked = [];
+  const usedLetters = new Set();
+
+  for (const h of history || []) {
+    for (const ch of h.guess) {
+      usedLetters.add(ch);
+    }
+  }
 
   for (const guess of pool) {
-    ranked.push(analyseGuess(guess, candidates, mode, candidateSet));
+    const analysis = analyseGuess(guess, candidates, mode, candidateSet);
+    const entropy = analysis.entropy;
+    const coverage = coverageScore(guess, usedLetters);
+    const score = mode === "exploration"
+      ? (1.5 * coverage) + entropy - (0.2 * repeatPenalty(guess))
+      : analysis.score;
+
+    ranked.push({
+      ...analysis,
+      score
+    });
   }
 
   ranked.sort((a, b) => {

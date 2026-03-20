@@ -3,6 +3,9 @@ import {
   decodePattern,
   encodePatternString,
   filterCandidates,
+  rankGuesses,
+  chooseGuessPool,
+  clearSolveMemo,
   validateGuessPattern,
   buildDefaultHistoryState
 } from "./solver-core.js";
@@ -164,7 +167,10 @@ function callWorker(type, payload = {}) {
 }
 
 async function recalcRecommendations() {
-  if (!state.workerReady || !state.answers.length || !state.guesses.length) return;
+  if (!state.answers.length || !state.guesses.length) {
+    setStatus("Word lists are not loaded yet.", "warn");
+    return;
+  }
 
   if (state.candidates.length === 0) {
     state.lastRanking = [];
@@ -192,12 +198,22 @@ async function recalcRecommendations() {
   setStatus("Calculating recommendations…", "working");
   const forceMode = state.answerMode === "hard" ? "candidates" : ui.modeSelect.value;
   const guessPool = getGuessPool();
-  const result = await callWorker("rank", {
-    candidates: state.candidates,
-    guesses: guessPool,
-    limit: 10,
-    forceMode
-  });
+  let result = null;
+  if (state.workerReady) {
+    result = await callWorker("rank", {
+      candidates: state.candidates,
+      guesses: guessPool,
+      limit: 10,
+      forceMode
+    });
+  } else {
+    const pool = chooseGuessPool(state.candidates, guessPool, undefined, forceMode);
+    result = {
+      top: rankGuesses(state.candidates, guessPool, 10, forceMode),
+      poolSize: pool.length
+    };
+    setStatus("Worker unavailable; used local fallback ranking.", "warn");
+  }
 
   state.lastRanking = result.top || [];
   renderRanking(state.lastRanking);
@@ -213,6 +229,7 @@ async function recalcRecommendations() {
 }
 
 function resetState() {
+  clearSolveMemo();
   if (state.answerMode === "official") {
     state.candidates = [...state.answers];
   }

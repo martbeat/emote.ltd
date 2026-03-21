@@ -609,7 +609,7 @@ for (const guess of fastPool) {
   } else {
     // 🔥 THIS is your tweak zone
     const worstCaseNorm = analysis.worstCase / candidateCount;
-
+const lateGameFactor = Math.max(0, 15 - candidateCount) / 15;
 const currentEntropy = positionEntropyScore(candidates);
 
 // simulate partitions

@@ -661,6 +661,28 @@ let score;
 
 const worstCaseNorm = analysis.worstCase / candidateCount;
 
+if (candidateCount >= 10 && candidateCount <= 20) {
+
+  const breakerCandidates = [];
+
+  for (const guess of guesses) {
+    if (candidateSet.has(guess)) continue;
+
+    const analysis = analyseGuess(guess, candidates);
+
+    if (analysis.entropy > 0) {
+      breakerCandidates.push({
+        ...analysis,
+        score: analysis.entropy - analysis.worstCase / candidateCount
+      });
+    }
+  }
+
+  breakerCandidates.sort((a,b)=>b.score - a.score);
+
+  return breakerCandidates.slice(0, limit);
+}
+  
 // 🔥 PHASE-BASED SCORING
 if (candidateCount > 20) {
   // MID GAME — maximise information
@@ -690,8 +712,8 @@ if (usedGuesses.has(guess)) {
 }
 
 // 🚫 avoid zero-info guesses
-if (analysis.entropy === 0) {
-  score -= 5;
+if (analysis.entropy === 0 && candidateCount > 1) {
+  continue; // 🔥 completely discard useless guesses
 }
 if (candidateCount <= 6 && analysis.isCandidate) {
   score += 1.0;

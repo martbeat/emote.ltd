@@ -81,39 +81,34 @@ export function scoreGuessEncoded(guess, answer) {
   guess = guess.toLowerCase();
   answer = answer.toLowerCase();
 
-  const result = [0,0,0,0,0];   // 0=black, 1=yellow, 2=green
-  const answerLetters = answer.split("");
-  const guessLetters = guess.split("");
+  const result = [0,0,0,0,0];
+  const answerCounts = {};
 
-  const used = [false,false,false,false,false];
+  // count letters in answer
+  for (const ch of answer) {
+    answerCounts[ch] = (answerCounts[ch] || 0) + 1;
+  }
 
   // PASS 1 — greens
   for (let i = 0; i < 5; i++) {
-    if (guessLetters[i] === answerLetters[i]) {
+    if (guess[i] === answer[i]) {
       result[i] = 2;
-      used[i] = true;
-      guessLetters[i] = null;
+      answerCounts[guess[i]]--;
     }
   }
 
   // PASS 2 — yellows
   for (let i = 0; i < 5; i++) {
-
-    if (result[i] === 2) continue;
-
-    for (let j = 0; j < 5; j++) {
-
-      if (!used[j] && guessLetters[i] === answerLetters[j]) {
+    if (result[i] === 0) {
+      const ch = guess[i];
+      if (answerCounts[ch] > 0) {
         result[i] = 1;
-        used[j] = true;
-        break;
+        answerCounts[ch]--;
       }
-
     }
-
   }
 
-  // encode base-3 pattern
+  // encode base-3
   let code = 0;
   for (let i = 0; i < 5; i++) {
     code = code * 3 + result[i];
@@ -130,11 +125,23 @@ export function filterCandidates(candidates, guess, pattern) {
 
   const out = [];
 
-  for (const candidate of candidates) {
-    if (scoreGuessEncoded(guess, candidate) === encoded) {
-      out.push(candidate);
-    }
+for (const candidate of candidates) {
+
+  const score = scoreGuessEncoded(guess, candidate);
+
+  // 🔍 DEBUG: see what patterns are being generated
+  console.log(
+    "[FILTER DEBUG]",
+    "guess:", guess,
+    "candidate:", candidate,
+    "score:", score,
+    "target:", encoded
+  );
+
+  if (score === encoded) {
+    out.push(candidate);
   }
+}
 console.log("Before:", candidates.length, "After:", out.length);
 console.log("Pattern in:", pattern);
 console.log("Encoded:", typeof pattern === "string" ? encodePattern(pattern) : pattern);
@@ -532,7 +539,7 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
   const candidateSet = new Set(candidates);
 
   // 🔥 HUMAN-STYLE ELIMINATION MODE
-if (candidateCount >= 12 && candidateCount <= 20) {
+if (false && candidateCount >= 12 && candidateCount <= 20) {
 
   const usedLetters = new Set();
   for (const h of history || []) {

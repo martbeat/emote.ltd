@@ -525,6 +525,51 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
   const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
   const candidateSet = new Set(candidates);
 
+  // 🔥 HUMAN-STYLE ELIMINATION MODE
+if (candidateCount >= 10 && candidateCount <= 25) {
+
+  const usedLetters = new Set();
+  for (const h of history || []) {
+    for (const ch of h.guess || "") {
+      usedLetters.add(ch);
+    }
+  }
+
+  const ranked = [];
+
+  for (const guess of dictionary) {
+    if (candidateSet.has(guess)) continue; // avoid committing early
+
+    const unique = new Set(guess);
+    let newLetters = 0;
+
+    for (const ch of unique) {
+      if (!usedLetters.has(ch)) newLetters++;
+    }
+
+    const penalty = repeatPenalty(guess);
+
+    const score =
+      (2.5 * newLetters)        // 🔥 key driver
+      - (0.5 * penalty)
+      + (0.2 * positionalScore(guess));
+
+    ranked.push({
+      word: guess,
+      guess,
+      entropy: 0,
+      expectedLeft: 0,
+      worstCase: 0,
+      isCandidate: false,
+      score
+    });
+  }
+
+  ranked.sort((a, b) => b.score - a.score);
+
+  return ranked.slice(0, limit);
+}
+
 // 🔥 CLUSTER BREAK DETECTION
 if (candidateCount > 4 && isFlatInformationLandscape(candidates, dictionary)) {
 

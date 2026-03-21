@@ -652,64 +652,17 @@ for (const guess of fastPool) {
 
   let score;
 
-  if (mode === "exploration") {
-    score =
-      (1.5 * coverageScore(guess, usedLetters)) +
-      analysis.entropy -
-      (0.2 * repeatPenalty(guess));
-  } else {
-    // 🔥 THIS is your tweak zone
-    const worstCaseNorm = analysis.worstCase / candidateCount;
-const lateGameFactor = Math.max(0, 15 - candidateCount) / 15;
-const currentEntropy = positionEntropyScore(candidates);
-
-// simulate partitions
-let expectedPositionReduction = 0;
-const parts = partitionCandidates(guess, candidates);
-
-for (const subset of parts.values()) {
-  const p = subset.length / candidateCount;
-  const subEntropy = positionEntropyScore(subset);
-  expectedPositionReduction += p * (currentEntropy - subEntropy);
+if (candidateCount > 20) {
+  // 🔥 MID GAME — maximise information
+  score =
+    analysis.entropy
+    - 0.15 * analysis.worstCase
+    + 0.1 * uniqueLetterScore(guess);
 }
-
-score =
-  0.5 * expectedPositionReduction   // ⭐ NEW: core signal
-  + 0.8 * analysis.entropy          // still useful
-  - 0.6 * worstCaseNorm
-  - 0.3 * analysis.expectedLeft
-  + 0.1 * positionalScore(guess)
-  + (0.8 * lateGameFactor * analysis.isCandidate); // 🔥 key fix;
-
-    // small bias toward real answers
-    if (analysis.isCandidate) {
-      score += 0.3;
-    }
-////////////////////////////////////////////////////////////////
-if (candidateSet.has(guess)) {
-  const solvedCode = scoreGuessEncoded(guess, guess);
-  const solvedCount = candidates.filter(w => scoreGuessEncoded(guess, w) === solvedCode).length;
-  console.log("CHECK", guess, {
-    candidateCount,
-    solvedCode,
-    solvedCount,
-    entropy: analysis.entropy,
-    expectedLeft: analysis.expectedLeft,
-    worstCase: analysis.worstCase
-  });
+else {
+  // 🔥 END GAME — minimise remaining candidates
+  score = -analysis.expectedLeft;
 }
-
-    ///////////////////////////
-    
-if (usedGuesses.has(guess)) {
-  score -= 10; // 🔥 strong penalty
-}
-    // kill useless guesses
-    if (analysis.entropy === 0) {
-      score -= 5;
-    }
-  }
-
   ranked.push({
     ...analysis,
     score

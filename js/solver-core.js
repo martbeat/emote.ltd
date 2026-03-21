@@ -685,6 +685,21 @@ score =
     if (analysis.isCandidate) {
       score += 0.3;
     }
+////////////////////////////////////////////////////////////////
+if (candidateSet.has(guess)) {
+  const solvedCode = scoreGuessEncoded(guess, guess);
+  const solvedCount = candidates.filter(w => scoreGuessEncoded(guess, w) === solvedCode).length;
+  console.log("CHECK", guess, {
+    candidateCount,
+    solvedCode,
+    solvedCount,
+    entropy: analysis.entropy,
+    expectedLeft: analysis.expectedLeft,
+    worstCase: analysis.worstCase
+  });
+}
+
+    ///////////////////////////
     
 if (usedGuesses.has(guess)) {
   score -= 10; // 🔥 strong penalty

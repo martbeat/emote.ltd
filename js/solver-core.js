@@ -695,8 +695,7 @@ if (candidateCount >= 10 && candidateCount <= 20) {
 
   return breakerCandidates.slice(0, limit);
 }
-  
-let score;
+
 
 // PRIMARY: minimise expected solve length
 score = -analysis.expectedTurns;

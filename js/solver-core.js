@@ -122,16 +122,20 @@ export function scoreGuessEncoded(guess, answer) {
   return code;
 }
 
-export function filterCandidates(candidates, guess, encodedPattern) {
-  const targetPattern = typeof encodedPattern === "string"
-    ? encodePattern(encodedPattern)
-    : encodedPattern;
+export function filterCandidates(candidates, guess, pattern) {
+  const encoded =
+    typeof pattern === "string"
+      ? encodePattern(pattern)
+      : pattern;
+
   const out = [];
+
   for (const candidate of candidates) {
-    if (scoreGuessEncoded(guess, candidate) === targetPattern) {
+    if (scoreGuessEncoded(guess, candidate) === encoded) {
       out.push(candidate);
     }
   }
+
   return out;
 }
 

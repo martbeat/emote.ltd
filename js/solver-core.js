@@ -135,7 +135,7 @@ export function filterCandidates(candidates, guess, pattern) {
       out.push(candidate);
     }
   }
-
+console.log("Before:", candidates.length, "After:", out.length);
   return out;
 }
 

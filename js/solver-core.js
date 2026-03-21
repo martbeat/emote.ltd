@@ -650,19 +650,46 @@ const ranked = [];
 for (const guess of fastPool) {
   const analysis = analyseGuess(guess, candidates, mode, candidateSet);
 
-  let score;
+let score;
 
+const worstCaseNorm = analysis.worstCase / candidateCount;
+
+// 🔥 PHASE-BASED SCORING
 if (candidateCount > 20) {
-  // 🔥 MID GAME — maximise information
+  // MID GAME — maximise information
   score =
     analysis.entropy
-    - 0.15 * analysis.worstCase
+    - 0.2 * worstCaseNorm
     + 0.1 * uniqueLetterScore(guess);
 }
-else {
-  // 🔥 END GAME — minimise remaining candidates
-  score = -analysis.expectedLeft;
+else if (candidateCount > 8) {
+  // TRANSITION — balance split + narrowing
+  score =
+    analysis.entropy
+    - 0.4 * worstCaseNorm
+    - 0.3 * analysis.expectedLeft
+    + 0.1 * positionalScore(guess);
 }
+else {
+  // END GAME — solve quickly
+  score =
+    -analysis.expectedLeft
+    + (analysis.isCandidate ? 0.5 : 0);
+}
+
+// 🚫 prevent repeats
+if (usedGuesses.has(guess)) {
+  score -= 10;
+}
+
+// 🚫 avoid zero-info guesses
+if (analysis.entropy === 0) {
+  score -= 5;
+}
+if (candidateCount <= 6 && analysis.isCandidate) {
+  score += 0.4;
+}
+  
   ranked.push({
     ...analysis,
     score

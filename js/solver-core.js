@@ -135,9 +135,9 @@ export function filterCandidates(candidates, guess, pattern) {
       out.push(candidate);
     }
   }
-console.log("Before:", candidates.length, "After:", out.length);
-  console.log("Pattern in:", pattern);
-console.log("Encoded:", typeof pattern === "string" ? encodePattern(pattern) : pattern);
+//console.log("Before:", candidates.length, "After:", out.length);
+//  console.log("Pattern in:", pattern);
+// console.log("Encoded:", typeof pattern === "string" ? encodePattern(pattern) : pattern);
   return out;
 }
 

@@ -472,7 +472,7 @@ function isFlatInformationLandscape(candidates, guesses) {
     }
   }
 
-  return maxEntropy < 0.5; // threshold tweakable
+  return maxEntropy < 1.0; // threshold tweakable
 }
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {

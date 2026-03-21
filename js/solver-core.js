@@ -532,7 +532,7 @@ export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode 
   const candidateSet = new Set(candidates);
 
   // 🔥 HUMAN-STYLE ELIMINATION MODE
-if (candidateCount >= 10 && candidateCount <= 25) {
+if (candidateCount >= 12 && candidateCount <= 20) {
 
   const usedLetters = new Set();
   for (const h of history || []) {
@@ -544,7 +544,7 @@ if (candidateCount >= 10 && candidateCount <= 25) {
   const ranked = [];
 
   for (const guess of dictionary) {
-    if (candidateSet.has(guess)) continue; // avoid committing early
+    if (candidateCount > 12 && candidateSet.has(guess)) continue; // avoid committing early
 
     const unique = new Set(guess);
     let newLetters = 0;
@@ -577,7 +577,7 @@ if (candidateCount >= 10 && candidateCount <= 25) {
 }
 
 // 🔥 CLUSTER BREAK DETECTION
-if (candidateCount > 4 && isFlatInformationLandscape(candidates, dictionary)) {
+if (candidateCount >= 8 && candidateCount <= 20 && isFlatInformationLandscape(candidates, dictionary)) {
 
   const breakers = [];
 
@@ -687,7 +687,7 @@ if (analysis.entropy === 0) {
   score -= 5;
 }
 if (candidateCount <= 6 && analysis.isCandidate) {
-  score += 0.4;
+  score += 1.0;
 }
   
   ranked.push({

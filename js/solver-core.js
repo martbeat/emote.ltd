@@ -247,7 +247,7 @@ function solvedPatternCode() {
   return 242; // ggggg in base-3 with your encoding
 }
 
-function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 12) {
+function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 25) {
   // Always include candidates
   const pool = new Set(candidates);
 
@@ -256,6 +256,7 @@ function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 12) {
   for (const guess of guesses) {
     if (pool.has(guess)) continue;
     const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
+    if (analysis.entropy === 0) continue;
     ranked.push({
       guess,
       entropy: analysis.entropy,
@@ -472,7 +473,7 @@ function isFlatInformationLandscape(candidates, guesses) {
     }
   }
 
-  return maxEntropy < 1.0; // threshold tweakable
+  return maxEntropy < 1.2; // threshold tweakable
 }
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
@@ -501,8 +502,20 @@ export function analyseGuess(guess, candidates, mode = "exploration", candidateS
   }
 
   const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
-  const solvedBucket = buckets[242];
-  const expectedTurns = 1 + expectedLeft - ((solvedBucket * solvedBucket) / total);
+let expectedTurns = 0;
+
+for (let i = 0; i < PATTERN_SPACE; i++) {
+  const count = buckets[i];
+  if (!count) continue;
+
+  const p = count / total;
+
+  if (i === 242) {
+    expectedTurns += p * 1; // solved
+  } else {
+    expectedTurns += p * (1 + count);
+  }
+}
 
   let score = entropy;
   if (mode === "mixed") {
@@ -613,9 +626,9 @@ if (candidateCount >= 8 && candidateCount <= 20 && isFlatInformationLandscape(ca
   return breakers.slice(0, limit);
 }
   
-  if (candidateCount <= 10) {
-    return rankByRecursiveSolveDepth(candidates, dictionary, limit, 8);
-  }
+if (candidateCount <= 20) {
+  return rankByRecursiveSolveDepth(candidates, dictionary, limit, 6);
+}
 
   const mode = forceMode === "candidates"
     ? "exploitation"
@@ -650,7 +663,7 @@ for (const h of history || []) {
 
           return a.localeCompare(b);
         })
-        .slice(0, 2500)
+        .slice(0, 1500)
     : pool;
 
 const ranked = [];
@@ -683,29 +696,22 @@ if (candidateCount >= 10 && candidateCount <= 20) {
   return breakerCandidates.slice(0, limit);
 }
   
-// 🔥 PHASE-BASED SCORING
-if (candidateCount > 20) {
-  // MID GAME — maximise information
-  score =
-    analysis.entropy
-    - 0.2 * worstCaseNorm
-    + 0.1 * uniqueLetterScore(guess);
-}
-else if (candidateCount > 8) {
-  // TRANSITION — balance split + narrowing
-  score =
-    analysis.entropy
-    - 0.4 * worstCaseNorm
-    - 0.3 * analysis.expectedLeft
-    + 0.1 * positionalScore(guess);
-}
-else {
-  // END GAME — solve quickly
-  score =
-    -analysis.expectedLeft
-    + (analysis.isCandidate ? 0.5 : 0);
-}
+let score;
 
+// PRIMARY: minimise expected solve length
+score = -analysis.expectedTurns;
+
+// SECONDARY: reduce worst-case blowups
+score -= 0.5 * (analysis.worstCase / candidateCount);
+
+// SMALL tie-breakers
+score += 0.05 * analysis.entropy;
+score += 0.02 * positionalScore(guess);
+
+// slight preference for real candidates late
+if (candidateCount <= 6 && analysis.isCandidate) {
+  score += 0.2;
+}
 // 🚫 prevent repeats
 if (usedGuesses.has(guess)) {
   score -= 10;

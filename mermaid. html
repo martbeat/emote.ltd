@@ -1,0 +1,151 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mermaid Studio+</title><style>
+:root {
+  --bg:#0b0f1a;--panel:#12182b;--panel2:#18213a;--border:#2b3a6b;
+  --text:#eef2ff;--muted:#9aa6d1;--accent:#6ea8ff;
+}
+body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh}
+header{padding:12px;border-bottom:1px solid var(--border)}
+.app{flex:1;display:flex;min-height:0}
+.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border)}
+.editor{width:40%;min-width:260px}
+.preview{flex:1}
+.resizer{width:6px;cursor:col-resize;background:var(--border)}
+.toolbar{padding:8px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap}
+button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer}
+textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
+.preview-area{flex:1;overflow:auto;padding:15px}
+.status{padding:6px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
+</style></head>
+<body>
+<header><strong>Mermaid Studio+</strong></header>
+<div class="app"><div class="pane editor" id="editorPane">
+<div class="toolbar">
+<button id="render">Render</button>
+<button id="share">Share</button>
+<button id="embed">Embed</button>
+<select id="theme">
+<option value="dark" selected>Dark</option>
+<option value="default">Default</option>
+</select>
+</div>
+<textarea id="code"></textarea>
+</div><div class="resizer" id="resizer"></div><div class="pane preview">
+<div class="toolbar">
+<button id="svg">SVG</button>
+<button id="png">PNG</button>
+</div>
+<div class="preview-area" id="output"></div>
+<div class="status" id="status">Ready</div>
+</div></div><script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+const codeEl = document.getElementById('code');
+const output = document.getElementById('output');
+const status = document.getElementById('status');
+const theme = document.getElementById('theme');
+
+// --- persistence ---
+const STORAGE_KEY = "mermaid_code";
+
+function loadState(){
+  const saved = localStorage.getItem(STORAGE_KEY);
+  const url = new URLSearchParams(location.search).get('c');
+  if(url){
+    codeEl.value = atob(url);
+  } else if(saved){
+    codeEl.value = saved;
+  } else {
+    codeEl.value = "flowchart TD\nA-->B\nB-->C";
+  }
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, codeEl.value);
+}
+
+// --- render ---
+function init(){
+  mermaid.initialize({startOnLoad:false,theme:theme.value,securityLevel:'loose'});
+}
+
+async function render(){
+  try{
+    init();
+    const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
+    output.innerHTML = svg;
+    status.textContent = "Rendered";
+    saveState();
+  }catch(e){
+    status.textContent = "Error: "+e.message;
+  }
+}
+
+// --- debounce auto render ---
+let timer;
+codeEl.addEventListener('input',()=>{
+  clearTimeout(timer);
+  timer = setTimeout(render,500);
+});
+
+// --- share link ---
+document.getElementById('share').onclick = ()=>{
+  const encoded = btoa(codeEl.value);
+  const url = location.origin + location.pathname + "?c=" + encoded;
+  navigator.clipboard.writeText(url);
+  status.textContent = "Share link copied";
+};
+
+// --- embed ---
+document.getElementById('embed').onclick = ()=>{
+  const encoded = btoa(codeEl.value);
+  const iframe = `<iframe src="${location.origin+location.pathname}?c=${encoded}" width="100%" height="400"></iframe>`;
+  navigator.clipboard.writeText(iframe);
+  status.textContent = "Embed code copied";
+};
+
+// --- exports ---
+document.getElementById('svg').onclick = ()=>{
+  const svg = output.querySelector('svg');
+  if(!svg)return;
+  const blob = new Blob([svg.outerHTML],{type:'image/svg+xml'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='chart.svg';
+  a.click();
+};
+
+document.getElementById('png').onclick = ()=>{
+  const svg = output.querySelector('svg');
+  if(!svg)return;
+  const img=new Image();
+  const blob=new Blob([svg.outerHTML],{type:'image/svg+xml'});
+  const url=URL.createObjectURL(blob);
+  img.onload=()=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=img.width;canvas.height=img.height;
+    canvas.getContext('2d').drawImage(img,0,0);
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL();
+    a.download='chart.png';
+    a.click();
+  };
+  img.src=url;
+};
+
+// --- resize ---
+const resizer=document.getElementById('resizer');
+const editor=document.getElementById('editorPane');
+resizer.onmousedown=()=>{
+  document.onmousemove=e=>editor.style.width=e.clientX+'px';
+  document.onmouseup=()=>document.onmousemove=null;
+};
+
+// init
+loadState();
+render();
+</script></body>
+</html>

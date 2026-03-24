@@ -540,237 +540,144 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
   };
 }
 
-export function rankGuesses(candidates, guesses, limit = 10, historyOrForceMode = [], explicitForceMode = "auto") {
+export function rankGuesses(
+  candidates,
+  guesses,
+  limit = 10,
+  historyOrForceMode = [],
+  explicitForceMode = "auto"
+) {
   const hasHistory = Array.isArray(historyOrForceMode);
   const history = hasHistory ? historyOrForceMode : [];
-  const forceMode = hasHistory ? explicitForceMode : (historyOrForceMode || "auto");
+  const forceMode = hasHistory
+    ? explicitForceMode
+    : historyOrForceMode || "auto";
+
   const candidateCount = candidates.length;
 
-  const dictionary = Array.isArray(guesses) && guesses.length ? guesses : candidates;
+  const dictionary =
+    Array.isArray(guesses) && guesses.length ? guesses : candidates;
+
   positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
   usagePriorTable = buildUsagePriorTable(dictionary);
 
-  const restrictToCandidates = candidateCount <= CANDIDATE_ONLY_THRESHOLD;
-  const pool = (restrictToCandidates || forceMode === "candidates") ? candidates : dictionary;
   const candidateSet = new Set(candidates);
 
-  // 🔥 HUMAN-STYLE ELIMINATION MODE
-if (false && candidateCount >= 12 && candidateCount <= 20) {
-
-  const usedLetters = new Set();
-  for (const h of history || []) {
-    for (const ch of h.guess || "") {
-      usedLetters.add(ch);
-    }
+  // small sets → full recursive solve
+  if (candidateCount <= 20) {
+    return rankByRecursiveSolveDepth(candidates, dictionary, limit, 6);
   }
 
-  const ranked = [];
-
-  for (const guess of dictionary) {
-    if (candidateCount > 12 && candidateSet.has(guess)) continue; // avoid committing early
-
-    const unique = new Set(guess);
-    let newLetters = 0;
-
-    for (const ch of unique) {
-      if (!usedLetters.has(ch)) newLetters++;
-    }
-
-    const penalty = repeatPenalty(guess);
-
-    const score =
-      (2.5 * newLetters)        // 🔥 key driver
-      - (0.5 * penalty)
-      + (0.2 * positionalScore(guess));
-
-    ranked.push({
-      word: guess,
-      guess,
-      entropy: 0,
-      expectedLeft: 0,
-      worstCase: 0,
-      isCandidate: false,
-      score
-    });
-  }
-
-  ranked.sort((a, b) => b.score - a.score);
-
-  return ranked.slice(0, limit);
-}
-
-// 🔥 CLUSTER BREAK DETECTION
-if (candidateCount >= 8 && candidateCount <= 20 && isFlatInformationLandscape(candidates, dictionary)) {
-
-  const breakers = [];
-
-  for (const guess of dictionary) {
-    if (candidateSet.has(guess)) continue;
-
-    const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
-
-    breakers.push({
-      word: guess,
-      guess,
-      entropy: analysis.entropy,
-      expectedLeft: analysis.expectedLeft,
-      worstCase: analysis.worstCase,
-      usagePrior: usagePriorScore(guess),
-      isCandidate: false,
-      score:
-        (2.0 * analysis.entropy) -
-        (0.7 * (analysis.worstCase / candidateCount)) -
-        (0.2 * repeatPenalty(guess))
-    });
-  }
-
-  breakers.sort((a, b) => b.score - a.score);
-
-  return breakers.slice(0, limit);
-}
-  
-if (candidateCount <= 20) {
-  return rankByRecursiveSolveDepth(candidates, dictionary, limit, 6);
-}
-
-  const mode = forceMode === "candidates"
-    ? "exploitation"
-    : forceMode === "all"
-      ? (candidateCount > 60 ? "exploration" : candidateCount <= FINISHING_THRESHOLD ? "exploitation" : "mixed")
+  const mode =
+    forceMode === "candidates"
+      ? "exploitation"
+      : forceMode === "all"
+      ? candidateCount > 60
+        ? "exploration"
+        : candidateCount <= FINISHING_THRESHOLD
+        ? "exploitation"
+        : "mixed"
       : resolveMode(candidateCount);
 
+  // track used letters and guesses
   const usedLetters = new Set();
+  const usedGuesses = new Set();
+
   for (const h of history || []) {
     if (!h || !h.guess) continue;
     for (const ch of h.guess) usedLetters.add(ch);
+    usedGuesses.add(h.guess);
   }
-const usedGuesses = new Set();
-for (const h of history || []) {
-  if (h?.guess) usedGuesses.add(h.guess);
-}
-  const fastPool = (mode === "exploration" && pool.length > 2500)
-    ? pool
-        .slice()
-        .sort((a, b) => {
-          const aCoverage = coverageScore(a, usedLetters);
-          const bCoverage = coverageScore(b, usedLetters);
-          if (bCoverage !== aCoverage) return bCoverage - aCoverage;
 
-          const aUnique = uniqueLetterScore(a);
-          const bUnique = uniqueLetterScore(b);
-          if (bUnique !== aUnique) return bUnique - aUnique;
+  // reduce search space for speed
+  const fastPool =
+    mode === "exploration" && dictionary.length > 2500
+      ? dictionary
+          .slice()
+          .sort((a, b) => {
+            const aCov = coverageScore(a, usedLetters);
+            const bCov = coverageScore(b, usedLetters);
+            if (bCov !== aCov) return bCov - aCov;
 
-          const aPos = positionalScore(a);
-          const bPos = positionalScore(b);
-          if (bPos !== aPos) return bPos - aPos;
+            const aUni = uniqueLetterScore(a);
+            const bUni = uniqueLetterScore(b);
+            if (bUni !== aUni) return bUni - aUni;
 
-          return a.localeCompare(b);
-        })
-        .slice(0, 1500)
-    : pool;
+            const aPos = positionalScore(a);
+            const bPos = positionalScore(b);
+            if (bPos !== aPos) return bPos - aPos;
 
-const ranked = [];
+            return a.localeCompare(b);
+          })
+          .slice(0, 1500)
+      : dictionary;
 
-if (candidateCount >= 10 && candidateCount <= 20) {
+  const ranked = [];
 
-  const breakerCandidates = [];
+  for (const guess of fastPool) {
+    const analysis = analyseGuess(guess, candidates, mode, candidateSet);
 
-  for (const guess of guesses) {
-    if (candidateSet.has(guess)) continue;
+    // 🚫 reject useless guesses
+    if (analysis.entropy === 0 && candidateCount > 1) continue;
 
-    const analysis = analyseGuess(guess, candidates);
+    const reductionRatio = analysis.expectedLeft / candidateCount;
+    const worstRatio = analysis.worstCase / candidateCount;
 
-    if (analysis.entropy > 0) {
-      breakerCandidates.push({
-        ...analysis,
-        score: analysis.entropy - analysis.worstCase / candidateCount
-      });
+    // 🔥 strong mid-game pruning (THIS fixes your issue)
+    if (candidateCount > 80 && reductionRatio > 0.75) continue;
+    if (candidateCount > 40 && reductionRatio > 0.60) continue;
+
+    if (candidateCount > 80 && worstRatio > 0.85) continue;
+    if (candidateCount > 40 && worstRatio > 0.72) continue;
+
+    let score = 0;
+
+    // 🔥 PRIMARY: avoid bad branches
+    score -= 1.6 * worstRatio;
+
+    // 🔥 SECONDARY: ensure meaningful reduction
+    score -= 1.0 * reductionRatio;
+
+    // 🔥 THIRD: expected solve depth
+    score -= 0.35 * analysis.expectedTurns;
+
+    // 🔥 encourage quick wins
+    score += 1.2 * analysis.solveProbability;
+
+    // mild tie-breakers
+    score += 0.05 * analysis.entropy;
+    score += 0.02 * positionalScore(guess);
+
+    // prefer candidates (scaled by phase)
+    if (analysis.isCandidate) {
+      score += candidateCount <= 12 ? 0.45 : 0.12;
     }
+
+    // avoid repeats
+    if (usedGuesses.has(guess)) {
+      score -= 10;
+    }
+
+    ranked.push({
+      ...analysis,
+      score
+    });
   }
-
-  breakerCandidates.sort((a,b)=>b.score - a.score);
-
-  return breakerCandidates.slice(0, limit);
-}
-  
-  
-  
-for (const guess of fastPool) {
-const analysis = analyseGuess(guess, candidates, mode, candidateSet);
-// 🚫 reject weak reducers (critical fix)
-const reductionRatio = analysis.expectedLeft / candidateCount;
-
-const maxRatio =
-  candidateCount > 80 ? 0.75 :
-  candidateCount > 40 ? 0.65 :
-  candidateCount > 20 ? 0.60 :
-  0.85;
-
-if (reductionRatio > maxRatio) {
-  continue;
-}
-let score;
-
-const worstCaseNorm = analysis.worstCase / candidateCount;
-
-
-
-// PRIMARY: minimise expected solve length
-score = -analysis.expectedTurns;
-
-// 🔥 penalise weak splits
-score -= 1.2 * reductionRatio;
-
-// 🔥 penalise bad worst-case outcomes
-score -= 0.8 * (analysis.worstCase / candidateCount);
-  // 🔥 strongly reward guesses that might solve immediately
-score += 1.5 * analysis.solveProbability;
-// 🔥 prefer real answers
-if (analysis.isCandidate) {
-  score += 0.57;
-}
-// SECONDARY: reduce worst-case blowups
-score -= 0.5 * (analysis.worstCase / candidateCount);
-
-// SMALL tie-breakers
-score += 0.05 * analysis.entropy;
-score += 0.02 * positionalScore(guess);
-
-// slight preference for real candidates late
-if (candidateCount <= 6 && analysis.isCandidate) {
-  score += 0.6;
-}
-// 🚫 prevent repeats
-if (usedGuesses.has(guess)) {
-  score -= 10;
-}
-
-// 🚫 avoid zero-info guesses
-if (analysis.entropy === 0 && candidateCount > 1) {
-  continue; // 🔥 completely discard useless guesses
-}
-// 🚫 reject guesses that barely reduce candidates
-if (analysis.expectedLeft > candidateCount * 0.75) {
-  continue;
-}
-  
-  ranked.push({
-    ...analysis,
-    score
-  });
-}
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
     if (b.entropy !== a.entropy) return b.entropy - a.entropy;
-    if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
+    if (a.expectedLeft !== b.expectedLeft)
+      return a.expectedLeft - b.expectedLeft;
     return a.word.localeCompare(b.word);
   });
 
   return ranked.slice(0, limit);
 }
-    
+
+
+
 export function validateGuessPattern(guess, pattern, answers = [], guesses = []) {
   guess = normaliseWord(guess);
   pattern = normaliseWord(pattern);

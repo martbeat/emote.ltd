@@ -474,12 +474,12 @@ function isFlatInformationLandscape(candidates, guesses) {
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
   const buckets = new Uint16Array(PATTERN_SPACE);
-const solvedBucket = buckets[242];
-const solveProbability = solvedBucket / total;
+
   for (const answer of candidates) {
     buckets[scoreGuessEncoded(guess, answer)]++;
   }
-
+  const solvedBucket = buckets[242];
+  const solveProbability = solvedBucket / total;
   const total = candidates.length;
   let entropy = 0;
   let expectedLeft = 0;

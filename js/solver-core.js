@@ -473,32 +473,37 @@ function isFlatInformationLandscape(candidates, guesses) {
 }
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
-  const buckets = new Uint16Array(PATTERN_SPACE);
+const buckets = new Uint16Array(PATTERN_SPACE);
 
-  for (const answer of candidates) {
-    buckets[scoreGuessEncoded(guess, answer)]++;
-  }
-  const solvedBucket = buckets[242];
-  const solveProbability = solvedBucket / total;
-  const total = candidates.length;
-  let entropy = 0;
-  let expectedLeft = 0;
-  let worstCase = 0;
+for (const answer of candidates) {
+  buckets[scoreGuessEncoded(guess, answer)]++;
+}
 
-  for (let i = 0; i < PATTERN_SPACE; i++) {
-    const count = buckets[i];
-    if (!count) continue;
-    const p = count / total;
-    entropy -= p * Math.log2(p);
-    expectedLeft += p * count;
-    if (count > worstCase) worstCase = count;
-  }
+const total = candidates.length;  // ✅ MUST be before usage
 
-  if (mode === "exploitation") {
+let entropy = 0;
+let expectedLeft = 0;
+let worstCase = 0;
+
+for (let i = 0; i < PATTERN_SPACE; i++) {
+  const count = buckets[i];
+  if (!count) continue;
+
+  const p = count / total;
+  entropy -= p * Math.log2(p);
+  expectedLeft += p * count;
+  if (count > worstCase) worstCase = count;
+}
+
+// ✅ NOW safe to use total
+const solvedBucket = buckets[242];
+const solveProbability = solvedBucket / total;
+  
+if (mode === "exploitation") {
     expectedLeft = expectedRemainingCandidates(guess, candidates);
-  }
+}
 
-  const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
+const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
 let expectedTurns = 0;
 
 for (let i = 0; i < PATTERN_SPACE; i++) {

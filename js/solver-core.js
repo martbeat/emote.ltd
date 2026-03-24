@@ -362,10 +362,6 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
 }
 
 
-
-
-
-
 function buildUsagePriorTable(guesses) {
   const table = Object.create(null);
   const answerLike = Array.isArray(guesses) ? guesses.slice(0, ANSWER_COUNT) : [];
@@ -513,7 +509,7 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
   if (i === 242) {
     expectedTurns += p * 1; // solved
   } else {
-    expectedTurns += p * (1 + count);
+    expectedTurns += p * (1 + Math.log2(count1));
   }
 }
 
@@ -667,12 +663,6 @@ for (const h of history || []) {
     : pool;
 
 const ranked = [];
-for (const guess of fastPool) {
-  const analysis = analyseGuess(guess, candidates, mode, candidateSet);
-
-let score;
-
-const worstCaseNorm = analysis.worstCase / candidateCount;
 
 if (candidateCount >= 10 && candidateCount <= 20) {
 
@@ -695,11 +685,24 @@ if (candidateCount >= 10 && candidateCount <= 20) {
 
   return breakerCandidates.slice(0, limit);
 }
+  
+  
+  
+for (const guess of fastPool) {
+  const analysis = analyseGuess(guess, candidates, mode, candidateSet);
+
+let score;
+
+const worstCaseNorm = analysis.worstCase / candidateCount;
+
 
 
 // PRIMARY: minimise expected solve length
 score = -analysis.expectedTurns;
-
+// 🔥 prefer real answers
+if (analysis.isCandidate) {
+  score += 0.5;
+}
 // SECONDARY: reduce worst-case blowups
 score -= 0.5 * (analysis.worstCase / candidateCount);
 
@@ -709,7 +712,7 @@ score += 0.02 * positionalScore(guess);
 
 // slight preference for real candidates late
 if (candidateCount <= 6 && analysis.isCandidate) {
-  score += 0.2;
+  score += 0.6;
 }
 // 🚫 prevent repeats
 if (usedGuesses.has(guess)) {
@@ -720,9 +723,7 @@ if (usedGuesses.has(guess)) {
 if (analysis.entropy === 0 && candidateCount > 1) {
   continue; // 🔥 completely discard useless guesses
 }
-if (candidateCount <= 6 && analysis.isCandidate) {
-  score += 1.0;
-}
+
   
   ranked.push({
     ...analysis,

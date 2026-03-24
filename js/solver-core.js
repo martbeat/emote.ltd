@@ -701,6 +701,13 @@ const worstCaseNorm = analysis.worstCase / candidateCount;
 
 // PRIMARY: minimise expected solve length
 score = -analysis.expectedTurns;
+
+// 🔥 penalise weak splits
+const reductionRatio = analysis.expectedLeft / candidateCount;
+score -= 1.2 * reductionRatio;
+
+// 🔥 penalise bad worst-case outcomes
+score -= 0.8 * (analysis.worstCase / candidateCount);
   // 🔥 strongly reward guesses that might solve immediately
 score += 1.5 * analysis.solveProbability;
 // 🔥 prefer real answers
@@ -727,7 +734,10 @@ if (usedGuesses.has(guess)) {
 if (analysis.entropy === 0 && candidateCount > 1) {
   continue; // 🔥 completely discard useless guesses
 }
-
+// 🚫 reject guesses that barely reduce candidates
+if (analysis.expectedLeft > candidateCount * 0.75) {
+  continue;
+}
   
   ranked.push({
     ...analysis,

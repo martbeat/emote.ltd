@@ -474,7 +474,8 @@ function isFlatInformationLandscape(candidates, guesses) {
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
   const buckets = new Uint16Array(PATTERN_SPACE);
-
+const solvedBucket = buckets[242];
+const solveProbability = solvedBucket / total;
   for (const answer of candidates) {
     buckets[scoreGuessEncoded(guess, answer)]++;
   }
@@ -529,7 +530,8 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
     worstCase,
     usagePrior: usagePriorScore(guess),
     isCandidate,
-    score
+    score,
+    solveprobability
   };
 }
 
@@ -699,9 +701,11 @@ const worstCaseNorm = analysis.worstCase / candidateCount;
 
 // PRIMARY: minimise expected solve length
 score = -analysis.expectedTurns;
+  // 🔥 strongly reward guesses that might solve immediately
+score += 1.5 * analysis.solveProbability;
 // 🔥 prefer real answers
 if (analysis.isCandidate) {
-  score += 0.5;
+  score += 0.57;
 }
 // SECONDARY: reduce worst-case blowups
 score -= 0.5 * (analysis.worstCase / candidateCount);

@@ -362,6 +362,10 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
 }
 
 
+
+
+
+
 function buildUsagePriorTable(guesses) {
   const table = Object.create(null);
   const answerLike = Array.isArray(guesses) ? guesses.slice(0, ANSWER_COUNT) : [];
@@ -473,37 +477,31 @@ function isFlatInformationLandscape(candidates, guesses) {
 }
 
 export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
-const buckets = new Uint16Array(PATTERN_SPACE);
+  const buckets = new Uint16Array(PATTERN_SPACE);
 
-for (const answer of candidates) {
-  buckets[scoreGuessEncoded(guess, answer)]++;
-}
+  for (const answer of candidates) {
+    buckets[scoreGuessEncoded(guess, answer)]++;
+  }
 
-const total = candidates.length;  // ✅ MUST be before usage
+  const total = candidates.length;
+  let entropy = 0;
+  let expectedLeft = 0;
+  let worstCase = 0;
 
-let entropy = 0;
-let expectedLeft = 0;
-let worstCase = 0;
+  for (let i = 0; i < PATTERN_SPACE; i++) {
+    const count = buckets[i];
+    if (!count) continue;
+    const p = count / total;
+    entropy -= p * Math.log2(p);
+    expectedLeft += p * count;
+    if (count > worstCase) worstCase = count;
+  }
 
-for (let i = 0; i < PATTERN_SPACE; i++) {
-  const count = buckets[i];
-  if (!count) continue;
-
-  const p = count / total;
-  entropy -= p * Math.log2(p);
-  expectedLeft += p * count;
-  if (count > worstCase) worstCase = count;
-}
-
-// ✅ NOW safe to use total
-const solvedBucket = buckets[242];
-const solveProbability = solvedBucket / total;
-  
-if (mode === "exploitation") {
+  if (mode === "exploitation") {
     expectedLeft = expectedRemainingCandidates(guess, candidates);
-}
+  }
 
-const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
+  const isCandidate = candidateSet ? candidateSet.has(guess) : candidates.includes(guess);
 let expectedTurns = 0;
 
 for (let i = 0; i < PATTERN_SPACE; i++) {
@@ -515,7 +513,7 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
   if (i === 242) {
     expectedTurns += p * 1; // solved
   } else {
-    expectedTurns += p * (1 + Math.log2(count + 1));
+    expectedTurns += p * (1 + count);
   }
 }
 
@@ -535,8 +533,7 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
     worstCase,
     usagePrior: usagePriorScore(guess),
     isCandidate,
-    score,
-    solveProbability
+    score
   };
 }
 
@@ -670,6 +667,12 @@ for (const h of history || []) {
     : pool;
 
 const ranked = [];
+for (const guess of fastPool) {
+  const analysis = analyseGuess(guess, candidates, mode, candidateSet);
+
+let score;
+
+const worstCaseNorm = analysis.worstCase / candidateCount;
 
 if (candidateCount >= 10 && candidateCount <= 20) {
 
@@ -692,43 +695,11 @@ if (candidateCount >= 10 && candidateCount <= 20) {
 
   return breakerCandidates.slice(0, limit);
 }
-  
-  
-  
-for (const guess of fastPool) {
-const analysis = analyseGuess(guess, candidates, mode, candidateSet);
-// 🚫 reject weak reducers (critical fix)
-const reductionRatio = analysis.expectedLeft / candidateCount;
-
-const maxRatio =
-  candidateCount > 80 ? 0.75 :
-  candidateCount > 40 ? 0.65 :
-  candidateCount > 20 ? 0.60 :
-  0.85;
-
-if (reductionRatio > maxRatio) {
-  continue;
-}
-let score;
-
-const worstCaseNorm = analysis.worstCase / candidateCount;
-
 
 
 // PRIMARY: minimise expected solve length
 score = -analysis.expectedTurns;
 
-// 🔥 penalise weak splits
-score -= 1.2 * reductionRatio;
-
-// 🔥 penalise bad worst-case outcomes
-score -= 0.8 * (analysis.worstCase / candidateCount);
-  // 🔥 strongly reward guesses that might solve immediately
-score += 1.5 * analysis.solveProbability;
-// 🔥 prefer real answers
-if (analysis.isCandidate) {
-  score += 0.57;
-}
 // SECONDARY: reduce worst-case blowups
 score -= 0.5 * (analysis.worstCase / candidateCount);
 
@@ -738,7 +709,7 @@ score += 0.02 * positionalScore(guess);
 
 // slight preference for real candidates late
 if (candidateCount <= 6 && analysis.isCandidate) {
-  score += 0.6;
+  score += 0.2;
 }
 // 🚫 prevent repeats
 if (usedGuesses.has(guess)) {
@@ -749,9 +720,8 @@ if (usedGuesses.has(guess)) {
 if (analysis.entropy === 0 && candidateCount > 1) {
   continue; // 🔥 completely discard useless guesses
 }
-// 🚫 reject guesses that barely reduce candidates
-if (analysis.expectedLeft > candidateCount * 0.75) {
-  continue;
+if (candidateCount <= 6 && analysis.isCandidate) {
+  score += 1.0;
 }
   
   ranked.push({

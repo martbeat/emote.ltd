@@ -509,7 +509,7 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
   if (i === 242) {
     expectedTurns += p * 1; // solved
   } else {
-    expectedTurns += p * (1 + Math.log2(count1));
+    expectedTurns += p * (1 + Math.log2(count));
   }
 }
 

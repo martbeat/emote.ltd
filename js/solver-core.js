@@ -536,7 +536,7 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
     usagePrior: usagePriorScore(guess),
     isCandidate,
     score,
-    solveprobability
+    solveProbability
   };
 }
 

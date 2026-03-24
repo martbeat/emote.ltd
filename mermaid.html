@@ -47,15 +47,33 @@ const codeEl = document.getElementById('code');
 const output = document.getElementById('output');
 const status = document.getElementById('status');
 const theme = document.getElementById('theme');
+const renderBtn = document.getElementById('render');
+let hasErrorStatus = false;
 
 // --- persistence ---
 const STORAGE_KEY = "mermaid_code";
+
+function setStatus(message,{error=false} = {}){
+  status.textContent = message;
+  hasErrorStatus = error;
+}
+
+function clearErrorStatus(){
+  if(hasErrorStatus){
+    setStatus('Ready');
+  }
+}
 
 function loadState(){
   const saved = localStorage.getItem(STORAGE_KEY);
   const url = new URLSearchParams(location.search).get('c');
   if(url){
-    codeEl.value = atob(url);
+    try{
+      codeEl.value = decodeMermaidCode(url);
+    }catch{
+      codeEl.value = saved || "flowchart TD\nA-->B\nB-->C";
+      setStatus("Warning: invalid shared URL data",{error:true});
+    }
   } else if(saved){
     codeEl.value = saved;
   } else {
@@ -72,15 +90,53 @@ function init(){
   mermaid.initialize({startOnLoad:false,theme:theme.value,securityLevel:'loose'});
 }
 
+function encodeMermaidCode(text){
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  for(const byte of bytes){
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+function decodeMermaidCode(encoded){
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++){
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+async function copyToClipboard(text){
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const temp = document.createElement('textarea');
+  temp.value = text;
+  temp.style.position = 'fixed';
+  temp.style.opacity = '0';
+  document.body.appendChild(temp);
+  temp.focus();
+  temp.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(temp);
+  if(!ok){
+    throw new Error('Clipboard not available');
+  }
+}
+
 async function render(){
   try{
     init();
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = svg;
-    status.textContent = "Rendered";
+    setStatus("Rendered");
     saveState();
   }catch(e){
-    status.textContent = "Error: "+e.message;
+    setStatus("Error: "+e.message,{error:true});
   }
 }
 
@@ -91,49 +147,92 @@ codeEl.addEventListener('input',()=>{
   timer = setTimeout(render,500);
 });
 
+renderBtn.onclick = render;
+theme.onchange = render;
+
 // --- share link ---
-document.getElementById('share').onclick = ()=>{
-  const encoded = btoa(codeEl.value);
+document.getElementById('share').onclick = async ()=>{
+  const encoded = encodeMermaidCode(codeEl.value);
   const url = location.origin + location.pathname + "?c=" + encoded;
-  navigator.clipboard.writeText(url);
-  status.textContent = "Share link copied";
+  try{
+    await copyToClipboard(url);
+    setStatus("Share link copied");
+  }catch{
+    setStatus("Could not copy share link",{error:true});
+  }
 };
 
 // --- embed ---
-document.getElementById('embed').onclick = ()=>{
-  const encoded = btoa(codeEl.value);
+document.getElementById('embed').onclick = async ()=>{
+  const encoded = encodeMermaidCode(codeEl.value);
   const iframe = `<iframe src="${location.origin+location.pathname}?c=${encoded}" width="100%" height="400"></iframe>`;
-  navigator.clipboard.writeText(iframe);
-  status.textContent = "Embed code copied";
+  try{
+    await copyToClipboard(iframe);
+    setStatus("Embed code copied");
+  }catch{
+    setStatus("Could not copy embed code",{error:true});
+  }
 };
 
 // --- exports ---
 document.getElementById('svg').onclick = ()=>{
   const svg = output.querySelector('svg');
-  if(!svg)return;
+  if(!svg){
+    setStatus("Error: nothing to export",{error:true});
+    return;
+  }
   const blob = new Blob([svg.outerHTML],{type:'image/svg+xml'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='chart.svg';
   a.click();
+  clearErrorStatus();
 };
 
 document.getElementById('png').onclick = ()=>{
   const svg = output.querySelector('svg');
-  if(!svg)return;
-  const img=new Image();
-  const blob=new Blob([svg.outerHTML],{type:'image/svg+xml'});
-  const url=URL.createObjectURL(blob);
-  img.onload=()=>{
-    const canvas=document.createElement('canvas');
-    canvas.width=img.width;canvas.height=img.height;
-    canvas.getContext('2d').drawImage(img,0,0);
-    const a=document.createElement('a');
-    a.href=canvas.toDataURL();
-    a.download='chart.png';
+  if(!svg){
+    setStatus("Error: nothing to export",{error:true});
+    return;
+  }
+  const img = new Image();
+  const scale = 3; // high-resolution export for better readability
+  const clonedSvg = svg.cloneNode(true);
+  const box = svg.viewBox?.baseVal;
+  const width = box?.width || svg.getBoundingClientRect().width || 1200;
+  const height = box?.height || svg.getBoundingClientRect().height || 800;
+
+  clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clonedSvg.setAttribute('width', width);
+  clonedSvg.setAttribute('height', height);
+  if (!clonedSvg.getAttribute('viewBox')) {
+    clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  }
+
+  const blob = new Blob([clonedSvg.outerHTML], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(width * scale);
+    canvas.height = Math.ceil(height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'chart.png';
     a.click();
+    URL.revokeObjectURL(url);
+    clearErrorStatus();
   };
-  img.src=url;
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    setStatus("Error: PNG export failed",{error:true});
+  };
+  img.src = url;
 };
 
 // --- resize ---

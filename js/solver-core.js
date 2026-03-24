@@ -697,7 +697,18 @@ if (candidateCount >= 10 && candidateCount <= 20) {
   
 for (const guess of fastPool) {
   const analysis = analyseGuess(guess, candidates, mode, candidateSet);
+// 🚫 reject weak reducers (critical fix)
+const reductionRatio = analysis.expectedLeft / candidateCount;
 
+const maxRatio =
+  candidateCount > 80 ? 0.75 :
+  candidateCount > 40 ? 0.65 :
+  candidateCount > 20 ? 0.60 :
+  0.85;
+
+if (reductionRatio > maxRatio) {
+  continue;
+}
 let score;
 
 const worstCaseNorm = analysis.worstCase / candidateCount;

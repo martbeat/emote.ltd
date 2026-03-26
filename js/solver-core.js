@@ -124,27 +124,11 @@ export function filterCandidates(candidates, guess, pattern) {
       : pattern;
 
   const out = [];
-
-for (const candidate of candidates) {
-
-  const score = scoreGuessEncoded(guess, candidate);
-
-  // 🔍 DEBUG: see what patterns are being generated
-  console.log(
-    "[FILTER DEBUG]",
-    "guess:", guess,
-    "candidate:", candidate,
-    "score:", score,
-    "target:", encoded
-  );
-
-  if (score === encoded) {
-    out.push(candidate);
+  for (const candidate of candidates) {
+    if (scoreGuessEncoded(guess, candidate) === encoded) {
+      out.push(candidate);
+    }
   }
-}
-console.log("Before:", candidates.length, "After:", out.length);
-console.log("Pattern in:", pattern);
-console.log("Encoded:", typeof pattern === "string" ? encodePattern(pattern) : pattern);
   return out;
 }
 
@@ -164,6 +148,61 @@ function buildPositionalFrequencyTable(dictionary) {
   }
   return table;
 }
+
+function nearlyEqual(a, b, epsilon = 0.05) {
+  return Math.abs(a - b) <= epsilon;
+}
+
+function shouldUseBreakerGuess(bestCandidate, bestOverall, candidateCount) {
+  if (!bestCandidate || !bestOverall) return false;
+  if (bestOverall.isCandidate) return false;
+
+  // For very small sets, just solve from candidates unless the breaker is clearly better
+  if (candidateCount <= 6) {
+    return bestOverall.expectedTurns + 0.20 < bestCandidate.expectedTurns &&
+           bestOverall.worstCase + 1 < bestCandidate.worstCase;
+  }
+
+  // For small sets, allow a breaker only if it materially improves the tree
+  if (candidateCount <= 12) {
+    return bestOverall.expectedTurns + 0.15 < bestCandidate.expectedTurns &&
+           bestOverall.worstCase + 1 < bestCandidate.worstCase;
+  }
+
+  return false;
+}
+
+function compareRankedRows(a, b, candidateCount) {
+  // Strong preference for actual candidate answers in small endgames
+  if (candidateCount <= 12) {
+    if (a.isCandidate !== b.isCandidate) {
+      return Number(b.isCandidate) - Number(a.isCandidate);
+    }
+  }
+
+  if (a.expectedTurns !== b.expectedTurns) {
+    return a.expectedTurns - b.expectedTurns;
+  }
+
+  if (a.isCandidate !== b.isCandidate) {
+    return Number(b.isCandidate) - Number(a.isCandidate);
+  }
+
+  if (b.solveProbability !== a.solveProbability) {
+    return b.solveProbability - a.solveProbability;
+  }
+
+  if (a.worstCase !== b.worstCase) {
+    return a.worstCase - b.worstCase;
+  }
+
+  if (b.entropy !== a.entropy) {
+    return b.entropy - a.entropy;
+  }
+
+  return a.word.localeCompare(b.word);
+}
+
 
 function resolveMode(candidateCount) {
   if (candidateCount > 80) return "exploration";
@@ -247,30 +286,39 @@ function solvedPatternCode() {
   return 242; // ggggg in base-3 with your encoding
 }
 
-function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 25) {
-  // Always include candidates
+function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 12) {
+  // Always include all candidate answers
   const pool = new Set(candidates);
 
-  // Add a few strong breaker guesses from the wider guess list
+  // Do not flood small endgames with breaker guesses
+  if (candidates.length <= 6) {
+    return [...pool];
+  }
+
   const ranked = [];
   for (const guess of guesses) {
     if (pool.has(guess)) continue;
+
     const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
     if (analysis.entropy === 0) continue;
+
     ranked.push({
       guess,
       entropy: analysis.entropy,
-      worstCase: analysis.worstCase
+      worstCase: analysis.worstCase,
+      expectedLeft: analysis.expectedLeft
     });
   }
 
   ranked.sort((a, b) => {
-    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
     if (a.worstCase !== b.worstCase) return a.worstCase - b.worstCase;
+    if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
+    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
     return a.guess.localeCompare(b.guess);
   });
 
-  for (const row of ranked.slice(0, maxExtra)) {
+  const extraLimit = candidates.length <= 12 ? 4 : maxExtra;
+  for (const row of ranked.slice(0, extraLimit)) {
     pool.add(row.guess);
   }
 
@@ -346,32 +394,46 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
       worstCase: analysis.worstCase,
       usagePrior: usagePriorScore(guess),
       isCandidate: candidateSet.has(guess),
-      score: -totalCost
+      solveProbability: analysis.solveProbability
     });
   }
 
-  ranked.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    if (b.isCandidate !== a.isCandidate) return Number(b.isCandidate) - Number(a.isCandidate);
-    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
-    if (a.worstCase !== b.worstCase) return a.worstCase - b.worstCase;
-    return a.word.localeCompare(b.word);
-  });
+  ranked.sort((a, b) => compareRankedRows(a, b, candidates.length));
 
-  return ranked.slice(0, limit);
+  // In small sets, suppress non-candidate breaker guesses unless clearly justified
+  if (candidates.length <= 12) {
+    const bestCandidate = ranked.find(x => x.isCandidate);
+    const bestOverall = ranked[0];
+
+    if (!shouldUseBreakerGuess(bestCandidate, bestOverall, candidates.length) && bestCandidate) {
+      const reordered = [
+        bestCandidate,
+        ...ranked.filter(x => x.word !== bestCandidate.word)
+      ];
+      return reordered.slice(0, limit).map(row => ({
+        ...row,
+        score: -row.expectedTurns
+      }));
+    }
+  }
+
+  return ranked.slice(0, limit).map(row => ({
+    ...row,
+    score: -row.expectedTurns
+  }));
 }
 
 
-function buildUsagePriorTable(guesses) {
+function buildUsagePriorTable(words) {
   const table = Object.create(null);
-  const answerLike = Array.isArray(guesses) ? guesses.slice(0, ANSWER_COUNT) : [];
-  const maxRank = Math.max(1, answerLike.length - 1);
-  for (let i = 0; i < answerLike.length; i++) {
-    table[answerLike[i]] = 1 - (i / maxRank);
+  if (!Array.isArray(words) || !words.length) return table;
+
+  const maxRank = Math.max(1, words.length - 1);
+  for (let i = 0; i < words.length; i++) {
+    table[words[i]] = 1 - (i / maxRank);
   }
   return table;
 }
-
 export function usagePriorScore(word) {
   if (!usagePriorTable) return 0;
   if (Object.prototype.hasOwnProperty.call(usagePriorTable, word)) {
@@ -554,17 +616,16 @@ export function rankGuesses(
     : historyOrForceMode || "auto";
 
   const candidateCount = candidates.length;
-
   const dictionary =
     Array.isArray(guesses) && guesses.length ? guesses : candidates;
 
-  positionalFrequencyTable = buildPositionalFrequencyTable(dictionary);
-  usagePriorTable = buildUsagePriorTable(dictionary);
+  positionalFrequencyTable = buildPositionalFrequencyTable(candidates);
+  usagePriorTable = buildUsagePriorTable(candidates);
 
   const candidateSet = new Set(candidates);
 
-  // small sets → full recursive solve
-  if (candidateCount <= 20) {
+  // Very small sets: solve, do not get clever
+  if (candidateCount <= 12) {
     return rankByRecursiveSolveDepth(candidates, dictionary, limit, 6);
   }
 
@@ -579,7 +640,6 @@ export function rankGuesses(
         : "mixed"
       : resolveMode(candidateCount);
 
-  // track used letters and guesses
   const usedLetters = new Set();
   const usedGuesses = new Set();
 
@@ -589,7 +649,6 @@ export function rankGuesses(
     usedGuesses.add(h.guess);
   }
 
-  // reduce search space for speed
   const fastPool =
     mode === "exploration" && dictionary.length > 2500
       ? dictionary
@@ -609,7 +668,7 @@ export function rankGuesses(
 
             return a.localeCompare(b);
           })
-          .slice(0, 1500)
+          .slice(0, 1200)
       : dictionary;
 
   const ranked = [];
@@ -617,44 +676,42 @@ export function rankGuesses(
   for (const guess of fastPool) {
     const analysis = analyseGuess(guess, candidates, mode, candidateSet);
 
-    // 🚫 reject useless guesses
     if (analysis.entropy === 0 && candidateCount > 1) continue;
 
     const reductionRatio = analysis.expectedLeft / candidateCount;
     const worstRatio = analysis.worstCase / candidateCount;
 
-    if (candidateCount > 80 && reductionRatio > 0.75) continue;
-    if (candidateCount > 40 && reductionRatio > 0.60) continue;
-    if (candidateCount > 20 && reductionRatio > 0.55) continue;
-
-    if (candidateCount > 80 && worstRatio > 0.85) continue;
-    if (candidateCount > 40 && worstRatio > 0.72) continue;
-    if (candidateCount > 20 && worstRatio > 0.68) continue;
+    if (candidateCount > 80 && reductionRatio > 0.78) continue;
+    if (candidateCount > 40 && reductionRatio > 0.64) continue;
+    if (candidateCount > 80 && worstRatio > 0.86) continue;
+    if (candidateCount > 40 && worstRatio > 0.74) continue;
 
     let score = 0;
 
-    // 🔥 PRIMARY: avoid bad branches
-    score -= 1.6 * worstRatio;
-
-    // 🔥 SECONDARY: ensure meaningful reduction
-    score -= 1.0 * reductionRatio;
-
-    // 🔥 THIRD: expected solve depth
-    score -= 0.35 * analysis.expectedTurns;
-
-    // 🔥 encourage quick wins
-    score += 1.2 * analysis.solveProbability;
-
-    // mild tie-breakers
-    score += 0.05 * analysis.entropy;
-    score += 0.02 * positionalScore(guess);
-
-    // prefer candidates (scaled by phase)
-    if (analysis.isCandidate) {
-      score += candidateCount <= 12 ? 0.45 : 0.12;
+    if (mode === "exploration") {
+      score += 2.4 * analysis.entropy;
+      score -= 1.1 * worstRatio;
+      score -= 0.6 * reductionRatio;
+      score += 0.35 * coverageScore(guess, usedLetters);
+      score += 0.18 * uniqueLetterScore(guess);
+      score += 0.01 * positionalScore(guess);
+      score -= 0.25 * repeatPenalty(guess);
+      if (analysis.isCandidate) score += 0.05;
+    } else if (mode === "mixed") {
+      score += 1.6 * analysis.entropy;
+      score -= 1.3 * worstRatio;
+      score -= 1.0 * reductionRatio;
+      score += 1.6 * analysis.solveProbability;
+      score += 0.03 * positionalScore(guess);
+      if (analysis.isCandidate) score += 0.20;
+    } else {
+      score -= 2.2 * analysis.expectedLeft;
+      score -= 1.4 * analysis.worstCase;
+      score += 3.0 * analysis.solveProbability;
+      score += 0.04 * positionalScore(guess);
+      if (analysis.isCandidate) score += 0.60;
     }
 
-    // avoid repeats
     if (usedGuesses.has(guess)) {
       score -= 10;
     }
@@ -667,17 +724,32 @@ export function rankGuesses(
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    if (b.usagePrior !== a.usagePrior) return b.usagePrior - a.usagePrior;
-    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
-    if (a.expectedLeft !== b.expectedLeft)
+
+    if (candidateCount <= 20 && a.isCandidate !== b.isCandidate) {
+      return Number(b.isCandidate) - Number(a.isCandidate);
+    }
+
+    if (b.solveProbability !== a.solveProbability) {
+      return b.solveProbability - a.solveProbability;
+    }
+
+    if (a.expectedLeft !== b.expectedLeft) {
       return a.expectedLeft - b.expectedLeft;
+    }
+
+    if (a.worstCase !== b.worstCase) {
+      return a.worstCase - b.worstCase;
+    }
+
+    if (b.entropy !== a.entropy) {
+      return b.entropy - a.entropy;
+    }
+
     return a.word.localeCompare(b.word);
   });
 
   return ranked.slice(0, limit);
 }
-
-
 
 export function validateGuessPattern(guess, pattern, answers = [], guesses = []) {
   guess = normaliseWord(guess);

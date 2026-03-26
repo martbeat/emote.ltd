@@ -205,8 +205,8 @@ function compareRankedRows(a, b, candidateCount) {
 
 
 function resolveMode(candidateCount) {
-  if (candidateCount > 80) return "exploration";
-  if (candidateCount > FINISHING_THRESHOLD) return "mixed";
+  if (candidateCount > 70) return "exploration";
+  if (candidateCount > 20) return "mixed";
   return "exploitation";
 }
 
@@ -682,8 +682,8 @@ export function rankGuesses(
     const worstRatio = analysis.worstCase / candidateCount;
 
     if (candidateCount > 80 && reductionRatio > 0.78) continue;
-    if (candidateCount > 40 && reductionRatio > 0.64) continue;
-    if (candidateCount > 80 && worstRatio > 0.86) continue;
+    if (candidateCount > 40 && reductionRatio > 0.58) continue;
+    if (candidateCount > 40 && worstRatio > 0.68) continue;
     if (candidateCount > 40 && worstRatio > 0.74) continue;
 
     let score = 0;
@@ -697,14 +697,23 @@ export function rankGuesses(
       score += 0.01 * positionalScore(guess);
       score -= 0.25 * repeatPenalty(guess);
       if (analysis.isCandidate) score += 0.05;
-    } else if (mode === "mixed") {
-      score += 1.6 * analysis.entropy;
-      score -= 1.3 * worstRatio;
-      score -= 1.0 * reductionRatio;
-      score += 1.6 * analysis.solveProbability;
-      score += 0.03 * positionalScore(guess);
-      if (analysis.isCandidate) score += 0.20;
-    } else {
+   } else if (mode === "mixed") {
+     score += 1.4 * analysis.entropy;
+
+     // stronger pruning pressure
+     score -= 1.6 * worstRatio;
+     score -= 1.2 * reductionRatio;
+
+     // MUCH stronger solve bias
+     score += 2.4 * analysis.solveProbability;
+
+     // stronger candidate preference
+     if (analysis.isCandidate) {
+       score += candidateCount <= 40 ? 0.35 : 0.15;
+     }
+
+     score += 0.03 * positionalScore(guess);
+} else {
       score -= 2.2 * analysis.expectedLeft;
       score -= 1.4 * analysis.worstCase;
       score += 3.0 * analysis.solveProbability;

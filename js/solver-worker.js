@@ -5,7 +5,7 @@ import {
   decodePattern,
   chooseGuessPool,
   clearSolveMemo
-} from "./solver-core.js?v=20260322";
+} from "./solver-core.module.js?v=20260322";
 
 let workerAnswers = [];
 let workerGuesses = [];

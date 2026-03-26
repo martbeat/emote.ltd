@@ -682,8 +682,8 @@ export function rankGuesses(
     const worstRatio = analysis.worstCase / candidateCount;
 
     if (candidateCount > 80 && reductionRatio > 0.78) continue;
-    if (candidateCount > 40 && reductionRatio > 0.58) continue;
-    if (candidateCount > 40 && worstRatio > 0.68) continue;
+    if (candidateCount > 40 && reductionRatio > 0.52) continue;
+    if (candidateCount > 40 && worstRatio > 0.62) continue;
     if (candidateCount > 40 && worstRatio > 0.74) continue;
 
     let score = 0;
@@ -697,22 +697,28 @@ export function rankGuesses(
       score += 0.01 * positionalScore(guess);
       score -= 0.25 * repeatPenalty(guess);
       if (analysis.isCandidate) score += 0.05;
-   } else if (mode === "mixed") {
-     score += 1.4 * analysis.entropy;
+} else if (mode === "mixed") {
+  const reduction = candidateCount - analysis.expectedLeft;
 
-     // stronger pruning pressure
-     score -= 1.6 * worstRatio;
-     score -= 1.2 * reductionRatio;
+  // 🔥 PRIMARY: maximise reduction
+  score += 2.2 * reduction;
 
-     // MUCH stronger solve bias
-     score += 2.4 * analysis.solveProbability;
+  // 🔥 SECOND: minimise worst-case branch
+  score -= 1.8 * analysis.worstCase;
 
-     // stronger candidate preference
-     if (analysis.isCandidate) {
-       score += candidateCount <= 40 ? 0.35 : 0.15;
-     }
+  // 🔥 THIRD: reward solve probability
+  score += 2.5 * analysis.solveProbability;
 
-     score += 0.03 * positionalScore(guess);
+  // 🔥 LIGHT entropy (only as tie-breaker)
+  score += 0.2 * analysis.entropy;
+
+  // 🔥 prefer real answers increasingly
+  if (analysis.isCandidate) {
+    score += candidateCount <= 40 ? 0.5 : 0.2;
+  }
+
+  // minor stabilisers
+  score += 0.02 * positionalScore(guess);
 } else {
       score -= 2.2 * analysis.expectedLeft;
       score -= 1.4 * analysis.worstCase;

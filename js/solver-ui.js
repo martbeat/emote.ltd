@@ -8,7 +8,7 @@ import {
   clearSolveMemo,
   validateGuessPattern,
   buildDefaultHistoryState
-} from "./solver-core.js?v=20260322";
+} from "./solver-core.module.js?v=20260322";
 import { loadWordLists } from "./wordlists.js?v=20260322";
 
 const state = {

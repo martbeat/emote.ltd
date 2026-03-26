@@ -154,16 +154,16 @@ function nearlyEqual(a, b, epsilon = 0.05) {
 }
 
 function shouldUseBreakerGuess(bestCandidate, bestOverall, candidateCount) {
-  if (!bestCandidate || !bestOverall) return false;
+  if (!bestOverall) return false;
+  if (!bestCandidate) return true; // no candidate available → allow breaker
+
   if (bestOverall.isCandidate) return false;
 
-  // For very small sets, just solve from candidates unless the breaker is clearly better
   if (candidateCount <= 6) {
     return bestOverall.expectedTurns + 0.20 < bestCandidate.expectedTurns &&
            bestOverall.worstCase + 1 < bestCandidate.worstCase;
   }
 
-  // For small sets, allow a breaker only if it materially improves the tree
   if (candidateCount <= 12) {
     return bestOverall.expectedTurns + 0.15 < bestCandidate.expectedTurns &&
            bestOverall.worstCase + 1 < bestCandidate.worstCase;
@@ -421,21 +421,23 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
 
   // In small sets, suppress non-candidate breaker guesses unless clearly justified
   if (candidates.length <= 12) {
-    const bestCandidate = ranked.find(x => x.isCandidate);
-    const bestOverall = ranked[0];
+    const bestCandidate = ranked.find(x => x.isCandidate) || null;
+    const bestOverall = ranked.length ? ranked[0] : null;
+    
+    if (!bestOverall) return [];
 
-    if (!shouldUseBreakerGuess(bestCandidate, bestOverall, candidates.length) && bestCandidate) {
-      const reordered = [
-        bestCandidate,
-        ...ranked.filter(x => x.word !== bestCandidate.word)
-      ];
-      return reordered.slice(0, limit).map(row => ({
+if (candidates.length <= 6) {
+  if (bestCandidate) {
+    return ranked
+      .filter(x => x.isCandidate)
+      .slice(0, limit)
+      .map(row => ({
         ...row,
         score: -row.expectedTurns
       }));
-    }
   }
 
+  // fallback: no candidates in pool (should be rare)
   return ranked.slice(0, limit).map(row => ({
     ...row,
     score: -row.expectedTurns

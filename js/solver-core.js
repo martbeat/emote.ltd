@@ -730,11 +730,18 @@ export function rankGuesses(
 
   // 🔥 LIGHT entropy (only as tie-breaker)
   score += 0.2 * analysis.entropy;
-
+  const reductionRatio = (candidateCount - analysis.expectedLeft) / candidateCount;
+  score += 1.5 * reductionRatio;
   // 🔥 prefer real answers increasingly
-  if (analysis.isCandidate) {
-    score += candidateCount <= 40 ? 0.5 : 0.2;
-  }
+const candidateBias =
+  candidateCount <= 20 ? 1.2 :
+  candidateCount <= 40 ? 0.7 :
+  candidateCount <= 80 ? 0.35 :
+  0.1;
+
+if (analysis.isCandidate) {
+  score += candidateBias;
+}
 
   // minor stabilisers
   score += 0.02 * positionalScore(guess);

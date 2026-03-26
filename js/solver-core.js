@@ -623,12 +623,13 @@ export function rankGuesses(
     const reductionRatio = analysis.expectedLeft / candidateCount;
     const worstRatio = analysis.worstCase / candidateCount;
 
-    // 🔥 strong mid-game pruning (THIS fixes your issue)
     if (candidateCount > 80 && reductionRatio > 0.75) continue;
     if (candidateCount > 40 && reductionRatio > 0.60) continue;
+    if (candidateCount > 20 && reductionRatio > 0.55) continue;
 
     if (candidateCount > 80 && worstRatio > 0.85) continue;
     if (candidateCount > 40 && worstRatio > 0.72) continue;
+    if (candidateCount > 20 && worstRatio > 0.68) continue;
 
     let score = 0;
 

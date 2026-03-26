@@ -383,6 +383,25 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
       }
     }
 
+
+    if (candidates.length <= 6) {
+      const bestCandidate = ranked.find(x => x.isCandidate);
+      const bestOverall = ranked[0];
+    
+      if (
+        bestOverall.isCandidate ||
+        bestOverall.expectedTurns >= bestCandidate.expectedTurns - 0.1
+      ) {
+        return ranked
+          .filter(x => x.isCandidate)
+          .slice(0, limit)
+          .map(row => ({
+            ...row,
+            score: -row.expectedTurns
+          }));
+      }
+    }
+    
     const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
 
     ranked.push({

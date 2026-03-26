@@ -286,16 +286,17 @@ function solvedPatternCode() {
   return 242; // ggggg in base-3 with your encoding
 }
 
-function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 12) {
-  // Always include all candidate answers
+function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 10) {
+  // Always include candidates
   const pool = new Set(candidates);
 
-  // Do not flood small endgames with breaker guesses
+  // 🔥 HARD STOP: small sets should NOT expand much
   if (candidates.length <= 6) {
     return [...pool];
   }
 
   const ranked = [];
+
   for (const guess of guesses) {
     if (pool.has(guess)) continue;
 
@@ -304,28 +305,34 @@ function selectRecursivePool(candidates, guesses, candidateSet, maxExtra = 12) {
 
     ranked.push({
       guess,
-      entropy: analysis.entropy,
-      worstCase: analysis.worstCase,
-      expectedLeft: analysis.expectedLeft
+      expectedLeft: analysis.expectedLeft,
+      worstCase: analysis.worstCase
     });
   }
 
   ranked.sort((a, b) => {
-    if (a.worstCase !== b.worstCase) return a.worstCase - b.worstCase;
     if (a.expectedLeft !== b.expectedLeft) return a.expectedLeft - b.expectedLeft;
-    if (b.entropy !== a.entropy) return b.entropy - a.entropy;
+    if (a.worstCase !== b.worstCase) return a.worstCase - b.worstCase;
     return a.guess.localeCompare(b.guess);
   });
 
-  const extraLimit = candidates.length <= 12 ? 4 : maxExtra;
-  for (const row of ranked.slice(0, extraLimit)) {
+  // 🔥 VERY IMPORTANT: limit size
+  const limit =
+    candidates.length <= 12 ? 3 :
+    candidates.length <= 20 ? 5 :
+    maxExtra;
+
+  for (const row of ranked.slice(0, limit)) {
     pool.add(row.guess);
   }
 
   return [...pool];
 }
 
-function recursiveExpectedSolveDepth(candidates, guesses, memo, depth = 0, maxDepth = 8) {
+function recursiveExpectedSolveDepth(candidates, guesses, memo, depth = 0, maxDepth = 5) {
+  if (depth >= maxDepth) {
+    return Math.min(6, candidates.length);
+  }
   if (candidates.length <= 1) return 1;
   if (depth >= maxDepth) return candidates.length;
 
@@ -333,7 +340,8 @@ function recursiveExpectedSolveDepth(candidates, guesses, memo, depth = 0, maxDe
   if (memo.has(key)) return memo.get(key);
 
   const candidateSet = new Set(candidates);
-  const guessPool = selectRecursivePool(candidates, guesses, candidateSet);
+  const guessPool = selectRecursivePool(candidates, guesses, candidateSet)
+    .slice(0, 15); // 🔥 hard cap
 
   let best = Infinity;
 

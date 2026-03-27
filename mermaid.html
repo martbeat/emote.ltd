@@ -87,7 +87,14 @@ function saveState(){
 
 // --- render ---
 function init(){
-  mermaid.initialize({startOnLoad:false,theme:theme.value,securityLevel:'loose'});
+  mermaid.initialize({
+    startOnLoad:false,
+    theme:theme.value,
+    securityLevel:'strict',
+    flowchart:{
+      htmlLabels:false
+    }
+  });
 }
 
 function encodeMermaidCode(text){
@@ -221,12 +228,18 @@ document.getElementById('png').onclick = ()=>{
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
 
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = 'chart.png';
-    a.click();
-    URL.revokeObjectURL(url);
-    clearErrorStatus();
+    try{
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'chart.png';
+      a.click();
+      clearErrorStatus();
+    }catch(error){
+      setStatus("Error: PNG export blocked by browser security. Remove external images/HTML labels and try again.",{error:true});
+      console.error(error);
+    }finally{
+      URL.revokeObjectURL(url);
+    }
   };
   img.onerror = () => {
     URL.revokeObjectURL(url);

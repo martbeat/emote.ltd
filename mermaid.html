@@ -145,6 +145,36 @@ function buildShareURL(encoded){
   return url;
 }
 
+function isSafeSvgReference(ref){
+  if(!ref){
+    return true;
+  }
+  if(ref.startsWith('#') || ref.startsWith('data:') || ref.startsWith('blob:')){
+    return true;
+  }
+  try{
+    const parsed = new URL(ref, location.href);
+    return parsed.origin === location.origin;
+  }catch{
+    return false;
+  }
+}
+
+function sanitizeSvgForPng(svgElement){
+  const withHref = svgElement.querySelectorAll('[href], [xlink\\:href]');
+  for(const node of withHref){
+    const href = node.getAttribute('href') || node.getAttribute('xlink:href');
+    if(!isSafeSvgReference(href)){
+      if(node.tagName.toLowerCase() === 'image'){
+        node.remove();
+      }else{
+        node.removeAttribute('href');
+        node.removeAttribute('xlink:href');
+      }
+    }
+  }
+}
+
 async function copyToClipboard(text){
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -246,6 +276,7 @@ document.getElementById('png').onclick = ()=>{
   if (!clonedSvg.getAttribute('viewBox')) {
     clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   }
+  sanitizeSvgForPng(clonedSvg);
 
   const blob = new Blob([clonedSvg.outerHTML], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -254,6 +285,11 @@ document.getElementById('png').onclick = ()=>{
     canvas.width = Math.ceil(width * scale);
     canvas.height = Math.ceil(height * scale);
     const ctx = canvas.getContext('2d');
+    if(!ctx){
+      URL.revokeObjectURL(url);
+      setStatus("Error: PNG export unavailable in this browser",{error:true});
+      return;
+    }
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
@@ -265,9 +301,8 @@ document.getElementById('png').onclick = ()=>{
       a.download = 'chart.png';
       a.click();
       clearErrorStatus();
-    }catch(error){
-      setStatus("Error: PNG export blocked by browser security. Remove external images/HTML labels and try again.",{error:true});
-      console.error(error);
+    }catch{
+      setStatus("Error: PNG export blocked by browser security. Use SVG export or remove external/HTML content and try again.",{error:true});
     }finally{
       URL.revokeObjectURL(url);
     }

@@ -42,6 +42,7 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <div class="status" id="status">Ready</div>
 </div></div><script type="module">
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+import { Canvg } from 'https://cdn.jsdelivr.net/npm/canvg@4/+esm';
 
 const codeEl = document.getElementById('code');
 const output = document.getElementById('output');
@@ -257,13 +258,12 @@ document.getElementById('svg').onclick = ()=>{
   clearErrorStatus();
 };
 
-document.getElementById('png').onclick = ()=>{
+document.getElementById('png').onclick = async ()=>{
   const svg = output.querySelector('svg');
   if(!svg){
     setStatus("Error: nothing to export",{error:true});
     return;
   }
-  const img = new Image();
   const scale = 3; // high-resolution export for better readability
   const clonedSvg = svg.cloneNode(true);
   const box = svg.viewBox?.baseVal;
@@ -277,41 +277,34 @@ document.getElementById('png').onclick = ()=>{
     clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   }
   sanitizeSvgForPng(clonedSvg);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(width * scale);
+  canvas.height = Math.ceil(height * scale);
+  const ctx = canvas.getContext('2d');
+  if(!ctx){
+    setStatus("Error: PNG export unavailable in this browser",{error:true});
+    return;
+  }
 
-  const blob = new Blob([clonedSvg.outerHTML], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(width * scale);
-    canvas.height = Math.ceil(height * scale);
-    const ctx = canvas.getContext('2d');
-    if(!ctx){
-      URL.revokeObjectURL(url);
-      setStatus("Error: PNG export unavailable in this browser",{error:true});
-      return;
-    }
+  const svgMarkup = clonedSvg.outerHTML;
+  try{
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0, width, height);
+    const v = await Canvg.fromString(ctx, svgMarkup, {
+      ignoreAnimation:true,
+      ignoreMouse:true
+    });
+    await v.render();
 
-    try{
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
-      a.download = 'chart.png';
-      a.click();
-      clearErrorStatus();
-    }catch{
-      setStatus("Error: PNG export blocked by browser security. Use SVG export or remove external/HTML content and try again.",{error:true});
-    }finally{
-      URL.revokeObjectURL(url);
-    }
-  };
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    setStatus("Error: PNG export failed",{error:true});
-  };
-  img.src = url;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'chart.png';
+    a.click();
+    clearErrorStatus();
+  }catch{
+    setStatus("Error: PNG export failed in this browser",{error:true});
+  }
 };
 
 // --- resize ---

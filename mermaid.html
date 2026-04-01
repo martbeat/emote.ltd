@@ -122,6 +122,29 @@ function decodeMermaidCode(encoded){
   return new TextDecoder().decode(bytes);
 }
 
+function inferDiagramName(text){
+  const firstMeaningfulLine = text
+    .split('\n')
+    .map((line)=>line.trim())
+    .find((line)=>line && !line.startsWith('%%')) || 'diagram';
+  return firstMeaningfulLine
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'diagram';
+}
+
+function buildShareURL(encoded){
+  const url = new URL(location.href);
+  const today = new Date().toISOString().slice(0,10);
+  const name = inferDiagramName(codeEl.value);
+  url.search = '';
+  url.searchParams.set('d', today);
+  url.searchParams.set('n', name);
+  url.searchParams.set('c', encoded);
+  return url;
+}
+
 async function copyToClipboard(text){
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -167,8 +190,7 @@ theme.onchange = render;
 // --- share link ---
 document.getElementById('share').onclick = async ()=>{
   const encoded = encodeMermaidCode(codeEl.value);
-  const url = new URL(location.href);
-  url.searchParams.set('c', encoded);
+  const url = buildShareURL(encoded);
   try{
     await copyToClipboard(url.toString());
     setStatus("Share link copied");
@@ -180,8 +202,7 @@ document.getElementById('share').onclick = async ()=>{
 // --- embed ---
 document.getElementById('embed').onclick = async ()=>{
   const encoded = encodeMermaidCode(codeEl.value);
-  const url = new URL(location.href);
-  url.searchParams.set('c', encoded);
+  const url = buildShareURL(encoded);
   const iframe = `<iframe src="${url.toString()}" width="100%" height="400"></iframe>`;
   try{
     await copyToClipboard(iframe);

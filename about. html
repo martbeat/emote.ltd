@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>About | eMote Ltd</title>
+  <meta name="description" content="About eMote Ltd: structured models, essays and tools for calm, evidence-led change governance, decision-making and AI in complex organisations." />
+  <meta name="keywords" content="change governance, decision-making, AI governance, PMO, local government transformation, organisational change, complex systems, eMote Ltd" />
+  <meta name="author" content="Martin Fry" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="theme-color" content="#f6f3ee" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="canonical" href="https://emote.ltd/about.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="About | eMote Ltd" />
+  <meta property="og:description" content="Structured models, essays and tools for calm, evidence-led change governance, decision-making and AI in complex organisations." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://emote.ltd/about.html" />
+  <meta property="og:site_name" content="eMote Ltd" />
+  <meta property="og:image" content="https://emote.ltd/assets/images/card-clarity-governance.webp" />
+  <meta property="og:image:alt" content="Ink and watercolour style image representing calm, evidence-led governance and organisational clarity" />
+  <meta property="og:locale" content="en_GB" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="About | eMote Ltd" />
+  <meta name="twitter:description" content="Structured models, essays and tools for calm, evidence-led change governance, decision-making and AI in complex organisations." />
+  <meta name="twitter:image" content="https://emote.ltd/assets/images/card-clarity-governance.webp" />
+
+  <!-- JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "eMote Ltd",
+    "url": "https://emote.ltd/",
+    "logo": "https://emote.ltd/assets/images/card-clarity-governance.webp",
+    "description": "Structured models, essays and tools for calm, evidence-led change governance, decision-making and AI in complex organisations.",
+    "founder": {
+      "@type": "Person",
+      "name": "Martin Fry"
+    },
+    "sameAs": [
+      "https://www.linkedin.com/in/martinfry/"
+    ]
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --bg-soft: #fbf9f5;
+      --surface: rgba(255,255,255,0.72);
+      --surface-strong: rgba(255,255,255,0.9);
+      --text: #1f2328;
+      --text-soft: #4c5967;
+      --heading: #13212e;
+      --border: rgba(19, 33, 46, 0.12);
+      --accent: #6d4c41;
+      --accent-2: #8e6a57;
+      --shadow: 0 10px 30px rgba(19, 33, 46, 0.08);
+      --radius: 18px;
+      --max: 1120px;
+      --reading: 72ch;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #15181c;
+        --bg-soft: #1b2026;
+        --surface: rgba(29, 35, 42, 0.78);
+        --surface-strong: rgba(33, 40, 47, 0.92);
+        --text: #eef2f6;
+        --text-soft: #b8c1cc;
+        --heading: #ffffff;
+        --border: rgba(255,255,255,0.12);
+        --accent: #d1a98a;
+        --accent-2: #e4bea1;
+        --shadow: 0 18px 40px rgba(0,0,0,0.28);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at top left, rgba(142,106,87,0.08), transparent 32%),
+        linear-gradient(180deg, var(--bg-soft), var(--bg));
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.14em;
+    }
+
+    a:hover,
+    a:focus-visible {
+      color: var(--accent-2);
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: auto;
+    }
+
+    .skip-link:focus {
+      left: 1rem;
+      top: 1rem;
+      z-index: 1000;
+      background: var(--surface-strong);
+      color: var(--text);
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(12px);
+      background: rgba(246,243,238,0.75);
+      border-bottom: 1px solid var(--border);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .site-header {
+        background: rgba(21,24,28,0.75);
+      }
+    }
+
+    .nav {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0.9rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--heading);
+    }
+
+    .brand-mark {
+      font-size: 1.2rem;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .brand-tag {
+      font-size: 0.92rem;
+      color: var(--text-soft);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.96rem;
+    }
+
+    .nav-links a[aria-current="page"] {
+      color: var(--heading);
+      font-weight: 700;
+    }
+
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 2rem 1.25rem 5rem;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 2rem;
+      align-items: stretch;
+      margin-top: 1rem;
+      margin-bottom: 2.4rem;
+    }
+
+    .hero-copy,
+    .hero-panel,
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy {
+      padding: 2rem;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 0.8rem;
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    h1, h2, h3 {
+      color: var(--heading);
+      line-height: 1.15;
+      margin-top: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.1rem, 4vw, 3.9rem);
+      margin-bottom: 1rem;
+      max-width: 14ch;
+    }
+
+    .lede {
+      font-size: 1.12rem;
+      color: var(--text-soft);
+      max-width: 40ch;
+      margin-bottom: 1.4rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.85rem;
+      margin-top: 1.25rem;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0.8rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      transform: translateY(-1px);
+    }
+
+    .button-primary {
+      background: var(--heading);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    .button-primary:hover,
+    .button-primary:focus-visible {
+      background: #000;
+      color: #fff;
+    }
+
+    .button-secondary {
+      background: transparent;
+      color: var(--text);
+    }
+
+    .hero-panel {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 100%;
+    }
+
+    .hero-image {
+      overflow: hidden;
+      border-radius: calc(var(--radius) - 4px);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(0,0,0,0.03));
+      aspect-ratio: 4 / 3;
+    }
+
+    .hero-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hero-note {
+      font-size: 0.96rem;
+      color: var(--text-soft);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .prose {
+      max-width: var(--reading);
+    }
+
+    .section-card {
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .section-card p:last-child,
+    .section-card ul:last-child {
+      margin-bottom: 0;
+    }
+
+    .key-list,
+    .sidebar-list {
+      padding-left: 1.2rem;
+      margin: 0.75rem 0 0;
+    }
+
+    .key-list li,
+    .sidebar-list li {
+      margin-bottom: 0.55rem;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 5.4rem;
+    }
+
+    .sidebar-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.3rem;
+      margin-bottom: 1rem;
+    }
+
+    .sidebar-card h3 {
+      font-size: 1.08rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .quote {
+      font-style: italic;
+      color: var(--text-soft);
+      border-left: 3px solid var(--accent);
+      padding-left: 1rem;
+      margin: 1rem 0 0;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.8rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.38rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(109,76,65,0.08);
+      border: 1px solid rgba(109,76,65,0.16);
+      color: var(--text);
+      font-size: 0.88rem;
+    }
+
+    .site-footer {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 1.25rem 3rem;
+      color: var(--text-soft);
+      font-size: 0.95rem;
+    }
+
+    .footer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.4rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+
+      h1 {
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .hero-copy,
+      .hero-panel,
+      .section-card,
+      .sidebar-card,
+      .footer-card {
+        padding: 1.2rem;
+      }
+
+      .page {
+        padding-top: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary">
+      <a class="brand" href="/">
+        <span class="brand-mark">eMote Ltd</span>
+        <span class="brand-tag">Models for Change and Governance</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/knowledge/">Knowledge</a>
+        <a href="/about.html" aria-current="page">About</a>
+        <a href="https://www.linkedin.com/in/martinfry/" rel="me">LinkedIn</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content" class="page">
+    <section class="hero reveal">
+      <div class="hero-copy">
+        <span class="eyebrow">About eMote Ltd</span>
+        <h1>Calm, evidence-led thinking for change and governance</h1>
+        <p class="lede">
+          eMote Ltd explores how organisations make decisions and deliver change in complex environments,
+          with a focus on governance, uncertainty, adoption and the emerging role of AI.
+        </p>
+
+        <div class="hero-actions">
+          <a class="button button-primary" href="/knowledge/">Explore the knowledge site</a>
+          <a class="button button-secondary" href="#what-you-will-find">See what is here</a>
+        </div>
+      </div>
+
+      <aside class="hero-panel" aria-label="About summary">
+        <div class="hero-image">
+          <img
+            src="/assets/images/card-clarity-governance.webp"
+            alt="Ink and watercolour style illustration representing clarity, governance and thoughtful organisational change"
+            width="1200"
+            height="900"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+        <p class="hero-note">
+          The site combines structured models, reflective essays and practical tools designed to make complex ideas more usable.
+        </p>
+      </aside>
+    </section>
+
+    <div class="content-grid">
+      <div class="prose">
+        <section class="section-card reveal">
+          <h2>What eMote Ltd is for</h2>
+          <p>
+            eMote Ltd is a small independent initiative built around a simple idea:
+            good governance should help people think clearly and act with confidence,
+            especially when the path forward is uncertain.
+          </p>
+          <p>
+            Much of the work on the site grows out of real experience in change delivery,
+            project environments and public sector transformation. Rather than treating governance as paperwork,
+            eMote looks at how decisions are actually made, how change is experienced by people,
+            and how organisations can respond in ways that are proportionate, practical and human.
+          </p>
+        </section>
+
+        <section id="what-you-will-find" class="section-card reveal">
+          <h2>What you will find here</h2>
+          <ul class="key-list">
+            <li><strong>Models for Change and Governance</strong> that help teams understand impact, interpret what it means and take practical action</li>
+            <li><strong>Essays and reflections</strong> on leadership, governance, decision-making and organisational behaviour</li>
+            <li><strong>AI and organisational thinking</strong> exploring both the promise and the limits of AI in complex systems</li>
+            <li><strong>Practical tools</strong> to support project teams, PMOs and leaders working through difficult change</li>
+          </ul>
+        </section>
+
+        <section class="section-card reveal">
+          <h2>A perspective on change</h2>
+          <p>
+            Many organisations try to manage complexity through either rigid control or excessive flexibility.
+            Both approaches can fail. One can become detached from reality. The other can lose coherence.
+          </p>
+          <p>
+            The work on this site argues for something steadier: calm, evidence-led governance.
+            That means understanding the impact of change, interpreting what that impact means for people and systems,
+            and taking action that is proportionate rather than reactive.
+          </p>
+          <p>
+            This perspective runs through the site’s frameworks, articles and tools. It treats governance not as performance,
+            but as a way of making better decisions under uncertainty.
+          </p>
+        </section>
+
+        <section class="section-card reveal">
+          <h2>Why the name eMote</h2>
+          <p>
+            Organisations do not change through logic alone. Projects succeed when analysis,
+            structure and human motivation work together.
+          </p>
+          <p>
+            The name reflects that tension. Decisions need to make sense intellectually,
+            but they also need to connect with the people who must live with them, support them and carry them forward.
+            eMote explores both sides at once: the structured model and the human response.
+          </p>
+        </section>
+
+        <section class="section-card reveal">
+          <h2>About the author</h2>
+          <p>
+            eMote Ltd is developed by <strong>Martin Fry</strong>, a change delivery and governance practitioner
+            whose work focuses on the intersection of organisational change, decision-making, uncertainty and AI.
+          </p>
+          <p>
+            His professional background includes change delivery, PMO practice, governance design,
+            stakeholder engagement and public sector transformation. Through eMote,
+            he shares models, ideas and reflections intended to support thoughtful leadership and practical delivery.
+          </p>
+          <p>
+            The site also reflects broader interests in learning organisations, complexity,
+            ethics, history, culture and the stories people use to make sense of change.
+          </p>
+        </section>
+      </div>
+
+      <aside class="sidebar" aria-label="Supplementary information">
+        <section class="sidebar-card reveal">
+          <h3>Core themes</h3>
+          <div class="pill-row">
+            <span class="pill">Change governance</span>
+            <span class="pill">Decision-making</span>
+            <span class="pill">AI and work</span>
+            <span class="pill">Complex systems</span>
+            <span class="pill">Adoption</span>
+            <span class="pill">PMO thinking</span>
+            <span class="pill">Public value</span>
+          </div>
+        </section>
+
+        <section class="sidebar-card reveal">
+          <h3>Typical questions</h3>
+          <ul class="sidebar-list">
+            <li>How should risk and assumptions be handled in governance?</li>
+            <li>Why do well-designed projects struggle during adoption?</li>
+            <li>How can AI support thinking without replacing judgement?</li>
+            <li>What does proportionate action look like in real organisations?</li>
+          </ul>
+        </section>
+
+        <section class="sidebar-card reveal">
+          <h3>A working idea</h3>
+          <p class="quote">
+            Good governance should reduce confusion, not perform certainty.
+          </p>
+        </section>
+
+        <section class="sidebar-card reveal">
+          <h3>Connect</h3>
+          <p>
+            You can also find Martin Fry on
+            <a href="https://www.linkedin.com/in/martinfry/" rel="me">LinkedIn</a>.
+          </p>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-card">
+      <p>
+        © <span id="year"></span> eMote Ltd. Structured models, essays and tools for calm, evidence-led change governance.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const yearEl = document.getElementById("year");
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+      const reveals = document.querySelectorAll(".reveal");
+      if (!("IntersectionObserver" in window)) {
+        reveals.forEach(el => el.classList.add("is-visible"));
+        return;
+      }
+
+      const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            obs.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.12,
+        rootMargin: "0px 0px -40px 0px"
+      });
+
+      reveals.forEach(el => observer.observe(el));
+    })();
+  </script>
+</body>
+</html>

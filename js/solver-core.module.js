@@ -208,6 +208,10 @@ function compareRankedRows(a, b, candidateCount) {
     return b.entropy - a.entropy;
   }
 
+  if (b.usagePrior !== a.usagePrior) {
+    return b.usagePrior - a.usagePrior;
+  }
+
   return a.word.localeCompare(b.word);
 }
 

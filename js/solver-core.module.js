@@ -5,6 +5,8 @@ const FINISHING_THRESHOLD = 10;
 const CANDIDATE_ONLY_THRESHOLD = 4;
 const SOLVE_SEARCH_THRESHOLD = 25;
 const SOLVE_MAX_DEPTH = 6;
+const SOLVE_MID_MAX_DEPTH = 8;
+const SOLVE_ENDGAME_MAX_DEPTH = 10;
 
 let positionalFrequencyTable = null;
 let usagePriorTable = null;
@@ -160,16 +162,22 @@ function shouldUseBreakerGuess(bestCandidate, bestOverall, candidateCount) {
   if (bestOverall.isCandidate) return false;
 
   if (candidateCount <= 6) {
-    return bestOverall.expectedTurns + 0.20 < bestCandidate.expectedTurns &&
-           bestOverall.worstCase + 1 < bestCandidate.worstCase;
+    return bestOverall.expectedTurns + 0.22 < bestCandidate.expectedTurns &&
+           bestOverall.worstCase + 1 <= bestCandidate.worstCase;
   }
 
   if (candidateCount <= 12) {
-    return bestOverall.expectedTurns + 0.15 < bestCandidate.expectedTurns &&
-           bestOverall.worstCase + 1 < bestCandidate.worstCase;
+    return bestOverall.expectedTurns + 0.10 < bestCandidate.expectedTurns &&
+           bestOverall.worstCase <= bestCandidate.worstCase;
   }
 
   return false;
+}
+
+function getAdaptiveSolveDepth(candidateCount) {
+  if (candidateCount <= 6) return SOLVE_ENDGAME_MAX_DEPTH;
+  if (candidateCount <= 10) return SOLVE_MID_MAX_DEPTH;
+  return SOLVE_MAX_DEPTH;
 }
 
 function compareRankedRows(a, b, candidateCount) {
@@ -368,7 +376,55 @@ function recursiveExpectedSolveDepth(candidates, guesses, memo, depth = 0, maxDe
   return best;
 }
 
+function rankByCompleteSolveCost(candidates, guesses, limit = 10, maxDepth = SOLVE_ENDGAME_MAX_DEPTH) {
+  const candidateSet = new Set(candidates);
+  const guessPool = selectRecursivePool(candidates, guesses, candidateSet, 30);
+  const ranked = [];
+
+  clearSolveMemo();
+
+  for (const guess of guessPool) {
+    const analysis = analyseGuess(guess, candidates, "exploration", candidateSet);
+    const expectedTurns = expectedSolveCost(guess, candidates, guessPool, 0, maxDepth);
+
+    ranked.push({
+      word: guess,
+      guess,
+      entropy: analysis.entropy,
+      expectedLeft: analysis.expectedLeft,
+      expectedTurns,
+      worstCase: analysis.worstCase,
+      usagePrior: usagePriorScore(guess),
+      isCandidate: candidateSet.has(guess),
+      solveProbability: analysis.solveProbability
+    });
+  }
+
+  ranked.sort((a, b) => compareRankedRows(a, b, candidates.length));
+
+  const bestCandidate = ranked.find(x => x.isCandidate) || null;
+  const bestOverall = ranked.length ? ranked[0] : null;
+  if (bestCandidate && bestOverall && !shouldUseBreakerGuess(bestCandidate, bestOverall, candidates.length)) {
+    return ranked
+      .filter(x => x.isCandidate)
+      .slice(0, limit)
+      .map(row => ({
+        ...row,
+        score: -row.expectedTurns
+      }));
+  }
+
+  return ranked.slice(0, limit).map(row => ({
+    ...row,
+    score: -row.expectedTurns
+  }));
+}
+
 function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8) {
+  if (candidates.length <= 6) {
+    return rankByCompleteSolveCost(candidates, guesses, limit, maxDepth);
+  }
+
   const memo = new Map();
   const candidateSet = new Set(candidates);
   const guessPool = selectRecursivePool(candidates, guesses, candidateSet);
@@ -414,24 +470,6 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
     const bestOverall = ranked.length ? ranked[0] : null;
 
     if (!bestOverall) return [];
-
-    if (candidates.length <= 6) {
-      if (bestCandidate) {
-        return ranked
-          .filter(x => x.isCandidate)
-          .slice(0, limit)
-          .map(row => ({
-            ...row,
-            score: -row.expectedTurns
-          }));
-      }
-
-      // fallback: no candidates in pool (should be rare)
-      return ranked.slice(0, limit).map(row => ({
-        ...row,
-        score: -row.expectedTurns
-      }));
-    }
 
     if (bestCandidate && shouldUseBreakerGuess(bestCandidate, bestOverall, candidates.length)) {
       return ranked.slice(0, limit).map(row => ({
@@ -512,17 +550,17 @@ function partitionCandidates(guess, candidates) {
   return map;
 }
 
-function bestSolveCost(candidates, guessPool, depth = 0) {
+function bestSolveCost(candidates, guessPool, depth = 0, maxDepth = SOLVE_MAX_DEPTH) {
   if (candidates.length <= 1) return 1;
-  if (depth > SOLVE_MAX_DEPTH) return candidates.length;
+  if (depth > maxDepth) return candidates.length;
 
-  const key = keyForSet(candidates);
+  const key = `${keyForSet(candidates)}|d:${depth}|m:${maxDepth}`;
   const cached = solveMemo.get(key);
   if (cached != null) return cached;
 
   let best = Infinity;
   for (const guess of guessPool) {
-    const cost = expectedSolveCost(guess, candidates, guessPool, depth);
+    const cost = expectedSolveCost(guess, candidates, guessPool, depth, maxDepth);
     if (cost < best) best = cost;
   }
 
@@ -530,7 +568,7 @@ function bestSolveCost(candidates, guessPool, depth = 0) {
   return best;
 }
 
-function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
+function expectedSolveCost(guess, candidates, guessPool, depth = 0, maxDepth = SOLVE_MAX_DEPTH) {
   const total = candidates.length;
   const parts = partitionCandidates(guess, candidates);
   let cost = 0;
@@ -539,7 +577,7 @@ function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
     if (code === 242) {
       cost += subset.length;
     } else {
-      const future = bestSolveCost(subset, guessPool, depth + 1);
+      const future = bestSolveCost(subset, guessPool, depth + 1, maxDepth);
       cost += subset.length * (1 + future);
     }
   }
@@ -658,7 +696,7 @@ function rankGuesses(
 
   // Very small sets: solve, do not get clever
   if (candidateCount <= 12) {
-    return rankByRecursiveSolveDepth(candidates, dictionary, limit, 6);
+    return rankByRecursiveSolveDepth(candidates, dictionary, limit, getAdaptiveSolveDepth(candidateCount));
   }
 
   const mode =

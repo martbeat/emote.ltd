@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260406.2";
+import "./solver-core.module.js?v=20260406.3";
 
 const {
   rankGuesses,
@@ -24,11 +24,16 @@ function runRank(payload) {
   const history = Array.isArray(payload.history) ? payload.history : [];
   const forceMode = payload.forceMode || "auto";
   const pool = chooseGuessPool(candidates, workerGuesses, undefined, forceMode);
-  const top = rankGuesses(candidates, workerGuesses, limit, history, forceMode).map((row) => ({
+  const ranked = rankGuesses(candidates, workerGuesses, limit, history, forceMode) || [];
+  const top = ranked.filter(Boolean).map((row) => ({
     ...row,
-    word: row.word || row.guess,
-    entropy: row.entropy,
-    score: row.score
+    word: row.word || row.guess || "",
+    guess: row.guess || row.word || "",
+    entropy: Number.isFinite(row.entropy) ? row.entropy : 0,
+    expectedLeft: Number.isFinite(row.expectedLeft) ? row.expectedLeft : 0,
+    worstCase: Number.isFinite(row.worstCase) ? row.worstCase : 0,
+    score: Number.isFinite(row.score) ? row.score : 0,
+    isCandidate: Boolean(row.isCandidate)
   }));
 
   postMessage({

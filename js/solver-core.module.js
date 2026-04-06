@@ -415,24 +415,6 @@ function rankByRecursiveSolveDepth(candidates, guesses, limit = 10, maxDepth = 8
 
     if (!bestOverall) return [];
 
-    if (candidates.length <= 6) {
-      if (bestCandidate) {
-        return ranked
-          .filter(x => x.isCandidate)
-          .slice(0, limit)
-          .map(row => ({
-            ...row,
-            score: -row.expectedTurns
-          }));
-      }
-
-      // fallback: no candidates in pool (should be rare)
-      return ranked.slice(0, limit).map(row => ({
-        ...row,
-        score: -row.expectedTurns
-      }));
-    }
-
     if (bestCandidate && shouldUseBreakerGuess(bestCandidate, bestOverall, candidates.length)) {
       return ranked.slice(0, limit).map(row => ({
         ...row,

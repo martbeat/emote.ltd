@@ -1,24 +1,24 @@
-export const ANSWER_COUNT = 2315;
-export const PATTERN_SPACE = 243; // 3^5
-export const MODE_THRESHOLD = 120;
-export const FINISHING_THRESHOLD = 10;
-export const CANDIDATE_ONLY_THRESHOLD = 4;
-export const SOLVE_SEARCH_THRESHOLD = 25;
-export const SOLVE_MAX_DEPTH = 6;
+const ANSWER_COUNT = 2315;
+const PATTERN_SPACE = 243; // 3^5
+const MODE_THRESHOLD = 120;
+const FINISHING_THRESHOLD = 10;
+const CANDIDATE_ONLY_THRESHOLD = 4;
+const SOLVE_SEARCH_THRESHOLD = 25;
+const SOLVE_MAX_DEPTH = 6;
 
 let positionalFrequencyTable = null;
 let usagePriorTable = null;
 const solveMemo = new Map();
 
-export function normaliseWord(word) {
+function normaliseWord(word) {
   return String(word || "").trim().toLowerCase();
 }
 
-export function isFiveLetterWord(word) {
+function isFiveLetterWord(word) {
   return /^[a-z]{5}$/.test(word);
 }
 
-export function uniqueWords(words) {
+function uniqueWords(words) {
   const out = [];
   const seen = new Set();
   for (const raw of words || []) {
@@ -31,7 +31,7 @@ export function uniqueWords(words) {
   return out;
 }
 
-export function encodePatternArray(values) {
+function encodePatternArray(values) {
   let code = 0;
   for (let i = 0; i < 5; i++) code = code * 3 + values[i];
   return code;
@@ -55,7 +55,7 @@ function computePatternStrength(candidates) {
   return fixedPositions / wordLength;
 }
 
-export function decodePattern(code) {
+function decodePattern(code) {
   const chars = ["b", "b", "b", "b", "b"];
   for (let i = 4; i >= 0; i--) {
     const v = code % 3;
@@ -65,7 +65,7 @@ export function decodePattern(code) {
   return chars.join("");
 }
 
-export function encodePattern(pattern) {
+function encodePattern(pattern) {
   pattern = normaliseWord(pattern);
   if (!/^[byg]{5}$/.test(pattern)) {
     throw new Error("Pattern must be exactly 5 characters using only b, y or g.");
@@ -74,9 +74,9 @@ export function encodePattern(pattern) {
   return encodePatternArray(values);
 }
 
-export const encodePatternString = encodePattern;
+const encodePatternString = encodePattern;
 
-export function scoreGuessEncoded(guess, answer) {
+function scoreGuessEncoded(guess, answer) {
 
   guess = guess.toLowerCase();
   answer = answer.toLowerCase();
@@ -117,7 +117,7 @@ export function scoreGuessEncoded(guess, answer) {
   return code;
 }
 
-export function filterCandidates(candidates, guess, pattern) {
+function filterCandidates(candidates, guess, pattern) {
   const encoded =
     typeof pattern === "string"
       ? encodePattern(pattern)
@@ -132,7 +132,7 @@ export function filterCandidates(candidates, guess, pattern) {
   return out;
 }
 
-export function chooseGuessPool(candidates, guesses, threshold = MODE_THRESHOLD, forceMode = "auto") {
+function chooseGuessPool(candidates, guesses, threshold = MODE_THRESHOLD, forceMode = "auto") {
   if (forceMode === "candidates") return candidates;
   if (forceMode === "all") return guesses;
   return candidates.length <= 15 ? candidates : guesses;
@@ -235,11 +235,11 @@ function lateAnswerScore(word) {
 }
 
 
-export function uniqueLetterScore(word) {
+function uniqueLetterScore(word) {
   return new Set(word).size;
 }
 
-export function positionalScore(word) {
+function positionalScore(word) {
   if (!positionalFrequencyTable) return 0;
   let score = 0;
   for (let i = 0; i < 5; i++) {
@@ -463,7 +463,7 @@ function buildUsagePriorTable(words) {
   }
   return table;
 }
-export function usagePriorScore(word) {
+function usagePriorScore(word) {
   if (!usagePriorTable) return 0;
   if (Object.prototype.hasOwnProperty.call(usagePriorTable, word)) {
     return usagePriorTable[word];
@@ -483,7 +483,7 @@ function repeatPenalty(word) {
   return word.length - new Set(word).size;
 }
 
-export function expectedRemainingCandidates(guess, candidates) {
+function expectedRemainingCandidates(guess, candidates) {
   const buckets = new Uint16Array(PATTERN_SPACE);
   for (const answer of candidates) {
     buckets[scoreGuessEncoded(guess, answer)]++;
@@ -544,7 +544,7 @@ function expectedSolveCost(guess, candidates, guessPool, depth = 0) {
   return cost / total;
 }
 
-export function clearSolveMemo() {
+function clearSolveMemo() {
   solveMemo.clear();
 }
 
@@ -563,7 +563,7 @@ function isFlatInformationLandscape(candidates, guesses) {
   return maxEntropy < 1.2; // threshold tweakable
 }
 
-export function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
+function analyseGuess(guess, candidates, mode = "exploration", candidateSet = null) {
 const buckets = new Uint16Array(PATTERN_SPACE);
 
 for (const answer of candidates) {
@@ -631,7 +631,7 @@ for (let i = 0; i < PATTERN_SPACE; i++) {
   };
 }
 
-export function rankGuesses(
+function rankGuesses(
   candidates,
   guesses,
   limit = 10,
@@ -802,7 +802,7 @@ if (analysis.isCandidate) {
   return ranked.slice(0, limit);
 }
 
-export function validateGuessPattern(guess, pattern, answers = [], guesses = []) {
+function validateGuessPattern(guess, pattern, answers = [], guesses = []) {
   guess = normaliseWord(guess);
   pattern = normaliseWord(pattern);
 
@@ -816,9 +816,46 @@ export function validateGuessPattern(guess, pattern, answers = [], guesses = [])
   return "";
 }
 
-export function buildDefaultHistoryState(answers) {
+function buildDefaultHistoryState(answers) {
   return {
     candidates: [...answers],
     history: []
   };
+}
+
+const SolverCore = {
+  ANSWER_COUNT,
+  PATTERN_SPACE,
+  MODE_THRESHOLD,
+  FINISHING_THRESHOLD,
+  CANDIDATE_ONLY_THRESHOLD,
+  SOLVE_SEARCH_THRESHOLD,
+  SOLVE_MAX_DEPTH,
+  normaliseWord,
+  isFiveLetterWord,
+  uniqueWords,
+  encodePatternArray,
+  decodePattern,
+  encodePattern,
+  encodePatternString,
+  scoreGuessEncoded,
+  filterCandidates,
+  chooseGuessPool,
+  uniqueLetterScore,
+  positionalScore,
+  usagePriorScore,
+  expectedRemainingCandidates,
+  clearSolveMemo,
+  analyseGuess,
+  rankGuesses,
+  validateGuessPattern,
+  buildDefaultHistoryState
+};
+
+if (typeof globalThis !== "undefined") {
+  globalThis.SolverCore = SolverCore;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = SolverCore;
 }

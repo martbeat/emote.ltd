@@ -1,4 +1,7 @@
-import {
+import "./solver-core.module.js?v=20260406";
+import { loadWordLists } from "./wordlists.js?v=20260406";
+
+const {
   normaliseWord,
   decodePattern,
   encodePatternString,
@@ -8,8 +11,7 @@ import {
   clearSolveMemo,
   validateGuessPattern,
   buildDefaultHistoryState
-} from "./solver-core.module.js?v=20260406";
-import { loadWordLists } from "./wordlists.js?v=20260406";
+} = globalThis.SolverCore || {};
 
 const state = {
   answers: [],

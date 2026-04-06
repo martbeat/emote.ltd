@@ -1,11 +1,13 @@
-import {
+import "./solver-core.module.js?v=20260406";
+
+const {
   rankGuesses,
   filterCandidates,
   scoreGuessEncoded,
   decodePattern,
   chooseGuessPool,
   clearSolveMemo
-} from "./solver-core.module.js?v=20260322";
+} = globalThis.SolverCore || {};
 
 let workerAnswers = [];
 let workerGuesses = [];

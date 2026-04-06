@@ -1,4 +1,6 @@
-import { ANSWER_COUNT, uniqueWords } from "./solver-core.module.js?v=20260322";
+import "./solver-core.module.js?v=20260406";
+
+const { ANSWER_COUNT, uniqueWords } = globalThis.SolverCore || {};
 
 export const WORD_SOURCE_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words";
 export const WORD_CACHE_KEY = "dwl:words:v1";

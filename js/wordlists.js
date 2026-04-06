@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260406";
+import "./solver-core.module.js?v=20260406.2";
 
 const { ANSWER_COUNT, uniqueWords } = globalThis.SolverCore || {};
 

@@ -100,15 +100,21 @@ function renderHistory() {
 
 function renderRanking(rows) {
   ui.rankingBody.innerHTML = "";
-  for (const [index, row] of rows.entries()) {
+  const safeRows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  for (const [index, row] of safeRows.entries()) {
+    const guess = row.guess || row.word || "-";
+    const entropy = Number.isFinite(row.entropy) ? row.entropy : 0;
+    const expectedLeft = Number.isFinite(row.expectedLeft) ? row.expectedLeft : 0;
+    const worstCase = Number.isFinite(row.worstCase) ? row.worstCase : 0;
+    const isCandidate = Boolean(row.isCandidate);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${index + 1}</td>
-      <td class="mono">${row.guess}</td>
-      <td>${row.entropy.toFixed(3)}</td>
-      <td>${row.expectedLeft.toFixed(2)}</td>
-      <td>${row.worstCase}</td>
-      <td>${row.isCandidate ? "yes" : "no"}</td>
+      <td class="mono">${guess}</td>
+      <td>${entropy.toFixed(3)}</td>
+      <td>${expectedLeft.toFixed(2)}</td>
+      <td>${worstCase}</td>
+      <td>${isCandidate ? "yes" : "no"}</td>
     `;
     ui.rankingBody.appendChild(tr);
   }

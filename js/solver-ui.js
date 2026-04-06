@@ -1,5 +1,5 @@
-import "./solver-core.module.js?v=20260406.2";
-import { loadWordLists } from "./wordlists.js?v=20260406.2";
+import "./solver-core.module.js?v=20260406.3";
+import { loadWordLists } from "./wordlists.js?v=20260406.3";
 
 const {
   normaliseWord,
@@ -26,7 +26,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260406.2";
+const SOLVER_ASSET_VERSION = "20260406.3";
 
 const ui = {
   status: document.getElementById("status"),
@@ -135,10 +135,11 @@ function updateStats(best = null, poolSize = 0) {
     return;
   }
 
-  ui.bestGuess.textContent = best.guess;
-  ui.bestEntropy.textContent = best.entropy.toFixed(3);
-  ui.bestExpected.textContent = best.expectedLeft.toFixed(2);
-  renderTiles(best.guess);
+  const bestGuess = best.guess || best.word || "-";
+  ui.bestGuess.textContent = bestGuess;
+  ui.bestEntropy.textContent = Number.isFinite(best.entropy) ? best.entropy.toFixed(3) : "-";
+  ui.bestExpected.textContent = Number.isFinite(best.expectedLeft) ? best.expectedLeft.toFixed(2) : "-";
+  renderTiles(bestGuess === "-" ? "" : bestGuess);
 }
 
 function createWorker() {

@@ -149,6 +149,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
       padding: 18px;
       border-radius: 18px;
       background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -160,11 +161,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
       min-height: 256px;
       min-width: 256px;
       background: white;
       padding: 12px;
       border-radius: 16px;
+      overflow: hidden;
     }
 
     #qrcode img,
@@ -172,6 +175,44 @@
       max-width: 100%;
       height: auto;
       display: block;
+    }
+
+    #centerGraphic {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+      border: 3px solid #fff;
+      display: none;
+      pointer-events: none;
+    }
+
+    .inline-input {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .inline-input label {
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .inline-input input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .muted-help {
+      margin: 6px 0 0;
+      font-size: 0.86rem;
+      color: var(--muted);
     }
 
     .hint,
@@ -247,6 +288,25 @@
         </div>
       </div>
 
+      <div class="field">
+        <div class="inline-input">
+          <input id="useCenterGraphic" type="checkbox" />
+          <label for="useCenterGraphic">Add center graphic/logo</label>
+        </div>
+        <input id="centerGraphicFile" type="file" accept="image/*" />
+        <div class="row" style="margin-top: 10px;">
+          <div>
+            <label for="centerGraphicScale">Graphic size</label>
+            <select id="centerGraphicScale">
+              <option value="0.16">Small (16%)</option>
+              <option value="0.20" selected>Medium (20%)</option>
+              <option value="0.24">Large (24%)</option>
+            </select>
+          </div>
+        </div>
+        <p class="muted-help">Use high error correction for better scanning with center graphics.</p>
+      </div>
+
       <div class="actions">
         <button id="generateBtn" class="primary">Generate QR Code</button>
         <button id="downloadBtn" class="secondary">Download PNG</button>
@@ -259,6 +319,7 @@
     <aside class="panel preview">
       <div class="qr-shell">
         <div id="qrcode" aria-live="polite"></div>
+        <img id="centerGraphic" alt="Center graphic overlay" />
       </div>
       <div id="status" class="status">Your QR code will appear here.</div>
       <div class="hint">This version uses a lightweight client-side library, so it runs entirely in the browser.</div>
@@ -275,8 +336,13 @@
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const useCenterGraphic = document.getElementById('useCenterGraphic');
+    const centerGraphicFile = document.getElementById('centerGraphicFile');
+    const centerGraphic = document.getElementById('centerGraphic');
+    const centerGraphicScale = document.getElementById('centerGraphicScale');
 
     let qrInstance = null;
+    let centerGraphicDataUrl = '';
 
     function setStatus(message, type = '') {
       statusEl.className = type ? `status ${type}` : 'status';
@@ -286,6 +352,28 @@
     function clearQr() {
       qrcodeContainer.innerHTML = '';
       qrInstance = null;
+      centerGraphic.style.display = 'none';
+      centerGraphic.src = '';
+    }
+
+    function applyCenterGraphic() {
+      const shouldShow = useCenterGraphic.checked && centerGraphicDataUrl;
+      if (!shouldShow) {
+        centerGraphic.style.display = 'none';
+        return;
+      }
+
+      const qrCanvasOrImg = getQrImageElement();
+      if (!qrCanvasOrImg) return;
+
+      const renderedSize = qrCanvasOrImg.clientWidth || qrCanvasOrImg.width || Number(qrSize.value);
+      const scale = Number(centerGraphicScale.value) || 0.2;
+      const logoSize = Math.round(renderedSize * scale);
+
+      centerGraphic.src = centerGraphicDataUrl;
+      centerGraphic.style.width = `${logoSize}px`;
+      centerGraphic.style.height = `${logoSize}px`;
+      centerGraphic.style.display = 'block';
     }
 
     function generateQr() {
@@ -308,6 +396,10 @@
         correctLevel: QRCode.CorrectLevel[level]
       });
 
+      window.requestAnimationFrame(() => {
+        applyCenterGraphic();
+      });
+
       setStatus('QR code generated successfully.', 'success');
     }
 
@@ -326,6 +418,40 @@
       let dataUrl = '';
 
       if (qrEl.tagName.toLowerCase() === 'canvas') {
+        if (useCenterGraphic.checked && centerGraphicDataUrl && centerGraphic.style.display !== 'none') {
+          const composedCanvas = document.createElement('canvas');
+          const size = qrEl.width;
+          composedCanvas.width = size;
+          composedCanvas.height = size;
+
+          const ctx = composedCanvas.getContext('2d');
+          ctx.drawImage(qrEl, 0, 0);
+
+          const logo = new Image();
+          logo.onload = () => {
+            const logoSize = Math.round(size * (Number(centerGraphicScale.value) || 0.2));
+            const offset = Math.round((size - logoSize) / 2);
+
+            ctx.fillStyle = '#ffffff';
+            const pad = Math.round(logoSize * 0.08);
+            ctx.fillRect(offset - pad, offset - pad, logoSize + pad * 2, logoSize + pad * 2);
+            ctx.drawImage(logo, offset, offset, logoSize, logoSize);
+
+            const composedDataUrl = composedCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = composedDataUrl;
+            link.download = 'qr-code.png';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setStatus('Download started.', 'success');
+          };
+          logo.onerror = () => {
+            setStatus('Could not load the center graphic for download.', 'error');
+          };
+          logo.src = centerGraphicDataUrl;
+          return;
+        }
         dataUrl = qrEl.toDataURL('image/png');
       } else {
         dataUrl = qrEl.src;
@@ -346,10 +472,37 @@
 
     clearBtn.addEventListener('click', () => {
       qrText.value = '';
+      centerGraphicFile.value = '';
+      useCenterGraphic.checked = false;
+      centerGraphicDataUrl = '';
       clearQr();
       setStatus('Cleared. Enter new content to generate another QR code.');
       qrText.focus();
     });
+
+    centerGraphicFile.addEventListener('change', () => {
+      const [file] = centerGraphicFile.files || [];
+      if (!file) {
+        centerGraphicDataUrl = '';
+        applyCenterGraphic();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        centerGraphicDataUrl = String(reader.result || '');
+        useCenterGraphic.checked = true;
+        applyCenterGraphic();
+      };
+      reader.onerror = () => {
+        centerGraphicDataUrl = '';
+        setStatus('Could not read selected image file.', 'error');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    useCenterGraphic.addEventListener('change', applyCenterGraphic);
+    centerGraphicScale.addEventListener('change', applyCenterGraphic);
 
     qrText.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {

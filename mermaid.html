@@ -217,17 +217,18 @@ async function copyToClipboard(text){
 
 async function render(){
   try{
-    await document.fonts.ready;
     init();
+    await document.fonts.ready;
+
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = svg;
+
     setStatus("Rendered");
     saveState();
   }catch(e){
     setStatus("Error: "+e.message,{error:true});
   }
 }
-
 // --- debounce auto render ---
 let timer;
 codeEl.addEventListener('input',()=>{
@@ -285,14 +286,36 @@ function serializeSvg(svgElement){
 
   return source;
 }
+  
+function inlineSvgStyles(sourceSvg, targetSvg){
+  const sourceNodes = sourceSvg.querySelectorAll('*');
+  const targetNodes = targetSvg.querySelectorAll('*');
 
+  targetNodes.forEach((node, i)=>{
+    const src = sourceNodes[i];
+    if(!src) return;
+
+    const style = getComputedStyle(src);
+
+    if(style.fill) node.setAttribute("fill", style.fill);
+    if(style.stroke) node.setAttribute("stroke", style.stroke);
+    if(style.color) node.setAttribute("color", style.color);
+
+    if(style.fontFamily) node.setAttribute("font-family", style.fontFamily);
+    if(style.fontSize) node.setAttribute("font-size", style.fontSize);
+    if(style.fontWeight) node.setAttribute("font-weight", style.fontWeight);
+  });
+}
+  
 function cleanupSvg(svg){
   const cleanSvg = svg.cloneNode(true);
 
-  // remove unsupported nodes that break canvas rendering
+  // remove unsupported nodes
   cleanSvg.querySelectorAll('foreignObject').forEach(n => n.remove());
 
-  // determine size
+  // embed styles so text renders
+  inlineSvgStyles(svg, cleanSvg);
+
   const box = svg.viewBox?.baseVal;
   const width = box?.width || svg.clientWidth || 1200;
   const height = box?.height || svg.clientHeight || 800;
@@ -306,7 +329,6 @@ function cleanupSvg(svg){
 
   return { svg: cleanSvg, width, height };
 }
-
 document.getElementById('svg').onclick = ()=>{
   const svg = output.querySelector('svg');
   if(!svg){

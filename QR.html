@@ -435,10 +435,12 @@
 
     function applyModulePattern() {
       const style = moduleStyle.value;
-      if (style === 'square') return;
-
       const qrEl = getQrImageElement();
       if (!qrEl) return;
+      if (style === 'square') {
+        keepOnlyActiveDisplay(qrEl);
+        return;
+      }
 
       let sourceCanvas = null;
       if (qrEl.tagName.toLowerCase() === 'canvas') {
@@ -485,6 +487,16 @@
       }
 
       qrEl.replaceWith(styledCanvas);
+      keepOnlyActiveDisplay(styledCanvas);
+    }
+
+    function keepOnlyActiveDisplay(activeEl) {
+      const renderEls = qrcodeContainer.querySelectorAll('canvas, img, table');
+      renderEls.forEach((el) => {
+        if (el !== activeEl) {
+          el.remove();
+        }
+      });
     }
 
     function applyCenterGraphic() {
@@ -538,7 +550,11 @@
     }
 
     function getQrImageElement() {
-      return qrcodeContainer.querySelector('canvas') || qrcodeContainer.querySelector('img');
+      const canvasEl = qrcodeContainer.querySelector('canvas');
+      if (canvasEl) return canvasEl;
+      const imgEl = qrcodeContainer.querySelector('img');
+      if (imgEl) return imgEl;
+      return qrcodeContainer.querySelector('table');
     }
 
     function downloadQr() {
@@ -550,8 +566,9 @@
       }
 
       let dataUrl = '';
+      const tagName = qrEl.tagName.toLowerCase();
 
-      if (qrEl.tagName.toLowerCase() === 'canvas') {
+      if (tagName === 'canvas') {
         if (useCenterGraphic.checked && centerGraphicDataUrl && centerGraphic.style.display !== 'none') {
           const composedCanvas = document.createElement('canvas');
           const size = qrEl.width;
@@ -587,8 +604,11 @@
           return;
         }
         dataUrl = qrEl.toDataURL('image/png');
-      } else {
+      } else if (tagName === 'img') {
         dataUrl = qrEl.src;
+      } else {
+        setStatus('Download is not supported for this QR renderer in your browser. Try a modern browser.', 'error');
+        return;
       }
 
       const link = document.createElement('a');

@@ -440,9 +440,25 @@
       if (style === 'square') return;
 
       const qrEl = getQrImageElement();
-      if (!qrEl || qrEl.tagName.toLowerCase() !== 'canvas') return;
+      if (!qrEl) return;
 
-      const sourceCanvas = qrEl;
+      let sourceCanvas = null;
+      if (qrEl.tagName.toLowerCase() === 'canvas') {
+        sourceCanvas = qrEl;
+      } else {
+        if (!qrEl.complete) {
+          qrEl.addEventListener('load', () => applyModulePattern(), { once: true });
+          return;
+        }
+        const imageWidth = qrEl.naturalWidth || qrEl.width || Number(qrSize.value);
+        const imageHeight = qrEl.naturalHeight || qrEl.height || Number(qrSize.value);
+        sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = imageWidth;
+        sourceCanvas.height = imageHeight;
+        const tempCtx = sourceCanvas.getContext('2d');
+        tempCtx.drawImage(qrEl, 0, 0, imageWidth, imageHeight);
+      }
+
       const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
       const { width, height } = sourceCanvas;
       const imageData = sourceCtx.getImageData(0, 0, width, height).data;
@@ -468,7 +484,7 @@
         }
       }
 
-      sourceCanvas.replaceWith(styledCanvas);
+      qrEl.replaceWith(styledCanvas);
     }
 
     function applyCenterGraphic() {
@@ -520,7 +536,7 @@
     }
 
     function getQrImageElement() {
-      return qrcodeContainer.querySelector('img') || qrcodeContainer.querySelector('canvas');
+      return qrcodeContainer.querySelector('canvas') || qrcodeContainer.querySelector('img');
     }
 
     function downloadQr() {

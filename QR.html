@@ -239,6 +239,12 @@
       line-height: 1.5;
     }
 
+    .pattern-help {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
     @media (max-width: 860px) {
       .app {
         grid-template-columns: 1fr;
@@ -289,6 +295,25 @@
       </div>
 
       <div class="field">
+        <label for="moduleStyle">Module style</label>
+        <select id="moduleStyle">
+          <option value="square" selected>Classic squares</option>
+          <option value="rounded">Rounded squares</option>
+          <option value="dot">High-contrast dots</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="visibilityPreset">Visibility preset</label>
+        <select id="visibilityPreset">
+          <option value="bw" selected>Maximum contrast (black on white)</option>
+          <option value="navy">High contrast (navy on white)</option>
+          <option value="green">High contrast (dark green on cream)</option>
+        </select>
+        <p class="pattern-help">For strongest scan reliability, keep dark modules on a light background.</p>
+      </div>
+
+      <div class="field">
         <div class="inline-input">
           <input id="useCenterGraphic" type="checkbox" />
           <label for="useCenterGraphic">Add center graphic/logo</label>
@@ -336,6 +361,8 @@
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const moduleStyle = document.getElementById('moduleStyle');
+    const visibilityPreset = document.getElementById('visibilityPreset');
     const useCenterGraphic = document.getElementById('useCenterGraphic');
     const centerGraphicFile = document.getElementById('centerGraphicFile');
     const centerGraphic = document.getElementById('centerGraphic');
@@ -354,6 +381,122 @@
       qrInstance = null;
       centerGraphic.style.display = 'none';
       centerGraphic.src = '';
+    }
+
+    function getVisibilityColors() {
+      switch (visibilityPreset.value) {
+        case 'navy':
+          return { dark: '#0f172a', light: '#ffffff' };
+        case 'green':
+          return { dark: '#14532d', light: '#fefce8' };
+        case 'bw':
+        default:
+          return { dark: '#000000', light: '#ffffff' };
+      }
+    }
+
+    function drawModule(ctx, style, x, y, size) {
+      switch (style) {
+        case 'dot':
+          ctx.beginPath();
+          ctx.arc(x + size / 2, y + size / 2, size * 0.44, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        case 'rounded':
+          {
+            const radius = size * 0.28;
+            const right = x + size;
+            const bottom = y + size;
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(right - radius, y);
+            ctx.quadraticCurveTo(right, y, right, y + radius);
+            ctx.lineTo(right, bottom - radius);
+            ctx.quadraticCurveTo(right, bottom, right - radius, bottom);
+            ctx.lineTo(x + radius, bottom);
+            ctx.quadraticCurveTo(x, bottom, x, bottom - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+          }
+          break;
+        default:
+          ctx.fillRect(x, y, size, size);
+      }
+    }
+
+    function isFinderZone(row, col, moduleCount) {
+      const inTopLeft = row < 7 && col < 7;
+      const inTopRight = row < 7 && col >= moduleCount - 7;
+      const inBottomLeft = row >= moduleCount - 7 && col < 7;
+      return inTopLeft || inTopRight || inBottomLeft;
+    }
+
+    function applyModulePattern() {
+      const style = moduleStyle.value;
+      const qrEl = getQrImageElement();
+      if (!qrEl) return;
+      if (style === 'square') {
+        keepOnlyActiveDisplay(qrEl);
+        return;
+      }
+
+      let sourceCanvas = null;
+      if (qrEl.tagName.toLowerCase() === 'canvas') {
+        sourceCanvas = qrEl;
+      } else {
+        if (!qrEl.complete) {
+          qrEl.addEventListener('load', () => applyModulePattern(), { once: true });
+          return;
+        }
+        const imageWidth = qrEl.naturalWidth || qrEl.width || Number(qrSize.value);
+        const imageHeight = qrEl.naturalHeight || qrEl.height || Number(qrSize.value);
+        sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = imageWidth;
+        sourceCanvas.height = imageHeight;
+        const tempCtx = sourceCanvas.getContext('2d');
+        tempCtx.drawImage(qrEl, 0, 0, imageWidth, imageHeight);
+      }
+
+      const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+      const { width, height } = sourceCanvas;
+      const imageData = sourceCtx.getImageData(0, 0, width, height).data;
+      const moduleCount = (qrInstance && qrInstance._oQRCode && qrInstance._oQRCode.modules && qrInstance._oQRCode.modules.length) || 33;
+      const moduleSize = width / moduleCount;
+
+      const styledCanvas = document.createElement('canvas');
+      styledCanvas.width = width;
+      styledCanvas.height = height;
+      const ctx = styledCanvas.getContext('2d');
+      const palette = getVisibilityColors();
+      ctx.fillStyle = palette.light;
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = palette.dark;
+
+      for (let row = 0; row < moduleCount; row += 1) {
+        for (let col = 0; col < moduleCount; col += 1) {
+          const sampleX = Math.min(width - 1, Math.floor((col + 0.5) * moduleSize));
+          const sampleY = Math.min(height - 1, Math.floor((row + 0.5) * moduleSize));
+          const index = (sampleY * width + sampleX) * 4;
+          const isDark = imageData[index] < 128;
+          if (!isDark) continue;
+          const drawStyle = isFinderZone(row, col, moduleCount) ? 'square' : style;
+          drawModule(ctx, drawStyle, col * moduleSize, row * moduleSize, moduleSize);
+        }
+      }
+
+      qrEl.replaceWith(styledCanvas);
+      keepOnlyActiveDisplay(styledCanvas);
+    }
+
+    function keepOnlyActiveDisplay(activeEl) {
+      const renderEls = qrcodeContainer.querySelectorAll('canvas, img, table');
+      renderEls.forEach((el) => {
+        if (el !== activeEl) {
+          el.remove();
+        }
+      });
     }
 
     function applyCenterGraphic() {
@@ -393,10 +536,13 @@
         text,
         width: size,
         height: size,
+        colorDark: getVisibilityColors().dark,
+        colorLight: getVisibilityColors().light,
         correctLevel: QRCode.CorrectLevel[level]
       });
 
       window.requestAnimationFrame(() => {
+        applyModulePattern();
         applyCenterGraphic();
       });
 
@@ -404,7 +550,11 @@
     }
 
     function getQrImageElement() {
-      return qrcodeContainer.querySelector('img') || qrcodeContainer.querySelector('canvas');
+      const canvasEl = qrcodeContainer.querySelector('canvas');
+      if (canvasEl) return canvasEl;
+      const imgEl = qrcodeContainer.querySelector('img');
+      if (imgEl) return imgEl;
+      return qrcodeContainer.querySelector('table');
     }
 
     function downloadQr() {
@@ -416,8 +566,9 @@
       }
 
       let dataUrl = '';
+      const tagName = qrEl.tagName.toLowerCase();
 
-      if (qrEl.tagName.toLowerCase() === 'canvas') {
+      if (tagName === 'canvas') {
         if (useCenterGraphic.checked && centerGraphicDataUrl && centerGraphic.style.display !== 'none') {
           const composedCanvas = document.createElement('canvas');
           const size = qrEl.width;
@@ -453,8 +604,11 @@
           return;
         }
         dataUrl = qrEl.toDataURL('image/png');
-      } else {
+      } else if (tagName === 'img') {
         dataUrl = qrEl.src;
+      } else {
+        setStatus('Download is not supported for this QR renderer in your browser. Try a modern browser.', 'error');
+        return;
       }
 
       const link = document.createElement('a');
@@ -503,6 +657,8 @@
 
     useCenterGraphic.addEventListener('change', applyCenterGraphic);
     centerGraphicScale.addEventListener('change', applyCenterGraphic);
+    moduleStyle.addEventListener('change', generateQr);
+    visibilityPreset.addEventListener('change', generateQr);
 
     qrText.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {

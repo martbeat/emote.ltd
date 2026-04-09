@@ -217,6 +217,7 @@ async function copyToClipboard(text){
 
 async function render(){
   try{
+    await document.fonts.ready;
     init();
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = svg;
@@ -263,22 +264,77 @@ document.getElementById('embed').onclick = async ()=>{
 };
 
 // --- exports ---
+// --- exports ---
+function serializeSvg(svgElement){
+  const serializer = new XMLSerializer();
+  let source = serializer.serializeToString(svgElement);
+
+  if(!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)){
+    source = source.replace(
+      /^<svg/,
+      '<svg xmlns="http://www.w3.org/2000/svg"'
+    );
+  }
+
+  if(!source.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)){
+    source = source.replace(
+      /^<svg/,
+      '<svg xmlns:xlink="http://www.w3.org/1999/xlink"'
+    );
+  }
+
+  return source;
+}
+
+function cleanupSvg(svg){
+  const cloned = svg.cloneNode(true);
+
+  // remove unsupported nodes
+  cloned.querySelectorAll('foreignObject').forEach(n=>n.remove());
+    cleanSvg.querySelectorAll('*').forEach(el=>{
+      const style = getComputedStyle(el);
+      el.setAttribute('fill', style.fill);
+      el.setAttribute('stroke', style.stroke);
+      el.setAttribute('font-family', style.fontFamily);
+    });
+  
+  // ensure dimensions
+  const box = svg.viewBox?.baseVal;
+  const width = box?.width || svg.clientWidth || 1200;
+  const height = box?.height || svg.clientHeight || 800;
+
+  cloned.setAttribute('width', width);
+  cloned.setAttribute('height', height);
+
+  if(!cloned.getAttribute('viewBox')){
+    cloned.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  }
+
+  return {svg:cloned,width,height};
+}
+
 document.getElementById('svg').onclick = ()=>{
   const svg = output.querySelector('svg');
   if(!svg){
     setStatus("Error: nothing to export",{error:true});
     return;
   }
-  const {clonedSvg} = prepareSvgForExport(svg);
+
+  const {svg:cleanSvg} = cleanupSvg(svg);
+  const source = serializeSvg(cleanSvg);
+
   const blob = new Blob(
-    ['<?xml version="1.0" encoding="UTF-8"?>\n', clonedSvg.outerHTML],
+    ['<?xml version="1.0" standalone="no"?>\n', source],
     {type:'image/svg+xml;charset=utf-8'}
   );
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='chart.svg';
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = "diagram.svg";
   a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 0);
+
+  setTimeout(()=>URL.revokeObjectURL(url),100);
   clearErrorStatus();
 };
 
@@ -288,91 +344,44 @@ document.getElementById('png').onclick = async ()=>{
     setStatus("Error: nothing to export",{error:true});
     return;
   }
-  const scale = 3; // high-resolution export for better readability
-  const {clonedSvg, width, height} = prepareSvgForExport(svg);
-  const originalTextNodes = svg.querySelectorAll('text, tspan, foreignObject');
-  const clonedTextNodes = clonedSvg.querySelectorAll('text, tspan, foreignObject');
-  clonedTextNodes.forEach((node, index)=>{
-    const sourceNode = originalTextNodes[index];
-    const computed = sourceNode ? getComputedStyle(sourceNode) : null;
-    if(computed?.fill){
-      node.setAttribute('fill', computed.fill);
-    }
-    if(computed?.color){
-      node.setAttribute('color', computed.color);
-    }
-    node.setAttribute('stroke', computed?.stroke || 'none');
-    if(computed?.fontFamily){
-      node.setAttribute('font-family', computed.fontFamily);
-    }
-    if(computed?.fontSize){
-      node.setAttribute('font-size', computed.fontSize);
-    }
-    if(computed?.fontWeight){
-      node.setAttribute('font-weight', computed.fontWeight);
-    }
-  });
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(width * scale);
-  canvas.height = Math.ceil(height * scale);
-  const ctx = canvas.getContext('2d');
-  if(!ctx){
-    setStatus("Error: PNG export unavailable in this browser",{error:true});
-    return;
-  }
 
-  const svgMarkup = clonedSvg.outerHTML;
-  const downloadCanvas = ()=>{
+  const scale = 3;
+
+  const {svg:cleanSvg,width,height} = cleanupSvg(svg);
+  const source = serializeSvg(cleanSvg);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(scale,0,0,scale,0,0);
+
+  ctx.fillStyle = theme.value === 'dark' ? '#0b0f1a' : '#ffffff';
+  ctx.fillRect(0,0,width,height);
+
+  const img = new Image();
+
+  const svg64 = btoa(unescape(encodeURIComponent(source)));
+  const image64 = 'data:image/svg+xml;base64,' + svg64;
+
+  img.onload = ()=>{
+    ctx.drawImage(img,0,0,width,height);
+
     const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = 'chart.png';
+    a.href = canvas.toDataURL("image/png");
+    a.download = "diagram.png";
     a.click();
+
     clearErrorStatus();
   };
 
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.fillStyle = theme.value === 'dark' ? '#0b0f1a' : '#ffffff';
-  ctx.fillRect(0, 0, width, height);
+  img.onerror = ()=>{
+    setStatus("Error: PNG export failed",{error:true});
+  };
 
-  try{
-    // Prefer native SVG rasterization first: better support for text layout/features.
-    await new Promise((resolve,reject)=>{
-      const img = new Image();
-      const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-      const objectUrl = URL.createObjectURL(blob);
-      img.onload = ()=>{
-        try{
-          ctx.drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(objectUrl);
-          resolve();
-        }catch(error){
-          URL.revokeObjectURL(objectUrl);
-          reject(error);
-        }
-      };
-      img.onerror = ()=>{
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('SVG image load failed'));
-      };
-      img.src = objectUrl;
-    });
-    downloadCanvas();
-    return;
-  }catch{
-    // Fallback to Canvg when native rasterization is blocked.
-    try{
-      const v = await Canvg.fromString(ctx, svgMarkup, {
-        ignoreAnimation:true,
-        ignoreMouse:true
-      });
-      await v.render();
-      downloadCanvas();
-    }catch{
-      setStatus("Error: PNG export failed in this browser",{error:true});
-    }
-  }
+  img.src = image64;
 };
-
 // --- resize ---
 const resizer=document.getElementById('resizer');
 const editor=document.getElementById('editorPane');

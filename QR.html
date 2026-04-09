@@ -239,6 +239,12 @@
       line-height: 1.5;
     }
 
+    .pattern-help {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
     @media (max-width: 860px) {
       .app {
         grid-template-columns: 1fr;
@@ -289,6 +295,18 @@
       </div>
 
       <div class="field">
+        <label for="moduleStyle">Pattern style</label>
+        <select id="moduleStyle">
+          <option value="square" selected>Classic squares</option>
+          <option value="circle">Soft circles</option>
+          <option value="heart">Hearts</option>
+          <option value="flower">Flowers</option>
+          <option value="diamond">Diamonds</option>
+        </select>
+        <p class="pattern-help">Decorative patterns are best for short content and medium/high error correction.</p>
+      </div>
+
+      <div class="field">
         <div class="inline-input">
           <input id="useCenterGraphic" type="checkbox" />
           <label for="useCenterGraphic">Add center graphic/logo</label>
@@ -336,6 +354,7 @@
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const moduleStyle = document.getElementById('moduleStyle');
     const useCenterGraphic = document.getElementById('useCenterGraphic');
     const centerGraphicFile = document.getElementById('centerGraphicFile');
     const centerGraphic = document.getElementById('centerGraphic');
@@ -354,6 +373,118 @@
       qrInstance = null;
       centerGraphic.style.display = 'none';
       centerGraphic.src = '';
+    }
+
+    function drawHeart(ctx, x, y, size) {
+      const s = size;
+      const left = x + s * 0.5;
+      const top = y + s * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(left, y + s * 0.88);
+      ctx.bezierCurveTo(x - s * 0.1, y + s * 0.56, x + s * 0.08, y + s * 0.12, x + s * 0.36, top);
+      ctx.bezierCurveTo(left, y + s * 0.02, x + s * 0.64, y + s * 0.02, x + s * 0.64, top);
+      ctx.bezierCurveTo(x + s * 0.92, y + s * 0.12, x + s * 1.1, y + s * 0.56, left, y + s * 0.88);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawFlower(ctx, x, y, size) {
+      const cX = x + size / 2;
+      const cY = y + size / 2;
+      const petalR = size * 0.22;
+      const offset = size * 0.25;
+
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (Math.PI * 2 * i) / 6;
+        const px = cX + Math.cos(angle) * offset;
+        const py = cY + Math.sin(angle) * offset;
+        ctx.beginPath();
+        ctx.arc(px, py, petalR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.arc(cX, cY, size * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawModule(ctx, style, x, y, size) {
+      switch (style) {
+        case 'circle':
+          ctx.beginPath();
+          ctx.arc(x + size / 2, y + size / 2, size * 0.44, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        case 'heart':
+          drawHeart(ctx, x, y, size);
+          break;
+        case 'flower':
+          drawFlower(ctx, x, y, size);
+          break;
+        case 'diamond':
+          ctx.beginPath();
+          ctx.moveTo(x + size / 2, y + size * 0.06);
+          ctx.lineTo(x + size * 0.94, y + size / 2);
+          ctx.lineTo(x + size / 2, y + size * 0.94);
+          ctx.lineTo(x + size * 0.06, y + size / 2);
+          ctx.closePath();
+          ctx.fill();
+          break;
+        default:
+          ctx.fillRect(x, y, size, size);
+      }
+    }
+
+    function applyModulePattern() {
+      const style = moduleStyle.value;
+      if (style === 'square') return;
+
+      const qrEl = getQrImageElement();
+      if (!qrEl) return;
+
+      let sourceCanvas = null;
+      if (qrEl.tagName.toLowerCase() === 'canvas') {
+        sourceCanvas = qrEl;
+      } else {
+        if (!qrEl.complete) {
+          qrEl.addEventListener('load', () => applyModulePattern(), { once: true });
+          return;
+        }
+        const imageWidth = qrEl.naturalWidth || qrEl.width || Number(qrSize.value);
+        const imageHeight = qrEl.naturalHeight || qrEl.height || Number(qrSize.value);
+        sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = imageWidth;
+        sourceCanvas.height = imageHeight;
+        const tempCtx = sourceCanvas.getContext('2d');
+        tempCtx.drawImage(qrEl, 0, 0, imageWidth, imageHeight);
+      }
+
+      const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+      const { width, height } = sourceCanvas;
+      const imageData = sourceCtx.getImageData(0, 0, width, height).data;
+      const moduleCount = (qrInstance && qrInstance._oQRCode && qrInstance._oQRCode.modules && qrInstance._oQRCode.modules.length) || 33;
+      const moduleSize = width / moduleCount;
+
+      const styledCanvas = document.createElement('canvas');
+      styledCanvas.width = width;
+      styledCanvas.height = height;
+      const ctx = styledCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#000000';
+
+      for (let row = 0; row < moduleCount; row += 1) {
+        for (let col = 0; col < moduleCount; col += 1) {
+          const sampleX = Math.min(width - 1, Math.floor((col + 0.5) * moduleSize));
+          const sampleY = Math.min(height - 1, Math.floor((row + 0.5) * moduleSize));
+          const index = (sampleY * width + sampleX) * 4;
+          const isDark = imageData[index] < 128;
+          if (!isDark) continue;
+          drawModule(ctx, style, col * moduleSize, row * moduleSize, moduleSize);
+        }
+      }
+
+      qrEl.replaceWith(styledCanvas);
     }
 
     function applyCenterGraphic() {
@@ -397,6 +528,7 @@
       });
 
       window.requestAnimationFrame(() => {
+        applyModulePattern();
         applyCenterGraphic();
       });
 
@@ -404,7 +536,7 @@
     }
 
     function getQrImageElement() {
-      return qrcodeContainer.querySelector('img') || qrcodeContainer.querySelector('canvas');
+      return qrcodeContainer.querySelector('canvas') || qrcodeContainer.querySelector('img');
     }
 
     function downloadQr() {
@@ -503,6 +635,7 @@
 
     useCenterGraphic.addEventListener('change', applyCenterGraphic);
     centerGraphicScale.addEventListener('change', applyCenterGraphic);
+    moduleStyle.addEventListener('change', generateQr);
 
     qrText.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {

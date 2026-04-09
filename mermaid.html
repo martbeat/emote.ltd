@@ -176,6 +176,25 @@ function sanitizeSvgForPng(svgElement){
   }
 }
 
+function prepareSvgForExport(svgElement){
+  const clonedSvg = svgElement.cloneNode(true);
+  const box = svgElement.viewBox?.baseVal;
+  const width = box?.width || svgElement.getBoundingClientRect().width || 1200;
+  const height = box?.height || svgElement.getBoundingClientRect().height || 800;
+
+  clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  clonedSvg.setAttribute('width', width);
+  clonedSvg.setAttribute('height', height);
+
+  if (!clonedSvg.getAttribute('viewBox')) {
+    clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  }
+
+  sanitizeSvgForPng(clonedSvg);
+  return { clonedSvg, width, height };
+}
+
 async function copyToClipboard(text){
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -250,11 +269,16 @@ document.getElementById('svg').onclick = ()=>{
     setStatus("Error: nothing to export",{error:true});
     return;
   }
-  const blob = new Blob([svg.outerHTML],{type:'image/svg+xml'});
+  const {clonedSvg} = prepareSvgForExport(svg);
+  const blob = new Blob(
+    ['<?xml version="1.0" encoding="UTF-8"?>\n', clonedSvg.outerHTML],
+    {type:'image/svg+xml;charset=utf-8'}
+  );
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='chart.svg';
   a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 0);
   clearErrorStatus();
 };
 
@@ -265,27 +289,19 @@ document.getElementById('png').onclick = async ()=>{
     return;
   }
   const scale = 3; // high-resolution export for better readability
-  const clonedSvg = svg.cloneNode(true);
-  const box = svg.viewBox?.baseVal;
-  const width = box?.width || svg.getBoundingClientRect().width || 1200;
-  const height = box?.height || svg.getBoundingClientRect().height || 800;
-
-  clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  clonedSvg.setAttribute('width', width);
-  clonedSvg.setAttribute('height', height);
-  if (!clonedSvg.getAttribute('viewBox')) {
-    clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  }
-  sanitizeSvgForPng(clonedSvg);
+  const {clonedSvg, width, height} = prepareSvgForExport(svg);
   const originalTextNodes = svg.querySelectorAll('text, tspan, foreignObject');
   const clonedTextNodes = clonedSvg.querySelectorAll('text, tspan, foreignObject');
-  const exportTextColor = '#f4f6ff';
   clonedTextNodes.forEach((node, index)=>{
     const sourceNode = originalTextNodes[index];
     const computed = sourceNode ? getComputedStyle(sourceNode) : null;
-    node.setAttribute('fill', exportTextColor);
-    node.setAttribute('color', exportTextColor);
-    node.setAttribute('stroke', 'none');
+    if(computed?.fill){
+      node.setAttribute('fill', computed.fill);
+    }
+    if(computed?.color){
+      node.setAttribute('color', computed.color);
+    }
+    node.setAttribute('stroke', computed?.stroke || 'none');
     if(computed?.fontFamily){
       node.setAttribute('font-family', computed.fontFamily);
     }
@@ -315,7 +331,7 @@ document.getElementById('png').onclick = async ()=>{
   };
 
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = theme.value === 'dark' ? '#0b0f1a' : '#ffffff';
   ctx.fillRect(0, 0, width, height);
 
   try{

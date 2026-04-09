@@ -88,14 +88,14 @@ function saveState(){
 
 // --- render ---
 function init(){
-  mermaid.initialize({
-    startOnLoad:false,
-    theme:theme.value,
-    securityLevel:'strict',
-    flowchart:{
-      htmlLabels:false
-    }
-  });
+mermaid.initialize({
+  startOnLoad:false,
+  theme:theme.value,
+  securityLevel:'loose',
+  flowchart:{
+    htmlLabels:false
+  }
+});
 }
 
 function encodeMermaidCode(text){
@@ -306,15 +306,9 @@ function inlineSvgStyles(sourceSvg, targetSvg){
     if(style.fontWeight) node.setAttribute("font-weight", style.fontWeight);
   });
 }
-  
-function cleanupSvg(svg){
+  function cleanupSvg(svg){
+
   const cleanSvg = svg.cloneNode(true);
-
-  // remove unsupported nodes
-  cleanSvg.querySelectorAll('foreignObject').forEach(n => n.remove());
-
-  // embed styles so text renders
-  inlineSvgStyles(svg, cleanSvg);
 
   const box = svg.viewBox?.baseVal;
   const width = box?.width || svg.clientWidth || 1200;
@@ -329,6 +323,7 @@ function cleanupSvg(svg){
 
   return { svg: cleanSvg, width, height };
 }
+  
 document.getElementById('svg').onclick = ()=>{
   const svg = output.querySelector('svg');
   if(!svg){

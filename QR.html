@@ -550,11 +550,13 @@
     }
 
     function getQrImageElement() {
-      const canvasEl = qrcodeContainer.querySelector('canvas');
-      if (canvasEl) return canvasEl;
-      const imgEl = qrcodeContainer.querySelector('img');
-      if (imgEl) return imgEl;
-      return qrcodeContainer.querySelector('table');
+      const candidates = Array.from(qrcodeContainer.querySelectorAll('canvas, img, table'));
+      const visibleCandidate = candidates.find((el) => {
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      });
+      if (visibleCandidate) return visibleCandidate;
+      return candidates[0] || null;
     }
 
     function downloadQr() {

@@ -287,30 +287,24 @@ function serializeSvg(svgElement){
 }
 
 function cleanupSvg(svg){
-  const cloned = svg.cloneNode(true);
+  const cleanSvg = svg.cloneNode(true);
 
-  // remove unsupported nodes
-  cloned.querySelectorAll('foreignObject').forEach(n=>n.remove());
-    cleanSvg.querySelectorAll('*').forEach(el=>{
-      const style = getComputedStyle(el);
-      el.setAttribute('fill', style.fill);
-      el.setAttribute('stroke', style.stroke);
-      el.setAttribute('font-family', style.fontFamily);
-    });
-  
-  // ensure dimensions
+  // remove unsupported nodes that break canvas rendering
+  cleanSvg.querySelectorAll('foreignObject').forEach(n => n.remove());
+
+  // determine size
   const box = svg.viewBox?.baseVal;
   const width = box?.width || svg.clientWidth || 1200;
   const height = box?.height || svg.clientHeight || 800;
 
-  cloned.setAttribute('width', width);
-  cloned.setAttribute('height', height);
+  cleanSvg.setAttribute('width', width);
+  cleanSvg.setAttribute('height', height);
 
-  if(!cloned.getAttribute('viewBox')){
-    cloned.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  if(!cleanSvg.getAttribute('viewBox')){
+    cleanSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   }
 
-  return {svg:cloned,width,height};
+  return { svg: cleanSvg, width, height };
 }
 
 document.getElementById('svg').onclick = ()=>{

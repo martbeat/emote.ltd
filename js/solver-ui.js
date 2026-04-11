@@ -1,5 +1,5 @@
-import "./solver-core.module.js?v=20260411.4";
-import { loadWordLists } from "./wordlists.js?v=20260411.4";
+import "./solver-core.module.js?v=20260411-5";
+import { loadWordLists } from "./wordlists.js?v=20260411-5";
 
 const {
   normaliseWord,
@@ -27,7 +27,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260411.4";
+const SOLVER_ASSET_VERSION = "20260411-5";
 
 const ui = {
   status: document.getElementById("status"),
@@ -64,6 +64,16 @@ const ui = {
 function setStatus(message, kind = "info") {
   ui.status.textContent = message;
   ui.status.dataset.kind = kind;
+}
+
+function sanitiseAlphaWord(word) {
+  return normaliseWord(word).replace(/[^a-z]/g, "").slice(0, 5);
+}
+
+function clampSampleSize(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 100;
+  return Math.min(1000, Math.max(1, Math.floor(parsed)));
 }
 
 
@@ -452,8 +462,8 @@ async function runMartinSimulation() {
 }
 
 async function applyClue() {
-  const guess = normaliseWord(ui.guessInput.value);
-  const pattern = normaliseWord(ui.patternInput.value);
+  const guess = sanitiseAlphaWord(ui.guessInput.value);
+  const pattern = normaliseWord(ui.patternInput.value).replace(/[^byg]/g, "").slice(0, 5);
   const validation = validateGuessPattern(guess, pattern, state.answers, state.guesses);
   if (validation) {
     setStatus(validation, "error");
@@ -490,9 +500,11 @@ async function undoClue() {
 }
 
 async function runSimulation() {
-  const openingWord = normaliseWord(ui.openingWordInput.value || ui.bestGuess.textContent);
-  const sampleSize = Number(ui.simulationCountInput.value || 100);
+  const openingWord = sanitiseAlphaWord(ui.openingWordInput.value || ui.bestGuess.textContent);
+  const sampleSize = clampSampleSize(ui.simulationCountInput.value || 100);
   const forceMode = ui.simulationModeSelect.value;
+
+  ui.simulationCountInput.value = String(sampleSize);
 
   if (!openingWord || !state.guesses.includes(openingWord)) {
     setStatus("Choose a valid opening word before running a simulation.", "error");
@@ -600,13 +612,13 @@ ui.patternInput.addEventListener("input", (e) => {
   e.target.value = normaliseWord(e.target.value).replace(/[^byg]/g, "").slice(0, 5);
 });
 ui.guessInput.addEventListener("input", (e) => {
-  e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, "").slice(0, 5);
+  e.target.value = sanitiseAlphaWord(e.target.value);
 });
 ui.openingWordInput.addEventListener("input", (e) => {
-  e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, "").slice(0, 5);
+  e.target.value = sanitiseAlphaWord(e.target.value);
 });
 ui.martinSolutionInput.addEventListener("input", (e) => {
-  e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, "").slice(0, 5);
+  e.target.value = sanitiseAlphaWord(e.target.value);
 });
 
 initialise();

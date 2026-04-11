@@ -745,7 +745,6 @@ function rankGuesses(
 
   positionalFrequencyTable = buildPositionalFrequencyTable(candidates);
   usagePriorTable = buildUsagePriorTable(candidates);
-  patternCache.clear();
 
   const candidateSet = new Set(candidates);
 
@@ -808,9 +807,9 @@ function rankGuesses(
     const imbalance = worstRatio - reductionRatio;
 
     if (candidateCount > 80 && reductionRatio > 0.78) continue;
-    if (candidateCount > 40 && reductionRatio > 0.52) continue;
+    if (candidateCount > 40 && reductionRatio > 0.60) continue;
+    if (candidateCount > 80 && worstRatio > 0.74) continue;
     if (candidateCount > 40 && worstRatio > 0.62) continue;
-    if (candidateCount > 40 && worstRatio > 0.74) continue;
 
     let score = 0;
 

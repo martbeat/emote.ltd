@@ -217,7 +217,7 @@ function compareRankedRows(a, b, candidateCount) {
 
 
 function resolveMode(candidateCount) {
-  if (candidateCount > 70) return "exploration";
+  if (candidateCount > 120) return "exploration";
   if (candidateCount > 20) return "mixed";
   return "exploitation";
 }
@@ -763,13 +763,15 @@ function rankGuesses(
     let score = 0;
 
     if (mode === "exploration") {
-      score += 2.4 * analysis.entropy;
-      score -= 1.1 * worstRatio;
-      score -= 0.6 * reductionRatio;
-      score += 0.35 * coverageScore(guess, usedLetters);
-      score += 0.18 * uniqueLetterScore(guess);
-      score += 0.01 * positionalScore(guess);
-      score -= 0.25 * repeatPenalty(guess);
+      const newLetters = coverageScore(guess, usedLetters);
+      const uniqueLetters = uniqueLetterScore(guess);
+      score += 4.0 * newLetters;
+      score += 1.5 * uniqueLetters;
+      score += 0.4 * analysis.entropy;
+      score += 0.02 * positionalScore(guess);
+      score -= 0.6 * repeatPenalty(guess);
+      score += 0.35 * (newLetters === 5 ? 1 : 0); // two-line high-impact tweak: reward full fresh probes
+      score -= 0.35 * (analysis.isCandidate && candidateCount > 120 ? 1 : 0); // two-line high-impact tweak: avoid early answer-locking
       if (analysis.isCandidate) score += 0.05;
 } else if (mode === "mixed") {
   const reduction = candidateCount - analysis.expectedLeft;

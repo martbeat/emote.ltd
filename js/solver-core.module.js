@@ -764,6 +764,18 @@ function rankGuesses(
         : "mixed"
       : resolveMode(candidateCount);
 
+    // structural constraint detection
+    const patternStrength = computePatternStrength(candidates);
+
+    // if most positions are already fixed, switch behaviour earlier
+    if (patternStrength >= 0.6 && candidateCount <= 80 && mode === "exploration") {
+      mode = "mixed";
+    }
+
+    if (patternStrength >= 0.8 && candidateCount <= 40) {
+      mode = "exploitation";
+    }
+  
   const usedLetters = new Set();
   const usedGuesses = new Set();
 
@@ -827,7 +839,7 @@ function rankGuesses(
       if (analysis.isCandidate) score += 0.05;
 } else if (mode === "mixed") {
   const reduction = candidateCount - analysis.expectedLeft;
-
+  score -= 0.8 * analysis.expectedLeft;
   // 🔥 PRIMARY: maximise reduction
   score += 2.2 * reduction;
 
@@ -844,10 +856,10 @@ function rankGuesses(
   score += 1.5 * reductionRatio;
   // 🔥 prefer real answers increasingly
 const candidateBias =
-  candidateCount <= 20 ? 1.2 :
-  candidateCount <= 40 ? 0.7 :
-  candidateCount <= 80 ? 0.35 :
-  0.1;
+  candidateCount <= 20 ? 1.4 :
+  candidateCount <= 40 ? 1.0 :
+  candidateCount <= 80 ? 0.8 :
+  0.2;
 
 if (analysis.isCandidate) {
   score += candidateBias;

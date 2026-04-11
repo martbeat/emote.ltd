@@ -835,7 +835,7 @@ function rankGuesses(
       score -= 0.6 * repeatPenalty(guess);
       score -= 1.1 * imbalance;
       score += 0.35 * (newLetters === 5 ? 1 : 0); // two-line high-impact tweak: reward full fresh probes
-      score -= 0.35 * (analysis.isCandidate && candidateCount > 120 ? 1 : 0); // two-line high-impact tweak: avoid early answer-locking
+      score -= 0.55 * (analysis.isCandidate && candidateCount > 120 ? 1 : 0); // two-line high-impact tweak: avoid early answer-locking
       if (analysis.isCandidate) score += 0.05;
 } else if (mode === "mixed") {
   const reduction = candidateCount - analysis.expectedLeft;

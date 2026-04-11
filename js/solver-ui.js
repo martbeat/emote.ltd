@@ -292,6 +292,51 @@ function pickCandidateAvoidingGreens(candidates, greenLetters, used) {
   return candidates.find(word => !used.has(word)) || candidates[0];
 }
 
+function pickProbeGuessIgnoringGreens(guessPool, candidates, greenLetters, used) {
+  if (!Array.isArray(guessPool) || !guessPool.length) return "";
+  const remaining = Array.isArray(candidates) ? candidates : [];
+  const candidateSet = new Set(remaining);
+
+  const scoreWord = (word) => {
+    const seen = new Set();
+    let score = 0;
+    for (const candidate of remaining) {
+      for (const ch of word) {
+        if (seen.has(`${candidate}|${ch}`)) continue;
+        if (candidate.includes(ch)) {
+          score++;
+          seen.add(`${candidate}|${ch}`);
+        }
+      }
+    }
+    return score;
+  };
+
+  const available = guessPool.filter(word => !used.has(word));
+  if (!available.length) return "";
+
+  const noGreen = available.filter((word) => {
+    for (const ch of word) {
+      if (greenLetters.has(ch)) return false;
+    }
+    return true;
+  });
+
+  const ranked = (noGreen.length ? noGreen : available).map(word => ({
+    word,
+    score: scoreWord(word),
+    isCandidate: candidateSet.has(word)
+  }));
+
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.isCandidate !== b.isCandidate) return a.isCandidate ? 1 : -1;
+    return a.word.localeCompare(b.word);
+  });
+
+  return ranked[0]?.word || "";
+}
+
 async function runMartinSimulation() {
   const solution = normaliseWord(ui.martinSolutionInput.value);
   const validTargets = state.answerMode === "fair" ? state.guesses : state.answers;
@@ -358,7 +403,10 @@ async function runMartinSimulation() {
     }
 
     if (candidates.length > 2) {
-      guess = pickCandidateAvoidingGreens(candidates, greenLetters, used);
+      guess = pickProbeGuessIgnoringGreens(state.guesses, candidates, greenLetters, used);
+      if (!guess) {
+        guess = pickCandidateAvoidingGreens(candidates, greenLetters, used);
+      }
       continue;
     }
 

@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260411.1";
+import "./solver-core.module.js?v=20260411.3";
 import { loadWordLists } from "./wordlists.js?v=20260406.3";
 
 const {
@@ -27,7 +27,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260411.1";
+const SOLVER_ASSET_VERSION = "20260411.3";
 
 const ui = {
   status: document.getElementById("status"),
@@ -410,7 +410,13 @@ async function runMartinSimulation() {
         guess = pickCandidateAvoidingGreens(candidates, greenLetters, used);
       }
       if (!guess) {
-        guess = state.guesses.find(word => !used.has(word)) || candidates.find(word => !used.has(word)) || candidates[0] || solution;
+        guess =
+          state.guesses.find(word => !used.has(word) && ![...word].some(ch => greenLetters.has(ch))) ||
+          candidates.find(word => !used.has(word) && ![...word].some(ch => greenLetters.has(ch))) ||
+          state.guesses.find(word => !used.has(word)) ||
+          candidates.find(word => !used.has(word)) ||
+          candidates[0] ||
+          solution;
       }
       continue;
     }

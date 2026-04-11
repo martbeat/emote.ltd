@@ -1,5 +1,5 @@
-import "./solver-core.module.js?v=20260411.3";
-import { loadWordLists } from "./wordlists.js?v=20260406.3";
+import "./solver-core.module.js?v=20260411.4";
+import { loadWordLists } from "./wordlists.js?v=20260411.4";
 
 const {
   normaliseWord,
@@ -27,7 +27,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260411.3";
+const SOLVER_ASSET_VERSION = "20260411.4";
 
 const ui = {
   status: document.getElementById("status"),

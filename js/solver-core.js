@@ -11,6 +11,6 @@
 
 (function () {
   if (typeof window !== "undefined") {
-    window.__SOLVER_CORE_MODULE_PATH__ = "./js/solver-core.module.js?v=20260406.3";
+    window.__SOLVER_CORE_MODULE_PATH__ = "./js/solver-core.module.js?v=20260411.4";
   }
 })();

@@ -8,7 +8,7 @@
  * `/js/solver-core.module.js` via dynamic import.
  */
 (function () {
-  const modulePath = "./js/solver-core.module.js?v=20260406.2";
+  const modulePath = "./js/solver-core.module.js?v=20260406.4";
 
   if (typeof globalThis !== "undefined") {
     globalThis.__SOLVER_CORE_MODULE_PATH__ = modulePath;

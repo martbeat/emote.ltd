@@ -121,7 +121,6 @@ function scoreGuessEncoded(guess, answer) {
   }
 
   patternCache.set(key, code);
-  patternCache.set(`${answer}|${guess}`, code);
   if (patternCache.size > 500000) patternCache.clear();
 
   return code;

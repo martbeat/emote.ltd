@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260406.3";
+import "./solver-core.module.js?v=20260406.4";
 
 const {
   rankGuesses,

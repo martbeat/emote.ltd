@@ -357,7 +357,7 @@ async function runMartinSimulation() {
       continue;
     }
 
-    if (candidates.length > 3) {
+    if (candidates.length > 2) {
       guess = pickCandidateAvoidingGreens(candidates, greenLetters, used);
       continue;
     }

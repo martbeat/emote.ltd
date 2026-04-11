@@ -11,6 +11,7 @@ const SOLVE_ENDGAME_MAX_DEPTH = 10;
 let positionalFrequencyTable = null;
 let usagePriorTable = null;
 const solveMemo = new Map();
+const patternCache = new Map();
 
 function normaliseWord(word) {
   return String(word || "").trim().toLowerCase();
@@ -79,6 +80,9 @@ function encodePattern(pattern) {
 const encodePatternString = encodePattern;
 
 function scoreGuessEncoded(guess, answer) {
+  const key = `${guess}|${answer}`;
+  const cached = patternCache.get(key);
+  if (cached !== undefined) return cached;
 
   guess = guess.toLowerCase();
   answer = answer.toLowerCase();
@@ -115,6 +119,10 @@ function scoreGuessEncoded(guess, answer) {
   for (let i = 0; i < 5; i++) {
     code = code * 3 + result[i];
   }
+
+  patternCache.set(key, code);
+  patternCache.set(`${answer}|${guess}`, code);
+  if (patternCache.size > 500000) patternCache.clear();
 
   return code;
 }
@@ -695,6 +703,7 @@ function rankGuesses(
 
   positionalFrequencyTable = buildPositionalFrequencyTable(candidates);
   usagePriorTable = buildUsagePriorTable(candidates);
+  patternCache.clear();
 
   const candidateSet = new Set(candidates);
 
@@ -754,6 +763,7 @@ function rankGuesses(
 
     const reductionRatio = analysis.expectedLeft / candidateCount;
     const worstRatio = analysis.worstCase / candidateCount;
+    const imbalance = worstRatio - reductionRatio;
 
     if (candidateCount > 80 && reductionRatio > 0.78) continue;
     if (candidateCount > 40 && reductionRatio > 0.52) continue;
@@ -770,6 +780,7 @@ function rankGuesses(
       score += 0.4 * analysis.entropy;
       score += 0.02 * positionalScore(guess);
       score -= 0.6 * repeatPenalty(guess);
+      score -= 1.1 * imbalance;
       score += 0.35 * (newLetters === 5 ? 1 : 0); // two-line high-impact tweak: reward full fresh probes
       score -= 0.35 * (analysis.isCandidate && candidateCount > 120 ? 1 : 0); // two-line high-impact tweak: avoid early answer-locking
       if (analysis.isCandidate) score += 0.05;
@@ -787,6 +798,7 @@ function rankGuesses(
 
   // 🔥 LIGHT entropy (only as tie-breaker)
   score += 0.2 * analysis.entropy;
+  score -= 1.1 * imbalance;
   const reductionRatio = (candidateCount - analysis.expectedLeft) / candidateCount;
   score += 1.5 * reductionRatio;
   // 🔥 prefer real answers increasingly
@@ -808,6 +820,7 @@ if (analysis.isCandidate) {
       score += 3.0 * analysis.solveProbability;
       score += 0.04 * positionalScore(guess);
       if (analysis.isCandidate) score += 0.60;
+      if (candidateCount <= 3 && analysis.isCandidate) score += 2;
     }
 
     if (usedGuesses.has(guess)) {

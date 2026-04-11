@@ -1,10 +1,11 @@
-import "./solver-core.module.js?v=20260406.4";
+import "./solver-core.module.js?v=20260411.1";
 import { loadWordLists } from "./wordlists.js?v=20260406.3";
 
 const {
   normaliseWord,
   decodePattern,
   encodePatternString,
+  scoreGuessEncoded,
   filterCandidates,
   rankGuesses,
   chooseGuessPool,
@@ -26,7 +27,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260406.4";
+const SOLVER_ASSET_VERSION = "20260411.1";
 
 const ui = {
   status: document.getElementById("status"),
@@ -51,6 +52,9 @@ const ui = {
   simulationModeSelect: document.getElementById("simulationModeSelect"),
   simulateBtn: document.getElementById("simulateBtn"),
   simulationOutput: document.getElementById("simulationOutput"),
+  martinSolutionInput: document.getElementById("martinSolutionInput"),
+  martinSimulateBtn: document.getElementById("martinSimulateBtn"),
+  martinSimulationOutput: document.getElementById("martinSimulationOutput"),
   answerCount: document.getElementById("answerCount"),
   guessCount: document.getElementById("guessCount"),
   sourceName: document.getElementById("sourceName"),
@@ -256,6 +260,184 @@ function resetState() {
   const next = buildDefaultHistoryState(state.candidates);
   state.history = next.history;
   ui.simulationOutput.innerHTML = "";
+  ui.martinSimulationOutput.innerHTML = "";
+}
+
+function getBaseCandidatesForMode() {
+  if (state.answerMode === "fair") return [...state.guesses];
+  return [...state.answers];
+}
+
+function countVowelHits(guess, patternCode) {
+  const pattern = decodePattern(patternCode);
+  let hits = 0;
+  for (let i = 0; i < 5; i++) {
+    if ("aeiou".includes(guess[i]) && pattern[i] !== "b") {
+      hits++;
+    }
+  }
+  return hits;
+}
+
+function pickCandidateAvoidingGreens(candidates, greenLetters, used) {
+  if (!Array.isArray(candidates) || !candidates.length) return "";
+  const filtered = candidates.filter((word) => {
+    if (used.has(word)) return false;
+    for (const ch of word) {
+      if (greenLetters.has(ch)) return false;
+    }
+    return true;
+  });
+  if (filtered.length) return filtered[0];
+  return candidates.find(word => !used.has(word)) || candidates[0];
+}
+
+function pickProbeGuessIgnoringGreens(guessPool, candidates, greenLetters, used) {
+  if (!Array.isArray(guessPool) || !guessPool.length) return "";
+  const remaining = Array.isArray(candidates) ? candidates : [];
+  const candidateSet = new Set(remaining);
+
+  const scoreWord = (word) => {
+    const seen = new Set();
+    let score = 0;
+    for (const candidate of remaining) {
+      for (const ch of word) {
+        if (seen.has(`${candidate}|${ch}`)) continue;
+        if (candidate.includes(ch)) {
+          score++;
+          seen.add(`${candidate}|${ch}`);
+        }
+      }
+    }
+    return score;
+  };
+
+  const available = guessPool.filter(word => !used.has(word));
+  if (!available.length) return "";
+
+  const noGreen = available.filter((word) => {
+    for (const ch of word) {
+      if (greenLetters.has(ch)) return false;
+    }
+    return true;
+  });
+
+  const ranked = (noGreen.length ? noGreen : available).map(word => ({
+    word,
+    score: scoreWord(word),
+    isCandidate: candidateSet.has(word)
+  }));
+
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.isCandidate !== b.isCandidate) return a.isCandidate ? 1 : -1;
+    return a.word.localeCompare(b.word);
+  });
+
+  return ranked[0]?.word || "";
+}
+
+async function runMartinSimulation() {
+  const solution = normaliseWord(ui.martinSolutionInput.value);
+  const validTargets = state.answerMode === "fair" ? state.guesses : state.answers;
+  if (!solution || !validTargets.includes(solution)) {
+    ui.martinSimulationOutput.innerHTML = "<p class=\"subtle\">Enter a valid 5-letter target word, then run the simulation.</p>";
+    setStatus("Enter a valid target word from the loaded lists.", "error");
+    return;
+  }
+
+  ui.martinSimulationOutput.innerHTML = "<p>Running Martin simulation…</p>";
+
+  let candidates = getBaseCandidatesForMode();
+  const used = new Set();
+  const steps = [];
+  const greenLetters = new Set();
+
+  const commitStep = (guess) => {
+    const patternCode = scoreGuessEncoded(guess, solution);
+    const pattern = decodePattern(patternCode);
+    candidates = filterCandidates(candidates, guess, patternCode);
+    used.add(guess);
+
+    for (let i = 0; i < 5; i++) {
+      if (pattern[i] === "g") {
+        greenLetters.add(guess[i]);
+      }
+    }
+
+    steps.push({
+      guess,
+      pattern,
+      remaining: candidates.length
+    });
+
+    return pattern;
+  };
+
+  let guess = "tales";
+  if (!state.guesses.includes(guess)) {
+    setStatus("Martin opener 'tales' is not in the allowed guess list.", "error");
+    return;
+  }
+
+  for (let turn = 1; turn <= 8; turn++) {
+    const pattern = commitStep(guess);
+    if (guess === solution || pattern === "ggggg") break;
+    if (candidates.length <= 1) {
+      guess = candidates[0] || solution;
+      continue;
+    }
+
+    if (turn === 1) {
+      const vowelHits = countVowelHits(guess, encodePatternString(pattern));
+      guess = vowelHits >= 2 ? "chink" : "proud";
+      if (!state.guesses.includes(guess)) {
+        guess = candidates[0];
+      }
+      continue;
+    }
+
+    if (candidates.length <= 2) {
+      guess = candidates.find(word => !used.has(word)) || candidates[0] || solution;
+      continue;
+    }
+
+    if (candidates.length > 2) {
+      guess = pickProbeGuessIgnoringGreens(state.guesses, candidates, greenLetters, used);
+      if (!guess) {
+        guess = pickCandidateAvoidingGreens(candidates, greenLetters, used);
+      }
+      continue;
+    }
+
+    guess = candidates.find(word => !used.has(word)) || candidates[0];
+  }
+
+  const solved = steps.length && steps[steps.length - 1].guess === solution;
+  const rows = steps
+    .map((step, index) => `<tr><td>${index + 1}</td><td class="mono">${step.guess}</td><td class="mono">${step.pattern}</td><td>${step.remaining}</td></tr>`)
+    .join("");
+
+  ui.martinSimulationOutput.innerHTML = `
+    <div class="stats small-gap">
+      <div class="stat"><div class="k">Target solution</div><div class="v mono">${solution}</div></div>
+      <div class="stat"><div class="k">Solved</div><div class="v">${solved ? "Yes" : "No"}</div></div>
+      <div class="stat"><div class="k">Guesses used</div><div class="v">${steps.length}</div></div>
+      <div class="stat"><div class="k">Final candidates</div><div class="v">${steps.length ? steps[steps.length - 1].remaining : candidates.length}</div></div>
+    </div>
+    <h4 style="margin-top:16px;">Guess path</h4>
+    <table class="table">
+      <thead><tr><th>#</th><th>Guess</th><th>Pattern</th><th>Remaining</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  setStatus(
+    solved
+      ? `Martin simulation solved ${solution} in ${steps.length} guesses.`
+      : `Martin simulation finished without solving ${solution} after ${steps.length} guesses.`,
+    solved ? "ok" : "warn"
+  );
 }
 
 async function applyClue() {
@@ -395,6 +577,7 @@ ui.resetBtn.addEventListener("click", () => {
   recalcRecommendations().catch(err => setStatus(err.message, "error"));
 });
 ui.simulateBtn.addEventListener("click", () => runSimulation().catch(err => setStatus(err.message, "error")));
+ui.martinSimulateBtn.addEventListener("click", () => runMartinSimulation().catch(err => setStatus(err.message, "error")));
 ui.answerMode.addEventListener("change", () => {
   state.answerMode = ui.answerMode.value;
   resetState();
@@ -409,6 +592,9 @@ ui.guessInput.addEventListener("input", (e) => {
   e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, "").slice(0, 5);
 });
 ui.openingWordInput.addEventListener("input", (e) => {
+  e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, "").slice(0, 5);
+});
+ui.martinSolutionInput.addEventListener("input", (e) => {
   e.target.value = normaliseWord(e.target.value).replace(/[^a-z]/g, "").slice(0, 5);
 });
 

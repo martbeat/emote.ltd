@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260406.4";
+import "./solver-core.module.js?v=20260411.1";
 import { loadWordLists } from "./wordlists.js?v=20260406.3";
 
 const {
@@ -27,7 +27,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260406.4";
+const SOLVER_ASSET_VERSION = "20260411.1";
 
 const ui = {
   status: document.getElementById("status"),
@@ -294,10 +294,14 @@ function pickCandidateAvoidingGreens(candidates, greenLetters, used) {
 
 async function runMartinSimulation() {
   const solution = normaliseWord(ui.martinSolutionInput.value);
-  if (!solution || !state.answers.includes(solution)) {
-    setStatus("Enter a valid solution from the loaded answer list.", "error");
+  const validTargets = state.answerMode === "fair" ? state.guesses : state.answers;
+  if (!solution || !validTargets.includes(solution)) {
+    ui.martinSimulationOutput.innerHTML = "<p class=\"subtle\">Enter a valid 5-letter target word, then run the simulation.</p>";
+    setStatus("Enter a valid target word from the loaded lists.", "error");
     return;
   }
+
+  ui.martinSimulationOutput.innerHTML = "<p>Running Martin simulation…</p>";
 
   let candidates = getBaseCandidatesForMode();
   const used = new Set();

@@ -352,8 +352,8 @@ async function runMartinSimulation() {
       continue;
     }
 
-    if (candidates.length <= 2 && state.guesses.includes("chink") && !used.has("chink")) {
-      guess = "chink";
+    if (candidates.length <= 2) {
+      guess = candidates.find(word => !used.has(word)) || candidates[0] || solution;
       continue;
     }
 

@@ -267,8 +267,8 @@ function compareRankedRows(a, b, candidateCount) {
 
 
 function resolveMode(candidateCount) {
-  if (candidateCount > 120) return "exploration";
-  if (candidateCount > 20) return "mixed";
+  if (candidateCount > 150) return "exploration";
+  if (candidateCount > 30) return "mixed";
   return "exploitation";
 }
 
@@ -753,17 +753,16 @@ function rankGuesses(
     return rankByRecursiveSolveDepth(candidates, dictionary, limit, getAdaptiveSolveDepth(candidateCount));
   }
 
-  const mode =
-    forceMode === "candidates"
-      ? "exploitation"
-      : forceMode === "all"
-      ? candidateCount > 60
-        ? "exploration"
-        : candidateCount <= FINISHING_THRESHOLD
+  let mode =
+      forceMode === "candidates"
         ? "exploitation"
-        : "mixed"
-      : resolveMode(candidateCount);
+        : resolveMode(candidateCount);
 
+    if (forceMode === "all") {
+      if (candidateCount > 120) mode = "exploration";
+      else if (candidateCount <= FINISHING_THRESHOLD) mode = "exploitation";
+      else mode = "mixed";
+    }
     // structural constraint detection
     const patternStrength = computePatternStrength(candidates);
 

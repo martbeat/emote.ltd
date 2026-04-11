@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260411.1";
+import "./solver-core.module.js?v=20260411.3";
 import { loadWordLists } from "./wordlists.js?v=20260406.3";
 
 const {
@@ -27,7 +27,7 @@ const state = {
   workerReady: false,
   answerMode: "hard"
 };
-const SOLVER_ASSET_VERSION = "20260411.1";
+const SOLVER_ASSET_VERSION = "20260411.3";
 
 const ui = {
   status: document.getElementById("status"),
@@ -289,7 +289,7 @@ function pickCandidateAvoidingGreens(candidates, greenLetters, used) {
     return true;
   });
   if (filtered.length) return filtered[0];
-  return candidates.find(word => !used.has(word)) || candidates[0];
+  return "";
 }
 
 function pickProbeGuessIgnoringGreens(guessPool, candidates, greenLetters, used) {
@@ -322,7 +322,9 @@ function pickProbeGuessIgnoringGreens(guessPool, candidates, greenLetters, used)
     return true;
   });
 
-  const ranked = (noGreen.length ? noGreen : available).map(word => ({
+  if (!noGreen.length) return "";
+
+  const ranked = noGreen.map(word => ({
     word,
     score: scoreWord(word),
     isCandidate: candidateSet.has(word)
@@ -406,6 +408,15 @@ async function runMartinSimulation() {
       guess = pickProbeGuessIgnoringGreens(state.guesses, candidates, greenLetters, used);
       if (!guess) {
         guess = pickCandidateAvoidingGreens(candidates, greenLetters, used);
+      }
+      if (!guess) {
+        guess =
+          state.guesses.find(word => !used.has(word) && ![...word].some(ch => greenLetters.has(ch))) ||
+          candidates.find(word => !used.has(word) && ![...word].some(ch => greenLetters.has(ch))) ||
+          state.guesses.find(word => !used.has(word)) ||
+          candidates.find(word => !used.has(word)) ||
+          candidates[0] ||
+          solution;
       }
       continue;
     }

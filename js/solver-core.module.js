@@ -181,6 +181,48 @@ function shouldUseBreakerGuess(bestCandidate, bestOverall, candidateCount) {
   return false;
 }
 
+function shouldSuppressNonCandidateInLateGame(row, bestCandidate, candidateCount) {
+  if (!row || row.isCandidate) return false;
+  if (!bestCandidate) return false;
+  if (candidateCount > 30) return false;
+
+  const expectedMargin = Math.max(1.5, candidateCount * 0.12);
+  const worstCaseMargin = Math.max(1, Math.ceil(candidateCount * 0.08));
+
+  const improvesExpectedLeft =
+    row.expectedLeft <= bestCandidate.expectedLeft - expectedMargin;
+  const improvesWorstCase =
+    row.worstCase <= bestCandidate.worstCase - worstCaseMargin;
+
+  return !(improvesExpectedLeft && improvesWorstCase);
+}
+
+function compareMainRankRows(a, b, candidateCount) {
+  if (b.score !== a.score) return b.score - a.score;
+
+  if (candidateCount <= 20 && a.isCandidate !== b.isCandidate) {
+    return Number(b.isCandidate) - Number(a.isCandidate);
+  }
+
+  if (b.solveProbability !== a.solveProbability) {
+    return b.solveProbability - a.solveProbability;
+  }
+
+  if (a.expectedLeft !== b.expectedLeft) {
+    return a.expectedLeft - b.expectedLeft;
+  }
+
+  if (a.worstCase !== b.worstCase) {
+    return a.worstCase - b.worstCase;
+  }
+
+  if (b.entropy !== a.entropy) {
+    return b.entropy - a.entropy;
+  }
+
+  return a.word.localeCompare(b.word);
+}
+
 function getAdaptiveSolveDepth(candidateCount) {
   if (candidateCount <= 6) return SOLVE_ENDGAME_MAX_DEPTH;
   if (candidateCount <= 10) return SOLVE_MID_MAX_DEPTH;
@@ -832,31 +874,19 @@ if (analysis.isCandidate) {
     });
   }
 
-  ranked.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
+  ranked.sort((a, b) => compareMainRankRows(a, b, candidateCount));
 
-    if (candidateCount <= 20 && a.isCandidate !== b.isCandidate) {
-      return Number(b.isCandidate) - Number(a.isCandidate);
+  if (candidateCount <= 30) {
+    const bestCandidate = ranked.find(row => row.isCandidate) || null;
+    if (bestCandidate) {
+      for (const row of ranked) {
+        if (shouldSuppressNonCandidateInLateGame(row, bestCandidate, candidateCount)) {
+          row.score -= 8;
+        }
+      }
+      ranked.sort((a, b) => compareMainRankRows(a, b, candidateCount));
     }
-
-    if (b.solveProbability !== a.solveProbability) {
-      return b.solveProbability - a.solveProbability;
-    }
-
-    if (a.expectedLeft !== b.expectedLeft) {
-      return a.expectedLeft - b.expectedLeft;
-    }
-
-    if (a.worstCase !== b.worstCase) {
-      return a.worstCase - b.worstCase;
-    }
-
-    if (b.entropy !== a.entropy) {
-      return b.entropy - a.entropy;
-    }
-
-    return a.word.localeCompare(b.word);
-  });
+  }
 
   return ranked.slice(0, limit);
 }

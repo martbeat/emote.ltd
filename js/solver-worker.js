@@ -1,4 +1,4 @@
-import "./solver-core.module.js?v=20260411-5";
+import "./solver-core.module.js?v=20260411-6";
 
 if (!globalThis.SolverCore) {
   throw new Error("SolverCore failed to load in worker.");

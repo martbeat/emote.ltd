@@ -888,6 +888,43 @@ if (analysis.isCandidate) {
     }
   }
 
+  if (candidateCount <= 30) {
+    const bestCandidate = ranked.find(row => row.isCandidate) || null;
+    if (bestCandidate) {
+      for (const row of ranked) {
+        if (shouldSuppressNonCandidateInLateGame(row, bestCandidate, candidateCount)) {
+          row.score -= 6;
+        }
+      }
+
+      ranked.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+
+        if (candidateCount <= 20 && a.isCandidate !== b.isCandidate) {
+          return Number(b.isCandidate) - Number(a.isCandidate);
+        }
+
+        if (b.solveProbability !== a.solveProbability) {
+          return b.solveProbability - a.solveProbability;
+        }
+
+        if (a.expectedLeft !== b.expectedLeft) {
+          return a.expectedLeft - b.expectedLeft;
+        }
+
+        if (a.worstCase !== b.worstCase) {
+          return a.worstCase - b.worstCase;
+        }
+
+        if (b.entropy !== a.entropy) {
+          return b.entropy - a.entropy;
+        }
+
+        return a.word.localeCompare(b.word);
+      });
+    }
+  }
+
   return ranked.slice(0, limit);
 }
 

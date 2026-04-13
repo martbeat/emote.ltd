@@ -32,6 +32,14 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <select id="theme">
 <option value="dark" selected>Dark</option>
 <option value="default">Default</option>
+<option value="neutral">Neutral</option>
+<option value="forest">Forest</option>
+<option value="base">Base</option>
+<option value="midnight">Midnight</option>
+<option value="sunset">Sunset</option>
+<option value="ocean">Ocean</option>
+<option value="slate">Slate</option>
+<option value="rose">Rose</option>
 </select>
 </div>
 <textarea id="code"></textarea>
@@ -66,6 +74,73 @@ let dragStartY = 0;
 let scrollStartLeft = 0;
 let scrollStartTop = 0;
 let navigationBound = false;
+const THEME_PRESETS = {
+  dark: { theme: 'dark', isDark: true },
+  default: { theme: 'default', isDark: false },
+  neutral: { theme: 'neutral', isDark: false },
+  forest: { theme: 'forest', isDark: false },
+  base: { theme: 'base', isDark: false },
+  midnight: {
+    theme: 'base',
+    isDark: true,
+    themeVariables: {
+      background: '#020617',
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#334155',
+      lineColor: '#7dd3fc',
+      tertiaryColor: '#0f172a'
+    }
+  },
+  sunset: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#fff7ed',
+      primaryColor: '#fed7aa',
+      primaryTextColor: '#7c2d12',
+      primaryBorderColor: '#fb923c',
+      lineColor: '#ea580c',
+      tertiaryColor: '#ffedd5'
+    }
+  },
+  ocean: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#ecfeff',
+      primaryColor: '#a5f3fc',
+      primaryTextColor: '#155e75',
+      primaryBorderColor: '#06b6d4',
+      lineColor: '#0891b2',
+      tertiaryColor: '#cffafe'
+    }
+  },
+  slate: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#f8fafc',
+      primaryColor: '#e2e8f0',
+      primaryTextColor: '#0f172a',
+      primaryBorderColor: '#64748b',
+      lineColor: '#334155',
+      tertiaryColor: '#f1f5f9'
+    }
+  },
+  rose: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#fff1f2',
+      primaryColor: '#fecdd3',
+      primaryTextColor: '#881337',
+      primaryBorderColor: '#f43f5e',
+      lineColor: '#e11d48',
+      tertiaryColor: '#ffe4e6'
+    }
+  }
+};
 
 // --- persistence ---
 const STORAGE_KEY = "mermaid_code";
@@ -149,11 +224,17 @@ function saveState(){
   localStorage.setItem(STORAGE_KEY, codeEl.value);
 }
 
+function getThemePreset(){
+  return THEME_PRESETS[theme.value] || THEME_PRESETS.dark;
+}
+
 // --- render ---
 function init(){
+const preset = getThemePreset();
 mermaid.initialize({
   startOnLoad:false,
-  theme:theme.value,
+  theme:preset.theme,
+  themeVariables:preset.themeVariables,
   securityLevel:'loose',
   suppressErrorRendering:true,
   flowchart:{
@@ -448,7 +529,7 @@ document.getElementById('png').onclick = async ()=>{
   const ctx = canvas.getContext('2d');
   ctx.setTransform(scale,0,0,scale,0,0);
 
-  ctx.fillStyle = theme.value === 'dark' ? '#0b0f1a' : '#ffffff';
+  ctx.fillStyle = getThemePreset().isDark ? '#0b0f1a' : '#ffffff';
   ctx.fillRect(0,0,width,height);
 
   const img = new Image();

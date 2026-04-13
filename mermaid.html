@@ -92,6 +92,7 @@ mermaid.initialize({
   startOnLoad:false,
   theme:theme.value,
   securityLevel:'loose',
+  suppressErrorRendering:true,
   flowchart:{
     htmlLabels:false
   }
@@ -219,6 +220,7 @@ async function render(){
   try{
     init();
     await document.fonts.ready;
+    await mermaid.parse(codeEl.value, { suppressErrors: true });
 
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = svg;

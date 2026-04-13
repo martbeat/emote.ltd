@@ -18,6 +18,8 @@ header{padding:12px;border-bottom:1px solid var(--border)}
 button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer}
 textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
 .preview-area{flex:1;overflow:auto;padding:15px}
+.render-canvas{display:inline-block;transform-origin:0 0;cursor:grab}
+.render-canvas.dragging{cursor:grabbing}
 .status{padding:6px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 </style></head>
 <body>
@@ -37,6 +39,9 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <div class="toolbar">
 <button id="svg">SVG</button>
 <button id="png">PNG</button>
+<button id="zoomOut" title="Zoom out">-</button>
+<button id="zoomIn" title="Zoom in">+</button>
+<button id="zoomReset" title="Reset zoom">100%</button>
 </div>
 <div class="preview-area" id="output"></div>
 <div class="status" id="status">Ready</div>
@@ -49,7 +54,18 @@ const output = document.getElementById('output');
 const status = document.getElementById('status');
 const theme = document.getElementById('theme');
 const renderBtn = document.getElementById('render');
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+const zoomResetBtn = document.getElementById('zoomReset');
 let hasErrorStatus = false;
+let zoomLevel = 1;
+let renderCanvas = null;
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let scrollStartLeft = 0;
+let scrollStartTop = 0;
+let navigationBound = false;
 
 // --- persistence ---
 const STORAGE_KEY = "mermaid_code";
@@ -63,6 +79,53 @@ function clearErrorStatus(){
   if(hasErrorStatus){
     setStatus('Ready');
   }
+}
+
+function applyZoom(){
+  if(!renderCanvas){
+    return;
+  }
+  renderCanvas.style.transform = `scale(${zoomLevel})`;
+}
+
+function setZoom(nextZoom){
+  zoomLevel = Math.min(4, Math.max(0.3, nextZoom));
+  applyZoom();
+}
+
+function setupCanvasNavigation(){
+  if(!renderCanvas || navigationBound){
+    return;
+  }
+  navigationBound = true;
+
+  output.addEventListener('mousedown',(event)=>{
+    if(!event.target.closest('.render-canvas')){
+      return;
+    }
+    isDragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    scrollStartLeft = output.scrollLeft;
+    scrollStartTop = output.scrollTop;
+    renderCanvas?.classList.add('dragging');
+    event.preventDefault();
+  });
+
+  window.addEventListener('mouseup',()=>{
+    isDragging = false;
+    renderCanvas?.classList.remove('dragging');
+  });
+
+  output.addEventListener('mousemove',(event)=>{
+    if(!isDragging){
+      return;
+    }
+    const deltaX = event.clientX - dragStartX;
+    const deltaY = event.clientY - dragStartY;
+    output.scrollLeft = scrollStartLeft - deltaX;
+    output.scrollTop = scrollStartTop - deltaY;
+  });
 }
 
 function loadState(){
@@ -223,7 +286,10 @@ async function render(){
     await mermaid.parse(codeEl.value, { suppressErrors: true });
 
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
-    output.innerHTML = svg;
+    output.innerHTML = `<div class="render-canvas">${svg}</div>`;
+    renderCanvas = output.querySelector('.render-canvas');
+    applyZoom();
+    setupCanvasNavigation();
 
     setStatus("Rendered");
     saveState();
@@ -240,6 +306,18 @@ codeEl.addEventListener('input',()=>{
 
 renderBtn.onclick = render;
 theme.onchange = render;
+zoomInBtn.onclick = ()=>setZoom(zoomLevel * 1.2);
+zoomOutBtn.onclick = ()=>setZoom(zoomLevel / 1.2);
+zoomResetBtn.onclick = ()=>setZoom(1);
+
+output.addEventListener('wheel',(event)=>{
+  if(!event.ctrlKey){
+    return;
+  }
+  event.preventDefault();
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  setZoom(zoomLevel * factor);
+},{passive:false});
 
 // --- share link ---
 document.getElementById('share').onclick = async ()=>{

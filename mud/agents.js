@@ -111,6 +111,53 @@ function adjustCooperation(agent, delta) {
   agent.cooperation = (agent.cooperation ?? 0) + delta;
 }
 
+const interactionEffects = {
+  porter: {
+    hello: { relationship: 1, cooperation: 1, trust: 1 },
+    ask: { relationship: 1, cooperation: 1, trust: 1 },
+    give: { relationship: 2, cooperation: 2, trust: 2 },
+    thank: { relationship: 1, cooperation: 1, trust: 1 },
+    insult: { relationship: -2, cooperation: -2, trust: -2 },
+    observe: { relationship: 0, cooperation: 0, trust: 0 },
+    poke: { relationship: -2, cooperation: -2, trust: -3 },
+    slap: { relationship: -4, cooperation: -4, trust: -5 },
+    kick: { relationship: -4, cooperation: -4, trust: -5 },
+  },
+  ada: {
+    hello: { relationship: 1, cooperation: 1, trust: 0 },
+    ask: { relationship: 1, cooperation: 1, trust: 0 },
+    give: { relationship: 2, cooperation: 2, trust: 0 },
+    thank: { relationship: 1, cooperation: 1, trust: 0 },
+    insult: { relationship: -2, cooperation: -2, trust: 0 },
+    observe: { relationship: 0, cooperation: 0, trust: 0 },
+    poke: { relationship: -2, cooperation: -2, trust: 0 },
+    slap: { relationship: -4, cooperation: -3, trust: 0 },
+    kick: { relationship: -4, cooperation: -3, trust: 0 },
+  },
+  bernard: {
+    hello: { relationship: 1, cooperation: 1, trust: 0 },
+    ask: { relationship: 2, cooperation: 1, trust: 0 },
+    give: { relationship: 1, cooperation: 2, trust: 0 },
+    thank: { relationship: 1, cooperation: 1, trust: 0 },
+    insult: { relationship: -2, cooperation: -2, trust: 0 },
+    observe: { relationship: 0, cooperation: 0, trust: 0 },
+    poke: { relationship: -2, cooperation: -2, trust: 0 },
+    slap: { relationship: -4, cooperation: -4, trust: 0 },
+    kick: { relationship: -4, cooperation: -4, trust: 0 },
+  },
+  cyra: {
+    hello: { relationship: 1, cooperation: 1, trust: 0 },
+    ask: { relationship: 1, cooperation: 1, trust: 0 },
+    give: { relationship: 1, cooperation: 2, trust: 0 },
+    thank: { relationship: 1, cooperation: 1, trust: 0 },
+    insult: { relationship: -1, cooperation: -2, trust: 0 },
+    observe: { relationship: 0, cooperation: 0, trust: 0 },
+    poke: { relationship: -2, cooperation: -2, trust: 0 },
+    slap: { relationship: -5, cooperation: -4, trust: 0 },
+    kick: { relationship: -5, cooperation: -4, trust: 0 },
+  },
+};
+
 export function interpretAgentInteraction(agents, social, payload) {
   const {
     targetId,
@@ -124,45 +171,13 @@ export function interpretAgentInteraction(agents, social, payload) {
     return { ok: false, text: 'Nobody by that name answers here.', css: 'warn' };
   }
 
-  const relationShifts = {
-    hello: 1,
-    ask: 1,
-    give: 2,
-    thank: 1,
-    insult: -2,
-    observe: 0,
-    poke: -2,
-    slap: -3,
-    kick: -3,
-  };
+  const effects = interactionEffects[targetId]?.[action]
+    ?? interactionEffects.porter[action]
+    ?? { relationship: 0, cooperation: 0, trust: 0 };
 
-  const coopShifts = {
-    hello: 1,
-    ask: 1,
-    give: 2,
-    thank: 1,
-    insult: -2,
-    observe: 0,
-    poke: -2,
-    slap: -3,
-    kick: -3,
-  };
-
-  const trustShifts = {
-    hello: 1,
-    ask: 1,
-    give: 2,
-    thank: 1,
-    insult: -2,
-    observe: 0,
-    poke: -2,
-    slap: -3,
-    kick: -3,
-  };
-
-  applyInteractionShift(social, targetId, relationShifts[action] ?? 0);
-  adjustCooperation(agent, coopShifts[action] ?? 0);
-  if (targetId === 'porter') shiftPorterTrust(agents, trustShifts[action] ?? 0);
+  applyInteractionShift(social, targetId, effects.relationship);
+  adjustCooperation(agent, effects.cooperation);
+  if (targetId === 'porter') shiftPorterTrust(agents, effects.trust);
 
   const styleAction = ['poke', 'slap', 'kick'].includes(action) ? 'physical' : action;
   const detail = styleAction === 'ask' ? topic : item;

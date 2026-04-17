@@ -54,6 +54,9 @@ import {
   interventionNarrative,
   phaseNarrative,
   maybeComposedScene,
+  maybeGhostTraceNarrative,
+  maybeDirectionalGhostGlimpse,
+  maybeAmbientSneezeNarrative,
 } from './narrative.js';
 
 function createGameState() {
@@ -131,6 +134,8 @@ function renderRoom() {
   if (Math.random() < pacing.ambientNarrativeChance) {
     line(atmosphereNarrative(state.system.state, state.narrative), 'hint');
   }
+  const roomGhost = maybeDirectionalGhostGlimpse(state.narrative);
+  if (roomGhost) line(roomGhost, 'hint');
   if (visits === 1) {
     const firstVisitLine = pacing.ambientNarrativeChance <= 0.1
       ? 'This space accepts your presence without comment.'
@@ -446,6 +451,13 @@ function processCommand(input) {
   if (coldStart) line(coldStart, 'hint');
   const sneeze = maybeSneeze(state.social, state.agents, state.player.currentRoom);
   if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
+  const ambientSneezeLines = maybeAmbientSneezeNarrative(
+    { porterNearby: state.agents.porter.roomId === state.player.currentRoom },
+    state.narrative,
+  );
+  ambientSneezeLines.forEach((ambientLine) => line(ambientLine, 'hint'));
+  const ghostTrace = maybeGhostTraceNarrative(state.narrative);
+  if (ghostTrace) line(ghostTrace, 'hint');
   const porterAbsentLine = maybePorterAbsenceLine(state.agents);
   if (porterAbsentLine) line(porterAbsentLine, 'hint');
   if (verb !== 'talk' && state.agents.porter.roomId === state.player.currentRoom && Math.random() < 0.22) {

@@ -57,6 +57,7 @@ import {
   maybeGhostTraceNarrative,
   maybeDirectionalGhostGlimpse,
   maybeAmbientSneezeNarrative,
+  maybeAmbientWorldEvent,
 } from './narrative.js';
 
 function createGameState() {
@@ -366,6 +367,7 @@ function processCommand(input) {
   const tensionBefore = state.system.tension;
   const priorTransitionTurn = state.system.lastTransition?.turn;
   const governanceVerbs = new Set(['suggest', 'decide', 'push', 'calm', 'shift', 'propose', 'vote', 'challenge', 'mediate', 'reset']);
+  let queuedAmbientEvent = null;
 
   const dirAliases = { n: 'north', s: 'south', e: 'east', w: 'west' };
   if (!governanceVerbs.has(verb)) {
@@ -433,7 +435,7 @@ function processCommand(input) {
       if (depth >= 2) line(positioningNarrative(votePositioning, state.narrative), 'hint');
       if (depth >= 2) line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
       if (depth >= 2) line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
-      if (depth >= 2) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      if (depth >= 2 && Math.random() < 0.78) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
       if (depth >= 1) line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
       if (depth >= 3) {
         maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative)
@@ -454,7 +456,7 @@ function processCommand(input) {
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('mediate', state.narrative), 'hint');
       line(positioningNarrative('mediation', state.narrative), 'hint');
-      line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      if (Math.random() < 0.74) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     }
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
     if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
@@ -472,7 +474,7 @@ function processCommand(input) {
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('challenge', state.narrative), 'hint');
       line(positioningNarrative('disagreement', state.narrative), 'hint');
-      line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      if (Math.random() < 0.74) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     }
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
     if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
@@ -489,7 +491,7 @@ function processCommand(input) {
     line(result.ripple, 'hint');
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('reset', state.narrative), 'hint');
-      line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      if (Math.random() < 0.72) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     }
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
@@ -549,16 +551,29 @@ function processCommand(input) {
     state.narrative,
   );
   ambientSneezeLines.forEach((ambientLine) => line(ambientLine, 'hint'));
+  queuedAmbientEvent = maybeAmbientWorldEvent(state.narrative);
+  if (queuedAmbientEvent && !queuedAmbientEvent.delayed) {
+    line(queuedAmbientEvent.line, 'hint');
+    queuedAmbientEvent = null;
+  }
   const ghostTrace = maybeGhostTraceNarrative(state.narrative);
   if (ghostTrace) line(ghostTrace, 'hint');
   const porterAbsentLine = maybePorterAbsenceLine(state.agents);
   if (porterAbsentLine) line(porterAbsentLine, 'hint');
-  if (verb !== 'talk' && state.agents.porter.roomId === state.player.currentRoom && Math.random() < 0.22) {
+  if (verb !== 'talk' && state.agents.porter.roomId === state.player.currentRoom && Math.random() < 0.16) {
     line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
-    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
-    line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
+    if (Math.random() < 0.65) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    if (Math.random() < 0.62) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
   maybeShowGovernanceHints(verb);
+
+  if (queuedAmbientEvent?.delayed) {
+    const delayedLine = queuedAmbientEvent.line;
+    window.setTimeout(() => {
+      line(delayedLine, 'hint');
+      refreshSidebar();
+    }, 250 + Math.floor(Math.random() * 250));
+  }
 
   refreshSidebar();
 }

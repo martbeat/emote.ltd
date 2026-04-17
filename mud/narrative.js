@@ -252,6 +252,28 @@ const ambientSneezeTemplates = {
   ],
 };
 
+const ambientWorldTemplates = {
+  movementTrace: [
+    'Down the corridor, a figure passes between doorframes and is gone before the shape settles.',
+    'A presence seems to cross a lit threshold, leaving only ordinary stillness behind it.',
+    'At the far edge of the hall, movement folds into shadow before you can place who it was.',
+  ],
+  distantSound: [
+    'Far off, footsteps gather and then scatter as if choosing another route.',
+    'A door closes somewhere out of sight; the sound arrives late and thin.',
+    'From deeper in the building, voices rise briefly and blur into distance.',
+  ],
+  socialEcho: [
+    'A stray phrase drifts in from elsewhere — not enough to know who said it or why.',
+    'Two sentences overlap in another room, then dissolve before any subject becomes clear.',
+    'You catch the tail of a conversation fragment that could have belonged to anyone.',
+  ],
+  sneeze: [
+    'From some uncertain room, a muffled sneeze interrupts the quiet and vanishes.',
+    'A distant sneeze arrives through the passageways, then nothing follows it.',
+  ],
+};
+
 export function createNarrativeState() {
   return {
     recentLines: [],
@@ -299,6 +321,20 @@ export function maybeAmbientSneezeNarrative(context = {}, narrative, rng = Math.
   remember(narrative, reply, 'ambient-sneeze');
   lines.push(reply);
   return lines;
+}
+
+export function maybeAmbientWorldEvent(narrative, rng = Math.random, chance = 0.24) {
+  ensureNarrativeInternals(narrative);
+  if (rng() > chance) return null;
+
+  const weightedTypes = ['movementTrace', 'movementTrace', 'distantSound', 'distantSound', 'socialEcho', 'socialEcho', 'sneeze'];
+  const selectedType = pick(weightedTypes, rng);
+  const line = pickFresh(ambientWorldTemplates[selectedType], narrative.recentLines, rng, 10);
+  remember(narrative, line, 'ambient-world');
+  return {
+    line,
+    delayed: rng() < 0.32,
+  };
 }
 
 export function porterReflection(systemState, social, narrative, rng = Math.random) {
@@ -411,7 +447,7 @@ export function phaseNarrative(system, committeeMemory, narrative, rng = Math.ra
 
 export function maybeComposedScene(systemState, social, positioningKind, narrative, rng = Math.random) {
   ensureNarrativeInternals(narrative);
-  if (rng() > 0.2) return [];
+  if (rng() > 0.16) return [];
 
   let scene = [];
   for (let attempts = 0; attempts < 3; attempts += 1) {

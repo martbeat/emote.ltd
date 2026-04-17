@@ -12,6 +12,7 @@ export function createAgents() {
       roomId: 'foyer',
       memory: [],
       trust: 0,
+      cooperation: 0,
       attitude: 'watchful',
       turnsSinceSeen: 0,
       lastSeenRoom: 'foyer',
@@ -23,6 +24,7 @@ export function createAgents() {
       influence: 0.75,
       bias: 'change',
       relationship: 0,
+      cooperation: 0,
     },
     bernard: {
       id: 'bernard',
@@ -31,6 +33,7 @@ export function createAgents() {
       influence: 0.45,
       bias: 'stability',
       relationship: 0,
+      cooperation: 0,
     },
     cyra: {
       id: 'cyra',
@@ -39,8 +42,147 @@ export function createAgents() {
       influence: 0.6,
       bias: 'stability',
       relationship: 0,
+      cooperation: 0,
     },
   };
+}
+
+const interactionProfiles = {
+  porter: {
+    hello: [
+      "The porter inclines his head. 'Good. We can proceed without theatre.'",
+      "The porter says, 'Hello. Courtesy keeps hinges from squealing.'",
+    ],
+    ask: (topic) => `The porter considers. '${topic ? `On ${topic},` : 'On that,'} procedure reveals character faster than confession.'`,
+    give: (item) => `The porter receives ${item} without hurry. 'Items move; obligations remain.'`,
+    thank: [
+      "The porter says, 'Gratitude is efficient. Keep it precise.'",
+      "The porter nods once. 'Noted. Let's not canonise basic decency.'",
+    ],
+    insult: [
+      "The porter lets the remark pass. 'Volume is not authority.'",
+      "The porter says, 'You can mock me. The lock still reports to procedure.'",
+    ],
+    observe: [
+      'The porter stands in practiced stillness, as if conserving conclusions.',
+      "You notice the porter tracks exits more than faces. Habit, or philosophy.",
+    ],
+    physical: (kind) => `The porter steps back before you complete the ${kind}. 'Let's remain civil and ambulatory.'`,
+  },
+  ada: {
+    hello: ["Ada smiles briefly. 'Good. Less ceremony, more momentum.'"],
+    ask: (topic) => `Ada says, '${topic ? `${topic} is` : 'That is'} mostly timing disguised as principle.'`,
+    give: (item) => `Ada takes ${item} and immediately asks what it enables next.`,
+    thank: ["Ada says, 'You're welcome, but don't confuse help with agreement.'"],
+    insult: ["Ada raises an eyebrow. 'If this is strategy, it lacks a second step.'"],
+    observe: ['Ada paces half a step ahead of the room, rehearsing outcomes before anyone votes.'],
+    physical: (kind) => `Ada avoids the ${kind} with irritated ease. 'Use words, unless you've misplaced them.'`,
+  },
+  bernard: {
+    hello: ["Bernard nods. 'Hello. Let's keep assumptions labelled.'"],
+    ask: (topic) => `Bernard says, '${topic ? `${topic} deserves` : 'It deserves'} slower claims and better evidence.'`,
+    give: (item) => `Bernard accepts ${item} as though it might still be a test case.`,
+    thank: ["Bernard says, 'Acknowledged. Appreciation is easier than accountability.'"],
+    insult: ["Bernard exhales. 'Mockery is quick. Repair is slower.'"],
+    observe: ['Bernard watches people finish speaking, then edits the room in quieter terms.'],
+    physical: (kind) => `Bernard recoils from the ${kind}. 'Unnecessary. Also unhelpful.'`,
+  },
+  cyra: {
+    hello: ["Cyra gives you a crooked smile. 'Hi. We can pretend this is simple.'"],
+    ask: (topic) => `Cyra says, '${topic ? `${topic}?` : 'That?'} Depends who gets blamed when it works.'`,
+    give: (item) => `Cyra pockets ${item} lightly. 'I'll call it a gift unless accounting objects.'`,
+    thank: ["Cyra shrugs. 'Thanks accepted. Interest accrues as future favours.'"],
+    insult: ["Cyra laughs once. 'Sharp. Not deep, but sharp.'"],
+    observe: ['Cyra watches corners and conversations equally, as if both leak useful truth.'],
+    physical: (kind) => `Cyra catches your wrist before the ${kind} lands. 'We said no combat systems, remember?'`,
+  },
+};
+
+function profileLine(agentId, action, detail = '') {
+  const profile = interactionProfiles[agentId] ?? interactionProfiles.porter;
+  const entry = profile[action];
+  if (typeof entry === 'function') return entry(detail);
+  if (Array.isArray(entry)) return entry[Math.floor(Math.random() * entry.length)];
+  return "They acknowledge you, but reserve interpretation.";
+}
+
+function adjustCooperation(agent, delta) {
+  if (!agent) return;
+  agent.cooperation = (agent.cooperation ?? 0) + delta;
+}
+
+export function interpretAgentInteraction(agents, social, payload) {
+  const {
+    targetId,
+    action,
+    topic = '',
+    item = '',
+  } = payload;
+
+  const agent = agents[targetId];
+  if (!agent) {
+    return { ok: false, text: 'Nobody by that name answers here.', css: 'warn' };
+  }
+
+  const relationShifts = {
+    hello: 1,
+    ask: 1,
+    give: 2,
+    thank: 1,
+    insult: -2,
+    observe: 0,
+    poke: -2,
+    slap: -3,
+    kick: -3,
+  };
+
+  const coopShifts = {
+    hello: 1,
+    ask: 1,
+    give: 2,
+    thank: 1,
+    insult: -2,
+    observe: 0,
+    poke: -2,
+    slap: -3,
+    kick: -3,
+  };
+
+  const trustShifts = {
+    hello: 1,
+    ask: 1,
+    give: 2,
+    thank: 1,
+    insult: -2,
+    observe: 0,
+    poke: -2,
+    slap: -3,
+    kick: -3,
+  };
+
+  applyInteractionShift(social, targetId, relationShifts[action] ?? 0);
+  adjustCooperation(agent, coopShifts[action] ?? 0);
+  if (targetId === 'porter') shiftPorterTrust(agents, trustShifts[action] ?? 0);
+
+  const styleAction = ['poke', 'slap', 'kick'].includes(action) ? 'physical' : action;
+  const detail = styleAction === 'ask' ? topic : item;
+  const response = profileLine(targetId, styleAction, detail);
+  const relationship = social.relationships[targetId] ?? 0;
+  const posture = relationship >= 4
+    ? 'They seem readier to cooperate with you now.'
+    : relationship <= -3
+      ? 'Future cooperation from them now feels less likely.'
+      : 'The relationship shifts by a quiet degree.';
+
+  return {
+    ok: true,
+    text: `${response} ${posture}`,
+    css: ['insult', 'poke', 'slap', 'kick'].includes(action) ? 'danger' : 'hint',
+  };
+}
+
+function applyInteractionShift(social, targetId, delta) {
+  social.relationships[targetId] = (social.relationships[targetId] ?? 0) + delta;
 }
 
 const roamingRooms = {

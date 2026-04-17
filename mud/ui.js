@@ -18,6 +18,7 @@ import {
   maybePorterAbsenceLine,
   shiftPorterTrust,
   recordPorterMemory,
+  narrateAgentContinuity,
 } from './agents.js';
 import {
   createSocialState,
@@ -534,7 +535,13 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
-  moveAgents(state.agents, state.system.state);
+  const previousAgentRooms = moveAgents(state.agents, state.system.state);
+  const continuityLine = narrateAgentContinuity(
+    state.agents,
+    previousAgentRooms,
+    state.player.currentRoom,
+  );
+  if (continuityLine) line(continuityLine, 'hint');
   const tensionLine = tensionShiftNarrative(tensionBefore, state.system.tension, state.narrative);
   if (tensionLine) line(tensionLine, 'hint');
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {

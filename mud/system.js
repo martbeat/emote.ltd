@@ -111,7 +111,7 @@ function undertowLine(drift, rng, favoursText, resistsText) {
 }
 
 export function mediate(system, drift = 0, rng = Math.random) {
-  const baseChance = system.state === 'chaotic' ? 0.75 : 0.55;
+  const baseChance = system.state === 'chaotic' ? 0.82 : 0.68;
   const chance = resolveActionChance(baseChance, drift, rng, 0.1, 0.9);
   const undertow = undertowLine(
     drift,
@@ -119,7 +119,8 @@ export function mediate(system, drift = 0, rng = Math.random) {
     'A side glance suggests some people were already ready to meet you halfway.',
     'The tone is right, but familiarity blunts some of the invitation.',
   );
-  if (rng() < chance) {
+  const roll = rng();
+  if (roll < chance) {
     const delta = shiftTension(system, -2);
     system.alignment += 1;
     system.recentRipples.unshift('A quiet side-conversation continues after your mediation.');
@@ -130,6 +131,18 @@ export function mediate(system, drift = 0, rng = Math.random) {
       ripple: `${delta.direction === 'down'
         ? 'A few members now defer to form rather than personality.'
         : 'The room nods, though nobody is ready to call it harmony.'}${undertow ? ` ${undertow}` : ''}`,
+    };
+  }
+  if (roll < chance + 0.25) {
+    const delta = shiftTension(system, 0);
+    system.recentRipples.unshift('People accept the lower register, but no one changes their footing yet.');
+    system.recentRipples = system.recentRipples.slice(0, 4);
+    return {
+      ok: false,
+      text: 'Your mediation steadies the tone, but positions mostly hold.',
+      ripple: `${delta.direction === 'flat'
+        ? 'There is less heat, but the same distance between positions.'
+        : 'The room appears calmer without becoming more flexible.'}${undertow ? ` ${undertow}` : ''}`,
     };
   }
   const delta = shiftTension(system, 1);
@@ -145,7 +158,7 @@ export function mediate(system, drift = 0, rng = Math.random) {
 }
 
 export function challenge(system, drift = 0, rng = Math.random) {
-  const baseChance = system.state === 'stagnant' ? 0.72 : 0.52;
+  const baseChance = system.state === 'stagnant' ? 0.76 : 0.56;
   const chance = resolveActionChance(baseChance, drift, rng, 0.1, 0.9);
   const undertow = undertowLine(
     drift,
@@ -153,17 +166,21 @@ export function challenge(system, drift = 0, rng = Math.random) {
     'The room had been waiting for someone to press the weak seam aloud.',
     'Several listeners seem unsurprised, as if they had rehearsed their resistance.',
   );
-  const delta = shiftTension(system, 2);
-  if (rng() < chance) {
+  const roll = rng();
+  const unlocksMovement = roll < chance && rng() < (system.state === 'stagnant' ? 0.32 : 0.18);
+  const delta = shiftTension(system, unlocksMovement ? -1 : 2);
+  if (roll < chance) {
     system.alignment += 1;
     system.recentRipples.unshift('A reluctant coalition forms around your challenge, then denies it did.');
     system.recentRipples = system.recentRipples.slice(0, 4);
     return {
       ok: true,
-      text: 'You challenge assumptions directly. The room bristles, then re-engages.',
+      text: unlocksMovement
+        ? 'You challenge assumptions directly; unexpectedly, the pressure breaks into movement.'
+        : 'You challenge assumptions directly. The room bristles, then re-engages.',
       ripple: `${delta.direction === 'up'
         ? 'Energy rises; tomorrow may produce either progress or fresh stalemate.'
-        : 'The challenge lands softly, which is somehow more unsettling.'}${undertow ? ` ${undertow}` : ''}`,
+        : 'The challenge opens a narrow path; people move before they can re-argue first principles.'}${undertow ? ` ${undertow}` : ''}`,
     };
   }
   system.recentRipples.unshift('Your challenge becomes a cautionary anecdote in the corridor.');

@@ -107,6 +107,68 @@ function line(text, cls = '') {
   dom.output.scrollTop = dom.output.scrollHeight;
 }
 
+function porterIsHere() {
+  return state.agents.porter.roomId === state.player.currentRoom;
+}
+
+function rememberPorterLine(text) {
+  if (!text) return;
+  const recent = state.narrative?.recentLines;
+  if (!Array.isArray(recent)) return;
+  recent.push(text);
+  if (recent.length > 14) recent.shift();
+}
+
+function maybeLinePorter(text, chance = 1, cls = 'hint') {
+  if (!text || !porterIsHere() || Math.random() > chance) return false;
+  const recent = state.narrative?.recentLines ?? [];
+  if (recent.slice(-10).includes(text)) return false;
+  line(text, cls);
+  rememberPorterLine(text);
+  return true;
+}
+
+function levenshteinDistance(a, b) {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const matrix = Array.from({ length: rows }, (_, i) => {
+    const row = Array(cols).fill(0);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 0; j < cols; j += 1) matrix[0][j] = j;
+  for (let i = 1; i < rows; i += 1) {
+    for (let j = 1; j < cols; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+function resolveItemName(inputRaw, candidates) {
+  const input = inputRaw.toLowerCase().trim();
+  if (!input) return null;
+  const exact = candidates.find((candidate) => candidate.toLowerCase() === input);
+  if (exact) return exact;
+
+  const ranked = candidates
+    .map((candidate) => ({
+      candidate,
+      distance: levenshteinDistance(input, candidate.toLowerCase()),
+    }))
+    .filter(({ candidate, distance }) => candidate.length >= 4 && distance <= 2)
+    .sort((a, b) => a.distance - b.distance);
+
+  if (!ranked.length) return null;
+  if (ranked.length > 1 && ranked[0].distance === ranked[1].distance) return null;
+  return ranked[0].candidate;
+}
+
 function governancePresence(roomId) {
   if (governanceKeyRooms.has(roomId)) return 'primary';
   if (governanceSupportRooms.has(roomId)) return 'secondary';
@@ -262,9 +324,8 @@ function move(direction) {
 }
 
 function takeItem(itemRaw) {
-  const item = itemRaw.toLowerCase();
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const exact = roomObj.items.find((i) => i.toLowerCase() === item);
+  const exact = resolveItemName(itemRaw, roomObj.items);
   if (!exact) {
     line('That item is not here.', 'warn');
     return;
@@ -274,16 +335,17 @@ function takeItem(itemRaw) {
   line(`You take ${exact}.`, 'good');
 
   if (exact === 'iron key') {
-    line("The porter notes that you took it without pocketing ceremony. 'Practical,' he says.", 'hint');
-    applyRelationship(state.social, 'porter', 1);
-    shiftPorterTrust(state.agents, 1);
-    recordPorterMemory(state.agents, 'Player acquired the hall key responsibly.');
+    if (porterIsHere()) {
+      maybeLinePorter("The porter notes that you took it without pocketing ceremony. 'Practical,' he says.");
+      applyRelationship(state.social, 'porter', 1);
+      shiftPorterTrust(state.agents, 1);
+      recordPorterMemory(state.agents, 'Player acquired the hall key responsibly.');
+    }
   }
 }
 
 function useItem(itemRaw) {
-  const item = itemRaw.toLowerCase();
-  const invExact = state.player.inventory.find((i) => i.toLowerCase() === item);
+  const invExact = resolveItemName(itemRaw, state.player.inventory);
   if (!invExact) {
     line('You are not carrying that.', 'warn');
     return;
@@ -318,7 +380,11 @@ function forceDoor() {
   shiftPorterTrust(state.agents, -2);
   applyRelationship(state.social, 'porter', -2);
   recordPorterMemory(state.agents, 'Player attempted to brute-force access.');
-  line("You shoulder the door. The porter sighs: 'Velocity is not legitimacy.'", 'danger');
+  if (porterIsHere()) {
+    maybeLinePorter("You shoulder the door. The porter sighs: 'Velocity is not legitimacy.'", 1, 'danger');
+    return;
+  }
+  line('You shoulder the door. It holds, and nobody answers.', 'danger');
 }
 
 function showStatus() {
@@ -335,8 +401,9 @@ function showStatus() {
 }
 
 function inspect(itemRaw) {
-  const item = itemRaw.toLowerCase();
-  const found = Object.entries(state.world.itemDescriptions).find(([name]) => name.toLowerCase() === item);
+  const names = Object.keys(state.world.itemDescriptions);
+  const matchedName = resolveItemName(itemRaw, names);
+  const found = matchedName ? [matchedName, state.world.itemDescriptions[matchedName]] : null;
   if (!found) {
     line('You find little to inspect.', 'warn');
     return;
@@ -345,8 +412,7 @@ function inspect(itemRaw) {
 }
 
 function drop(itemRaw) {
-  const item = itemRaw.toLowerCase();
-  const exact = state.player.inventory.find((i) => i.toLowerCase() === item);
+  const exact = resolveItemName(itemRaw, state.player.inventory);
   if (!exact) {
     line('You do not have that item.', 'warn');
     return;
@@ -436,11 +502,14 @@ function processCommand(input) {
       if (depth >= 2) line(positioningNarrative(votePositioning, state.narrative), 'hint');
       if (depth >= 2) line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
       if (depth >= 2) line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
-      if (depth >= 2 && Math.random() < 0.78) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
-      if (depth >= 1) line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+      if (depth >= 2) maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.28);
+      if (depth >= 1) maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.32);
       if (depth >= 3) {
-        maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative)
-          .forEach((sceneLine) => line(sceneLine, 'hint'));
+        const scene = maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative);
+        scene.forEach((sceneLine, index) => {
+          if (index === 0) maybeLinePorter(sceneLine, 0.2);
+          else line(sceneLine, 'hint');
+        });
       }
       state.governanceUi.lastDecisionFailed = !result.ok;
       state.governanceUi.suggestionStreak = 0;
@@ -457,11 +526,15 @@ function processCommand(input) {
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('mediate', state.narrative), 'hint');
       line(positioningNarrative('mediation', state.narrative), 'hint');
-      if (Math.random() < 0.74) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.22);
     }
-    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+    maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.28);
     if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
-      maybeComposedScene(state.system.state, state.social, 'mediation', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
+      const scene = maybeComposedScene(state.system.state, state.social, 'mediation', state.narrative);
+      scene.forEach((sceneLine, index) => {
+        if (index === 0) maybeLinePorter(sceneLine, 0.2);
+        else line(sceneLine, 'hint');
+      });
     }
   } else if (verb === 'push' || verb === 'challenge') {
     if (verb === 'challenge') line('Tip: "challenge" is now "push".', 'hint');
@@ -475,11 +548,15 @@ function processCommand(input) {
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('challenge', state.narrative), 'hint');
       line(positioningNarrative('disagreement', state.narrative), 'hint');
-      if (Math.random() < 0.74) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.22);
     }
-    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+    maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.28);
     if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
-      maybeComposedScene(state.system.state, state.social, 'disagreement', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
+      const scene = maybeComposedScene(state.system.state, state.social, 'disagreement', state.narrative);
+      scene.forEach((sceneLine, index) => {
+        if (index === 0) maybeLinePorter(sceneLine, 0.2);
+        else line(sceneLine, 'hint');
+      });
     }
   } else if (verb === 'shift' || verb === 'reset') {
     if (verb === 'reset') line('Tip: "reset" is now "shift".', 'hint');
@@ -492,13 +569,13 @@ function processCommand(input) {
     line(result.ripple, 'hint');
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('reset', state.narrative), 'hint');
-      if (Math.random() < 0.72) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.2);
     }
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
       line(`consensusFirst is now ${state.governance.norms.consensusFirst}.`, 'system');
     }
-    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+    maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.25);
   } else if (verb === 'status') {
     showStatus();
   } else if (verb === 'history') {
@@ -567,10 +644,10 @@ function processCommand(input) {
   if (ghostTrace) line(ghostTrace, 'hint');
   const porterAbsentLine = maybePorterAbsenceLine(state.agents);
   if (porterAbsentLine) line(porterAbsentLine, 'hint');
-  if (verb !== 'talk' && state.agents.porter.roomId === state.player.currentRoom && Math.random() < 0.16) {
-    line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
-    if (Math.random() < 0.65) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
-    if (Math.random() < 0.62) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
+  if (verb !== 'talk' && porterIsHere() && Math.random() < 0.05) {
+    maybeLinePorter(talkToPorter(state.agents, state.system.state, state.social), 1);
+    maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
+    if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
   maybeShowGovernanceHints(verb);
 

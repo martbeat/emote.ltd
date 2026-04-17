@@ -243,8 +243,8 @@ const ambientSneezeTemplates = {
     'From another room, a quick sneeze echoes and fades.',
   ],
   porterReply: [
-    'The porter, somewhere off to the side, answers: "Bless you."',
-    'From nearby, the porter calls out a restrained "Bless you."',
+    'The porter, present in the room, offers a brief: "Bless you."',
+    'The porter gives a restrained nod. "Bless you."',
   ],
   unknownReply: [
     'A voice responds: "Bless you."',
@@ -304,7 +304,7 @@ export function maybeDirectionalGhostGlimpse(narrative, rng = Math.random, chanc
   return line;
 }
 
-export function maybeAmbientSneezeNarrative(context = {}, narrative, rng = Math.random, chance = 0.035) {
+export function maybeAmbientSneezeNarrative(context = {}, narrative, rng = Math.random, chance = 0.008) {
   ensureNarrativeInternals(narrative);
   if (rng() > chance) return [];
   const lines = [];
@@ -312,9 +312,9 @@ export function maybeAmbientSneezeNarrative(context = {}, narrative, rng = Math.
   remember(narrative, sneezeLine, 'ambient-sneeze');
   lines.push(sneezeLine);
 
-  if (rng() > 0.42) return lines;
+  if (rng() > 0.22) return lines;
   const porterNearby = Boolean(context.porterNearby);
-  const replyPool = porterNearby && rng() < 0.65
+  const replyPool = porterNearby && rng() < 0.35
     ? ambientSneezeTemplates.porterReply
     : ambientSneezeTemplates.unknownReply;
   const reply = pickFresh(replyPool, narrative.recentLines, rng, 8);
@@ -327,7 +327,7 @@ export function maybeAmbientWorldEvent(narrative, rng = Math.random, chance = 0.
   ensureNarrativeInternals(narrative);
   if (rng() > chance) return null;
 
-  const weightedTypes = ['movementTrace', 'movementTrace', 'distantSound', 'distantSound', 'socialEcho', 'socialEcho', 'sneeze'];
+  const weightedTypes = ['movementTrace', 'movementTrace', 'movementTrace', 'distantSound', 'distantSound', 'socialEcho', 'socialEcho', 'socialEcho', 'sneeze'];
   const selectedType = pick(weightedTypes, rng);
   const line = pickFresh(ambientWorldTemplates[selectedType], narrative.recentLines, rng, 10);
   remember(narrative, line, 'ambient-world');

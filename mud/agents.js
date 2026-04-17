@@ -57,17 +57,17 @@ function pick(list, rng = Math.random) {
 function absenceChance(systemState, profile) {
   if (profile === 'anchor') {
     return {
-      balanced: 0.16,
+      balanced: 0.2,
       chaotic: 0.08,
-      stagnant: 0.22,
-    }[systemState] ?? 0.16;
+      stagnant: 0.25,
+    }[systemState] ?? 0.2;
   }
 
   return {
-    balanced: 0.24,
-    chaotic: 0.12,
-    stagnant: 0.3,
-  }[systemState] ?? 0.24;
+    balanced: 0.16,
+    chaotic: 0.08,
+    stagnant: 0.2,
+  }[systemState] ?? 0.16;
 }
 
 export function moveAgents(agents, systemState, rng = Math.random) {
@@ -86,7 +86,7 @@ export function moveAgents(agents, systemState, rng = Math.random) {
       return;
     }
 
-    const baseMoveChance = profile === 'anchor' ? 0.22 : 0.6;
+    const baseMoveChance = profile === 'anchor' ? 0.18 : 0.66;
     const returnFromAbsenceChance = profile === 'anchor' ? 0.35 : 0.8;
     if (!agent.roomId) {
       if (rng() < returnFromAbsenceChance) {
@@ -185,7 +185,7 @@ function maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng = 
     }
   });
 
-  if (arrivals.length && rng() < 0.42) {
+  if (arrivals.length && rng() < 0.6) {
     const agentId = pick(arrivals, rng);
     const subject = agentLabel[agentId] ?? 'Someone';
     const roomHint = playerRoomId === 'hall' ? 'from the stairwell' : `from the ${titleCaseRoom(previousRooms[agentId])}`;
@@ -193,7 +193,7 @@ function maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng = 
     return `${subject} ${verb} ${roomHint}.`;
   }
 
-  if (departures.length && rng() < 0.38) {
+  if (departures.length && rng() < 0.52) {
     const agentId = pick(departures, rng);
     const subject = agentLabel[agentId] ?? 'Someone';
     const verb = pick(departureVerbs[agentId] ?? departureVerbs.bernard, rng);
@@ -303,7 +303,7 @@ export function porterOutcomeReflection(system, governance, social) {
 export function porterSneezeResponse(agents, social, rng = Math.random) {
   const porter = agents?.porter;
   if (!porter?.roomId) return null;
-  if (rng() >= 0.3) return null;
+  if (rng() >= 0.12) return null;
 
   const repetition = social?.sneezeCount ?? 0;
   if (repetition >= 4 && rng() < 0.65) {

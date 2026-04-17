@@ -3,11 +3,13 @@ const roomProfiles = {
   hall: { interaction: 'high', spatialTone: 'civic-interior', ambience: 'active' },
   lockedRoom: { interaction: 'high', spatialTone: 'enclosed-deliberative', ambience: 'active' },
   westPassage: { interaction: 'low', spatialTone: 'narrow-transitional', ambience: 'quiet' },
+  quadrangle: { interaction: 'sparse', spatialTone: 'open-exterior', ambience: 'quiet' },
   courtyard: { interaction: 'low', spatialTone: 'open-exterior', ambience: 'quiet' },
   eastCorridor: { interaction: 'medium', spatialTone: 'long-transitional', ambience: 'transitional' },
-  stairwell: { interaction: 'low', spatialTone: 'vertical-transitional', ambience: 'quiet' },
+  stairwell: { interaction: 'sparse', spatialTone: 'vertical-transitional', ambience: 'quiet' },
   upperLanding: { interaction: 'low', spatialTone: 'semi-open-threshold', ambience: 'quiet' },
-  archive: { interaction: 'low', spatialTone: 'enclosed-storage', ambience: 'quiet' },
+  archive: { interaction: 'sparse', spatialTone: 'enclosed-storage', ambience: 'quiet' },
+  perimeterPath: { interaction: 'sparse', spatialTone: 'open-exterior', ambience: 'quiet' },
   gallery: { interaction: 'medium', spatialTone: 'open-interior', ambience: 'quiet' },
   garden: { interaction: 'low', spatialTone: 'open-exterior', ambience: 'quiet' },
 };
@@ -16,6 +18,7 @@ const roomPacing = {
   high: { ambientNarrativeChance: 0.35, roomEventChance: 0.28 },
   medium: { ambientNarrativeChance: 0.2, roomEventChance: 0.15 },
   low: { ambientNarrativeChance: 0.08, roomEventChance: 0.04 },
+  sparse: { ambientNarrativeChance: 0.06, roomEventChance: 0.02 },
 };
 
 export function createWorld() {
@@ -65,7 +68,7 @@ export function createWorld() {
         name: 'West Passage',
         description:
           'A long brick passage where light arrives in strips through high windows. Footsteps stretch and then disappear before reaching the far end.',
-        exits: { east: 'foyer', north: 'courtyard' },
+        exits: { east: 'foyer', north: 'quadrangle' },
         items: [],
         stateDescriptions: {
           balanced: 'The corridor holds a cool, workable quiet.',
@@ -73,12 +76,25 @@ export function createWorld() {
           stagnant: 'Air and dust seem to settle at exactly the same pace.',
         },
       },
+      quadrangle: {
+        id: 'quadrangle',
+        name: 'Inner Quadrangle',
+        description:
+          'An open rectangle of pale stone with low grass plots and long sightlines. People pass through without needing to explain themselves.',
+        exits: { south: 'westPassage', east: 'courtyard', north: 'perimeterPath' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'The open air makes every pause feel proportionate.',
+          chaotic: 'Crosswinds pull distant voices apart before they become argument.',
+          stagnant: 'The wide space sits still enough to make movement feel optional.',
+        },
+      },
       courtyard: {
         id: 'courtyard',
         name: 'Inner Courtyard',
         description:
           'A broad courtyard of worn paving and rain barrels, open to a high rectangle of sky. The institution feels smaller and larger here at once.',
-        exits: { south: 'westPassage', east: 'eastCorridor', north: 'garden' },
+        exits: { south: 'quadrangle', east: 'eastCorridor', north: 'garden' },
         items: [],
         stateDescriptions: {
           balanced: 'Rainwater gathers in calm basins and reflects moving clouds.',
@@ -103,13 +119,13 @@ export function createWorld() {
         id: 'stairwell',
         name: 'North Stairwell',
         description:
-          'A stone stairwell spirals up past utility lamps and old civic murals. The steps widen near the top, as if anticipating processions that no longer occur.',
+          'A high stairwell with chipped railings and landings that briefly frame other wings. It feels built for movement, not debate.',
         exits: { south: 'eastCorridor', north: 'upperLanding' },
         items: [],
         stateDescriptions: {
-          balanced: 'The stair carries soft echoes that fade before they multiply.',
-          chaotic: 'Sounds travel unpredictably, arriving before their source.',
-          stagnant: 'Echoes die quickly, leaving each landing overly still.',
+          balanced: 'Footsteps rise and fall in clean sequence, then clear away.',
+          chaotic: 'Echoes ricochet between floors and arrive out of order.',
+          stagnant: 'The landings hold a hush that lingers after each step.',
         },
       },
       upperLanding: {
@@ -129,13 +145,26 @@ export function createWorld() {
         id: 'archive',
         name: 'Silent Archive',
         description:
-          'Rows of boxed minutes, retired signage, and bound ledgers vanish into dim shelves. No one speaks here unless they need to hear themselves.',
+          'Rows of boxed minutes, retired signage, and bound ledgers vanish into dim shelves. Memory has more mass here than voice.',
         exits: { south: 'lockedRoom', west: 'upperLanding' },
         items: [],
         stateDescriptions: {
-          balanced: 'Paper settles with a dry, unobtrusive hush.',
-          chaotic: 'A few files sit half-open, as if consulted in haste.',
-          stagnant: 'Catalog cards remain exactly where they were left last season.',
+          balanced: 'Recent folders sit beside old decisions without accusation.',
+          chaotic: 'Several bundles stand open, as though recollection became urgent.',
+          stagnant: 'Dust outlines where hands used to reach, and no longer do.',
+        },
+      },
+      perimeterPath: {
+        id: 'perimeterPath',
+        name: 'Perimeter Path',
+        description:
+          'A narrow gravel path skirting the outer wall where committee noise arrives only as faint weather. Systems are sensed here by delay.',
+        exits: { south: 'quadrangle', east: 'garden' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'Distant activity reaches you as soft, delayed pulses.',
+          chaotic: 'Far-off commotion arrives in broken waves with no clear source.',
+          stagnant: 'Even outside signals thin into long, indifferent pauses.',
         },
       },
       gallery: {
@@ -294,6 +323,62 @@ const roomMetaphors = {
     stagnant: [
       'The open space feels held in suspension rather than rest.',
       'Even weather seems to hesitate over the paving.',
+    ],
+  },
+  quadrangle: {
+    balanced: [
+      'Open ground gives each motion a beginning and an end.',
+      'The square absorbs urgency and returns it as proportion.',
+    ],
+    chaotic: [
+      'Crossing lines of movement break before they become collisions.',
+      'The openness scatters tension into fragments that cannot cluster.',
+    ],
+    stagnant: [
+      'Wide space turns pause into habit.',
+      'Nothing blocks movement, yet little insists on it.',
+    ],
+  },
+  stairwell: {
+    balanced: [
+      'The stair keeps people moving before positions can calcify.',
+      'Each landing offers perspective, then asks you to continue.',
+    ],
+    chaotic: [
+      'Footsteps and echoes overtake one another between floors.',
+      'Voices arrive a level early and leave a level late.',
+    ],
+    stagnant: [
+      'The rail feels polished by older urgency, not current use.',
+      'Landings hold stillness longer than transit should allow.',
+    ],
+  },
+  archive: {
+    balanced: [
+      'Records sit like ballast: heavy, quiet, and useful when consulted.',
+      'Old minutes and new annotations share shelf space without drama.',
+    ],
+    chaotic: [
+      'Open boxes read like memory interrupted mid-sentence.',
+      'Recent handling leaves the past looking abruptly unfinished.',
+    ],
+    stagnant: [
+      'Catalog cards imply motion that no one is currently making.',
+      'The shelves keep decisions long after their urgency has thinned.',
+    ],
+  },
+  perimeterPath: {
+    balanced: [
+      'Signals from inside arrive softened, enough to orient without enclosing you.',
+      'Distance turns institutional noise into manageable weather.',
+    ],
+    chaotic: [
+      'Unclear bursts from within reach the wall as irregular pressure.',
+      'The path receives conflict only as vibration and delay.',
+    ],
+    stagnant: [
+      'Silence stretches long enough to make governance feel hypothetical.',
+      'From here, unchanged rhythms become almost inaudible.',
     ],
   },
 };

@@ -43,49 +43,69 @@ export function behaviourEcho(social) {
   return null;
 }
 
-export function behaviouralDrift(social, action) {
+export function behaviouralDrift(social, action, rng = Math.random) {
   const streak = social.repeatedCommandStreak;
   if (streak.command !== action || streak.count < 2) {
     return { modifier: 0, hint: null };
   }
 
-  if (action === 'mediate') {
-    if (streak.count >= 4) {
-      return {
-        modifier: -0.08,
-        hint: 'Your mediation grows familiar; agreement arrives more slowly.',
-      };
+  const repetitionDepth = streak.count - 1;
+  const softDecay = 1 / (1 + Math.max(0, repetitionDepth - 1) * 0.55);
+  const baseByAction = {
+    mediate: 0.07,
+    challenge: 0.05,
+    reset: 0.04,
+  };
+  const base = baseByAction[action] ?? 0;
+  const organicNoise = (rng() - 0.5) * 0.03;
+  let modifier = base * softDecay + organicNoise;
+
+  if (streak.count >= 5) {
+    const fatigueChance = Math.min(0.45, (streak.count - 4) * 0.12);
+    if (rng() < fatigueChance) {
+      modifier -= 0.02 + rng() * 0.03;
     }
+  }
+
+  modifier = Math.max(-0.06, Math.min(0.1, modifier));
+  if (Math.abs(modifier) < 0.01) {
     return {
-      modifier: 0.05,
-      hint: 'For now, repetition helps; people recognise your calming pattern.',
+      modifier,
+      hint: 'The room takes your familiar move in stride, without showing its hand.',
+    };
+  }
+
+  if (action === 'mediate') {
+    return {
+      modifier,
+      hint:
+        modifier > 0
+          ? 'Your cadence feels known now; some shoulders loosen before you finish.'
+          : 'Polite nods arrive a beat early, as if comfort is replacing conviction.',
     };
   }
 
   if (action === 'challenge') {
-    if (streak.count >= 4) {
-      return {
-        modifier: 0.08,
-        hint: 'Repeated challenge gathers momentum, and nerves with it.',
-      };
-    }
     return {
-      modifier: 0.03,
-      hint: 'The room braces for another challenge before you finish.',
+      modifier,
+      hint:
+        modifier > 0
+          ? 'A few members tense in advance; anticipation does some of your work.'
+          : 'The challenge lands on prepared ground, and surprise is harder to borrow.',
     };
   }
 
   if (action === 'reset') {
     return {
-      modifier: streak.count >= 3 ? -0.06 : 0.02,
+      modifier,
       hint:
-        streak.count >= 3
-          ? 'Frequent resets begin to feel ceremonial rather than transformative.'
-          : 'A fresh reset proposal still carries some novelty.',
+        modifier > 0
+          ? 'The language of reset still carries a trace of freshness in the room.'
+          : 'The reset arrives with familiar ceremony; attention drifts to implementation.',
     };
   }
 
-  return { modifier: 0, hint: null };
+  return { modifier, hint: null };
 }
 
 export function maybeTriggerCold(social, rng = Math.random) {

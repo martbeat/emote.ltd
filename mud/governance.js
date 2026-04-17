@@ -1,6 +1,6 @@
-import { shiftTension } from './system.js';
-import { applyRelationship, logBehaviour } from './social.js';
-import { shiftPorterTrust, recordPorterMemory } from './agents.js';
+import { shiftTension } from './system.js?v=build10';
+import { applyRelationship, logBehaviour } from './social.js?v=build10';
+import { shiftPorterTrust, recordPorterMemory } from './agents.js?v=build10';
 
 const normNarratives = {
   blessOnSneeze: {

@@ -33,12 +33,22 @@ import {
   tickSystem,
   interpretiveMessage,
   derivePhaseSummary,
-  tensionNarrative,
   transitionMessage,
   mediate,
   challenge,
   resetNormAttempt,
 } from './system.js';
+import {
+  createNarrativeState,
+  porterReflection,
+  positioningNarrative,
+  atmosphereNarrative,
+  voteNarrative,
+  tensionShiftNarrative,
+  interventionNarrative,
+  phaseNarrative,
+  maybeComposedScene,
+} from './narrative.js';
 
 function createGameState() {
   return {
@@ -47,6 +57,7 @@ function createGameState() {
     social: createSocialState(),
     governance: createGovernanceState(),
     system: createSystemState(),
+    narrative: createNarrativeState(),
     player: {
       currentRoom: 'foyer',
       inventory: [],
@@ -100,6 +111,7 @@ function renderRoom() {
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
   line(describeRoom(state.world, roomId, state.system.state), 'system');
+  if (Math.random() < 0.35) line(atmosphereNarrative(state.system.state, state.narrative), 'hint');
   if (visits === 1) {
     line('You are here for the first time; the place feels more observed than empty.', 'hint');
   } else if (visits > 2) {
@@ -122,6 +134,9 @@ function load() {
     return;
   }
   state = JSON.parse(raw);
+  if (!state.narrative) {
+    state.narrative = createNarrativeState();
+  }
   line('State loaded.', 'good');
   refreshSidebar();
   renderRoom();
@@ -215,6 +230,7 @@ function showStatus() {
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
   line(interpretiveMessage(state.system), 'hint');
   line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
+  line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
   line(getInfluenceHint(state.agents), 'hint');
   line(agentExchangeHint(state.system.state, state.governance), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
@@ -289,8 +305,17 @@ function processCommand(input) {
     if (result.coalitionHint) line(result.coalitionHint, 'hint');
     if (result.stanceScene) line(result.stanceScene, 'hint');
     if (result.ambiguity) line(result.ambiguity, 'hint');
+    line(voteNarrative(result.ok, result.yesVotes ?? 0, state.narrative), 'hint');
+    const votePositioning = result.ok
+      ? (result.yesVotes === 2 ? 'mediation' : 'alignment')
+      : (result.yesVotes === 1 ? 'disagreement' : 'unclear');
+    line(positioningNarrative(votePositioning, state.narrative), 'hint');
     line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
+    line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
+    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+    maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative)
+      .forEach((sceneLine) => line(sceneLine, 'hint'));
   } else if (verb === 'mediate') {
     logBehaviour(state.social, 'mediate');
     const drift = behaviouralDrift(state.social, 'mediate');
@@ -298,7 +323,11 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    line(interventionNarrative('mediate', state.narrative), 'hint');
+    line(positioningNarrative('mediation', state.narrative), 'hint');
+    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+    maybeComposedScene(state.system.state, state.social, 'mediation', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
   } else if (verb === 'challenge') {
     logBehaviour(state.social, 'challenge');
     const drift = behaviouralDrift(state.social, 'challenge');
@@ -306,7 +335,11 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    line(interventionNarrative('challenge', state.narrative), 'hint');
+    line(positioningNarrative('disagreement', state.narrative), 'hint');
+    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+    maybeComposedScene(state.system.state, state.social, 'disagreement', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
   } else if (verb === 'reset') {
     logBehaviour(state.social, 'reset');
     const drift = behaviouralDrift(state.social, 'reset');
@@ -314,6 +347,8 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    line(interventionNarrative('reset', state.narrative), 'hint');
+    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
       line(`consensusFirst is now ${state.governance.norms.consensusFirst}.`, 'system');
@@ -346,7 +381,7 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
-  const tensionLine = tensionNarrative(tensionBefore, state.system.tension, state.system.state);
+  const tensionLine = tensionShiftNarrative(tensionBefore, state.system.tension, state.narrative);
   if (tensionLine) line(tensionLine, 'hint');
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {
     line(transitionMessage(state.system), 'system');
@@ -359,6 +394,7 @@ function processCommand(input) {
   if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
   if (verb !== 'talk' && state.player.currentRoom === 'hall' && Math.random() < 0.22) {
     line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
+    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     line(agentExchangeHint(state.system.state, state.governance), 'hint');
   }
 

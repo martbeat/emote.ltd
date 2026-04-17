@@ -14,6 +14,7 @@ export function createAgents() {
       trust: 0,
       attitude: 'watchful',
       turnsSinceSeen: 0,
+      lastSeenRoom: 'foyer',
     },
     ada: {
       id: 'ada',
@@ -70,6 +71,10 @@ function absenceChance(systemState, profile) {
 }
 
 export function moveAgents(agents, systemState, rng = Math.random) {
+  const previousRooms = Object.fromEntries(
+    Object.entries(agents).map(([agentId, agent]) => [agentId, agent?.roomId ?? null]),
+  );
+
   Object.entries(roamingRooms).forEach(([agentId, route]) => {
     const agent = agents[agentId];
     if (!agent) return;
@@ -95,6 +100,8 @@ export function moveAgents(agents, systemState, rng = Math.random) {
       agent.roomId = pick(alternatives.length ? alternatives : route, rng);
     }
   });
+
+  return previousRooms;
 }
 
 export function agentsInRoom(agents, roomId) {
@@ -104,9 +111,106 @@ export function agentsInRoom(agents, roomId) {
 export function updatePorterVisibility(agents, playerRoomId) {
   const porter = agents.porter;
   if (!porter) return;
-  porter.turnsSinceSeen = porter.roomId && porter.roomId === playerRoomId
-    ? 0
-    : (porter.turnsSinceSeen ?? 0) + 1;
+  if (porter.roomId && porter.roomId === playerRoomId) {
+    porter.turnsSinceSeen = 0;
+    porter.lastSeenRoom = playerRoomId;
+    return;
+  }
+  porter.turnsSinceSeen = (porter.turnsSinceSeen ?? 0) + 1;
+}
+
+const agentLabel = {
+  porter: 'the porter',
+  ada: 'Ada',
+  bernard: 'Bernard',
+  cyra: 'Cyra',
+};
+
+const arrivalVerbs = {
+  porter: ['arrives with measured steps', 'appears at the edge of the room'],
+  ada: ['arrives quietly', 'joins you without ceremony'],
+  bernard: ['enters without comment', 'steps in, scanning the room once'],
+  cyra: ['joins you from nearby', 'appears with an easy, unreadable pace'],
+};
+
+const departureVerbs = {
+  porter: ['heads on without fanfare', 'slips away toward other duties'],
+  ada: ['leaves without lingering', 'steps away before the room settles'],
+  bernard: ['leaves without comment', 'moves off with clipped purpose'],
+  cyra: ['drifts out of sight', 'heads off before anyone calls after her'],
+};
+
+const nearMissLines = {
+  porter: [
+    'You catch sight of the porter disappearing down a side corridor.',
+    'A familiar coat passes a doorway and is gone before you focus.',
+  ],
+  generic: [
+    'Someone has just moved on; the room still feels recently occupied.',
+    'A quick movement nearby fades before it resolves into a face.',
+    'At the edge of your vision, someone turns a corner and vanishes.',
+  ],
+};
+
+function titleCaseRoom(roomId = '') {
+  if (!roomId) return 'nearby';
+  return roomId
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .toLowerCase();
+}
+
+function maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng = Math.random) {
+  if (!playerRoomId) return null;
+
+  const arrivals = [];
+  const departures = [];
+  const nearMisses = [];
+
+  Object.entries(previousRooms).forEach(([agentId, fromRoom]) => {
+    const toRoom = agents[agentId]?.roomId ?? null;
+    if (fromRoom === toRoom) return;
+
+    if (fromRoom !== playerRoomId && toRoom === playerRoomId) arrivals.push(agentId);
+    if (fromRoom === playerRoomId && toRoom !== playerRoomId) departures.push(agentId);
+
+    const porterLastSeen = agents.porter?.lastSeenRoom;
+    if (agentId === 'porter' && fromRoom && fromRoom === porterLastSeen && toRoom !== playerRoomId) {
+      nearMisses.push('porter');
+      return;
+    }
+
+    if (fromRoom !== playerRoomId && toRoom !== playerRoomId && rng() < 0.18) {
+      nearMisses.push(agentId);
+    }
+  });
+
+  if (arrivals.length && rng() < 0.42) {
+    const agentId = pick(arrivals, rng);
+    const subject = agentLabel[agentId] ?? 'Someone';
+    const roomHint = playerRoomId === 'hall' ? 'from the stairwell' : `from the ${titleCaseRoom(previousRooms[agentId])}`;
+    const verb = pick(arrivalVerbs[agentId] ?? arrivalVerbs.ada, rng);
+    return `${subject} ${verb} ${roomHint}.`;
+  }
+
+  if (departures.length && rng() < 0.38) {
+    const agentId = pick(departures, rng);
+    const subject = agentLabel[agentId] ?? 'Someone';
+    const verb = pick(departureVerbs[agentId] ?? departureVerbs.bernard, rng);
+    return `${subject} ${verb}.`;
+  }
+
+  if (nearMisses.length && rng() < 0.26) {
+    const agentId = pick(nearMisses, rng);
+    if (agentId === 'porter') return pick(nearMissLines.porter, rng);
+    return pick(nearMissLines.generic, rng);
+  }
+
+  return null;
+}
+
+export function narrateAgentContinuity(agents, previousRooms, playerRoomId, rng = Math.random) {
+  return maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng);
 }
 
 export function maybePorterAbsenceLine(agents, rng = Math.random) {

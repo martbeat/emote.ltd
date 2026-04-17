@@ -13,6 +13,9 @@ import {
   getInfluenceHint,
   agentExchangeHint,
   porterOutcomeReflection,
+  porterSneezeResponse,
+  updatePorterVisibility,
+  maybePorterAbsenceLine,
   shiftPorterTrust,
   recordPorterMemory,
 } from './agents.js';
@@ -111,6 +114,7 @@ function refreshSidebar() {
 
 function renderRoom() {
   const roomId = state.player.currentRoom;
+  updatePorterVisibility(state.agents, roomId);
   const pacing = getRoomPacing(state.world, roomId);
   const presentAgents = agentsInRoom(state.agents, roomId);
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
@@ -400,13 +404,20 @@ function processCommand(input) {
   } else if (verb === 'history') {
     line(`Committee memory: ${state.governance.committeeMemory.join(' | ') || 'none'}.`, 'hint');
   } else if (verb === 'sneeze') {
-    if (!state.social.playerCold) {
-      state.social.playerCold = true;
-      line('You summon a theatrical sneeze. The porter still says, "Bless you."', 'hint');
+    state.social.playerCold = true;
+    state.social.sneezeCount += 1;
+    const porterHere = state.agents.porter.roomId === state.player.currentRoom;
+    const response = porterHere ? porterSneezeResponse(state.agents, state.social) : null;
+    if (response) {
+      line(`You sneeze. ${response}`, 'hint');
+      shiftPorterTrust(state.agents, 1);
+      applyRelationship(state.social, 'porter', 1);
+      recordPorterMemory(state.agents, 'Player sneezed directly; porter responded.');
+    } else if (state.social.sneezeCount > 2) {
+      line('You sneeze again. No one comments.', 'hint');
     } else {
-      line('You sneeze again; etiquette remains the smallest policy with the largest footprint.', 'hint');
+      line('You sneeze. The room lets the moment pass.', 'hint');
     }
-    shiftPorterTrust(state.agents, 1);
   } else if (verb === 'save') {
     save();
   } else if (verb === 'load') {
@@ -432,8 +443,10 @@ function processCommand(input) {
   if (echo) line(echo, 'hint');
   const coldStart = maybeTriggerCold(state.social);
   if (coldStart) line(coldStart, 'hint');
-  const sneeze = maybeSneeze(state.social, state.agents);
+  const sneeze = maybeSneeze(state.social, state.agents, state.player.currentRoom);
   if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
+  const porterAbsentLine = maybePorterAbsenceLine(state.agents);
+  if (porterAbsentLine) line(porterAbsentLine, 'hint');
   if (verb !== 'talk' && state.agents.porter.roomId === state.player.currentRoom && Math.random() < 0.22) {
     line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
     line(porterReflection(state.system.state, state.social, state.narrative), 'hint');

@@ -9,10 +9,11 @@ export function createAgents() {
     porter: {
       id: 'porter',
       name: 'Porter',
-      roomId: 'hall',
+      roomId: 'foyer',
       memory: [],
       trust: 0,
       attitude: 'watchful',
+      turnsSinceSeen: 0,
     },
     ada: {
       id: 'ada',
@@ -42,7 +43,7 @@ export function createAgents() {
 }
 
 const roamingRooms = {
-  porter: ['hall', 'foyer', 'eastCorridor', 'courtyard', 'lockedRoom', 'westPassage'],
+  porter: ['hall', 'foyer', 'eastCorridor', 'courtyard', 'lockedRoom', 'westPassage', 'quadrangle', 'stairwell', 'archive'],
   ada: ['hall', 'eastCorridor', 'lockedRoom', 'gallery', 'upperLanding'],
   bernard: ['hall', 'eastCorridor', 'archive', 'upperLanding', 'gallery'],
   cyra: ['hall', 'foyer', 'courtyard', 'eastCorridor', 'garden', 'westPassage'],
@@ -80,15 +81,44 @@ export function moveAgents(agents, systemState, rng = Math.random) {
       return;
     }
 
-    const baseMoveChance = profile === 'anchor' ? 0.45 : 0.6;
-    if (!agent.roomId || rng() < baseMoveChance) {
-      agent.roomId = pick(route, rng);
+    const baseMoveChance = profile === 'anchor' ? 0.22 : 0.6;
+    const returnFromAbsenceChance = profile === 'anchor' ? 0.35 : 0.8;
+    if (!agent.roomId) {
+      if (rng() < returnFromAbsenceChance) {
+        agent.roomId = pick(route, rng);
+      }
+      return;
+    }
+
+    if (rng() < baseMoveChance) {
+      const alternatives = route.filter((roomId) => roomId !== agent.roomId);
+      agent.roomId = pick(alternatives.length ? alternatives : route, rng);
     }
   });
 }
 
 export function agentsInRoom(agents, roomId) {
   return Object.values(agents).filter((agent) => agent.roomId === roomId);
+}
+
+export function updatePorterVisibility(agents, playerRoomId) {
+  const porter = agents.porter;
+  if (!porter) return;
+  porter.turnsSinceSeen = porter.roomId && porter.roomId === playerRoomId
+    ? 0
+    : (porter.turnsSinceSeen ?? 0) + 1;
+}
+
+export function maybePorterAbsenceLine(agents, rng = Math.random) {
+  const turns = agents?.porter?.turnsSinceSeen ?? 0;
+  if (turns < 4) return null;
+  const chance = Math.min(0.28, 0.08 + (turns - 3) * 0.04);
+  if (rng() >= chance) return null;
+  return pick([
+    'You notice the institution has been functioning for a while without the porter in sight.',
+    'The porter remains unseen; routine carries on in his absence.',
+    'No sign of the porter lately. Procedures continue, quieter but intact.',
+  ], rng);
 }
 
 export function recordPorterMemory(agents, event) {
@@ -164,6 +194,28 @@ export function porterOutcomeReflection(system, governance, social) {
     return `The porter says, 'Accepted is not settled; watch what people do tomorrow.' ${patternNote}`.trim();
   }
   return `The porter says, 'Rejection can be a pause or a verdict. One only learns later.' ${patternNote}`.trim();
+}
+
+export function porterSneezeResponse(agents, social, rng = Math.random) {
+  const porter = agents?.porter;
+  if (!porter?.roomId) return null;
+  if (rng() >= 0.3) return null;
+
+  const repetition = social?.sneezeCount ?? 0;
+  if (repetition >= 4 && rng() < 0.65) {
+    return pick([
+      'The porter says, "Bless you, again. At this point it sounds procedural."',
+      'The porter nods. "Still sneezing. Still noted."',
+      'The porter mutters, "Bless you. We may need to classify this as a recurring event."',
+    ], rng);
+  }
+
+  return pick([
+    'The porter says, "Bless you."',
+    'The porter lifts two fingers in acknowledgment and says, "Bless."',
+    'Without looking up, the porter says, "Good health, if available."',
+    'The porter says, "Bless you," then returns to watching the room.',
+  ], rng);
 }
 
 function behaviouralMemoryCue(social) {

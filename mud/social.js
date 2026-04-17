@@ -1,4 +1,4 @@
-import { recordPorterMemory, shiftPorterTrust } from './agents.js';
+import { porterSneezeResponse, recordPorterMemory, shiftPorterTrust } from './agents.js';
 
 export function createSocialState() {
   return {
@@ -118,16 +118,23 @@ export function maybeTriggerCold(social, rng = Math.random) {
   return null;
 }
 
-export function maybeSneeze(social, agents, rng = Math.random) {
+export function maybeSneeze(social, agents, playerRoomId, rng = Math.random) {
   if (!social.playerCold) return null;
   social.turnsUntilSneezeCheck -= 1;
   if (social.turnsUntilSneezeCheck > 0) return null;
   social.turnsUntilSneezeCheck = 2 + Math.floor(rng() * 2);
   social.sneezeCount += 1;
-  applyRelationship(social, 'porter', 1);
-  shiftPorterTrust(agents, 1);
-  recordPorterMemory(agents, 'Player sneezed; offered a social opening.');
-  return 'You sneeze. The porter murmurs, "Bless you." Courtesy lands better than strategy.';
+  const porterPresent = agents?.porter?.roomId && agents.porter.roomId === playerRoomId;
+  const porterReply = porterPresent ? porterSneezeResponse(agents, social, rng) : null;
+
+  if (porterReply) {
+    applyRelationship(social, 'porter', 1);
+    shiftPorterTrust(agents, 1);
+    recordPorterMemory(agents, 'Player sneezed; porter acknowledged with ritual courtesy.');
+    return `You sneeze. ${porterReply}`;
+  }
+
+  return 'You sneeze. The sound dissipates without ceremony.';
 }
 
 export function inferIdentity(social, system) {

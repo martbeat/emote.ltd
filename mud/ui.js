@@ -124,6 +124,7 @@ function renderRoom() {
       visitCount: visits,
       lastTensionDirection: state.narrative?.context?.lastTensionDirection ?? 'flat',
       recentDecisions: state.governance.committeeMemory.slice(0, 3),
+      recentNarrativeLines: state.narrative?.recentLines ?? [],
     }),
     'system',
   );

@@ -9,6 +9,7 @@ import {
   talkToPorter,
   getInfluenceHint,
   agentExchangeHint,
+  metaphoricalPositioningCue,
   porterOutcomeReflection,
   shiftPorterTrust,
   recordPorterMemory,
@@ -108,6 +109,33 @@ function renderRoom() {
   const roomObj = state.world.rooms[state.player.currentRoom];
   if (roomObj.items.length) line(`Items here: ${roomObj.items.join(', ')}.`, 'hint');
   if (state.player.currentRoom === 'hall') line('The porter stands by the east door, politely immovable.', 'hint');
+  maybeArrivalNarrativeHook(roomId);
+}
+
+function atmosphericCueForState(systemState) {
+  if (systemState === 'chaotic') return 'The air feels less shared than negotiated.';
+  if (systemState === 'stagnant') return 'The air feels preserved, as if waiting for someone else to begin.';
+  return 'The air feels… negotiable.';
+}
+
+function maybeArrivalNarrativeHook(roomId) {
+  const keyRoom = roomId === 'hall' || roomId === 'lockedRoom';
+  if (!keyRoom || Math.random() >= 0.28) return;
+
+  const porterLine = talkToPorter(state.agents, state.system.state, state.social);
+  const positionCue = metaphoricalPositioningCue(state.system.state, state.governance);
+  const atmospheric = atmosphericCueForState(state.system.state);
+
+  line(porterLine, 'hint');
+  line(positionCue, 'hint');
+  line(atmospheric, 'hint');
+}
+
+function maybeComposedTransitionBundle() {
+  if (Math.random() >= 0.35) return;
+  line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+  line(metaphoricalPositioningCue(state.system.state, state.governance), 'hint');
+  line(atmosphericCueForState(state.system.state), 'hint');
 }
 
 function save() {
@@ -350,6 +378,7 @@ function processCommand(input) {
   if (tensionLine) line(tensionLine, 'hint');
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {
     line(transitionMessage(state.system), 'system');
+    maybeComposedTransitionBundle();
   }
   const echo = behaviourEcho(state.social);
   if (echo) line(echo, 'hint');

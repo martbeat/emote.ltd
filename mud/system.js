@@ -96,7 +96,15 @@ export function derivePhaseSummary(system, committeeMemory) {
     'pragmatic alignment': 'A working coalition holds, though nobody confuses it with unanimity.',
   }[phase];
 
-  return `Phase: ${phase}. ${gloss}`;
+  const phaseAliases = {
+    'watchful equilibrium': 'Managed tension',
+    'pragmatic alignment': 'Working accord',
+    'contested escalation': 'Escalating contest',
+    'ceremonial stillness': 'Frozen consensus',
+  };
+  const alias = phaseAliases[phase];
+  const label = alias && Math.random() < 0.5 ? `${alias} (${phase})` : phase;
+  return `Phase: ${label}. ${gloss}`;
 }
 
 export function mediate(system, drift = 0, rng = Math.random) {

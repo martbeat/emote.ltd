@@ -55,7 +55,12 @@ function inferPattern(social) {
   const challenges = recent.filter((s) => s === 'challenge').length;
   const mediations = recent.filter((s) => s === 'mediate').length;
   const proposals = recent.filter((s) => s === 'propose').length;
+  const last = recent[recent.length - 1];
+  if ((last === 'mediate' || last === 'challenge') && recent.length >= 3) {
+    return "The porter says, 'You do not just act. You adjust.'";
+  }
   if (proposals >= 3) return "The porter adds, 'You keep returning to the table. Persistence has a smell.'";
+  if (mediations + challenges >= 4) return "The porter says, 'Most never notice the difference.'";
   if (challenges > mediations + 1) return "The porter says, 'You strike flint often. Useful, if one likes sparks.'";
   if (mediations > challenges + 1) return "The porter says, 'You mend seams even when cloth is still tearing.'";
   return "The porter says, 'You're still deciding whether to steer the room or outlast it.'";
@@ -128,4 +133,18 @@ export function agentExchangeHint(systemState, governance) {
     return "Bernard and Ada disagree openly, but both quote Cyra's phrasing as if it were neutral ground.";
   }
   return 'Ada and Bernard circle the same issue from opposite directions while Cyra translates between them.';
+}
+
+export function metaphoricalPositioningCue(systemState, governance) {
+  const latest = governance.committeeMemory[0] ?? '';
+  if (systemState === 'chaotic' || latest.startsWith('rejected')) {
+    return 'Ada and Bernard seem further apart than before.';
+  }
+  if (systemState === 'stagnant') {
+    return 'Cyra stands between them, holding a corridor of caution open.';
+  }
+  if (latest.startsWith('accepted')) {
+    return 'Cyra stands between them, and for a moment the distance looks useful rather than hostile.';
+  }
+  return 'Ada and Bernard keep a careful distance; Cyra measures the gap with her silence.';
 }

@@ -1,3 +1,23 @@
+const roomProfiles = {
+  foyer: { interaction: 'medium', spatialTone: 'enclosed-threshold', ambience: 'transitional' },
+  hall: { interaction: 'high', spatialTone: 'civic-interior', ambience: 'active' },
+  lockedRoom: { interaction: 'high', spatialTone: 'enclosed-deliberative', ambience: 'active' },
+  westPassage: { interaction: 'low', spatialTone: 'narrow-transitional', ambience: 'quiet' },
+  courtyard: { interaction: 'low', spatialTone: 'open-exterior', ambience: 'quiet' },
+  eastCorridor: { interaction: 'medium', spatialTone: 'long-transitional', ambience: 'transitional' },
+  stairwell: { interaction: 'low', spatialTone: 'vertical-transitional', ambience: 'quiet' },
+  upperLanding: { interaction: 'low', spatialTone: 'semi-open-threshold', ambience: 'quiet' },
+  archive: { interaction: 'low', spatialTone: 'enclosed-storage', ambience: 'quiet' },
+  gallery: { interaction: 'medium', spatialTone: 'open-interior', ambience: 'quiet' },
+  garden: { interaction: 'low', spatialTone: 'open-exterior', ambience: 'quiet' },
+};
+
+const roomPacing = {
+  high: { ambientNarrativeChance: 0.35, roomEventChance: 0.28 },
+  medium: { ambientNarrativeChance: 0.2, roomEventChance: 0.15 },
+  low: { ambientNarrativeChance: 0.08, roomEventChance: 0.04 },
+};
+
 export function createWorld() {
   return {
     rooms: {
@@ -6,7 +26,7 @@ export function createWorld() {
         name: 'Foyer of Drafts',
         description:
           'A stone antechamber with old noticeboards and damp woollen air. Chalk marks near the archway suggest prior committees preferred argument to maps.',
-        exits: { north: 'hall' },
+        exits: { north: 'hall', west: 'westPassage' },
         items: ['ledger fragment'],
         stateDescriptions: {
           balanced: 'The drafts stop just short of being cold. Someone recently straightened the noticeboard pins.',
@@ -18,8 +38,8 @@ export function createWorld() {
         id: 'hall',
         name: 'Hall of Proceedings',
         description:
-          'A long hall with a varnished table and a brass-plated door to the east. The porter keeps one eye on the lock and the other on your manners.',
-        exits: { south: 'foyer', east: 'lockedRoom' },
+          'A long hall with a varnished table and a brass-plated door to the east. Sightlines run the full length of the chamber, making each interruption visible from far away.',
+        exits: { south: 'foyer', east: 'lockedRoom', north: 'eastCorridor' },
         items: ['iron key'],
         stateDescriptions: {
           balanced: 'The table is scuffed but orderly; chairs face one another rather than away.',
@@ -32,7 +52,7 @@ export function createWorld() {
         name: 'Deliberation Chamber',
         description:
           'Lantern-light pools over proposal minutes, redacted charters, and a patient clock. This room feels less discovered than granted.',
-        exits: { west: 'hall' },
+        exits: { west: 'hall', north: 'archive' },
         items: ['committee seal'],
         stateDescriptions: {
           balanced: 'Fresh notes lie atop older minutes, suggesting revision without denial.',
@@ -40,7 +60,113 @@ export function createWorld() {
           stagnant: 'The minutes are immaculate and untouched; even the ink seems resigned.',
         },
       },
+      westPassage: {
+        id: 'westPassage',
+        name: 'West Passage',
+        description:
+          'A long brick passage where light arrives in strips through high windows. Footsteps stretch and then disappear before reaching the far end.',
+        exits: { east: 'foyer', north: 'courtyard' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'The corridor holds a cool, workable quiet.',
+          chaotic: 'Sound from distant meetings arrives in uneven pulses, then drops away.',
+          stagnant: 'Air and dust seem to settle at exactly the same pace.',
+        },
+      },
+      courtyard: {
+        id: 'courtyard',
+        name: 'Inner Courtyard',
+        description:
+          'A broad courtyard of worn paving and rain barrels, open to a high rectangle of sky. The institution feels smaller and larger here at once.',
+        exits: { south: 'westPassage', east: 'eastCorridor', north: 'garden' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'Rainwater gathers in calm basins and reflects moving clouds.',
+          chaotic: 'A door somewhere keeps knocking against its frame in restless bursts.',
+          stagnant: 'Even wind crosses slowly, as though reluctant to disturb the square.',
+        },
+      },
+      eastCorridor: {
+        id: 'eastCorridor',
+        name: 'East Corridor',
+        description:
+          'A broad corridor linking offices and committee spaces, lined with closed doors and brass nameplates turned inward.',
+        exits: { south: 'hall', west: 'courtyard', north: 'stairwell', east: 'gallery' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'Distant doors open and close in an orderly rhythm.',
+          chaotic: 'Conversations leak through panels and collide in the corridor.',
+          stagnant: 'Most doors stay shut long enough to look permanent.',
+        },
+      },
+      stairwell: {
+        id: 'stairwell',
+        name: 'North Stairwell',
+        description:
+          'A stone stairwell spirals up past utility lamps and old civic murals. The steps widen near the top, as if anticipating processions that no longer occur.',
+        exits: { south: 'eastCorridor', north: 'upperLanding' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'The stair carries soft echoes that fade before they multiply.',
+          chaotic: 'Sounds travel unpredictably, arriving before their source.',
+          stagnant: 'Echoes die quickly, leaving each landing overly still.',
+        },
+      },
+      upperLanding: {
+        id: 'upperLanding',
+        name: 'Upper Landing',
+        description:
+          'An open landing with a tall balustrade overlooking the courtyard. From here, governance rooms feel like one district among many.',
+        exits: { south: 'stairwell', east: 'archive', west: 'gallery' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'The view gives scale without urgency.',
+          chaotic: 'The building seems busy in several directions at once.',
+          stagnant: 'The whole complex looks paused, as if awaiting a cue.',
+        },
+      },
+      archive: {
+        id: 'archive',
+        name: 'Silent Archive',
+        description:
+          'Rows of boxed minutes, retired signage, and bound ledgers vanish into dim shelves. No one speaks here unless they need to hear themselves.',
+        exits: { south: 'lockedRoom', west: 'upperLanding' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'Paper settles with a dry, unobtrusive hush.',
+          chaotic: 'A few files sit half-open, as if consulted in haste.',
+          stagnant: 'Catalog cards remain exactly where they were left last season.',
+        },
+      },
+      gallery: {
+        id: 'gallery',
+        name: 'Public Gallery',
+        description:
+          'A long gallery with benches and high windows facing the garden wall. The chamber sounds distant from here, almost optional.',
+        exits: { west: 'eastCorridor', east: 'upperLanding', south: 'garden' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'The benches sit unused but not abandoned.',
+          chaotic: 'Murmurs carry up from below, then dissolve into drafty space.',
+          stagnant: 'The windows show the same still view for what feels like hours.',
+        },
+      },
+      garden: {
+        id: 'garden',
+        name: 'Outer Garden',
+        description:
+          'A gravel garden beyond the main halls, with low hedges, weathered stone seats, and a gate that opens to the street beyond institutional hearing.',
+        exits: { south: 'courtyard', north: 'gallery' },
+        items: [],
+        stateDescriptions: {
+          balanced: 'Birdsong threads quietly through the hedge line.',
+          chaotic: 'Even outside, the air carries unresolved urgency from within.',
+          stagnant: 'Stillness deepens until even distant traffic sounds suspended.',
+        },
+      },
     },
+    roomProfiles,
+    roomPacing,
     roomFlavour: {
       balanced:
         'The building seems to breathe in even measure, as if friction and purpose are currently compatible.',
@@ -48,6 +174,36 @@ export function createWorld() {
         'Voices echo from nowhere in particular. Doors stick, chairs scrape, and consensus feels expensive.',
       stagnant:
         'Dust settles on active debates. Every mechanism still works, but only after a pause long enough to doubt it.',
+    },
+    ambientEffects: {
+      interior: {
+        balanced: [
+          'Somewhere deep in the structure, a routine continues without fanfare.',
+          'A distant cadence of work carries through walls, steady and low.',
+        ],
+        chaotic: [
+          'From far off, a sudden burst of raised voices arrives and then disperses.',
+          'A remote door slams, then the corridors pretend it did not.',
+        ],
+        stagnant: [
+          'The distant wings of the building seem unusually mute.',
+          'Even far-off activity has the stillness of a paused hearing.',
+        ],
+      },
+      exterior: {
+        balanced: [
+          'Beyond the walls, city noise moves at an ordinary, forgiving distance.',
+          'The outside world continues without needing this room to decide first.',
+        ],
+        chaotic: [
+          'Street sounds arrive in broken fragments, as if the day itself is interrupting.',
+          'Even the open air carries an unsettled edge from the chambers behind you.',
+        ],
+        stagnant: [
+          'Outside motion feels far away, almost softened into static.',
+          'The grounds hold a deep pause, as though waiting for a delayed verdict.',
+        ],
+      },
     },
     itemDescriptions: {
       'ledger fragment':
@@ -110,6 +266,34 @@ const roomMetaphors = {
       'The light holds steady on decisions that no longer circulate.',
       'The clock moves, but the room keeps the same posture.',
       'Even the redactions feel settled into habit rather than caution.',
+    ],
+  },
+  eastCorridor: {
+    balanced: [
+      'Doorframes mark distance in clean, repeatable intervals.',
+      'The corridor feels like infrastructure rather than pressure.',
+    ],
+    chaotic: [
+      'Footsteps from several directions cross without resolving into a crowd.',
+      'Announcements begin behind doors and end before the handle turns.',
+    ],
+    stagnant: [
+      'The corridor becomes a line of waiting thresholds.',
+      'Even nameplates seem to have chosen silence over revision.',
+    ],
+  },
+  courtyard: {
+    balanced: [
+      'Open sky widens every pause into something usable.',
+      'Distance between walls gives arguments room to cool on their own.',
+    ],
+    chaotic: [
+      'Wind catches scraps of sound and spins them across stone.',
+      'The square amplifies unrest by scattering it in all directions.',
+    ],
+    stagnant: [
+      'The open space feels held in suspension rather than rest.',
+      'Even weather seems to hesitate over the paving.',
     ],
   },
 };
@@ -183,6 +367,7 @@ function inferDecisionTag(recentDecisions = []) {
 
 export function describeRoom(world, roomId, systemState, context = {}) {
   const room = world.rooms[roomId];
+  const profile = world.roomProfiles?.[roomId] ?? { interaction: 'medium', spatialTone: 'enclosed', ambience: 'transitional' };
   const exits = Object.keys(room.exits).join(', ');
   const visitCount = context.visitCount ?? 1;
   const tensionDirection = context.lastTensionDirection ?? 'flat';
@@ -192,6 +377,8 @@ export function describeRoom(world, roomId, systemState, context = {}) {
   const tensionEcho = rotateVariant(tensionEchoByState[systemState]?.[tensionDirection], visitCount, 1);
   const decisionEcho =
     decisionTag && visitCount % 2 === 0 ? rotateVariant(decisionEchoes[decisionTag], visitCount, 2) : '';
+  const ambientScope = profile.spatialTone.includes('exterior') ? 'exterior' : 'interior';
+  const ambientSignal = rotateVariant(world.ambientEffects?.[ambientScope]?.[systemState], visitCount, 2);
   const sensory = {
     balanced: 'Somewhere nearby, a pen scratches steadily across paper.',
     chaotic: 'You hear overlapping voices, then a sudden shared silence.',
@@ -202,6 +389,7 @@ export function describeRoom(world, roomId, systemState, context = {}) {
     room.description,
     localTexture,
     environmentalMetaphor,
+    ambientSignal,
     world.roomFlavour[systemState],
     tensionEcho,
     decisionEcho,
@@ -210,6 +398,16 @@ export function describeRoom(world, roomId, systemState, context = {}) {
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+export function getRoomPacing(world, roomId) {
+  const interactionBand = world.roomProfiles?.[roomId]?.interaction ?? 'medium';
+  return world.roomPacing?.[interactionBand] ?? world.roomPacing.medium;
+}
+
+export function roomAllowsAmbientOutput(world, roomId) {
+  const interactionBand = world.roomProfiles?.[roomId]?.interaction ?? 'medium';
+  return interactionBand !== 'low';
 }
 
 export function hasItemInRoom(world, roomId, itemName) {

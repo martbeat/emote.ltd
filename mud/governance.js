@@ -33,6 +33,30 @@ export function describeNorms(norms) {
 }
 
 export function describeNormChange(key, value) {
+  const normalized = String(value) === 'true';
+
+  if (key === 'consensusFirst') {
+    return {
+      summary: normalized
+        ? 'The chamber returns to consensus-first deliberation before commitments are made.'
+        : 'The chamber allows commitments before full consensus, speeding up decisions.',
+      gameplay: normalized
+        ? 'Deliberation slows as participants check for broad agreement before moving forward.'
+        : 'Debates resolve faster, but unresolved disagreement is more likely to spill into later turns.',
+    };
+  }
+
+  if (key === 'blessOnSneeze') {
+    return {
+      summary: normalized
+        ? 'Blessing a sneeze is once again treated as expected social courtesy.'
+        : 'The blessing ritual is suspended; sneezes pass without formal acknowledgment.',
+      gameplay: normalized
+        ? 'Courtesy cues become more visible, reinforcing social warmth in ambient scenes.'
+        : 'Ambient interactions feel more transactional as courtesy rituals fade into background noise.',
+    };
+  }
+
   return {
     summary: describeNorm(key, value),
     gameplay: normGameplayEffects[key]?.[String(value)] ?? 'The institution adjusts how routine interactions play out.',

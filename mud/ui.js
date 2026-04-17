@@ -4,7 +4,7 @@ import {
   getRoomPacing,
   removeItemFromRoom,
   addItemToRoom,
-} from './world.js';
+} from './world.js?v=build10';
 import {
   createAgents,
   moveAgents,
@@ -20,7 +20,7 @@ import {
   recordPorterMemory,
   narrateAgentContinuity,
   interpretAgentInteraction,
-} from './agents.js';
+} from './agents.js?v=build10';
 import {
   createSocialState,
   applyRelationship,
@@ -30,14 +30,14 @@ import {
   maybeSneeze,
   inferIdentity,
   logBehaviour,
-} from './social.js';
+} from './social.js?v=build10';
 import {
   createGovernanceState,
   proposeRule,
   vote,
   describeNorms,
   describeNormChange,
-} from './governance.js';
+} from './governance.js?v=build10';
 import {
   createSystemState,
   tickSystem,
@@ -47,7 +47,7 @@ import {
   mediate,
   challenge,
   resetNormAttempt,
-} from './system.js';
+} from './system.js?v=build10';
 import {
   createNarrativeState,
   porterReflection,
@@ -62,7 +62,7 @@ import {
   maybeDirectionalGhostGlimpse,
   maybeAmbientSneezeNarrative,
   maybeAmbientWorldEvent,
-} from './narrative.js';
+} from './narrative.js?v=build10';
 
 function createGameState() {
   return {

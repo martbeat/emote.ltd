@@ -99,8 +99,26 @@ export function derivePhaseSummary(system, committeeMemory) {
   return `Phase: ${phase}. ${gloss}`;
 }
 
+function resolveActionChance(base, drift, rng, min, max) {
+  const softenedDrift = drift / (1 + Math.abs(drift) * 2.2);
+  const microSwing = (rng() - 0.5) * 0.06;
+  return Math.max(min, Math.min(max, base + softenedDrift + microSwing));
+}
+
+function undertowLine(drift, rng, favoursText, resistsText) {
+  if (Math.abs(drift) < 0.015 || rng() < 0.35) return null;
+  return drift > 0 ? favoursText : resistsText;
+}
+
 export function mediate(system, drift = 0, rng = Math.random) {
-  const chance = Math.max(0.1, Math.min(0.9, (system.state === 'chaotic' ? 0.75 : 0.55) + drift));
+  const baseChance = system.state === 'chaotic' ? 0.75 : 0.55;
+  const chance = resolveActionChance(baseChance, drift, rng, 0.1, 0.9);
+  const undertow = undertowLine(
+    drift,
+    rng,
+    'A side glance suggests some people were already ready to meet you halfway.',
+    'The tone is right, but familiarity blunts some of the invitation.',
+  );
   if (rng() < chance) {
     const delta = shiftTension(system, -2);
     system.alignment += 1;
@@ -109,9 +127,9 @@ export function mediate(system, drift = 0, rng = Math.random) {
     return {
       ok: true,
       text: 'You mediate between blocs. Voices lower, and one knot loosens.',
-      ripple: delta.direction === 'down'
+      ripple: `${delta.direction === 'down'
         ? 'A few members now defer to form rather than personality.'
-        : 'The room nods, though nobody is ready to call it harmony.',
+        : 'The room nods, though nobody is ready to call it harmony.'}${undertow ? ` ${undertow}` : ''}`,
     };
   }
   const delta = shiftTension(system, 1);
@@ -120,14 +138,21 @@ export function mediate(system, drift = 0, rng = Math.random) {
   return {
     ok: false,
     text: 'Your mediation lands like choreography. Nobody objects, nobody yields.',
-    ripple: delta.direction === 'up'
+    ripple: `${delta.direction === 'up'
       ? 'By evening, your compromise is quoted by both sides, not quite the same way.'
-      : 'It is unclear whether anything moved or merely looked busy.',
+      : 'It is unclear whether anything moved or merely looked busy.'}${undertow ? ` ${undertow}` : ''}`,
   };
 }
 
 export function challenge(system, drift = 0, rng = Math.random) {
-  const chance = Math.max(0.1, Math.min(0.9, (system.state === 'stagnant' ? 0.72 : 0.52) + drift));
+  const baseChance = system.state === 'stagnant' ? 0.72 : 0.52;
+  const chance = resolveActionChance(baseChance, drift, rng, 0.1, 0.9);
+  const undertow = undertowLine(
+    drift,
+    rng,
+    'The room had been waiting for someone to press the weak seam aloud.',
+    'Several listeners seem unsurprised, as if they had rehearsed their resistance.',
+  );
   const delta = shiftTension(system, 2);
   if (rng() < chance) {
     system.alignment += 1;
@@ -136,9 +161,9 @@ export function challenge(system, drift = 0, rng = Math.random) {
     return {
       ok: true,
       text: 'You challenge assumptions directly. The room bristles, then re-engages.',
-      ripple: delta.direction === 'up'
+      ripple: `${delta.direction === 'up'
         ? 'Energy rises; tomorrow may produce either progress or fresh stalemate.'
-        : 'The challenge lands softly, which is somehow more unsettling.',
+        : 'The challenge lands softly, which is somehow more unsettling.'}${undertow ? ` ${undertow}` : ''}`,
     };
   }
   system.recentRipples.unshift('Your challenge becomes a cautionary anecdote in the corridor.');
@@ -146,14 +171,20 @@ export function challenge(system, drift = 0, rng = Math.random) {
   return {
     ok: false,
     text: 'You challenge too early; factions harden around old instincts.',
-    ripple: 'A few listeners seemed persuaded, but not enough to admit it publicly.',
+    ripple: `A few listeners seemed persuaded, but not enough to admit it publicly.${undertow ? ` ${undertow}` : ''}`,
   };
 }
 
 export function resetNormAttempt(system, drift = 0, rng = Math.random) {
   const base = 0.4 + system.alignment * 0.05;
   const modifier = system.state === 'chaotic' ? -0.15 : system.state === 'stagnant' ? -0.05 : 0.08;
-  const chance = Math.max(0.1, Math.min(0.85, base + modifier + drift));
+  const chance = resolveActionChance(base + modifier, drift, rng, 0.1, 0.85);
+  const undertow = undertowLine(
+    drift,
+    rng,
+    'You sense small pockets of readiness before anyone commits out loud.',
+    'The proposal sounds clear, but the room treats it like familiar weather.',
+  );
   const ok = rng() < chance;
   const delta = shiftTension(system, ok ? -1 : 1);
   system.recentRipples.unshift(
@@ -170,6 +201,6 @@ export function resetNormAttempt(system, drift = 0, rng = Math.random) {
     ripple:
       delta.direction === 'down'
         ? 'Effects may arrive late: conduct often follows language by a step.'
-        : 'The formal rule may stand, but practice appears to be waiting you out.',
+        : 'The formal rule may stand, but practice appears to be waiting you out.'}${undertow ? ` ${undertow}` : ''}`,
   };
 }

@@ -110,9 +110,9 @@ export function behaviouralDrift(social, action, rng = Math.random) {
 
 export function maybeTriggerCold(social, rng = Math.random) {
   if (social.playerCold) return null;
-  if (rng() < 0.12) {
+  if (rng() < 0.03) {
     social.playerCold = true;
-    social.turnsUntilSneezeCheck = 1;
+    social.turnsUntilSneezeCheck = 4 + Math.floor(rng() * 2);
     return 'A scratchy chill settles in your throat. You may be coming down with something.';
   }
   return null;
@@ -122,7 +122,7 @@ export function maybeSneeze(social, agents, playerRoomId, rng = Math.random) {
   if (!social.playerCold) return null;
   social.turnsUntilSneezeCheck -= 1;
   if (social.turnsUntilSneezeCheck > 0) return null;
-  social.turnsUntilSneezeCheck = 2 + Math.floor(rng() * 2);
+  social.turnsUntilSneezeCheck = 5 + Math.floor(rng() * 4);
   social.sneezeCount += 1;
   const porterPresent = agents?.porter?.roomId && agents.porter.roomId === playerRoomId;
   const porterReply = porterPresent ? porterSneezeResponse(agents, social, rng) : null;

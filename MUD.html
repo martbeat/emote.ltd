@@ -3,859 +3,144 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Essex-Inspired Browser MUD v2</title>
+  <title>Essex-Inspired MUD</title>
   <style>
     :root {
       --bg: #0b0f12;
-      --panel: #11181f;
-      --panel-2: #16212a;
-      --text: #d7e3ec;
-      --muted: #8ea3b5;
-      --accent: #73d0ff;
-      --good: #7fe38b;
-      --warn: #ffd36e;
-      --danger: #ff8f8f;
-      --border: #233240;
-      --shadow: 0 12px 30px rgba(0,0,0,0.35);
-      font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+      --panel: #101820;
+      --panel-2: #17232d;
+      --text: #d9e5ef;
+      --muted: #8ea5b7;
+      --accent: #7ed6ff;
+      --warn: #ffd27a;
+      --danger: #ff9e9e;
+      --good: #8fe59b;
+      --line: #243646;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
-      background: linear-gradient(180deg, #081018 0%, #0b0f12 100%);
       color: var(--text);
+      background: linear-gradient(180deg, #071018, #0b0f12);
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
     }
-
     header {
       padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(8, 12, 15, 0.92);
-      backdrop-filter: blur(8px);
-      position: sticky;
-      top: 0;
-      z-index: 2;
+      border-bottom: 1px solid var(--line);
+      background: rgba(4, 8, 11, 0.9);
     }
-
-    header h1 {
-      margin: 0 0 4px;
-      font-size: 1.08rem;
-      color: var(--accent);
-      letter-spacing: 0.02em;
-    }
-
-    header p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.92rem;
-      line-height: 1.4;
-    }
-
+    h1 { margin: 0 0 6px; color: var(--accent); font-size: 1.05rem; }
+    header p { margin: 0; color: var(--muted); font-size: .9rem; }
     main {
       display: grid;
       grid-template-columns: minmax(280px, 340px) 1fr;
-      gap: 16px;
-      padding: 16px;
-      align-items: start;
+      gap: 14px;
+      padding: 14px;
     }
-
     .panel {
-      background: linear-gradient(180deg, rgba(22,33,42,0.96), rgba(17,24,31,0.96));
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+      border-radius: 12px;
       overflow: hidden;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
     }
-
     .panel h2 {
       margin: 0;
-      font-size: 0.95rem;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
       color: var(--accent);
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0,0,0,0.12);
+      font-size: .9rem;
     }
-
-    .sidebar-section {
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-    }
-
-    .sidebar-section:last-child {
-      border-bottom: none;
-    }
-
-    .label {
-      display: block;
-      color: var(--muted);
-      font-size: 0.8rem;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .value {
-      line-height: 1.45;
-      font-size: 0.95rem;
-    }
-
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .tag {
-      border: 1px solid var(--border);
-      background: rgba(115,208,255,0.08);
-      color: var(--text);
-      padding: 5px 8px;
-      border-radius: 999px;
-      font-size: 0.82rem;
-    }
-
+    .section { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .section:last-child { border-bottom: none; }
+    .label { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+    .value { margin-top: 5px; font-size: .92rem; line-height: 1.4; }
     #output {
-      min-height: 62vh;
-      max-height: 72vh;
+      height: 62vh;
       overflow-y: auto;
-      padding: 16px;
+      padding: 12px;
       white-space: pre-wrap;
-      line-height: 1.5;
-      font-size: 0.98rem;
-      background:
-        radial-gradient(circle at top left, rgba(115,208,255,0.06), transparent 20%),
-        radial-gradient(circle at top right, rgba(127,227,139,0.04), transparent 18%);
+      line-height: 1.45;
     }
-
     .line { margin: 0 0 10px; }
     .line.system { color: var(--accent); }
-    .line.hint { color: var(--muted); }
-    .line.good { color: var(--good); }
     .line.warn { color: var(--warn); }
     .line.danger { color: var(--danger); }
-    .line.input { color: #d9f7ff; }
-
-    .prompt-wrap {
-      border-top: 1px solid var(--border);
-      padding: 12px 16px 16px;
-      background: rgba(5,8,10,0.55);
-    }
-
-    .prompt-row {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 10px;
-      align-items: center;
-    }
-
+    .line.good { color: var(--good); }
+    .line.hint { color: var(--muted); }
+    .line.input { color: #d8f5ff; }
     .prompt {
-      color: var(--accent);
-      font-weight: bold;
+      padding: 10px 12px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(4,8,11,0.4);
     }
-
-    input[type="text"] {
+    form { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+    input {
       width: 100%;
-      border-radius: 10px;
-      border: 1px solid var(--border);
       background: #0b1217;
       color: var(--text);
-      padding: 12px 14px;
-      font: inherit;
-      outline: none;
-    }
-
-    input[type="text"]:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(115,208,255,0.12);
-    }
-
-    button {
-      border: 1px solid var(--border);
-      background: linear-gradient(180deg, #18313d, #132631);
-      color: var(--text);
-      border-radius: 10px;
-      padding: 11px 14px;
-      cursor: pointer;
-      font: inherit;
-    }
-
-    button:hover { border-color: var(--accent); }
-
-    .button-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .button-row button {
-      padding: 9px 10px;
-      font-size: 0.9rem;
-    }
-
-    .cmd-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .cmd-grid code {
-      display: block;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 8px;
-      font-size: 0.82rem;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: #17303d;
       color: var(--text);
+      border-radius: 8px;
+      padding: 9px 11px;
+      font: inherit;
+      cursor: pointer;
     }
-
-    footer {
-      padding: 10px 16px 16px;
-      color: var(--muted);
-      font-size: 0.88rem;
-    }
-
+    .btns { margin-top: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     @media (max-width: 920px) {
       main { grid-template-columns: 1fr; }
-      #output { min-height: 50vh; max-height: none; }
+      #output { height: 50vh; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Essex-Inspired Browser MUD v2</h1>
-    <p>A stronger single-player browser MUD with local saves, typed commands, small puzzles, and a code structure that can later be moved to true multi-user play.</p>
+    <h1>Essex-Inspired MUD: World + Social + Governance</h1>
+    <p>Exploration, trust, norms, and system dynamics run concurrently. No layer replaces the others.</p>
   </header>
 
   <main>
     <aside class="panel">
-      <h2>Player State</h2>
-      <div class="sidebar-section">
-        <span class="label">Name</span>
-        <div class="value" id="playerName"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Current Room</span>
-        <div class="value" id="roomName"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Exits</span>
-        <div class="tags" id="exits"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Inventory</span>
-        <div class="tags" id="inventory"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Room Items</span>
-        <div class="tags" id="roomItems"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Room Characters</span>
-        <div class="tags" id="roomNpcs"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Session</span>
-        <div class="tags" id="sessionState"></div>
-      </div>
-      <div class="sidebar-section">
-        <span class="label">Useful Commands</span>
-        <div class="cmd-grid">
-          <code>look</code>
-          <code>north / south / east / west</code>
-          <code>go north</code>
-          <code>take key</code>
-          <code>drop key</code>
-          <code>inventory</code>
-          <code>use key</code>
-          <code>talk porter</code>
-          <code>say hello</code>
-          <code>save</code>
-          <code>load</code>
-          <code>restart</code>
-          <code>score</code>
-        </div>
+      <h2>State</h2>
+      <div class="section"><div class="label">Room</div><div class="value" id="roomLabel"></div></div>
+      <div class="section"><div class="label">Exits</div><div class="value" id="exitsLabel"></div></div>
+      <div class="section"><div class="label">Inventory</div><div class="value" id="inventoryLabel"></div></div>
+      <div class="section"><div class="label">Norms</div><div class="value" id="normsLabel"></div></div>
+      <div class="section"><div class="label">Tension</div><div class="value" id="tensionLabel"></div></div>
+      <div class="section"><div class="label">Committee Memory</div><div class="value" id="memoryLabel"></div></div>
+      <div class="section">
+        <div class="label">Useful commands</div>
+        <div class="value">look, n/s/e/w, take &lt;item&gt;, use &lt;item&gt;, talk porter, force, propose &lt;rule&gt;, vote, mediate, challenge, reset, sneeze, status, history</div>
       </div>
     </aside>
 
     <section class="panel">
-      <h2>Game Output</h2>
+      <h2>Transcript</h2>
       <div id="output" aria-live="polite"></div>
-      <div class="prompt-wrap">
-        <form id="commandForm" class="prompt-row">
-          <span class="prompt">&gt;</span>
-          <input id="commandInput" type="text" autocomplete="off" spellcheck="false" placeholder="Enter a command..." />
+      <div class="prompt">
+        <form id="commandForm">
+          <span>&gt;</span>
+          <input id="commandInput" type="text" autocomplete="off" spellcheck="false" placeholder="Type a command..." />
           <button type="submit">Run</button>
         </form>
-        <div class="button-row">
-          <button type="button" id="saveBtn">Save</button>
-          <button type="button" id="loadBtn">Load</button>
-          <button type="button" id="restartBtn">Restart</button>
+        <div class="btns">
+          <button id="saveBtn" type="button">Save</button>
+          <button id="loadBtn" type="button">Load</button>
+          <button id="restartBtn" type="button">Restart</button>
         </div>
       </div>
     </section>
   </main>
 
-  <footer>
-    Design note: command parsing, world state, rendering, and persistence are intentionally separated so local storage can later be replaced with a shared server-side state model over WebSockets.
-  </footer>
-
-  <script>
-    function createInitialWorld() {
-      return {
-        rooms: {
-          foyer: {
-            name: "Stone Foyer",
-            description: "A vaulted entrance lit by thin shafts of cold light. Dust hangs in the air. A brass plaque reads: 'Essex Experimental Dungeon Environment'. The room feels half academic lab, half forgotten castle.",
-            exits: { north: "greathall", east: "archive", west: "courtyard" },
-            items: ["plaque"],
-            npcs: []
-          },
-          greathall: {
-            name: "Great Hall",
-            description: "Long trestle tables line the chamber. Candles gutter in iron brackets. On the far wall hangs a torn map showing corridors, towers, and something marked simply as 'the machine room'.",
-            exits: { south: "foyer", north: "towerstairs", east: "armory" },
-            items: ["map"],
-            npcs: ["porter"]
-          },
-          archive: {
-            name: "Archive Nook",
-            description: "Shelves bow under the weight of indexes, logbooks, and cryptic design notes. Someone has pinned scraps of parser grammar to a board. A locked iron box sits under a table.",
-            exits: { west: "foyer" },
-            items: ["note", "iron box"],
-            npcs: []
-          },
-          courtyard: {
-            name: "Moonlit Courtyard",
-            description: "Weathered stone flags surround a dry fountain. Ivy grips the walls. To the north stands a heavy oak gate with a keyhole worn smooth by long use.",
-            exits: { east: "foyer" },
-            items: ["fountain"],
-            npcs: ["raven"]
-          },
-          towerstairs: {
-            name: "Tower Stairs",
-            description: "The stairs spiral upward into shadow and downward into a humming undercroft. The air smells faintly of warm circuitry and old paper.",
-            exits: { south: "greathall", up: "observatory", down: "machineroom" },
-            items: [],
-            npcs: []
-          },
-          armory: {
-            name: "Training Armory",
-            description: "Wooden practice swords hang in neat rows beside dented shields. A lantern burns steadily on a bench. The room seems prepared more for learning than war.",
-            exits: { west: "greathall" },
-            items: ["lantern", "brass key"],
-            npcs: []
-          },
-          machineroom: {
-            name: "Machine Room",
-            description: "Tall cabinets tick and hum behind protective grilles. Tape reels spin with quiet authority. At the centre sits a terminal pedestal waiting for a command worth believing in.",
-            exits: { up: "towerstairs" },
-            items: ["terminal"],
-            npcs: ["operator"]
-          },
-          observatory: {
-            name: "Observatory",
-            description: "The roof opens to the night. Brass instruments and star charts surround a pedestal. A locked chest rests beneath the telescope. The stars look close enough to query.",
-            exits: { down: "towerstairs" },
-            items: ["locked chest"],
-            npcs: []
-          },
-          garden: {
-            name: "Secret Garden",
-            description: "A hidden square of green, impossibly calm within the stone walls. The fountain here runs clear. A silver token gleams on the edge of the basin.",
-            exits: { south: "courtyard" },
-            items: ["silver token"],
-            npcs: []
-          }
-        },
-        itemText: {
-          plaque: "The plaque is recent compared with the stonework. Someone wanted the place to sound respectable before it became legendary.",
-          map: "The torn map marks the foyer, hall, archive, armory, tower stairs, observatory, and machine room. In the corner, in hurried handwriting, is a note: 'Old gate opens when memory does.'",
-          note: "The note reads: 'Parser still understands short forms. N, S, E, W. Also verbs. Be kind to the machine and it may be kind to you.'",
-          "iron box": "The iron box is locked. A brass key might fit.",
-          fountain: "Dry on the surface, but if you place something meaningful nearby you suspect a mechanism might wake.",
-          lantern: "A practical lantern with a warm steady glow. It makes the world feel less like code and more like place.",
-          "brass key": "A small brass key, polished by use. It looks as if it belongs to a chest or strongbox rather than a door.",
-          terminal: "The terminal flickers. A message waits: 'Shared worlds begin when state can outlive one player.'",
-          "locked chest": "An old chest with a bright brass lock.",
-          "silver token": "A silver token stamped with a tiny tower. It feels like a proof of passage."
-        },
-        npcDialogue: {
-          porter: [
-            "The porter says: 'Most people rush past the room description. Then they wonder why the world feels thin.'",
-            "The porter says: 'The old games were not just about fighting. They were about inhabiting a shared place.'",
-            "The porter says: 'Try the archive, the armory, and the machine room. The order matters less than the attention you bring.'"
-          ],
-          raven: [
-            "The raven tilts its head. 'Clever players look twice.'",
-            "The raven taps the dry fountain, once, then twice.",
-            "The raven stares toward the north wall where the hidden gate ought to be."
-          ],
-          operator: [
-            "The operator says: 'Right now this world is local. Later, transport, identity, and conflict resolution will make it shared.'",
-            "The operator says: 'Separate commands from rendering, state from interface, and events from storage. Then multiplayer stops being magic and becomes engineering.'",
-            "The operator says: 'A MUD is not merely text. It is a protocol for imagination.'"
-          ]
-        }
-      };
-    }
-
-    function createInitialGame() {
-      return {
-        player: {
-          name: "Visitor",
-          currentRoom: "foyer",
-          inventory: [],
-          flags: {
-            archiveBoxOpened: false,
-            courtyardUnlocked: false,
-            won: false
-          }
-        },
-        history: [],
-        chatLog: []
-      };
-    }
-
-    let world = createInitialWorld();
-    let game = createInitialGame();
-
-    const SAVE_KEY = "essexMudV2Save";
-
-    const output = document.getElementById("output");
-    const commandInput = document.getElementById("commandInput");
-    const commandForm = document.getElementById("commandForm");
-    const saveBtn = document.getElementById("saveBtn");
-    const loadBtn = document.getElementById("loadBtn");
-    const restartBtn = document.getElementById("restartBtn");
-
-    const ui = {
-      playerName: document.getElementById("playerName"),
-      roomName: document.getElementById("roomName"),
-      exits: document.getElementById("exits"),
-      inventory: document.getElementById("inventory"),
-      roomItems: document.getElementById("roomItems"),
-      roomNpcs: document.getElementById("roomNpcs"),
-      sessionState: document.getElementById("sessionState")
-    };
-
-    function room() {
-      return world.rooms[game.player.currentRoom];
-    }
-
-    function print(text, cls = "") {
-      const p = document.createElement("p");
-      p.className = `line ${cls}`.trim();
-      p.textContent = text;
-      output.appendChild(p);
-      output.scrollTop = output.scrollHeight;
-    }
-
-    function clearOutput() {
-      output.innerHTML = "";
-    }
-
-    function renderTags(container, values, emptyText) {
-      container.innerHTML = "";
-      if (!values.length) {
-        const span = document.createElement("span");
-        span.className = "tag";
-        span.textContent = emptyText;
-        container.appendChild(span);
-        return;
-      }
-      values.forEach(value => {
-        const span = document.createElement("span");
-        span.className = "tag";
-        span.textContent = value;
-        container.appendChild(span);
-      });
-    }
-
-    function getSessionTags() {
-      const saved = localStorage.getItem(SAVE_KEY) ? "save present" : "no save";
-      const status = game.player.flags.won ? "victory" : "in progress";
-      return [saved, status];
-    }
-
-    function updateSidebar() {
-      const current = room();
-      ui.playerName.textContent = game.player.name;
-      ui.roomName.textContent = current.name;
-      renderTags(ui.exits, Object.keys(current.exits), "none");
-      renderTags(ui.inventory, game.player.inventory, "empty");
-      renderTags(ui.roomItems, current.items, "none");
-      renderTags(ui.roomNpcs, current.npcs, "none");
-      renderTags(ui.sessionState, getSessionTags(), "none");
-    }
-
-    function describeRoom() {
-      const current = room();
-      print(current.name, "system");
-      print(current.description);
-      const exits = Object.keys(current.exits);
-      print(`Exits: ${exits.join(", ")}.`, "hint");
-      if (current.items.length) print(`You notice: ${current.items.join(", ")}.`, "hint");
-      if (current.npcs.length) print(`Present: ${current.npcs.join(", ")}.`, "hint");
-      updateSidebar();
-    }
-
-    function normalizeItemName(name) {
-      const current = room();
-      const candidates = [
-        ...current.items,
-        ...game.player.inventory,
-        ...Object.keys(world.itemText),
-        ...current.npcs
-      ];
-      return candidates.find(item => item.toLowerCase() === name.toLowerCase()) || name;
-    }
-
-    function canGo(direction) {
-      return Object.prototype.hasOwnProperty.call(room().exits, direction);
-    }
-
-    function move(direction) {
-      if (!canGo(direction)) {
-        print("You cannot go that way.", "warn");
-        return;
-      }
-      game.player.currentRoom = room().exits[direction];
-      describeRoom();
-    }
-
-    function take(itemName) {
-      const current = room();
-      const item = current.items.find(i => i.toLowerCase() === itemName.toLowerCase());
-      if (!item) {
-        print("That is not here.", "warn");
-        return;
-      }
-      if (["plaque", "fountain", "terminal", "locked chest", "iron box"].includes(item)) {
-        print(`You cannot take the ${item}.`, "warn");
-        return;
-      }
-      current.items = current.items.filter(i => i !== item);
-      game.player.inventory.push(item);
-      print(`Taken: ${item}.`, "good");
-      updateSidebar();
-    }
-
-    function drop(itemName) {
-      const item = game.player.inventory.find(i => i.toLowerCase() === itemName.toLowerCase());
-      if (!item) {
-        print("You are not carrying that.", "warn");
-        return;
-      }
-      game.player.inventory = game.player.inventory.filter(i => i !== item);
-      room().items.push(item);
-      print(`Dropped: ${item}.`, "good");
-      updateSidebar();
-    }
-
-    function inspect(targetName) {
-      const target = normalizeItemName(targetName);
-      const current = room();
-      const inScope = current.items.includes(target) || game.player.inventory.includes(target) || current.npcs.includes(target);
-      if (!inScope) {
-        print("You do not see that here.", "warn");
-        return;
-      }
-      if (current.npcs.includes(target)) {
-        print(`${target} watches you closely. You could try TALK ${target.toUpperCase()}.`);
-        return;
-      }
-      print(world.itemText[target] || `You study the ${target}, but it yields no further detail.`);
-    }
-
-    function showInventory() {
-      if (!game.player.inventory.length) {
-        print("You are carrying nothing.", "hint");
-        return;
-      }
-      print(`You are carrying: ${game.player.inventory.join(", ")}.`, "hint");
-    }
-
-    function talkTo(name) {
-      const npc = room().npcs.find(n => n.toLowerCase() === name.toLowerCase());
-      if (!npc) {
-        print("No one by that name is here.", "warn");
-        return;
-      }
-      const lines = world.npcDialogue[npc] || [`${npc} has nothing to say.`];
-      const line = lines[Math.floor(Math.random() * lines.length)];
-      print(line, "system");
-    }
-
-    function say(message) {
-      if (!message.trim()) {
-        print("Say what?", "warn");
-        return;
-      }
-      game.chatLog.push({ speaker: game.player.name, message, room: game.player.currentRoom, ts: Date.now() });
-      print(`You say: "${message}"`, "input");
-      if (room().npcs.includes("raven")) print("The raven croaks as if in reply.", "hint");
-      if (room().npcs.includes("operator") && message.toLowerCase().includes("multi")) {
-        print("The operator nods. 'Yes. Shared state first. Then presence, permissions, and persistence.'", "system");
-      }
-    }
-
-    function useItem(itemName) {
-      const item = game.player.inventory.find(i => i.toLowerCase() === itemName.toLowerCase());
-      if (!item) {
-        print("You are not carrying that.", "warn");
-        return;
-      }
-
-      if (item === "brass key" && game.player.currentRoom === "archive" && room().items.includes("iron box") && !game.player.flags.archiveBoxOpened) {
-        game.player.flags.archiveBoxOpened = true;
-        room().items = room().items.filter(i => i !== "iron box");
-        room().items.push("courtyard key");
-        world.itemText["courtyard key"] = "A larger iron key tagged 'outer gate'.";
-        print("The brass key clicks in the iron box. Inside you find a courtyard key.", "good");
-        updateSidebar();
-        return;
-      }
-
-      if (item === "courtyard key" && game.player.currentRoom === "courtyard" && !game.player.flags.courtyardUnlocked) {
-        game.player.flags.courtyardUnlocked = true;
-        room().exits.north = "garden";
-        world.rooms.garden.exits.south = "courtyard";
-        print("You unlock the hidden oak gate. It opens north into a secret garden.", "good");
-        updateSidebar();
-        return;
-      }
-
-      if (item === "silver token" && game.player.currentRoom === "machineroom" && !game.player.flags.won) {
-        game.player.flags.won = true;
-        print("You place the silver token on the terminal pedestal.", "good");
-        print("The machine room brightens. A line appears on the terminal: 'WORLD STATE ACCEPTED. NEXT STEP: MANY PLAYERS.'", "system");
-        print("You have completed the prototype path. The architecture is ready for a multiplayer upgrade.", "good");
-        updateSidebar();
-        return;
-      }
-
-      if (item === "lantern") {
-        print("You raise the lantern. Shadows retreat, but no new passage appears.", "hint");
-        return;
-      }
-
-      print(`You cannot find a useful way to use the ${item} here.`, "warn");
-    }
-
-    function setName(newName) {
-      const cleaned = newName.trim().replace(/[^a-z0-9 _-]/gi, "").slice(0, 20);
-      if (!cleaned) {
-        print("Choose a real name with letters or numbers.", "warn");
-        return;
-      }
-      game.player.name = cleaned;
-      print(`You are now known as ${cleaned}.`, "good");
-      updateSidebar();
-    }
-
-    function buildSaveData() {
-      return {
-        version: 2,
-        player: JSON.parse(JSON.stringify(game.player)),
-        world: JSON.parse(JSON.stringify(world)),
-        history: JSON.parse(JSON.stringify(game.history)),
-        chatLog: JSON.parse(JSON.stringify(game.chatLog)),
-        savedAt: new Date().toISOString()
-      };
-    }
-
-    function saveGame() {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(buildSaveData()));
-      print("Game saved to this browser.", "good");
-      updateSidebar();
-    }
-
-    function loadGame() {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) {
-        print("No saved game found in this browser.", "warn");
-        return;
-      }
-
-      try {
-        const save = JSON.parse(raw);
-        if (!save || !save.player || !save.world) throw new Error("Invalid save");
-        game = {
-          player: save.player,
-          history: save.history || [],
-          chatLog: save.chatLog || []
-        };
-        world = save.world;
-        clearOutput();
-        print(`Loaded saved game from ${save.savedAt || "an earlier session"}.`, "good");
-        describeRoom();
-      } catch (error) {
-        print("The save file could not be loaded.", "danger");
-      }
-
-      updateSidebar();
-    }
-
-    function restartGame() {
-      world = createInitialWorld();
-      game = createInitialGame();
-      clearOutput();
-      print("World restarted. Any saved game remains available until overwritten or cleared.", "warn");
-      intro(false);
-      updateSidebar();
-    }
-
-    function clearSave() {
-      localStorage.removeItem(SAVE_KEY);
-      print("Saved game cleared from this browser.", "warn");
-      updateSidebar();
-    }
-
-    function scoreGame() {
-      const keyItems = ["lantern", "brass key", "courtyard key", "silver token"];
-      const carried = keyItems.filter(item => game.player.inventory.includes(item)).length;
-      const discovered = [
-        game.player.flags.archiveBoxOpened,
-        game.player.flags.courtyardUnlocked,
-        game.player.flags.won,
-        game.player.currentRoom === "garden"
-      ].filter(Boolean).length;
-      const score = carried * 10 + discovered * 15;
-      print(`Score: ${score}. Milestones reached: ${discovered}. Important items held: ${carried}.`, "hint");
-    }
-
-    function help() {
-      print("Commands: look, l, north/south/east/west/up/down, go <dir>, examine <thing>, inspect <thing>, take <thing>, drop <thing>, inventory, i, talk <name>, use <item>, say <message>, name <newname>, save, load, restart, clearsave, score, help", "hint");
-      print("Single-player notes: state is saved in localStorage so your run can persist between browser sessions on this device.", "hint");
-      print("Future multi-user path: keep this parser and UI, move world state to a server, and send commands and room updates over WebSockets.", "hint");
-    }
-
-    function parseCommand(raw) {
-      const input = raw.trim();
-      if (!input) return;
-
-      game.history.push(input);
-      print(`> ${input}`, "input");
-
-      const parts = input.split(/\s+/);
-      const verb = parts[0].toLowerCase();
-      const rest = input.slice(parts[0].length).trim();
-
-      const aliases = {
-        n: "north",
-        s: "south",
-        e: "east",
-        w: "west",
-        u: "up",
-        d: "down",
-        l: "look",
-        i: "inventory",
-        x: "examine"
-      };
-
-      const command = aliases[verb] || verb;
-
-      if (["north", "south", "east", "west", "up", "down"].includes(command)) {
-        move(command);
-        return;
-      }
-
-      switch (command) {
-        case "look":
-          describeRoom();
-          break;
-        case "go":
-          if (!rest) return print("Go where?", "warn");
-          move(rest.toLowerCase());
-          break;
-        case "take":
-        case "get":
-          if (!rest) return print("Take what?", "warn");
-          take(rest);
-          break;
-        case "drop":
-          if (!rest) return print("Drop what?", "warn");
-          drop(rest);
-          break;
-        case "examine":
-        case "inspect":
-        case "read":
-          if (!rest) return print("Examine what?", "warn");
-          inspect(rest);
-          break;
-        case "inventory":
-          showInventory();
-          break;
-        case "talk":
-          if (!rest) return print("Talk to whom?", "warn");
-          talkTo(rest.replace(/^to\s+/i, ""));
-          break;
-        case "say":
-          say(rest);
-          break;
-        case "use":
-          if (!rest) return print("Use what?", "warn");
-          useItem(rest);
-          break;
-        case "name":
-          if (!rest) return print("Name yourself what?", "warn");
-          setName(rest);
-          break;
-        case "save":
-          saveGame();
-          break;
-        case "load":
-          loadGame();
-          break;
-        case "restart":
-          restartGame();
-          break;
-        case "clearsave":
-          clearSave();
-          break;
-        case "score":
-          scoreGame();
-          break;
-        case "help":
-        case "?":
-          help();
-          break;
-        default:
-          print("I do not understand that command. Type HELP for options.", "warn");
-      }
-    }
-
-    function intro(showSaveNotice = true) {
-      print("Connected to local world instance.", "system");
-      print("This is the single-player foundation: a browser MUD with persistent local saves, parser commands, item interactions, and a structure that can later move to shared server-side state.", "hint");
-      print("Your first objective is still to explore carefully. Your second is to notice that the engine already separates interface, commands, and state.", "hint");
-      describeRoom();
-      help();
-      if (showSaveNotice && localStorage.getItem(SAVE_KEY)) {
-        print("A previous save exists in this browser. Type LOAD to resume it or continue with a new run.", "system");
-      }
-    }
-
-    commandForm.addEventListener("submit", event => {
-      event.preventDefault();
-      const value = commandInput.value;
-      commandInput.value = "";
-      parseCommand(value);
-      commandInput.focus();
-    });
-
-    saveBtn.addEventListener("click", saveGame);
-    loadBtn.addEventListener("click", loadGame);
-    restartBtn.addEventListener("click", restartGame);
-
-    intro();
-    updateSidebar();
-    commandInput.focus();
-  </script>
+  <script type="module" src="./mud/ui.js"></script>
 </body>
 </html>

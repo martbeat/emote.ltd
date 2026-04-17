@@ -73,11 +73,17 @@ function createGameState() {
       attemptedForceDoor: false,
       visitCounts: {},
     },
+    governanceUi: {
+      suggestionStreak: 0,
+      lastDecisionFailed: false,
+    },
   };
 }
 
 const SAVE_KEY = 'essexMudGovV1';
 let state = createGameState();
+const governanceKeyRooms = new Set(['hall', 'lockedRoom']);
+const governanceSupportRooms = new Set(['foyer', 'eastCorridor', 'archive']);
 
 const dom = {
   output: document.getElementById('output'),
@@ -97,6 +103,36 @@ function line(text, cls = '') {
   p.textContent = text;
   dom.output.appendChild(p);
   dom.output.scrollTop = dom.output.scrollHeight;
+}
+
+function governancePresence(roomId) {
+  if (governanceKeyRooms.has(roomId)) return 'primary';
+  if (governanceSupportRooms.has(roomId)) return 'secondary';
+  return 'background';
+}
+
+function suggestionThreshold(roomId) {
+  const presence = governancePresence(roomId);
+  if (presence === 'primary') return 1;
+  if (presence === 'secondary') return 2;
+  return 3;
+}
+
+function governanceNarrativeDepth(roomId) {
+  const presence = governancePresence(roomId);
+  if (presence === 'primary') return 3;
+  if (presence === 'secondary') return 2;
+  return 1;
+}
+
+function maybeShowGovernanceHints(lastVerb) {
+  const depth = governanceNarrativeDepth(state.player.currentRoom);
+  if (state.governanceUi.lastDecisionFailed && depth >= 2) {
+    line('The idea stalls. You can push it forward with "push".', 'hint');
+  }
+  if (state.system.tension >= 7 && depth >= 1 && !['calm', 'mediate'].includes(lastVerb)) {
+    line('The room is getting sharp; you can calm things with "calm".', 'hint');
+  }
 }
 
 function tagsFromObject(obj) {
@@ -170,6 +206,12 @@ function load() {
   state = JSON.parse(raw);
   if (!state.narrative) {
     state.narrative = createNarrativeState();
+  }
+  if (!state.governanceUi) {
+    state.governanceUi = {
+      suggestionStreak: 0,
+      lastDecisionFailed: false,
+    };
   }
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
@@ -323,8 +365,13 @@ function processCommand(input) {
   const arg = rest.join(' ').trim();
   const tensionBefore = state.system.tension;
   const priorTransitionTurn = state.system.lastTransition?.turn;
+  const governanceVerbs = new Set(['suggest', 'decide', 'push', 'calm', 'shift', 'propose', 'vote', 'challenge', 'mediate', 'reset']);
 
   const dirAliases = { n: 'north', s: 'south', e: 'east', w: 'west' };
+  if (!governanceVerbs.has(verb)) {
+    state.governanceUi.suggestionStreak = Math.max(0, state.governanceUi.suggestionStreak - 1);
+  }
+
   if (dirAliases[verb]) {
     move(dirAliases[verb]);
   } else if (['north', 'south', 'east', 'west'].includes(verb)) {
@@ -345,61 +392,105 @@ function processCommand(input) {
     talk(arg.toLowerCase());
   } else if (verb === 'force') {
     forceDoor();
-  } else if (verb === 'propose') {
-    line(proposeRule(state.governance, state.social, arg || 'blessOnSneeze=true'), 'system');
-    line('Pens pause around the table; someone quietly revises their objections in advance.', 'hint');
-  } else if (verb === 'vote') {
-    const result = vote(state.governance, state.agents, state.social, state.system);
-    line(result.text, result.ok ? 'good' : 'warn');
-    if (result.detail) line(result.detail, 'hint');
-    if (result.narrative) line(result.narrative, 'hint');
-    if (result.coalitionHint) line(result.coalitionHint, 'hint');
-    if (result.stanceScene) line(result.stanceScene, 'hint');
-    if (result.ambiguity) line(result.ambiguity, 'hint');
-    line(voteNarrative(result.ok, result.yesVotes ?? 0, state.narrative), 'hint');
-    const votePositioning = result.ok
-      ? (result.yesVotes === 2 ? 'mediation' : 'alignment')
-      : (result.yesVotes === 1 ? 'disagreement' : 'unclear');
-    line(positioningNarrative(votePositioning, state.narrative), 'hint');
-    line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
-    line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
-    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
-    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
-    maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative)
-      .forEach((sceneLine) => line(sceneLine, 'hint'));
-  } else if (verb === 'mediate') {
+  } else if (verb === 'suggest' || verb === 'propose') {
+    if (verb === 'propose') line('Tip: "propose" is now "suggest".', 'hint');
+    const ruleText = arg || 'blessOnSneeze=true';
+    state.governanceUi.suggestionStreak += 1;
+    line(`You suggest a direction: "${ruleText}".`, 'system');
+    line(proposeRule(state.governance, state.social, ruleText), 'hint');
+    const needed = suggestionThreshold(state.player.currentRoom);
+    if (state.governanceUi.suggestionStreak < needed) {
+      line('The room notes it, but momentum has not built yet.', 'hint');
+    } else {
+      line('The idea has enough weight to decide now with "decide".', 'hint');
+    }
+  } else if (verb === 'decide' || verb === 'vote') {
+    if (verb === 'vote') line('Tip: "vote" is now "decide".', 'hint');
+    const needed = suggestionThreshold(state.player.currentRoom);
+    if (!state.governance.pendingProposal) {
+      line('There is nothing active to decide yet. Try "suggest <idea>".', 'warn');
+    } else if (state.governanceUi.suggestionStreak < needed) {
+      line(
+        governancePresence(state.player.currentRoom) === 'background'
+          ? 'Out here, decisions rarely stick quickly. Repeat the suggestion or return to the hall.'
+          : 'The room needs a little more buildup before deciding. Suggest it again.',
+        'warn',
+      );
+    } else {
+      line('You call for a decision.', 'system');
+      const result = vote(state.governance, state.agents, state.social, state.system);
+      line(result.text, result.ok ? 'good' : 'warn');
+      const depth = governanceNarrativeDepth(state.player.currentRoom);
+      if (depth >= 1 && result.detail) line(result.detail, 'hint');
+      if (depth >= 1 && result.narrative) line(result.narrative, 'hint');
+      if (depth >= 2 && result.coalitionHint) line(result.coalitionHint, 'hint');
+      if (depth >= 3 && result.stanceScene) line(result.stanceScene, 'hint');
+      if (depth >= 2 && result.ambiguity) line(result.ambiguity, 'hint');
+      line(voteNarrative(result.ok, result.yesVotes ?? 0, state.narrative), 'hint');
+      const votePositioning = result.ok
+        ? (result.yesVotes === 2 ? 'mediation' : 'alignment')
+        : (result.yesVotes === 1 ? 'disagreement' : 'unclear');
+      if (depth >= 2) line(positioningNarrative(votePositioning, state.narrative), 'hint');
+      if (depth >= 2) line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
+      if (depth >= 2) line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
+      if (depth >= 2) line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+      if (depth >= 1) line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
+      if (depth >= 3) {
+        maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative)
+          .forEach((sceneLine) => line(sceneLine, 'hint'));
+      }
+      state.governanceUi.lastDecisionFailed = !result.ok;
+      state.governanceUi.suggestionStreak = 0;
+    }
+  } else if (verb === 'calm' || verb === 'mediate') {
+    if (verb === 'mediate') line('Tip: "mediate" is now "calm".', 'hint');
     logBehaviour(state.social, 'mediate');
     const drift = behaviouralDrift(state.social, 'mediate');
     const result = mediate(state.system, drift.modifier);
+    line('You let things settle.', 'system');
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
-    line(interventionNarrative('mediate', state.narrative), 'hint');
-    line(positioningNarrative('mediation', state.narrative), 'hint');
-    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
+      line(interventionNarrative('mediate', state.narrative), 'hint');
+      line(positioningNarrative('mediation', state.narrative), 'hint');
+      line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    }
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
-    maybeComposedScene(state.system.state, state.social, 'mediation', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
-  } else if (verb === 'challenge') {
+    if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
+      maybeComposedScene(state.system.state, state.social, 'mediation', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
+    }
+  } else if (verb === 'push' || verb === 'challenge') {
+    if (verb === 'challenge') line('Tip: "challenge" is now "push".', 'hint');
     logBehaviour(state.social, 'challenge');
     const drift = behaviouralDrift(state.social, 'challenge');
     const result = challenge(state.system, drift.modifier);
+    line('You push the idea forward.', 'system');
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
-    line(interventionNarrative('challenge', state.narrative), 'hint');
-    line(positioningNarrative('disagreement', state.narrative), 'hint');
-    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
+      line(interventionNarrative('challenge', state.narrative), 'hint');
+      line(positioningNarrative('disagreement', state.narrative), 'hint');
+      line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    }
     line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
-    maybeComposedScene(state.system.state, state.social, 'disagreement', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
-  } else if (verb === 'reset') {
+    if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
+      maybeComposedScene(state.system.state, state.social, 'disagreement', state.narrative).forEach((sceneLine) => line(sceneLine, 'hint'));
+    }
+  } else if (verb === 'shift' || verb === 'reset') {
+    if (verb === 'reset') line('Tip: "reset" is now "shift".', 'hint');
     logBehaviour(state.social, 'reset');
     const drift = behaviouralDrift(state.social, 'reset');
     const result = resetNormAttempt(state.system, drift.modifier);
+    line('You try to shift the routine people are following.', 'system');
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
-    line(interventionNarrative('reset', state.narrative), 'hint');
-    line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
+      line(interventionNarrative('reset', state.narrative), 'hint');
+      line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
+    }
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
       line(`consensusFirst is now ${state.governance.norms.consensusFirst}.`, 'system');
@@ -433,7 +524,9 @@ function processCommand(input) {
     line('The scene resets. The institution forgets, mostly.', 'system');
     renderRoom();
   } else if (verb === 'help') {
-    line('Commands: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force, propose <rule>, vote, mediate, challenge, reset, sneeze, status, history, save, load, restart.');
+    line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
+    line('Utility: sneeze, status, history, save, load, restart.');
+    line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {
     line('The command is not understood. Try "help".', 'warn');
   }
@@ -465,6 +558,7 @@ function processCommand(input) {
     line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
+  maybeShowGovernanceHints(verb);
 
   refreshSidebar();
 }

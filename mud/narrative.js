@@ -172,19 +172,19 @@ const tensionTemplates = {
 
 const intervention = {
   mediate: [
-    'Positions soften.',
-    'The edges blur slightly.',
-    'Not everything needs to be pushed.',
+    'You let the sharp edges settle before anyone commits to them.',
+    'The room exhales and keeps talking in a lower register.',
+    'People adjust their tone without needing to admit it.',
   ],
   challenge: [
-    'The room tightens.',
-    'Something has been set in motion.',
-    'There is a spark of disagreement.',
+    'You push the idea forward and everyone has to answer it.',
+    'The room tightens, then re-forms around the new pressure.',
+    'Disagreement sparks, but it stays in the open.',
   ],
   reset: [
-    'Something subtle shifts.',
-    'It is not immediately clear what changed.',
-    'The system reorients slightly.',
+    'You shift the routine and watch who follows first.',
+    'People keep moving, but on a slightly different track.',
+    'The shared pattern changes by a small, visible degree.',
   ],
 };
 

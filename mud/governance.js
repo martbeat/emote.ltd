@@ -59,6 +59,26 @@ export function vote(governance, agents, social, system, rng = Math.random) {
 
   const yes = votes.filter(Boolean).length;
   const passed = yes >= 2;
+  const coalitionHint = (() => {
+    const [ada, bernard, cyra] = votes;
+    if (ada && !bernard && cyra) return 'Cyra sided with Ada while Bernard withheld support.';
+    if (ada && bernard && !cyra) return 'Ada and Bernard converged briefly; Cyra stayed unconvinced.';
+    if (!ada && bernard && cyra) return 'Bernard gathered a cautious coalition around Cyra.';
+    if (ada && bernard && cyra) return 'A rare unanimous front forms, though not for identical reasons.';
+    return 'No stable coalition was obvious; assent and reluctance overlapped.';
+  })();
+  const stanceScene = (() => {
+    const [ada, bernard, cyra] = votes;
+    if (ada === bernard && bernard === cyra) {
+      return 'Ada and Bernard exchange a cautious glance; Cyra mirrors it a beat later.';
+    }
+    if (ada !== bernard) {
+      return ada
+        ? 'Ada presses for motion; Bernard replies with procedural caution. Cyra watches who blinks first.'
+        : 'Bernard sets a careful pace; Ada challenges the caution, and Cyra negotiates between them.';
+    }
+    return 'Bernard and Cyra settle into similar language while Ada tests the edges of consent.';
+  })();
 
   const parsed = parseNormChange(governance.pendingProposal.text);
   if (passed && parsed) {
@@ -96,6 +116,8 @@ export function vote(governance, agents, social, system, rng = Math.random) {
       : `Vote failed (${yes}/3). Objections regroup around risk and precedent.`,
     detail: `Most recent vote: ${memo}`,
     narrative: governance.lastNarrative,
+    coalitionHint,
+    stanceScene,
     ambiguity:
       yes === 2
         ? 'It was a narrow outcome; allegiance may shift again by morning.'

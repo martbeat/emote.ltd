@@ -64,7 +64,12 @@ export function describeRoom(world, roomId, systemState) {
   const room = world.rooms[roomId];
   const exits = Object.keys(room.exits).join(', ');
   const localTexture = room.stateDescriptions?.[systemState] ?? '';
-  return [room.name, room.description, localTexture, world.roomFlavour[systemState], `Exits: ${exits}.`].join('\n');
+  const sensory = {
+    balanced: 'Somewhere nearby, a pen scratches steadily across paper.',
+    chaotic: 'You hear overlapping voices, then a sudden shared silence.',
+    stagnant: 'Even footsteps seem to wait before committing to the floor.',
+  }[systemState];
+  return [room.name, room.description, localTexture, world.roomFlavour[systemState], sensory, `Exits: ${exits}.`].join('\n');
 }
 
 export function hasItemInRoom(world, roomId, itemName) {

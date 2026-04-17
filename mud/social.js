@@ -12,6 +12,10 @@ export function createSocialState() {
     turnsUntilSneezeCheck: 2,
     sneezeCount: 0,
     behaviouralLog: [],
+    repeatedCommandStreak: {
+      command: null,
+      count: 0,
+    },
   };
 }
 
@@ -20,8 +24,68 @@ export function applyRelationship(social, target, delta) {
 }
 
 export function logBehaviour(social, label) {
+  if (social.repeatedCommandStreak.command === label) {
+    social.repeatedCommandStreak.count += 1;
+  } else {
+    social.repeatedCommandStreak.command = label;
+    social.repeatedCommandStreak.count = 1;
+  }
   social.behaviouralLog.push(label);
   if (social.behaviouralLog.length > 20) social.behaviouralLog.shift();
+}
+
+export function behaviourEcho(social) {
+  const { command, count } = social.repeatedCommandStreak;
+  if (!command || count < 3) return null;
+  if (command === 'challenge') return 'You have challenged the room repeatedly; resistance now arrives faster.';
+  if (command === 'mediate') return 'You keep mediating; some take comfort, others quietly test your patience.';
+  if (command === 'propose') return 'You return to proposals with ritual regularity; people now anticipate your cadence.';
+  return null;
+}
+
+export function behaviouralDrift(social, action) {
+  const streak = social.repeatedCommandStreak;
+  if (streak.command !== action || streak.count < 2) {
+    return { modifier: 0, hint: null };
+  }
+
+  if (action === 'mediate') {
+    if (streak.count >= 4) {
+      return {
+        modifier: -0.08,
+        hint: 'Your mediation style is becoming familiar; agreement arrives slower than before.',
+      };
+    }
+    return {
+      modifier: 0.05,
+      hint: 'For now, repetition helps: people recognise your calming pattern.',
+    };
+  }
+
+  if (action === 'challenge') {
+    if (streak.count >= 4) {
+      return {
+        modifier: 0.08,
+        hint: 'Repeated challenge gathers momentum, and nerves.',
+      };
+    }
+    return {
+      modifier: 0.03,
+      hint: 'The room braces for another challenge before you finish speaking.',
+    };
+  }
+
+  if (action === 'reset') {
+    return {
+      modifier: streak.count >= 3 ? -0.06 : 0.02,
+      hint:
+        streak.count >= 3
+          ? 'Frequent resets feel procedural rather than transformative.'
+          : 'A fresh reset proposal still carries some novelty.',
+    };
+  }
+
+  return { modifier: 0, hint: null };
 }
 
 export function maybeTriggerCold(social, rng = Math.random) {

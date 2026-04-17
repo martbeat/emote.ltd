@@ -6,6 +6,8 @@ export function createSystemState() {
     state: 'balanced',
     lastTransition: null,
     recentRipples: [],
+    currentPhase: 'watchful equilibrium',
+    phaseHistory: [],
   };
 }
 
@@ -57,8 +59,48 @@ export function transitionMessage(system) {
   return `Some balance returns. The mood lifts from ${from} toward workable equilibrium.`;
 }
 
-export function mediate(system, rng = Math.random) {
-  const chance = system.state === 'chaotic' ? 0.75 : 0.55;
+export function tensionNarrative(before, after, systemState) {
+  if (after === before) return null;
+  if (after > before) {
+    if (systemState === 'chaotic') return 'Friction compounds; even small remarks now land like motions.';
+    return 'Pressure rises. People begin treating assumptions as territory.';
+  }
+  if (systemState === 'stagnant') return 'Tension dips, but so does initiative; calm and inertia blur together.';
+  return 'Pressure eases just enough for nuance to re-enter the room.';
+}
+
+export function derivePhaseSummary(system, committeeMemory) {
+  const recent = committeeMemory.slice(0, 3);
+  const accepted = recent.filter((line) => line.startsWith('accepted')).length;
+  const rejected = recent.filter((line) => line.startsWith('rejected')).length;
+
+  let phase = 'watchful equilibrium';
+  if (system.tension >= 8 || rejected >= 2) {
+    phase = 'contested escalation';
+  } else if (system.tension <= 2 && recent.length >= 2) {
+    phase = 'ceremonial stillness';
+  } else if (accepted >= 2 && system.tension <= 5) {
+    phase = 'pragmatic alignment';
+  }
+
+  if (phase !== system.currentPhase) {
+    system.currentPhase = phase;
+    system.phaseHistory.unshift(phase);
+    system.phaseHistory = system.phaseHistory.slice(0, 5);
+  }
+
+  const gloss = {
+    'watchful equilibrium': 'The committee moves carefully, as if testing each sentence for weight.',
+    'contested escalation': 'Disagreement now sets the agenda; even silence feels partisan.',
+    'ceremonial stillness': 'Procedure is smooth, perhaps too smooth, and novelty struggles to enter.',
+    'pragmatic alignment': 'A working coalition holds, though nobody confuses it with unanimity.',
+  }[phase];
+
+  return `Phase: ${phase}. ${gloss}`;
+}
+
+export function mediate(system, drift = 0, rng = Math.random) {
+  const chance = Math.max(0.1, Math.min(0.9, (system.state === 'chaotic' ? 0.75 : 0.55) + drift));
   if (rng() < chance) {
     const delta = shiftTension(system, -2);
     system.alignment += 1;
@@ -84,8 +126,8 @@ export function mediate(system, rng = Math.random) {
   };
 }
 
-export function challenge(system, rng = Math.random) {
-  const chance = system.state === 'stagnant' ? 0.72 : 0.52;
+export function challenge(system, drift = 0, rng = Math.random) {
+  const chance = Math.max(0.1, Math.min(0.9, (system.state === 'stagnant' ? 0.72 : 0.52) + drift));
   const delta = shiftTension(system, 2);
   if (rng() < chance) {
     system.alignment += 1;
@@ -108,10 +150,10 @@ export function challenge(system, rng = Math.random) {
   };
 }
 
-export function resetNormAttempt(system, rng = Math.random) {
+export function resetNormAttempt(system, drift = 0, rng = Math.random) {
   const base = 0.4 + system.alignment * 0.05;
   const modifier = system.state === 'chaotic' ? -0.15 : system.state === 'stagnant' ? -0.05 : 0.08;
-  const chance = Math.max(0.1, Math.min(0.85, base + modifier));
+  const chance = Math.max(0.1, Math.min(0.85, base + modifier + drift));
   const ok = rng() < chance;
   const delta = shiftTension(system, ok ? -1 : 1);
   system.recentRipples.unshift(

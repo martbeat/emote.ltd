@@ -88,3 +88,44 @@ export function getInfluenceHint(agents) {
   }
   return 'Bernard asks one cautious question and the room slows to his tempo, including Ada.';
 }
+
+export function porterOutcomeReflection(system, governance, social) {
+  const latestDecision = governance.committeeMemory[0];
+  if (!latestDecision) {
+    return "The porter says, 'Institutions reveal themselves most clearly after their first refusal.'";
+  }
+
+  const streak = social.repeatedCommandStreak;
+  const patternNote =
+    streak.count >= 3
+      ? ` He adds, 'You again with ${streak.command}. Habits become signatures.'`
+      : '';
+
+  if (system.state === 'chaotic') {
+    return `The porter says, 'In chaos, even agreement carries splinters.' ${patternNote}`.trim();
+  }
+  if (system.state === 'stagnant') {
+    return `The porter says, 'Stagnation applauds every decision, then changes nothing.' ${patternNote}`.trim();
+  }
+  if (latestDecision.startsWith('accepted')) {
+    return `The porter says, 'Accepted is not settled; watch what people do tomorrow.' ${patternNote}`.trim();
+  }
+  return `The porter says, 'Rejection can be a pause or a verdict. One only learns later.' ${patternNote}`.trim();
+}
+
+export function agentExchangeHint(systemState, governance) {
+  const latest = governance.committeeMemory[0] ?? '';
+  if (systemState === 'chaotic') {
+    return "Ada cuts in before Bernard finishes; Bernard restates his point more slowly, and Cyra backs the restatement.";
+  }
+  if (systemState === 'stagnant') {
+    return "Bernard and Cyra agree on caution so quickly that Ada's objections sound almost ceremonial.";
+  }
+  if (latest.startsWith('accepted')) {
+    return "Ada thanks Cyra for 'pragmatism'; Bernard calls it 'temporary pragmatism' and everyone lets that stand.";
+  }
+  if (latest.startsWith('rejected')) {
+    return "Bernard and Ada disagree openly, but both quote Cyra's phrasing as if it were neutral ground.";
+  }
+  return 'Ada and Bernard circle the same issue from opposite directions while Cyra translates between them.';
+}

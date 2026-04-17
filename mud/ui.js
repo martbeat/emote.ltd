@@ -8,12 +8,16 @@ import {
   createAgents,
   talkToPorter,
   getInfluenceHint,
+  agentExchangeHint,
+  porterOutcomeReflection,
   shiftPorterTrust,
   recordPorterMemory,
 } from './agents.js';
 import {
   createSocialState,
   applyRelationship,
+  behaviourEcho,
+  behaviouralDrift,
   maybeTriggerCold,
   maybeSneeze,
   inferIdentity,
@@ -28,6 +32,8 @@ import {
   createSystemState,
   tickSystem,
   interpretiveMessage,
+  derivePhaseSummary,
+  tensionNarrative,
   transitionMessage,
   mediate,
   challenge,
@@ -45,6 +51,7 @@ function createGameState() {
       currentRoom: 'foyer',
       inventory: [],
       attemptedForceDoor: false,
+      visitCounts: {},
     },
   };
 }
@@ -89,18 +96,18 @@ function refreshSidebar() {
 }
 
 function renderRoom() {
-  line(describeRoom(state.world, state.player.currentRoom, state.system.state), 'system');
+  const roomId = state.player.currentRoom;
+  state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
+  const visits = state.player.visitCounts[roomId];
+  line(describeRoom(state.world, roomId, state.system.state), 'system');
+  if (visits === 1) {
+    line('You are here for the first time; the place feels more observed than empty.', 'hint');
+  } else if (visits > 2) {
+    line('On return, familiar details have shifted by a degree you cannot quite prove.', 'hint');
+  }
   const roomObj = state.world.rooms[state.player.currentRoom];
   if (roomObj.items.length) line(`Items here: ${roomObj.items.join(', ')}.`, 'hint');
   if (state.player.currentRoom === 'hall') line('The porter stands by the east door, politely immovable.', 'hint');
-}
-
-function narrateTensionShift(before, after) {
-  if (after > before) {
-    line('The air tightens; people begin answering before others finish speaking.', 'hint');
-  } else if (after < before) {
-    line('Something unknots in the room, though nobody claims credit.', 'hint');
-  }
 }
 
 function save() {
@@ -207,7 +214,9 @@ function forceDoor() {
 function showStatus() {
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
   line(interpretiveMessage(state.system), 'hint');
+  line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
   line(getInfluenceHint(state.agents), 'hint');
+  line(agentExchangeHint(state.system.state, state.governance), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
   if (state.system.recentRipples.length) {
     line(`Recent ripple: ${state.system.recentRipples[0]}`, 'hint');
@@ -271,30 +280,45 @@ function processCommand(input) {
     forceDoor();
   } else if (verb === 'propose') {
     line(proposeRule(state.governance, state.social, arg || 'blessOnSneeze=true'), 'system');
+    line('Pens pause around the table; someone quietly revises their objections in advance.', 'hint');
   } else if (verb === 'vote') {
     const result = vote(state.governance, state.agents, state.social, state.system);
     line(result.text, result.ok ? 'good' : 'warn');
     if (result.detail) line(result.detail, 'hint');
     if (result.narrative) line(result.narrative, 'hint');
+    if (result.coalitionHint) line(result.coalitionHint, 'hint');
+    if (result.stanceScene) line(result.stanceScene, 'hint');
     if (result.ambiguity) line(result.ambiguity, 'hint');
+    line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
+    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
   } else if (verb === 'mediate') {
-    const result = mediate(state.system);
     logBehaviour(state.social, 'mediate');
+    const drift = behaviouralDrift(state.social, 'mediate');
+    const result = mediate(state.system, drift.modifier);
+    if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
   } else if (verb === 'challenge') {
-    const result = challenge(state.system);
     logBehaviour(state.social, 'challenge');
+    const drift = behaviouralDrift(state.social, 'challenge');
+    const result = challenge(state.system, drift.modifier);
+    if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
   } else if (verb === 'reset') {
-    const result = resetNormAttempt(state.system);
+    logBehaviour(state.social, 'reset');
+    const drift = behaviouralDrift(state.social, 'reset');
+    const result = resetNormAttempt(state.system, drift.modifier);
+    if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
       line(`consensusFirst is now ${state.governance.norms.consensusFirst}.`, 'system');
     }
+    line(porterOutcomeReflection(state.system, state.governance, state.social), 'hint');
   } else if (verb === 'status') {
     showStatus();
   } else if (verb === 'history') {
@@ -322,16 +346,20 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
-  narrateTensionShift(tensionBefore, state.system.tension);
+  const tensionLine = tensionNarrative(tensionBefore, state.system.tension, state.system.state);
+  if (tensionLine) line(tensionLine, 'hint');
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {
     line(transitionMessage(state.system), 'system');
   }
+  const echo = behaviourEcho(state.social);
+  if (echo) line(echo, 'hint');
   const coldStart = maybeTriggerCold(state.social);
   if (coldStart) line(coldStart, 'hint');
   const sneeze = maybeSneeze(state.social, state.agents);
   if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
   if (verb !== 'talk' && state.player.currentRoom === 'hall' && Math.random() < 0.22) {
     line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
+    line(agentExchangeHint(state.system.state, state.governance), 'hint');
   }
 
   refreshSidebar();

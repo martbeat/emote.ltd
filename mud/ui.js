@@ -384,11 +384,11 @@ function parseNpcInteraction(textRaw) {
   const text = textRaw.toLowerCase().trim();
   if (!text) return null;
 
-  let match = text.match(/^(?:hello|hi|hey|greet)\s+(.+)$/);
+  let match = text.match(/^(?:hello|hi|hey|greet)\s+(?:to\s+)?(.+)$/);
   if (match) return { action: 'hello', targetText: match[1] };
-  match = text.match(/^say\s+(?:hello|hi|hey|greetings?)\s+to\s+(.+)$/);
+  match = text.match(/^say\s+(?:hello|hi|hey|greetings?)(?:\s+to)?\s+(.+)$/);
   if (match) return { action: 'hello', targetText: match[1] };
-  match = text.match(/^ask\s+(.+?)(?:\s+about\s+(.+))?$/);
+  match = text.match(/^(?:ask|question)\s+(.+?)(?:\s+about\s+(.+))?$/);
   if (match) return { action: 'ask', targetText: match[1], topic: match[2] ?? '' };
   match = text.match(/^give\s+(.+?)\s+to\s+(.+)$/);
   if (match) return { action: 'give', item: match[1], targetText: match[2] };
@@ -712,8 +712,8 @@ function processCommand(input) {
     renderRoom();
   } else if (verb === 'help') {
     line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
-    line('NPC interaction: hello/greet, ask <name> about <topic>, give <item> to <name>, thank/praise, insult/mock, observe, poke/slap/kick.');
-    line('Aliases: hi porter, say hello to porter, greet porter.', 'hint');
+    line('NPC interaction: hi/hello/greet, ask/question <name> about <topic>, give <item> to <name>, thank/praise, insult/mock, observe, poke/slap/kick.');
+    line('Aliases: hi porter, say hello to porter, say hello porter, greet porter.', 'hint');
     line('Utility: sneeze, status, history, save, load, restart.');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {

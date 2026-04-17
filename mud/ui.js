@@ -102,6 +102,12 @@ const dom = {
   memory: document.getElementById('memoryLabel'),
 };
 
+const narrativePriority = {
+  P1: 1,
+  P2: 2,
+  P3: 3,
+};
+
 function line(text, cls = '') {
   const p = document.createElement('p');
   p.className = `line ${cls}`.trim();
@@ -112,6 +118,50 @@ function line(text, cls = '') {
 
 function porterIsHere() {
   return state.agents.porter.roomId === state.player.currentRoom;
+}
+
+function ensureNarrativePacing() {
+  if (!state.narrative.pacing) {
+    state.narrative.pacing = {
+      turn: 0,
+      priorityCap: narrativePriority.P3,
+      cooldowns: {},
+      lastTensionWarningTurn: -999,
+      lastTensionWarnedAt: null,
+    };
+  }
+  return state.narrative.pacing;
+}
+
+function beginNarrativeTurn() {
+  const pacing = ensureNarrativePacing();
+  pacing.turn += 1;
+  pacing.priorityCap = narrativePriority.P3;
+}
+
+function markNarrativePriority(priority) {
+  const pacing = ensureNarrativePacing();
+  pacing.priorityCap = Math.min(pacing.priorityCap, priority);
+}
+
+function emitNarrativeLine(text, options = {}) {
+  if (!text) return false;
+  const {
+    cls = 'hint',
+    priority = narrativePriority.P3,
+    cooldownKey = null,
+    cooldownTurns = 0,
+  } = options;
+  const pacing = ensureNarrativePacing();
+  if (priority > pacing.priorityCap) return false;
+  if (cooldownKey && cooldownTurns > 0) {
+    const lastTurn = pacing.cooldowns[cooldownKey];
+    if (Number.isInteger(lastTurn) && pacing.turn - lastTurn < cooldownTurns) return false;
+  }
+  line(text, cls);
+  pacing.priorityCap = Math.min(pacing.priorityCap, priority);
+  if (cooldownKey) pacing.cooldowns[cooldownKey] = pacing.turn;
+  return true;
 }
 
 function rememberPorterLine(text) {
@@ -198,11 +248,31 @@ function governanceNarrativeDepth(roomId) {
 
 function maybeShowGovernanceHints(lastVerb) {
   const depth = governanceNarrativeDepth(state.player.currentRoom);
-  if (state.governanceUi.lastDecisionFailed && depth >= 2) {
-    line('The idea stalls. You can push it forward with "push".', 'hint');
+  if (state.governanceUi.lastDecisionFailed && depth >= 2 && ensureNarrativePacing().priorityCap >= narrativePriority.P2) {
+    emitNarrativeLine('The idea stalls. You can push it forward with "push".', {
+      priority: narrativePriority.P2,
+      cooldownKey: 'decision-stall',
+      cooldownTurns: 3,
+    });
   }
-  if (state.system.tension >= 7 && depth >= 1 && !['calm', 'mediate'].includes(lastVerb)) {
-    line('The room is getting sharp; you can calm things with "calm".', 'hint');
+}
+
+function maybeShowTensionWarning(lastVerb, tensionBefore) {
+  const depth = governanceNarrativeDepth(state.player.currentRoom);
+  if (depth < 1 || ['calm', 'mediate'].includes(lastVerb) || state.system.tension < 7) return;
+  const pacing = ensureNarrativePacing();
+  const tensionRise = state.system.tension - tensionBefore;
+  const enoughTimePassed = pacing.turn - pacing.lastTensionWarningTurn >= 7;
+  const meaningfulRise = tensionRise >= 2 || (tensionRise >= 1 && state.system.tension >= 8);
+  if (!meaningfulRise && !enoughTimePassed) return;
+  const emitted = emitNarrativeLine('The room is getting sharp; you can calm things with "calm".', {
+    priority: narrativePriority.P2,
+    cooldownKey: 'tension-warning',
+    cooldownTurns: 5,
+  });
+  if (emitted) {
+    pacing.lastTensionWarningTurn = pacing.turn;
+    pacing.lastTensionWarnedAt = state.system.tension;
   }
 }
 
@@ -227,37 +297,49 @@ function renderRoom() {
   const presentAgents = agentsInRoom(state.agents, roomId);
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
-  line(
+  emitNarrativeLine(
     describeRoom(state.world, roomId, state.system.state, {
       visitCount: visits,
       lastTensionDirection: state.narrative?.context?.lastTensionDirection ?? 'flat',
       recentDecisions: state.governance.committeeMemory.slice(0, 3),
       recentNarrativeLines: state.narrative?.recentLines ?? [],
     }),
-    'system',
+    { cls: 'system', priority: narrativePriority.P1 },
   );
   if (Math.random() < pacing.ambientNarrativeChance) {
-    line(atmosphereNarrative(state.system.state, state.narrative), 'hint');
+    emitNarrativeLine(atmosphereNarrative(state.system.state, state.narrative), {
+      priority: narrativePriority.P3,
+    });
   }
   const roomGhost = maybeDirectionalGhostGlimpse(state.narrative);
-  if (roomGhost) line(roomGhost, 'hint');
+  if (roomGhost) emitNarrativeLine(roomGhost, { priority: narrativePriority.P3 });
   if (visits === 1) {
     const firstVisitLine = pacing.ambientNarrativeChance <= 0.1
       ? 'This space accepts your presence without comment.'
       : 'You are here for the first time; the place feels more observed than empty.';
-    line(firstVisitLine, 'hint');
+    emitNarrativeLine(firstVisitLine, { priority: narrativePriority.P3 });
   } else if (visits > 2) {
     if (Math.random() < pacing.roomEventChance) {
-      line('On return, familiar details have shifted by a degree you cannot quite prove.', 'hint');
+      emitNarrativeLine('On return, familiar details have shifted by a degree you cannot quite prove.', {
+        priority: narrativePriority.P3,
+      });
     }
   }
   const roomObj = state.world.rooms[state.player.currentRoom];
-  if (roomObj.items.length) line(`Items here: ${roomObj.items.join(', ')}.`, 'hint');
+  if (roomObj.items.length) {
+    emitNarrativeLine(`Items here: ${roomObj.items.join(', ')}.`, {
+      priority: narrativePriority.P1,
+    });
+  }
   if (presentAgents.length) {
     const names = presentAgents.map((agent) => agent.name).join(', ');
-    line(`Present here: ${names}.`, 'hint');
+    emitNarrativeLine(`Present here: ${names}.`, {
+      priority: narrativePriority.P1,
+    });
   } else if (Math.random() < 0.75) {
-    line('No one is here right now; the room keeps its own counsel.', 'hint');
+    emitNarrativeLine('No one is here right now; the room keeps its own counsel.', {
+      priority: narrativePriority.P1,
+    });
   }
 }
 
@@ -550,6 +632,7 @@ function processCommand(input) {
   const text = input.trim();
   if (!text) return;
   const normalizedText = normalizeCommandInput(text);
+  beginNarrativeTurn();
 
   line(`> ${text}`, 'input');
 
@@ -618,6 +701,7 @@ function processCommand(input) {
     } else {
       line('You call for a decision.', 'system');
       const result = vote(state.governance, state.agents, state.social, state.system);
+      markNarrativePriority(narrativePriority.P2);
       line(result.text, result.ok ? 'good' : 'warn');
       const depth = governanceNarrativeDepth(state.player.currentRoom);
       if (depth >= 1 && result.detail) line(result.detail, 'hint');
@@ -653,6 +737,7 @@ function processCommand(input) {
     logBehaviour(state.social, 'mediate');
     const drift = behaviouralDrift(state.social, 'mediate');
     const result = mediate(state.system, drift.modifier);
+    markNarrativePriority(narrativePriority.P2);
     line('You let things settle.', 'system');
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
@@ -675,6 +760,7 @@ function processCommand(input) {
     logBehaviour(state.social, 'challenge');
     const drift = behaviouralDrift(state.social, 'challenge');
     const result = challenge(state.system, drift.modifier);
+    markNarrativePriority(narrativePriority.P2);
     line('You push the idea forward.', 'system');
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
@@ -697,6 +783,7 @@ function processCommand(input) {
     logBehaviour(state.social, 'reset');
     const drift = behaviouralDrift(state.social, 'reset');
     const result = resetNormAttempt(state.system, drift.modifier);
+    markNarrativePriority(narrativePriority.P2);
     line('You try to shift the routine people are following.', 'system');
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
@@ -722,14 +809,26 @@ function processCommand(input) {
     const porterHere = state.agents.porter.roomId === state.player.currentRoom;
     const response = porterHere ? porterSneezeResponse(state.agents, state.social) : null;
     if (response) {
-      line(`You sneeze. ${response}`, 'hint');
+      emitNarrativeLine(`You sneeze. ${response}`, {
+        priority: narrativePriority.P3,
+        cooldownKey: 'sneeze-direct',
+        cooldownTurns: 3,
+      });
       shiftPorterTrust(state.agents, 1);
       applyRelationship(state.social, 'porter', 1);
       recordPorterMemory(state.agents, 'Player sneezed directly; porter responded.');
     } else if (state.social.sneezeCount > 2) {
-      line('You sneeze again. No one comments.', 'hint');
+      emitNarrativeLine('You sneeze again. No one comments.', {
+        priority: narrativePriority.P3,
+        cooldownKey: 'sneeze-no-comment',
+        cooldownTurns: 4,
+      });
     } else {
-      line('You sneeze. The room lets the moment pass.', 'hint');
+      emitNarrativeLine('You sneeze. The room lets the moment pass.', {
+        priority: narrativePriority.P3,
+        cooldownKey: 'sneeze-room-pass',
+        cooldownTurns: 4,
+      });
     }
   } else if (verb === 'save') {
     save();
@@ -756,44 +855,80 @@ function processCommand(input) {
     previousAgentRooms,
     state.player.currentRoom,
   );
-  if (continuityLine) line(continuityLine, 'hint');
+  if (continuityLine) emitNarrativeLine(continuityLine, { priority: narrativePriority.P2 });
   const tensionLine = tensionShiftNarrative(tensionBefore, state.system.tension, state.narrative);
-  if (tensionLine) line(tensionLine, 'hint');
+  if (tensionLine) emitNarrativeLine(tensionLine, { priority: narrativePriority.P2 });
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {
+    markNarrativePriority(narrativePriority.P2);
     line(transitionMessage(state.system), 'system');
   }
   const echo = behaviourEcho(state.social);
-  if (echo) line(echo, 'hint');
+  if (echo) {
+    emitNarrativeLine(echo, {
+      priority: narrativePriority.P3,
+      cooldownKey: `behaviour-echo-${state.social.repeatedCommandStreak.command ?? 'general'}`,
+      cooldownTurns: 6,
+    });
+  }
   const coldStart = maybeTriggerCold(state.social);
-  if (coldStart) line(coldStart, 'hint');
+  if (coldStart) emitNarrativeLine(coldStart, { priority: narrativePriority.P3, cooldownKey: 'cold-start', cooldownTurns: 8 });
   const sneeze = maybeSneeze(state.social, state.agents, state.player.currentRoom);
-  if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
+  if (sneeze && state.governance.norms.blessOnSneeze) {
+    emitNarrativeLine(sneeze, {
+      priority: narrativePriority.P3,
+      cooldownKey: 'ambient-sneeze-player',
+      cooldownTurns: 4,
+    });
+  }
   const ambientSneezeLines = maybeAmbientSneezeNarrative(
     { porterNearby: state.agents.porter.roomId === state.player.currentRoom },
     state.narrative,
   );
-  ambientSneezeLines.forEach((ambientLine) => line(ambientLine, 'hint'));
+  ambientSneezeLines.forEach((ambientLine, index) => {
+    emitNarrativeLine(ambientLine, {
+      priority: narrativePriority.P3,
+      cooldownKey: index === 0 ? 'ambient-sneeze-event' : 'ambient-sneeze-reply',
+      cooldownTurns: 5,
+    });
+  });
   queuedAmbientEvent = maybeAmbientWorldEvent(state.narrative);
   if (queuedAmbientEvent && !queuedAmbientEvent.delayed) {
-    line(queuedAmbientEvent.line, 'hint');
+    emitNarrativeLine(queuedAmbientEvent.line, {
+      priority: narrativePriority.P3,
+      cooldownKey: 'ambient-world-event',
+      cooldownTurns: 3,
+    });
     queuedAmbientEvent = null;
   }
   const ghostTrace = maybeGhostTraceNarrative(state.narrative);
-  if (ghostTrace) line(ghostTrace, 'hint');
+  if (ghostTrace) emitNarrativeLine(ghostTrace, {
+    priority: narrativePriority.P3,
+    cooldownKey: 'ghost-trace',
+    cooldownTurns: 4,
+  });
   const porterAbsentLine = maybePorterAbsenceLine(state.agents);
-  if (porterAbsentLine) line(porterAbsentLine, 'hint');
+  if (porterAbsentLine) emitNarrativeLine(porterAbsentLine, {
+    priority: narrativePriority.P3,
+    cooldownKey: 'porter-absence',
+    cooldownTurns: 7,
+  });
   if (verb !== 'talk' && porterIsHere() && Math.random() < 0.05) {
     maybeLinePorter(talkToPorter(state.agents, state.system.state, state.social), 1);
     maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
     if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
   maybeShowGovernanceHints(verb);
+  maybeShowTensionWarning(verb, tensionBefore);
   maybeNormChangeHint(verb);
 
   if (queuedAmbientEvent?.delayed) {
     const delayedLine = queuedAmbientEvent.line;
     window.setTimeout(() => {
-      line(delayedLine, 'hint');
+      emitNarrativeLine(delayedLine, {
+        priority: narrativePriority.P3,
+        cooldownKey: 'ambient-world-event',
+        cooldownTurns: 3,
+      });
       refreshSidebar();
     }, 250 + Math.floor(Math.random() * 250));
   }

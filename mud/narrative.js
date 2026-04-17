@@ -6,6 +6,15 @@ function ensureNarrativeInternals(narrative) {
   if (!Array.isArray(narrative.recentLines)) narrative.recentLines = [];
   if (!narrative.recentByCategory) narrative.recentByCategory = {};
   if (!Object.prototype.hasOwnProperty.call(narrative, 'lastSceneSignature')) narrative.lastSceneSignature = null;
+  if (!narrative.pacing) {
+    narrative.pacing = {
+      turn: 0,
+      priorityCap: 3,
+      cooldowns: {},
+      lastTensionWarningTurn: -999,
+      lastTensionWarnedAt: null,
+    };
+  }
   if (!narrative.context) {
     narrative.context = {
       lastVote: null,
@@ -279,6 +288,13 @@ export function createNarrativeState() {
     recentLines: [],
     recentByCategory: {},
     lastSceneSignature: null,
+    pacing: {
+      turn: 0,
+      priorityCap: 3,
+      cooldowns: {},
+      lastTensionWarningTurn: -999,
+      lastTensionWarnedAt: null,
+    },
     context: {
       lastVote: null,
       lastTensionDirection: null,

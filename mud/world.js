@@ -442,6 +442,120 @@ function rotateVariant(list, visitCount, phase = 0) {
   return list[(safeVisit + phase - 1) % list.length];
 }
 
+function pick(list, rng = Math.random) {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  return list[Math.floor(rng() * list.length)];
+}
+
+function pickFresh(list, recent = [], rng = Math.random, window = 6) {
+  const blocked = recent.slice(-window);
+  const options = list.filter((line) => !blocked.includes(line));
+  return pick(options.length ? options : list, rng);
+}
+
+const directionalImpressions = {
+  balanced: {
+    open: [
+      'open stone and measured movement',
+      'air that carries readable activity',
+      'space that feels navigable, not exposed',
+    ],
+    enclosed: [
+      'contained work in a steady rhythm',
+      'low voices that hold shape through the walls',
+      'a settled room with clear edges',
+    ],
+    transitional: [
+      'a corridor pulse, calm but active',
+      'footsteps arriving in orderly intervals',
+      'movement that feels deliberate, not urgent',
+    ],
+  },
+  chaotic: {
+    open: [
+      'cross-currents of motion and clipped voices',
+      'overlapping signals scattered by wind',
+      'too many threads moving at once',
+    ],
+    enclosed: [
+      'stacked voices with no clean source',
+      'a room where interruptions outrun conclusions',
+      'fragmented sound pressing through the seams',
+    ],
+    transitional: [
+      'uneven traffic and unfinished remarks',
+      'quick motion that never resolves into flow',
+      'bursts of noise, then sharp drop-offs',
+    ],
+  },
+  stagnant: {
+    open: [
+      'still air stretched across the space',
+      'quiet ground with almost no drift',
+      'an open pause that does not break',
+    ],
+    enclosed: [
+      'muffled silence and static fixtures',
+      'a held room with little sign of use',
+      'slow, sealed quiet',
+    ],
+    transitional: [
+      'a passage settled into near-silence',
+      'long gaps between any sign of motion',
+      'a threshold that feels paused',
+    ],
+  },
+};
+
+const agentGlimpseTemplates = [
+  'a shape like Ada, then gone',
+  'Bernard\'s cadence—or something close to it',
+  'a glimpse that could be Cyra turning away',
+  'the porter\'s outline near a doorway, maybe',
+  'movement that might be someone yielding passage',
+  'a brief shuffle with no clear owner',
+];
+
+const systemBleedTemplates = {
+  balanced: [
+    'a distant voice resolves, then fades cleanly',
+    'committee murmur arrives as soft background weather',
+    'unresolved work hums at the edge of hearing',
+  ],
+  chaotic: [
+    'voices overlap and split before meaning lands',
+    'a clipped argument bleeds through, then cuts out',
+    'remote activity collides into static fragments',
+  ],
+  stagnant: [
+    'stillness holds longer than expected',
+    'far-off halls answer with almost nothing',
+    'unresolved silence lingers in the structure',
+  ],
+};
+
+function inferDirectionalTexture(world, targetRoomId) {
+  const profile = world.roomProfiles?.[targetRoomId];
+  const tone = profile?.spatialTone ?? '';
+  if (tone.includes('open')) return 'open';
+  if (tone.includes('transitional') || tone.includes('threshold')) return 'transitional';
+  return 'enclosed';
+}
+
+function buildExitGlimpses(world, room, systemState, context = {}) {
+  const rng = context.rng ?? Math.random;
+  const recent = context.recentNarrativeLines ?? [];
+  const directions = Object.entries(room.exits);
+  return directions.map(([direction, targetRoomId]) => {
+    const texture = inferDirectionalTexture(world, targetRoomId);
+    const impression = pickFresh(directionalImpressions[systemState]?.[texture] ?? [], recent, rng, 8);
+    const maybeAgent = rng() < 0.24 ? pickFresh(agentGlimpseTemplates, recent, rng, 8) : '';
+    const maybeBleed = rng() < 0.28 ? pickFresh(systemBleedTemplates[systemState] ?? [], recent, rng, 8) : '';
+    const clauses = [impression, maybeAgent, maybeBleed].filter(Boolean);
+    return `- ${direction}: ${clauses.join('; ')}.`;
+  });
+}
+
 function inferDecisionTag(recentDecisions = []) {
   const latest = recentDecisions.find(Boolean);
   if (!latest) return null;
@@ -453,7 +567,6 @@ function inferDecisionTag(recentDecisions = []) {
 export function describeRoom(world, roomId, systemState, context = {}) {
   const room = world.rooms[roomId];
   const profile = world.roomProfiles?.[roomId] ?? { interaction: 'medium', spatialTone: 'enclosed', ambience: 'transitional' };
-  const exits = Object.keys(room.exits).join(', ');
   const visitCount = context.visitCount ?? 1;
   const tensionDirection = context.lastTensionDirection ?? 'flat';
   const decisionTag = inferDecisionTag(context.recentDecisions);
@@ -469,6 +582,7 @@ export function describeRoom(world, roomId, systemState, context = {}) {
     chaotic: 'You hear overlapping voices, then a sudden shared silence.',
     stagnant: 'Even footsteps seem to wait before committing to the floor.',
   }[systemState];
+  const exitGlimpses = buildExitGlimpses(world, room, systemState, context);
   return [
     room.name,
     room.description,
@@ -479,7 +593,8 @@ export function describeRoom(world, roomId, systemState, context = {}) {
     tensionEcho,
     decisionEcho,
     sensory,
-    `Exits: ${exits}.`,
+    'Exits:',
+    ...exitGlimpses,
   ]
     .filter(Boolean)
     .join('\n');

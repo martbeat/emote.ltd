@@ -47,25 +47,25 @@ export function tickSystem(system) {
 
 export function interpretiveMessage(system) {
   if (system.state === 'chaotic') return 'There is a sense of growing friction; outcomes wobble before they land.';
-  if (system.state === 'stagnant') return 'The system feels rigid, as though agreement hardened into habit.';
-  return 'A coalition seems to have stabilised the latest outcome.';
+  if (system.state === 'stagnant') return 'The room feels rigid, as though agreement hardened into habit.';
+  return 'A coalition seems to hold the latest outcome in place.';
 }
 
 export function transitionMessage(system) {
   if (!system.lastTransition) return null;
   const { from, to } = system.lastTransition;
   if (to === 'chaotic') return `The institution slips from ${from} to chaos; even routine language sounds newly sharp.`;
-  if (to === 'stagnant') return `Movement drains away: ${from} settles into stagnation, polite and immovable.`;
+  if (to === 'stagnant') return `Movement drains away: ${from} settles into stillness, polite and immovable.`;
   return `Some balance returns. The mood lifts from ${from} toward workable equilibrium.`;
 }
 
 export function tensionNarrative(before, after, systemState) {
   if (after === before) return null;
   if (after > before) {
-    if (systemState === 'chaotic') return 'Friction compounds; even small remarks now land like motions.';
+    if (systemState === 'chaotic') return 'Friction compounds; even small remarks now land like demands.';
     return 'Pressure rises. People begin treating assumptions as territory.';
   }
-  if (systemState === 'stagnant') return 'Tension dips, but so does initiative; calm and inertia blur together.';
+  if (systemState === 'stagnant') return 'Tension dips, though so does initiative; calm and inertia blur.';
   return 'Pressure eases just enough for nuance to re-enter the room.';
 }
 
@@ -108,9 +108,9 @@ export function mediate(system, drift = 0, rng = Math.random) {
     system.recentRipples = system.recentRipples.slice(0, 4);
     return {
       ok: true,
-      text: 'You mediate between blocs. Voices lower, and one procedural knot loosens.',
+      text: 'You mediate between blocs. Voices lower, and one knot loosens.',
       ripple: delta.direction === 'down'
-        ? 'A few members now defer to process rather than personality.'
+        ? 'A few members now defer to form rather than personality.'
         : 'The room nods, though nobody is ready to call it harmony.',
     };
   }
@@ -119,9 +119,9 @@ export function mediate(system, drift = 0, rng = Math.random) {
   system.recentRipples = system.recentRipples.slice(0, 4);
   return {
     ok: false,
-    text: 'Your mediation lands as choreography. Nobody objects, nobody yields.',
+    text: 'Your mediation lands like choreography. Nobody objects, nobody yields.',
     ripple: delta.direction === 'up'
-      ? 'By evening, your compromise is quoted selectively by both sides.'
+      ? 'By evening, your compromise is quoted by both sides, not quite the same way.'
       : 'It is unclear whether anything moved or merely looked busy.',
   };
 }
@@ -165,11 +165,11 @@ export function resetNormAttempt(system, drift = 0, rng = Math.random) {
   return {
     ok,
     text: ok
-      ? 'A reset attempt succeeds. The committee accepts procedural reconfiguration for now.'
-      : 'The reset fails. The institution cites continuity while quietly fearing drift.',
+      ? 'A reset attempt succeeds. The committee accepts a new form, for now.'
+      : 'The reset fails. The institution speaks of continuity while watching for drift.',
     ripple:
       delta.direction === 'down'
-        ? 'Expect delayed effects: behaviour often updates after language does.'
+        ? 'Effects may arrive late: conduct often follows language by a step.'
         : 'The formal rule may stand, but practice appears to be waiting you out.',
   };
 }

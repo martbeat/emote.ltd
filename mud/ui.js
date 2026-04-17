@@ -122,6 +122,10 @@ function rememberPorterLine(text) {
   if (recent.length > 14) recent.shift();
 }
 
+function porterContextSystem() {
+  return { ...state.system, porterPresent: porterIsHere() };
+}
+
 function maybeLinePorter(text, chance = 1, cls = 'hint') {
   if (!text || !porterIsHere() || Math.random() > chance) return false;
   const recent = state.narrative?.recentLines ?? [];
@@ -373,6 +377,20 @@ function talk(target) {
 }
 
 const npcIds = ['porter', 'ada', 'bernard', 'cyra'];
+const npcInteractionVerbs = new Set([
+  'hi',
+  'hello',
+  'greet',
+  'ask',
+  'thank',
+  'poke',
+  'slap',
+  'kick',
+  'insult',
+  'mock',
+  'observe',
+  'give',
+]);
 
 function resolveNpcTarget(textRaw = '') {
   const lower = textRaw.toLowerCase().trim();
@@ -411,7 +429,7 @@ function interactNpc(parsed) {
   }
   const present = state.agents[targetId]?.roomId === state.player.currentRoom;
   if (!present) {
-    line(`${state.agents[targetId]?.name ?? 'They'} is not here right now.`, 'warn');
+    line('They are not here.', 'warn');
     return;
   }
 
@@ -542,6 +560,8 @@ function processCommand(input) {
 
   if (npcParsed) {
     interactNpc(npcParsed);
+  } else if (npcInteractionVerbs.has(verb)) {
+    line('Who do you mean?', 'warn');
   } else if (dirAliases[verb]) {
     move(dirAliases[verb]);
   } else if (['north', 'south', 'east', 'west'].includes(verb)) {
@@ -608,7 +628,7 @@ function processCommand(input) {
       if (depth >= 2) line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
       if (depth >= 2) line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
       if (depth >= 2) maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.28);
-      if (depth >= 1) maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.32);
+      if (depth >= 1) maybeLinePorter(porterOutcomeReflection(porterContextSystem(), state.governance, state.social), 0.32);
       if (depth >= 3) {
         const scene = maybeComposedScene(state.system.state, state.social, votePositioning, state.narrative);
         scene.forEach((sceneLine, index) => {
@@ -633,7 +653,7 @@ function processCommand(input) {
       line(positioningNarrative('mediation', state.narrative), 'hint');
       maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.22);
     }
-    maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.28);
+    maybeLinePorter(porterOutcomeReflection(porterContextSystem(), state.governance, state.social), 0.28);
     if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
       const scene = maybeComposedScene(state.system.state, state.social, 'mediation', state.narrative);
       scene.forEach((sceneLine, index) => {
@@ -655,7 +675,7 @@ function processCommand(input) {
       line(positioningNarrative('disagreement', state.narrative), 'hint');
       maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.22);
     }
-    maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.28);
+    maybeLinePorter(porterOutcomeReflection(porterContextSystem(), state.governance, state.social), 0.28);
     if (governanceNarrativeDepth(state.player.currentRoom) >= 3) {
       const scene = maybeComposedScene(state.system.state, state.social, 'disagreement', state.narrative);
       scene.forEach((sceneLine, index) => {
@@ -682,7 +702,7 @@ function processCommand(input) {
       line(`Norm updated: ${normChange.summary}`, 'system');
       line(`Gameplay impact: ${normChange.gameplay}`, 'hint');
     }
-    maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.25);
+    maybeLinePorter(porterOutcomeReflection(porterContextSystem(), state.governance, state.social), 0.25);
   } else if (verb === 'status') {
     showStatus();
   } else if (verb === 'history') {
@@ -712,8 +732,8 @@ function processCommand(input) {
     renderRoom();
   } else if (verb === 'help') {
     line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
-    line('NPC interaction: hi/hello/greet, ask/question <name> about <topic>, give <item> to <name>, thank/praise, insult/mock, observe, poke/slap/kick.');
-    line('Aliases: hi porter, say hello to porter, say hello porter, greet porter.', 'hint');
+    line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
+    line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
     line('Utility: sneeze, status, history, save, load, restart.');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {

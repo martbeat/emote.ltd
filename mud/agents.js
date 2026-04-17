@@ -407,6 +407,7 @@ function inferPattern(social) {
 
 export function talkToPorter(agents, systemState, social) {
   const porter = agents.porter;
+  if (!porter?.roomId) return null;
   const base = {
     resistant:
       "The porter says, 'Procedure exists because panic is fast and memory is slow.'",
@@ -434,6 +435,7 @@ export function getInfluenceHint(agents) {
 }
 
 export function porterOutcomeReflection(system, governance, social) {
+  if (!system?.porterPresent) return null;
   const latestDecision = governance.committeeMemory[0];
   if (!latestDecision) {
     return "The porter says, 'Institutions reveal themselves most clearly after their first refusal.'";

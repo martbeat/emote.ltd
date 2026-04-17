@@ -19,6 +19,7 @@ import {
   shiftPorterTrust,
   recordPorterMemory,
   narrateAgentContinuity,
+  interpretAgentInteraction,
 } from './agents.js';
 import {
   createSocialState,
@@ -371,6 +372,71 @@ function talk(target) {
   recordPorterMemory(state.agents, 'Player initiated civil conversation.');
 }
 
+const npcIds = ['porter', 'ada', 'bernard', 'cyra'];
+
+function resolveNpcTarget(textRaw = '') {
+  const lower = textRaw.toLowerCase().trim();
+  if (!lower) return null;
+  return npcIds.find((id) => lower === id || lower.endsWith(` ${id}`) || lower.startsWith(`${id} `)) ?? null;
+}
+
+function parseNpcInteraction(textRaw) {
+  const text = textRaw.toLowerCase().trim();
+  if (!text) return null;
+
+  let match = text.match(/^(?:hello|hi|hey|greet)\s+(.+)$/);
+  if (match) return { action: 'hello', targetText: match[1] };
+  match = text.match(/^say\s+(?:hello|hi|hey|greetings?)\s+to\s+(.+)$/);
+  if (match) return { action: 'hello', targetText: match[1] };
+  match = text.match(/^ask\s+(.+?)(?:\s+about\s+(.+))?$/);
+  if (match) return { action: 'ask', targetText: match[1], topic: match[2] ?? '' };
+  match = text.match(/^give\s+(.+?)\s+to\s+(.+)$/);
+  if (match) return { action: 'give', item: match[1], targetText: match[2] };
+  match = text.match(/^(?:thank|praise)\s+(.+)$/);
+  if (match) return { action: 'thank', targetText: match[1] };
+  match = text.match(/^(?:insult|mock)\s+(.+)$/);
+  if (match) return { action: 'insult', targetText: match[1] };
+  match = text.match(/^observe\s+(.+)$/);
+  if (match) return { action: 'observe', targetText: match[1] };
+  match = text.match(/^(poke|slap|kick)\s+(.+)$/);
+  if (match) return { action: match[1], targetText: match[2] };
+  return null;
+}
+
+function interactNpc(parsed) {
+  const targetId = resolveNpcTarget(parsed.targetText);
+  if (!targetId) {
+    line('Nobody by that name answers here.', 'warn');
+    return;
+  }
+  const present = state.agents[targetId]?.roomId === state.player.currentRoom;
+  if (!present) {
+    line(`${state.agents[targetId]?.name ?? 'They'} is not here right now.`, 'warn');
+    return;
+  }
+
+  let exactItem = null;
+  if (parsed.action === 'give') {
+    exactItem = resolveItemName(parsed.item ?? '', state.player.inventory);
+    if (!exactItem) {
+      line('You are not carrying that item to give.', 'warn');
+      return;
+    }
+    state.player.inventory = state.player.inventory.filter((item) => item !== exactItem);
+  }
+
+  const outcome = interpretAgentInteraction(state.agents, state.social, {
+    targetId,
+    action: parsed.action,
+    topic: parsed.topic ?? '',
+    item: exactItem ?? '',
+  });
+  line(outcome.text, outcome.css ?? 'hint');
+  if (targetId === 'porter') {
+    recordPorterMemory(state.agents, `Player used ${parsed.action} with porter.`);
+  }
+}
+
 function forceDoor() {
   if (state.player.currentRoom !== 'hall') {
     line('There is no institutional door to force here.', 'warn');
@@ -428,6 +494,7 @@ function processCommand(input) {
 
   line(`> ${text}`, 'input');
 
+  const npcParsed = parseNpcInteraction(text);
   const [verbRaw, ...rest] = text.split(' ');
   const verb = verbRaw.toLowerCase();
   const arg = rest.join(' ').trim();
@@ -441,7 +508,9 @@ function processCommand(input) {
     state.governanceUi.suggestionStreak = Math.max(0, state.governanceUi.suggestionStreak - 1);
   }
 
-  if (dirAliases[verb]) {
+  if (npcParsed) {
+    interactNpc(npcParsed);
+  } else if (dirAliases[verb]) {
     move(dirAliases[verb]);
   } else if (['north', 'south', 'east', 'west'].includes(verb)) {
     move(verb);
@@ -605,6 +674,8 @@ function processCommand(input) {
     renderRoom();
   } else if (verb === 'help') {
     line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
+    line('NPC interaction: hello/greet, ask <name> about <topic>, give <item> to <name>, thank/praise, insult/mock, observe, poke/slap/kick.');
+    line('Aliases: hi porter, say hello to porter, greet porter.', 'hint');
     line('Utility: sneeze, status, history, save, load, restart.');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {

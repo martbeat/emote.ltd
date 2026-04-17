@@ -392,14 +392,22 @@ const npcInteractionVerbs = new Set([
   'give',
 ]);
 
+function normalizeCommandInput(textRaw = '') {
+  return textRaw
+    .toLowerCase()
+    .trim()
+    .replace(/[.,!?;:]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
 function resolveNpcTarget(textRaw = '') {
-  const lower = textRaw.toLowerCase().trim();
+  const lower = normalizeCommandInput(textRaw);
   if (!lower) return null;
   return npcIds.find((id) => lower === id || lower.endsWith(` ${id}`) || lower.startsWith(`${id} `)) ?? null;
 }
 
 function parseNpcInteraction(textRaw) {
-  const text = textRaw.toLowerCase().trim();
+  const text = normalizeCommandInput(textRaw);
   if (!text) return null;
 
   let match = text.match(/^(?:hello|hi|hey|greet)\s+(?:to\s+)?(.+)$/);
@@ -541,11 +549,12 @@ function drop(itemRaw) {
 function processCommand(input) {
   const text = input.trim();
   if (!text) return;
+  const normalizedText = normalizeCommandInput(text);
 
   line(`> ${text}`, 'input');
 
-  const npcParsed = parseNpcInteraction(text);
-  const [verbRaw, ...rest] = text.split(' ');
+  const npcParsed = parseNpcInteraction(normalizedText);
+  const [verbRaw, ...rest] = normalizedText.split(' ');
   const verb = verbRaw.toLowerCase();
   const arg = rest.join(' ').trim();
   const tensionBefore = state.system.tension;

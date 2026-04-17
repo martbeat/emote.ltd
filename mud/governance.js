@@ -69,6 +69,22 @@ export function vote(governance, agents, social, system, rng = Math.random) {
   })();
   const stanceScene = (() => {
     const [ada, bernard, cyra] = votes;
+    const highAlignment = system.alignment >= 3;
+    const lowAlignment = system.alignment <= 0;
+    if (highAlignment) {
+      if (ada === bernard && bernard === cyra) {
+        return 'Ada and Bernard exchange a quick glance; Cyra gives a quiet confirming nod.';
+      }
+      return 'Cyra paraphrases once, and the others mostly accept the framing.';
+    }
+    if (lowAlignment) {
+      if (ada !== bernard) {
+        return ada
+          ? 'Ada pushes for motion; Bernard openly contests her premise, and Cyra reframes both arguments into a narrower compromise.'
+          : 'Bernard slows everything down and Ada rejects the delay; Cyra bridges by splitting principle from timing.';
+      }
+      return 'Even when they vote alike, Ada and Bernard sound unconvinced by each other; Cyra keeps translating intent.';
+    }
     if (ada === bernard && bernard === cyra) {
       return 'Ada and Bernard exchange a cautious glance; Cyra mirrors it a beat later.';
     }

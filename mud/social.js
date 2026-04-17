@@ -37,8 +37,8 @@ export function logBehaviour(social, label) {
 export function behaviourEcho(social) {
   const { command, count } = social.repeatedCommandStreak;
   if (!command || count < 3) return null;
-  if (command === 'challenge') return 'You have challenged the room repeatedly; resistance now arrives faster.';
-  if (command === 'mediate') return 'You keep mediating; some take comfort, others quietly test your patience.';
+  if (command === 'challenge') return 'You tend to challenge; resistance now arrives faster, but so does attention.';
+  if (command === 'mediate') return 'You smooth things over; comfort rises, and so does quiet skepticism.';
   if (command === 'propose') return 'You return to proposals with ritual regularity; people now anticipate your cadence.';
   return null;
 }

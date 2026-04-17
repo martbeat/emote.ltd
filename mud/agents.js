@@ -113,19 +113,66 @@ export function porterOutcomeReflection(system, governance, social) {
   return `The porter says, 'Rejection can be a pause or a verdict. One only learns later.' ${patternNote}`.trim();
 }
 
-export function agentExchangeHint(systemState, governance) {
+function behaviouralMemoryCue(social) {
+  const recent = social.behaviouralLog.slice(-6);
+  if (!recent.length) return null;
+  const challenges = recent.filter((label) => label === 'challenge').length;
+  const mediations = recent.filter((label) => label === 'mediate').length;
+  if (challenges >= 3 && challenges > mediations + 1) {
+    return "Cyra notes, 'You tend to challenge first, then negotiate the aftermath.'";
+  }
+  if (mediations >= 3 && mediations > challenges + 1) {
+    return "Bernard says, 'You smooth things over before anyone names the cost.'";
+  }
+  return null;
+}
+
+function alignmentBand(alignmentScore = 0) {
+  if (alignmentScore >= 3) return 'high';
+  if (alignmentScore <= 0) return 'low';
+  return 'mid';
+}
+
+export function agentExchangeHint(systemState, governance, social, alignmentScore = 0) {
+  const band = alignmentBand(alignmentScore);
+  const memoryCue = behaviouralMemoryCue(social);
   const latest = governance.committeeMemory[0] ?? '';
+  if (band === 'high') {
+    const subtle = [
+      'Ada glances toward Bernard; he gives a brief nod, and Cyra quietly reframes the shared point as procedure.',
+      'Bernard answers in half-sentences because Ada is already finishing them; Cyra only adjusts tone, not direction.',
+      'Cyra paraphrases once, and both Ada and Bernard accept it without reopening the argument.',
+    ];
+    return memoryCue && latest.startsWith('accepted')
+      ? `${subtle[0]} ${memoryCue}`
+      : subtle[Math.floor(Math.random() * subtle.length)];
+  }
+
+  if (band === 'low') {
+    const contrast = [
+      'Ada leans in before Bernard finishes; Bernard appears unconvinced and restates every premise while Cyra threads a narrower middle path.',
+      'Bernard challenges Ada line by line; Ada answers faster than he approves, and Cyra keeps recasting both positions into shared risks.',
+      'Ada glances toward Bernard before responding, then rejects his caution outright; Cyra reframes the clash as timing rather than principle.',
+    ];
+    if (memoryCue) return `${contrast[Math.floor(Math.random() * contrast.length)]} ${memoryCue}`;
+    return contrast[Math.floor(Math.random() * contrast.length)];
+  }
+
   if (systemState === 'chaotic') {
-    return "Ada cuts in before Bernard finishes; Bernard restates his point more slowly, and Cyra backs the restatement.";
+    return memoryCue
+      ? `Ada cuts in before Bernard finishes; Bernard hesitates, unconvinced, and Cyra translates both readings into a temporary bridge. ${memoryCue}`
+      : 'Ada cuts in before Bernard finishes; Bernard hesitates, unconvinced, and Cyra translates both readings into a temporary bridge.';
   }
   if (systemState === 'stagnant') {
-    return "Bernard and Cyra agree on caution so quickly that Ada's objections sound almost ceremonial.";
+    return "Bernard and Cyra agree on caution so quickly that Ada's objections sound almost ceremonial; Cyra reframes Ada's urgency as sequencing rather than rebellion.";
   }
   if (latest.startsWith('accepted')) {
-    return "Ada thanks Cyra for 'pragmatism'; Bernard calls it 'temporary pragmatism' and everyone lets that stand.";
+    return "Ada thanks Cyra for 'pragmatism'; Bernard calls it 'temporary pragmatism,' then accepts Cyra's bridge without further contest.";
   }
   if (latest.startsWith('rejected')) {
-    return "Bernard and Ada disagree openly, but both quote Cyra's phrasing as if it were neutral ground.";
+    return 'Bernard and Ada disagree openly, but both quote Cyra\'s phrasing as if it were neutral ground while she reframes the dispute around scope.';
   }
-  return 'Ada and Bernard circle the same issue from opposite directions while Cyra translates between them.';
+  return memoryCue
+    ? `Ada and Bernard circle the same issue from opposite directions while Cyra translates between them. ${memoryCue}`
+    : 'Ada and Bernard circle the same issue from opposite directions while Cyra translates between them.';
 }

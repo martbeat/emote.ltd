@@ -8,6 +8,11 @@ export function createWorld() {
           'A stone antechamber with old noticeboards and damp woollen air. Chalk marks near the archway suggest prior committees preferred argument to maps.',
         exits: { north: 'hall' },
         items: ['ledger fragment'],
+        stateDescriptions: {
+          balanced: 'The drafts stop just short of being cold. Someone recently straightened the noticeboard pins.',
+          chaotic: 'Loose papers spiral in brief gusts from unseen corridors.',
+          stagnant: 'The same agenda appears to have been posted for weeks.',
+        },
       },
       hall: {
         id: 'hall',
@@ -16,6 +21,11 @@ export function createWorld() {
           'A long hall with a varnished table and a brass-plated door to the east. The porter keeps one eye on the lock and the other on your manners.',
         exits: { south: 'foyer', east: 'lockedRoom' },
         items: ['iron key'],
+        stateDescriptions: {
+          balanced: 'The table is scuffed but orderly; chairs face one another rather than away.',
+          chaotic: 'Chairs sit at odd angles, as if arguments ended mid-sentence.',
+          stagnant: 'Everything is aligned too neatly, like a room prepared for a meeting that never starts.',
+        },
       },
       lockedRoom: {
         id: 'lockedRoom',
@@ -24,6 +34,11 @@ export function createWorld() {
           'Lantern-light pools over proposal minutes, redacted charters, and a patient clock. This room feels less discovered than granted.',
         exits: { west: 'hall' },
         items: ['committee seal'],
+        stateDescriptions: {
+          balanced: 'Fresh notes lie atop older minutes, suggesting revision without denial.',
+          chaotic: 'Recent annotations overwrite prior conclusions in urgent handwriting.',
+          stagnant: 'The minutes are immaculate and untouched; even the ink seems resigned.',
+        },
       },
     },
     roomFlavour: {
@@ -48,7 +63,8 @@ export function createWorld() {
 export function describeRoom(world, roomId, systemState) {
   const room = world.rooms[roomId];
   const exits = Object.keys(room.exits).join(', ');
-  return [room.name, room.description, world.roomFlavour[systemState], `Exits: ${exits}.`].join('\n');
+  const localTexture = room.stateDescriptions?.[systemState] ?? '';
+  return [room.name, room.description, localTexture, world.roomFlavour[systemState], `Exits: ${exits}.`].join('\n');
 }
 
 export function hasItemInRoom(world, roomId, itemName) {

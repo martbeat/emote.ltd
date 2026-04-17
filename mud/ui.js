@@ -28,6 +28,7 @@ import {
   createSystemState,
   tickSystem,
   interpretiveMessage,
+  transitionMessage,
   mediate,
   challenge,
   resetNormAttempt,
@@ -92,6 +93,14 @@ function renderRoom() {
   const roomObj = state.world.rooms[state.player.currentRoom];
   if (roomObj.items.length) line(`Items here: ${roomObj.items.join(', ')}.`, 'hint');
   if (state.player.currentRoom === 'hall') line('The porter stands by the east door, politely immovable.', 'hint');
+}
+
+function narrateTensionShift(before, after) {
+  if (after > before) {
+    line('The air tightens; people begin answering before others finish speaking.', 'hint');
+  } else if (after < before) {
+    line('Something unknots in the room, though nobody claims credit.', 'hint');
+  }
 }
 
 function save() {
@@ -177,7 +186,7 @@ function talk(target) {
     line('Nobody by that name answers here.', 'warn');
     return;
   }
-  line(talkToPorter(state.agents, state.system.state));
+  line(talkToPorter(state.agents, state.system.state, state.social));
   applyRelationship(state.social, 'porter', 1);
   shiftPorterTrust(state.agents, 1);
   recordPorterMemory(state.agents, 'Player initiated civil conversation.');
@@ -200,6 +209,9 @@ function showStatus() {
   line(interpretiveMessage(state.system), 'hint');
   line(getInfluenceHint(state.agents), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
+  if (state.system.recentRipples.length) {
+    line(`Recent ripple: ${state.system.recentRipples[0]}`, 'hint');
+  }
 }
 
 function inspect(itemRaw) {
@@ -233,6 +245,8 @@ function processCommand(input) {
   const [verbRaw, ...rest] = text.split(' ');
   const verb = verbRaw.toLowerCase();
   const arg = rest.join(' ').trim();
+  const tensionBefore = state.system.tension;
+  const priorTransitionTurn = state.system.lastTransition?.turn;
 
   const dirAliases = { n: 'north', s: 'south', e: 'east', w: 'west' };
   if (dirAliases[verb]) {
@@ -261,17 +275,22 @@ function processCommand(input) {
     const result = vote(state.governance, state.agents, state.social, state.system);
     line(result.text, result.ok ? 'good' : 'warn');
     if (result.detail) line(result.detail, 'hint');
+    if (result.narrative) line(result.narrative, 'hint');
+    if (result.ambiguity) line(result.ambiguity, 'hint');
   } else if (verb === 'mediate') {
     const result = mediate(state.system);
     logBehaviour(state.social, 'mediate');
     line(result.text, result.ok ? 'good' : 'warn');
+    line(result.ripple, 'hint');
   } else if (verb === 'challenge') {
     const result = challenge(state.system);
     logBehaviour(state.social, 'challenge');
     line(result.text, result.ok ? 'good' : 'warn');
+    line(result.ripple, 'hint');
   } else if (verb === 'reset') {
     const result = resetNormAttempt(state.system);
     line(result.text, result.ok ? 'good' : 'warn');
+    line(result.ripple, 'hint');
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
       line(`consensusFirst is now ${state.governance.norms.consensusFirst}.`, 'system');
@@ -303,10 +322,17 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
+  narrateTensionShift(tensionBefore, state.system.tension);
+  if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {
+    line(transitionMessage(state.system), 'system');
+  }
   const coldStart = maybeTriggerCold(state.social);
   if (coldStart) line(coldStart, 'hint');
   const sneeze = maybeSneeze(state.social, state.agents);
   if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
+  if (verb !== 'talk' && state.player.currentRoom === 'hall' && Math.random() < 0.22) {
+    line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
+  }
 
   refreshSidebar();
 }

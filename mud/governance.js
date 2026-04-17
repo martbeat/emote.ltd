@@ -69,15 +69,21 @@ export function vote(governance, agents, social, system, rng = Math.random) {
   governance.committeeMemory = governance.committeeMemory.slice(0, 6);
 
   if (passed) {
-    shiftTension(system, -1);
+    const delta = shiftTension(system, -1);
     applyRelationship(social, 'porter', 1);
     shiftPorterTrust(agents, 1);
     recordPorterMemory(agents, `Proposal passed: ${governance.pendingProposal.text}`);
+    governance.lastNarrative = delta.direction === 'down'
+      ? 'The vote passes and conversation softens, though motives remain politely disputed.'
+      : 'The vote passes, but nobody celebrates in exactly the same way.';
   } else {
-    shiftTension(system, 2);
+    const delta = shiftTension(system, 2);
     applyRelationship(social, 'porter', -1);
     shiftPorterTrust(agents, -1);
     recordPorterMemory(agents, `Proposal failed: ${governance.pendingProposal.text}`);
+    governance.lastNarrative = delta.direction === 'up'
+      ? 'The rejection echoes longer than expected; side discussions gather near doorways.'
+      : 'The proposal fails, yet dissent remains strangely subdued.';
   }
 
   const memo = governance.pendingProposal.text;
@@ -86,8 +92,13 @@ export function vote(governance, agents, social, system, rng = Math.random) {
   return {
     ok: passed,
     text: passed
-      ? `Vote carried (${yes}/3). Norm adjustments stand.`
+      ? `Vote carried (${yes}/3). Norm adjustments stand, at least in writing.`
       : `Vote failed (${yes}/3). Objections regroup around risk and precedent.`,
     detail: `Most recent vote: ${memo}`,
+    narrative: governance.lastNarrative,
+    ambiguity:
+      yes === 2
+        ? 'It was a narrow outcome; allegiance may shift again by morning.'
+        : 'The margin looked clear, but intent did not.',
   };
 }

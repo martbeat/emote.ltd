@@ -110,7 +110,14 @@ function renderRoom() {
   const roomId = state.player.currentRoom;
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
-  line(describeRoom(state.world, roomId, state.system.state), 'system');
+  line(
+    describeRoom(state.world, roomId, state.system.state, {
+      visitCount: visits,
+      lastTensionDirection: state.narrative?.context?.lastTensionDirection ?? 'flat',
+      recentDecisions: state.governance.committeeMemory.slice(0, 3),
+    }),
+    'system',
+  );
   if (Math.random() < 0.35) line(atmosphereNarrative(state.system.state, state.narrative), 'hint');
   if (visits === 1) {
     line('You are here for the first time; the place feels more observed than empty.', 'hint');

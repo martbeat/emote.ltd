@@ -198,9 +198,8 @@ export function resetNormAttempt(system, drift = 0, rng = Math.random) {
     text: ok
       ? 'A reset attempt succeeds. The committee accepts a new form, for now.'
       : 'The reset fails. The institution speaks of continuity while watching for drift.',
-    ripple:
-      delta.direction === 'down'
-        ? 'Effects may arrive late: conduct often follows language by a step.'
-        : 'The formal rule may stand, but practice appears to be waiting you out.'}${undertow ? ` ${undertow}` : ''}`,
+    ripple: `${delta.direction === 'down'
+      ? 'Effects may arrive late: conduct often follows language by a step.'
+      : 'The formal rule may stand, but practice appears to be waiting you out.'}${undertow ? ` ${undertow}` : ''}`,
   };
 }

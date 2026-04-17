@@ -131,20 +131,20 @@ function renderRoom() {
 
 function save() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  line('State saved locally. Institutional memory now survives page refresh.', 'good');
+  line('The record is set down. Memory should hold through the next turning.', 'good');
 }
 
 function load() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) {
-    line('No save found.', 'warn');
+    line('No prior record is found.', 'warn');
     return;
   }
   state = JSON.parse(raw);
   if (!state.narrative) {
     state.narrative = createNarrativeState();
   }
-  line('State loaded.', 'good');
+  line('The record is recalled.', 'good');
   refreshSidebar();
   renderRoom();
 }
@@ -153,7 +153,7 @@ function move(direction) {
   const roomObj = state.world.rooms[state.player.currentRoom];
   const target = roomObj.exits[direction];
   if (!target) {
-    line('No exit that way.', 'warn');
+    line('No way opens there.', 'warn');
     return;
   }
 
@@ -184,7 +184,7 @@ function takeItem(itemRaw) {
   }
   removeItemFromRoom(state.world, state.player.currentRoom, exact);
   state.player.inventory.push(exact);
-  line(`Taken: ${exact}.`, 'good');
+  line(`You take ${exact}.`, 'good');
 
   if (exact === 'iron key') {
     line("The porter notes that you took it without pocketing ceremony. 'Practical,' he says.", 'hint');
@@ -265,7 +265,7 @@ function drop(itemRaw) {
   }
   state.player.inventory = state.player.inventory.filter((i) => i !== exact);
   addItemToRoom(state.world, state.player.currentRoom, exact);
-  line(`Dropped: ${exact}.`);
+  line(`You leave ${exact}.`);
 }
 
 function processCommand(input) {
@@ -379,12 +379,12 @@ function processCommand(input) {
     load();
   } else if (verb === 'restart') {
     state = createGameState();
-    line('Simulation reset. The institution forgets, mostly.', 'system');
+    line('The scene resets. The institution forgets, mostly.', 'system');
     renderRoom();
   } else if (verb === 'help') {
     line('Commands: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force, propose <rule>, vote, mediate, challenge, reset, sneeze, status, history, save, load, restart.');
   } else {
-    line('Command not understood. Try "help".', 'warn');
+    line('The command is not understood. Try "help".', 'warn');
   }
 
   tickSystem(state.system);
@@ -409,7 +409,7 @@ function processCommand(input) {
 }
 
 function boot() {
-  line('Essex-inspired governance simulation online.', 'system');
+  line('The Essex chamber stirs awake.', 'system');
   line('Type help for commands.');
   renderRoom();
   refreshSidebar();
@@ -424,7 +424,7 @@ function boot() {
   document.getElementById('loadBtn').addEventListener('click', load);
   document.getElementById('restartBtn').addEventListener('click', () => {
     state = createGameState();
-    line('Simulation reset.');
+    line('The scene resets.');
     renderRoom();
     refreshSidebar();
   });

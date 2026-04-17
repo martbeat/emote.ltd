@@ -19,7 +19,7 @@ export function proposeRule(governance, social, ruleText) {
     turnOpened: Date.now(),
   };
   logBehaviour(social, 'propose');
-  return `Proposal logged: "${ruleText}". Call 'vote' when ready.`;
+  return `The clerk marks your proposal: "${ruleText}". The table waits on a vote.`;
 }
 
 function parseNormChange(text) {
@@ -43,7 +43,7 @@ function agentVote(agent, relationship, systemState, influencePull) {
 
 export function vote(governance, agents, social, system, rng = Math.random) {
   if (!governance.pendingProposal) {
-    return { ok: false, text: 'There is no active proposal to vote on.' };
+    return { ok: false, text: 'No proposal currently stands before the table.' };
   }
 
   const pull = (agents.ada.influence - agents.bernard.influence) * 0.2;
@@ -129,8 +129,8 @@ export function vote(governance, agents, social, system, rng = Math.random) {
     ok: passed,
     yesVotes: yes,
     text: passed
-      ? `Vote carried (${yes}/3). Norm adjustments stand, at least in writing.`
-      : `Vote failed (${yes}/3). Objections regroup around risk and precedent.`,
+      ? `The vote carries (${yes}/3). The adjustment stands, in the record at least.`
+      : `The vote fails (${yes}/3). Objections gather again around risk and precedent.`,
     detail: `Most recent vote: ${memo}`,
     narrative: governance.lastNarrative,
     coalitionHint,

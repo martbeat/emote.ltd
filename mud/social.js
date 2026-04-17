@@ -37,9 +37,9 @@ export function logBehaviour(social, label) {
 export function behaviourEcho(social) {
   const { command, count } = social.repeatedCommandStreak;
   if (!command || count < 3) return null;
-  if (command === 'challenge') return 'You tend to challenge; resistance now arrives faster, but so does attention.';
-  if (command === 'mediate') return 'You smooth things over; comfort rises, and so does quiet skepticism.';
-  if (command === 'propose') return 'You return to proposals with ritual regularity; people now anticipate your cadence.';
+  if (command === 'challenge') return 'You keep to challenge; resistance arrives faster, and so does attention.';
+  if (command === 'mediate') return 'You keep to mediation; comfort rises, along with quiet skepticism.';
+  if (command === 'propose') return 'You return to proposals with ritual regularity; the room begins to anticipate your cadence.';
   return null;
 }
 
@@ -53,12 +53,12 @@ export function behaviouralDrift(social, action) {
     if (streak.count >= 4) {
       return {
         modifier: -0.08,
-        hint: 'Your mediation style is becoming familiar; agreement arrives slower than before.',
+        hint: 'Your mediation grows familiar; agreement arrives more slowly.',
       };
     }
     return {
       modifier: 0.05,
-      hint: 'For now, repetition helps: people recognise your calming pattern.',
+      hint: 'For now, repetition helps; people recognise your calming pattern.',
     };
   }
 
@@ -66,12 +66,12 @@ export function behaviouralDrift(social, action) {
     if (streak.count >= 4) {
       return {
         modifier: 0.08,
-        hint: 'Repeated challenge gathers momentum, and nerves.',
+        hint: 'Repeated challenge gathers momentum, and nerves with it.',
       };
     }
     return {
       modifier: 0.03,
-      hint: 'The room braces for another challenge before you finish speaking.',
+      hint: 'The room braces for another challenge before you finish.',
     };
   }
 
@@ -80,7 +80,7 @@ export function behaviouralDrift(social, action) {
       modifier: streak.count >= 3 ? -0.06 : 0.02,
       hint:
         streak.count >= 3
-          ? 'Frequent resets feel procedural rather than transformative.'
+          ? 'Frequent resets begin to feel ceremonial rather than transformative.'
           : 'A fresh reset proposal still carries some novelty.',
     };
   }
@@ -122,5 +122,5 @@ export function inferIdentity(social, system) {
   if (recent.slice(-6).filter((v) => v === 'propose').length >= 3) tags.push('persistent');
   if (!tags.length) tags.push('still forming');
 
-  return `Identity drift: ${tags.join(', ')}.`;
+  return `A shape emerges: ${tags.join(', ')}.`;
 }

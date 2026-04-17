@@ -90,19 +90,19 @@ const porterTemplates = {
 
 const agentPositioning = {
   alignment: [
-    'Ada and Cyra appear aligned.',
-    'There is a sense that positions are converging.',
-    'Agreement forms quietly.',
+    'Ada and Cyra appear aligned, and Bernard signals assent with only a short nod.',
+    'There is a sense that positions are converging; Cyra trims her mediation to brief clarifications.',
+    'Agreement forms quietly, with Ada and Bernard borrowing each other\'s phrasing.',
   ],
   disagreement: [
-    'Ada and Bernard seem further apart.',
-    'Their positions no longer overlap.',
-    'There is visible distance between them.',
+    'Ada and Bernard seem further apart, and Cyra works sentence by sentence to keep a shared frame.',
+    'Their positions no longer overlap; Bernard appears unconvinced by Ada\'s urgency.',
+    'There is visible distance between them, with Cyra reframing conflict as timing rather than intent.',
   ],
   mediation: [
-    'Cyra stands between them.',
-    'Cyra appears to translate rather than decide.',
-    'Cyra negotiates the space between positions.',
+    'Cyra stands between them and recasts each objection into workable sequencing.',
+    'Cyra appears to translate rather than decide, adjusting her framing to whoever just spoke.',
+    'Cyra negotiates the space between positions, bridging disagreement without flattening it.',
   ],
   unclear: [
     'No clear alignment emerges.',

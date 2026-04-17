@@ -232,7 +232,7 @@ function showStatus() {
   line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
   line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
   line(getInfluenceHint(state.agents), 'hint');
-  line(agentExchangeHint(state.system.state, state.governance), 'hint');
+  line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
   if (state.system.recentRipples.length) {
     line(`Recent ripple: ${state.system.recentRipples[0]}`, 'hint');
@@ -395,7 +395,7 @@ function processCommand(input) {
   if (verb !== 'talk' && state.player.currentRoom === 'hall' && Math.random() < 0.22) {
     line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
     line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
-    line(agentExchangeHint(state.system.state, state.governance), 'hint');
+    line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
 
   refreshSidebar();

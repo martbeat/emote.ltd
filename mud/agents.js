@@ -17,6 +17,7 @@ export function createAgents() {
     ada: {
       id: 'ada',
       name: 'Ada',
+      roomId: 'hall',
       influence: 0.75,
       bias: 'change',
       relationship: 0,
@@ -24,6 +25,7 @@ export function createAgents() {
     bernard: {
       id: 'bernard',
       name: 'Bernard',
+      roomId: 'eastCorridor',
       influence: 0.45,
       bias: 'stability',
       relationship: 0,
@@ -31,11 +33,62 @@ export function createAgents() {
     cyra: {
       id: 'cyra',
       name: 'Cyra',
+      roomId: 'courtyard',
       influence: 0.6,
       bias: 'stability',
       relationship: 0,
     },
   };
+}
+
+const roamingRooms = {
+  porter: ['hall', 'foyer', 'eastCorridor', 'courtyard', 'lockedRoom', 'westPassage'],
+  ada: ['hall', 'eastCorridor', 'lockedRoom', 'gallery', 'upperLanding'],
+  bernard: ['hall', 'eastCorridor', 'archive', 'upperLanding', 'gallery'],
+  cyra: ['hall', 'foyer', 'courtyard', 'eastCorridor', 'garden', 'westPassage'],
+};
+
+function pick(list, rng = Math.random) {
+  return list[Math.floor(rng() * list.length)];
+}
+
+function absenceChance(systemState, profile) {
+  if (profile === 'anchor') {
+    return {
+      balanced: 0.16,
+      chaotic: 0.08,
+      stagnant: 0.22,
+    }[systemState] ?? 0.16;
+  }
+
+  return {
+    balanced: 0.24,
+    chaotic: 0.12,
+    stagnant: 0.3,
+  }[systemState] ?? 0.24;
+}
+
+export function moveAgents(agents, systemState, rng = Math.random) {
+  Object.entries(roamingRooms).forEach(([agentId, route]) => {
+    const agent = agents[agentId];
+    if (!agent) return;
+
+    const profile = agentId === 'porter' ? 'anchor' : 'mobile';
+    const absentRoll = rng();
+    if (absentRoll < absenceChance(systemState, profile)) {
+      agent.roomId = null;
+      return;
+    }
+
+    const baseMoveChance = profile === 'anchor' ? 0.45 : 0.6;
+    if (!agent.roomId || rng() < baseMoveChance) {
+      agent.roomId = pick(route, rng);
+    }
+  });
+}
+
+export function agentsInRoom(agents, roomId) {
+  return Object.values(agents).filter((agent) => agent.roomId === roomId);
 }
 
 export function recordPorterMemory(agents, event) {

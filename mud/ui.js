@@ -1,11 +1,14 @@
 import {
   createWorld,
   describeRoom,
+  getRoomPacing,
   removeItemFromRoom,
   addItemToRoom,
 } from './world.js';
 import {
   createAgents,
+  moveAgents,
+  agentsInRoom,
   talkToPorter,
   getInfluenceHint,
   agentExchangeHint,
@@ -108,6 +111,8 @@ function refreshSidebar() {
 
 function renderRoom() {
   const roomId = state.player.currentRoom;
+  const pacing = getRoomPacing(state.world, roomId);
+  const presentAgents = agentsInRoom(state.agents, roomId);
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
   line(
@@ -118,15 +123,27 @@ function renderRoom() {
     }),
     'system',
   );
-  if (Math.random() < 0.35) line(atmosphereNarrative(state.system.state, state.narrative), 'hint');
+  if (Math.random() < pacing.ambientNarrativeChance) {
+    line(atmosphereNarrative(state.system.state, state.narrative), 'hint');
+  }
   if (visits === 1) {
-    line('You are here for the first time; the place feels more observed than empty.', 'hint');
+    const firstVisitLine = pacing.ambientNarrativeChance <= 0.1
+      ? 'This space accepts your presence without comment.'
+      : 'You are here for the first time; the place feels more observed than empty.';
+    line(firstVisitLine, 'hint');
   } else if (visits > 2) {
-    line('On return, familiar details have shifted by a degree you cannot quite prove.', 'hint');
+    if (Math.random() < pacing.roomEventChance) {
+      line('On return, familiar details have shifted by a degree you cannot quite prove.', 'hint');
+    }
   }
   const roomObj = state.world.rooms[state.player.currentRoom];
   if (roomObj.items.length) line(`Items here: ${roomObj.items.join(', ')}.`, 'hint');
-  if (state.player.currentRoom === 'hall') line('The porter stands by the east door, politely immovable.', 'hint');
+  if (presentAgents.length) {
+    const names = presentAgents.map((agent) => agent.name).join(', ');
+    line(`Present here: ${names}.`, 'hint');
+  } else if (Math.random() < 0.75) {
+    line('No one is here right now; the room keeps its own counsel.', 'hint');
+  }
 }
 
 function save() {
@@ -144,6 +161,11 @@ function load() {
   if (!state.narrative) {
     state.narrative = createNarrativeState();
   }
+  if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
+    state.agents.ada.roomId = 'hall';
+    state.agents.bernard.roomId = 'eastCorridor';
+    state.agents.cyra.roomId = 'courtyard';
+  }
   line('The record is recalled.', 'good');
   refreshSidebar();
   renderRoom();
@@ -160,12 +182,23 @@ function move(direction) {
   if (state.player.currentRoom === 'hall' && direction === 'east') {
     const hasKey = state.player.inventory.includes('iron key');
     const trust = state.agents.porter.trust;
+    const porterPresent = state.agents.porter.roomId === 'hall';
     if (!hasKey) {
-      line("The porter taps the keyhole. 'Mechanisms still matter.'", 'warn');
+      line(
+        porterPresent
+          ? "The porter taps the keyhole. 'Mechanisms still matter.'"
+          : 'The lock remains shut; without the key, process does not proceed.',
+        'warn',
+      );
       return;
     }
     if (trust < 2) {
-      line("The porter says, 'Not yet. You have the key, not the standing.'", 'warn');
+      line(
+        porterPresent
+          ? "The porter says, 'Not yet. You have the key, not the standing.'"
+          : 'The mechanism yields halfway, then stops as if waiting for social clearance.',
+        'warn',
+      );
       return;
     }
   }
@@ -211,7 +244,8 @@ function useItem(itemRaw) {
 }
 
 function talk(target) {
-  if (target !== 'porter' || state.player.currentRoom !== 'hall') {
+  const porterInRoom = state.agents.porter.roomId === state.player.currentRoom;
+  if (target !== 'porter' || !porterInRoom) {
     line('Nobody by that name answers here.', 'warn');
     return;
   }
@@ -388,6 +422,7 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
+  moveAgents(state.agents, state.system.state);
   const tensionLine = tensionShiftNarrative(tensionBefore, state.system.tension, state.narrative);
   if (tensionLine) line(tensionLine, 'hint');
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {
@@ -399,7 +434,7 @@ function processCommand(input) {
   if (coldStart) line(coldStart, 'hint');
   const sneeze = maybeSneeze(state.social, state.agents);
   if (sneeze && state.governance.norms.blessOnSneeze) line(sneeze, 'hint');
-  if (verb !== 'talk' && state.player.currentRoom === 'hall' && Math.random() < 0.22) {
+  if (verb !== 'talk' && state.agents.porter.roomId === state.player.currentRoom && Math.random() < 0.22) {
     line(talkToPorter(state.agents, state.system.state, state.social), 'hint');
     line(porterReflection(state.system.state, state.social, state.narrative), 'hint');
     line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');

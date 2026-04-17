@@ -111,6 +111,7 @@ export function vote(governance, agents, social, system, rng = Math.random) {
 
   return {
     ok: passed,
+    yesVotes: yes,
     text: passed
       ? `Vote carried (${yes}/3). Norm adjustments stand, at least in writing.`
       : `Vote failed (${yes}/3). Objections regroup around risk and precedent.`,

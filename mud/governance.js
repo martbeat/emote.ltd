@@ -2,6 +2,43 @@ import { shiftTension } from './system.js';
 import { applyRelationship, logBehaviour } from './social.js';
 import { shiftPorterTrust, recordPorterMemory } from './agents.js';
 
+const normNarratives = {
+  blessOnSneeze: {
+    true: 'People still observe the blessing ritual after sneezes.',
+    false: 'People no longer expect anyone to bless a sneeze.',
+  },
+  consensusFirst: {
+    true: 'People prefer agreement before commitment.',
+    false: 'People permit commitments before full agreement.',
+  },
+};
+
+const normGameplayEffects = {
+  blessOnSneeze: {
+    true: 'Ambient sneezes are socially acknowledged again, reinforcing courtesy signals.',
+    false: 'Sneezes are treated as ambient noise, reducing courtesy rituals in moment-to-moment play.',
+  },
+  consensusFirst: {
+    true: 'Deliberation tends to slow down as the room seeks shared agreement before decisions.',
+    false: 'Decisions can move faster, with less pressure to secure broad agreement first.',
+  },
+};
+
+function describeNorm(key, value) {
+  return normNarratives[key]?.[String(value)] ?? `${key}=${value}`;
+}
+
+export function describeNorms(norms) {
+  return Object.entries(norms).map(([key, value]) => describeNorm(key, value));
+}
+
+export function describeNormChange(key, value) {
+  return {
+    summary: describeNorm(key, value),
+    gameplay: normGameplayEffects[key]?.[String(value)] ?? 'The institution adjusts how routine interactions play out.',
+  };
+}
+
 export function createGovernanceState() {
   return {
     norms: {
@@ -23,11 +60,46 @@ export function proposeRule(governance, social, ruleText) {
 }
 
 function parseNormChange(text) {
-  const compact = text.toLowerCase().trim();
-  if (compact === 'blessonsneeze=true') return { key: 'blessOnSneeze', value: true };
-  if (compact === 'blessonsneeze=false') return { key: 'blessOnSneeze', value: false };
-  if (compact === 'consensusfirst=true') return { key: 'consensusFirst', value: true };
-  if (compact === 'consensusfirst=false') return { key: 'consensusFirst', value: false };
+  const lower = text.toLowerCase().trim().replaceAll('consesus', 'consensus');
+  if (!lower) return null;
+
+  const normalizedKey = (raw = '') => raw.toLowerCase().replace(/[\s_-]/g, '');
+  const parseBoolToken = (raw = '') => {
+    const token = raw.trim().toLowerCase();
+    if (['true', 'on', 'yes', 'enable', 'enabled', 'more', 'higher', 'increase', 'slower'].includes(token)) return true;
+    if (['false', 'off', 'no', 'disable', 'disabled', 'less', 'lower', 'reduce', 'faster'].includes(token)) return false;
+    return null;
+  };
+
+  const keyAliases = {
+    blessonsneeze: 'blessOnSneeze',
+    sneezeblessing: 'blessOnSneeze',
+    sneezeritual: 'blessOnSneeze',
+    consensusfirst: 'consensusFirst',
+    consensus: 'consensusFirst',
+    agreementfirst: 'consensusFirst',
+    decisionpace: 'consensusFirst',
+  };
+
+  const equalsMatch = lower.match(/^([^=]+)=([^=]+)$/);
+  if (equalsMatch) {
+    const key = keyAliases[normalizedKey(equalsMatch[1])];
+    const value = parseBoolToken(equalsMatch[2]);
+    if (key && value !== null) return { key, value };
+  }
+
+  const compact = lower.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!compact) return null;
+  if (compact.includes('faster decision') || compact.includes('less consensus')) {
+    return { key: 'consensusFirst', value: false };
+  }
+  if (compact.includes('slower decision') || compact.includes('more consensus')) {
+    return { key: 'consensusFirst', value: true };
+  }
+  if (compact.includes('agreement before commitment')) {
+    return { key: 'consensusFirst', value: true };
+  }
+
   return null;
 }
 
@@ -139,5 +211,6 @@ export function vote(governance, agents, social, system, rng = Math.random) {
       yes === 2
         ? 'It was a narrow outcome; allegiance may shift again by morning.'
         : 'The margin looked clear, but intent did not.',
+    normChange: passed && parsed ? describeNormChange(parsed.key, parsed.value) : null,
   };
 }

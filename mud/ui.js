@@ -35,6 +35,8 @@ import {
   createGovernanceState,
   proposeRule,
   vote,
+  describeNorms,
+  describeNormChange,
 } from './governance.js';
 import {
   createSystemState,
@@ -201,9 +203,7 @@ function maybeShowGovernanceHints(lastVerb) {
 }
 
 function tagsFromObject(obj) {
-  return Object.entries(obj)
-    .map(([k, v]) => `${k}=${v}`)
-    .join(', ');
+  return describeNorms(obj).join(' • ');
 }
 
 function refreshSidebar() {
@@ -455,6 +455,7 @@ function forceDoor() {
 
 function showStatus() {
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
+  describeNorms(state.governance.norms).forEach((normLine) => line(`Norm: ${normLine}`, 'hint'));
   line(interpretiveMessage(state.system), 'hint');
   line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
   line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
@@ -464,6 +465,37 @@ function showStatus() {
   if (state.system.recentRipples.length) {
     line(`Recent ripple: ${state.system.recentRipples[0]}`, 'hint');
   }
+}
+
+function maybeNormChangeHint(lastVerb) {
+  if (['suggest', 'propose', 'decide', 'vote', 'status', 'help'].includes(lastVerb)) return;
+  if (Math.random() >= 0.11) return;
+
+  const roomId = state.player.currentRoom;
+  const present = Object.values(state.agents).filter((agent) => agent.roomId === roomId);
+  if (!present.length) return;
+
+  const hintsByAgent = {
+    porter: [
+      "The porter says, 'You could change how decisions happen here.'",
+      "The porter murmurs, 'Norms are policy with dust on them. They still move.'",
+    ],
+    ada: [
+      "Ada says, 'If the pace is wrong, change the rule instead of complaining about it.'",
+    ],
+    bernard: [
+      "Bernard says, 'If consensus is miscalibrated, propose a different norm explicitly.'",
+    ],
+    cyra: [
+      "Cyra says, 'Institutions are habits wearing badges. Habits can be edited.'",
+    ],
+  };
+
+  const speaker = present[Math.floor(Math.random() * present.length)];
+  const options = hintsByAgent[speaker.id] ?? hintsByAgent.porter;
+  const chosen = options[Math.floor(Math.random() * options.length)];
+  if (speaker.id === 'porter') maybeLinePorter(chosen, 1);
+  else line(chosen, 'hint');
 }
 
 function inspect(itemRaw) {
@@ -564,6 +596,10 @@ function processCommand(input) {
       if (depth >= 2 && result.coalitionHint) line(result.coalitionHint, 'hint');
       if (depth >= 3 && result.stanceScene) line(result.stanceScene, 'hint');
       if (depth >= 2 && result.ambiguity) line(result.ambiguity, 'hint');
+      if (result.normChange) {
+        line(`Norm updated: ${result.normChange.summary}`, 'good');
+        line(`Gameplay impact: ${result.normChange.gameplay}`, 'hint');
+      }
       line(voteNarrative(result.ok, result.yesVotes ?? 0, state.narrative), 'hint');
       const votePositioning = result.ok
         ? (result.yesVotes === 2 ? 'mediation' : 'alignment')
@@ -642,7 +678,9 @@ function processCommand(input) {
     }
     if (result.ok) {
       state.governance.norms.consensusFirst = !state.governance.norms.consensusFirst;
-      line(`consensusFirst is now ${state.governance.norms.consensusFirst}.`, 'system');
+      const normChange = describeNormChange('consensusFirst', state.governance.norms.consensusFirst);
+      line(`Norm updated: ${normChange.summary}`, 'system');
+      line(`Gameplay impact: ${normChange.gameplay}`, 'hint');
     }
     maybeLinePorter(porterOutcomeReflection(state.system, state.governance, state.social), 0.25);
   } else if (verb === 'status') {
@@ -721,6 +759,7 @@ function processCommand(input) {
     if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
   maybeShowGovernanceHints(verb);
+  maybeNormChangeHint(verb);
 
   if (queuedAmbientEvent?.delayed) {
     const delayedLine = queuedAmbientEvent.line;

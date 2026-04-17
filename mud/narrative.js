@@ -211,6 +211,47 @@ const phaseTemplates = {
   ],
 };
 
+const ghostTraceTemplates = {
+  movement: [
+    'A few moments late, footsteps seem to pass where no one is now.',
+    'You catch the tail end of movement, as if someone just rounded a corner.',
+    'A doorframe holds the afterimage of someone having moved through it recently.',
+  ],
+  distantPresence: [
+    'From somewhere deeper in the structure, a voice almost forms, then falls away.',
+    'A faint rustle suggests activity several rooms off, never close enough to place.',
+    'You sense someone nearby in the way silence keeps changing shape.',
+  ],
+  partialVisibility: [
+    'At the edge of sight, a figure pauses, then is no longer there.',
+    'For a second, someone is framed by a threshold, then swallowed by shadow.',
+    'A shoulder, a turn, a vanishing line of motion—never enough to confirm.',
+  ],
+};
+
+const ghostDirectionalTemplates = [
+  'In an adjacent room, a figure crosses your view and disappears.',
+  'Something moves just beyond the threshold, then leaves only still air.',
+  'A silhouette seems to pass through the next space and dissolve into distance.',
+  'You glimpse movement one room over; by the time you focus, it is gone.',
+];
+
+const ambientSneezeTemplates = {
+  primary: [
+    'Somewhere nearby, someone sneezes.',
+    'A sneeze breaks the air from somewhere just out of sight.',
+    'From another room, a quick sneeze echoes and fades.',
+  ],
+  porterReply: [
+    'The porter, somewhere off to the side, answers: "Bless you."',
+    'From nearby, the porter calls out a restrained "Bless you."',
+  ],
+  unknownReply: [
+    'A voice responds: "Bless you."',
+    'Someone answers from an uncertain distance: "Bless you."',
+  ],
+};
+
 export function createNarrativeState() {
   return {
     recentLines: [],
@@ -222,6 +263,42 @@ export function createNarrativeState() {
       lastIntervention: null,
     },
   };
+}
+
+export function maybeGhostTraceNarrative(narrative, rng = Math.random, chance = 0.14) {
+  ensureNarrativeInternals(narrative);
+  if (rng() > chance) return null;
+  const category = pick(['movement', 'distantPresence', 'partialVisibility'], rng);
+  const line = pickFresh(ghostTraceTemplates[category], narrative.recentLines, rng, 8);
+  remember(narrative, line, 'ghost');
+  return line;
+}
+
+export function maybeDirectionalGhostGlimpse(narrative, rng = Math.random, chance = 0.14) {
+  ensureNarrativeInternals(narrative);
+  if (rng() > chance) return null;
+  const line = pickFresh(ghostDirectionalTemplates, narrative.recentLines, rng, 8);
+  remember(narrative, line, 'ghost-directional');
+  return line;
+}
+
+export function maybeAmbientSneezeNarrative(context = {}, narrative, rng = Math.random, chance = 0.035) {
+  ensureNarrativeInternals(narrative);
+  if (rng() > chance) return [];
+  const lines = [];
+  const sneezeLine = pickFresh(ambientSneezeTemplates.primary, narrative.recentLines, rng, 8);
+  remember(narrative, sneezeLine, 'ambient-sneeze');
+  lines.push(sneezeLine);
+
+  if (rng() > 0.42) return lines;
+  const porterNearby = Boolean(context.porterNearby);
+  const replyPool = porterNearby && rng() < 0.65
+    ? ambientSneezeTemplates.porterReply
+    : ambientSneezeTemplates.unknownReply;
+  const reply = pickFresh(replyPool, narrative.recentLines, rng, 8);
+  remember(narrative, reply, 'ambient-sneeze');
+  lines.push(reply);
+  return lines;
 }
 
 export function porterReflection(systemState, social, narrative, rng = Math.random) {

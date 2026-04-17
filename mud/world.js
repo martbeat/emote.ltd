@@ -507,13 +507,12 @@ const directionalImpressions = {
   },
 };
 
-const agentGlimpseTemplates = [
-  'a shape like Ada, then gone',
-  'Bernard\'s cadence—or something close to it',
-  'a glimpse that could be Cyra turning away',
-  'the porter\'s outline near a doorway, maybe',
-  'movement that might be someone yielding passage',
-  'a brief shuffle with no clear owner',
+const directionalGhostTemplates = [
+  'a figure in the next room, already turning out of view',
+  'movement that vanishes before you can fix its source',
+  'someone crossing an adjacent threshold, then gone',
+  'a partial silhouette that dissolves into corridor light',
+  'a brief shift of presence with no one left in frame',
 ];
 
 const systemBleedTemplates = {
@@ -549,9 +548,9 @@ function buildExitGlimpses(world, room, systemState, context = {}) {
   return directions.map(([direction, targetRoomId]) => {
     const texture = inferDirectionalTexture(world, targetRoomId);
     const impression = pickFresh(directionalImpressions[systemState]?.[texture] ?? [], recent, rng, 8);
-    const maybeAgent = rng() < 0.24 ? pickFresh(agentGlimpseTemplates, recent, rng, 8) : '';
+    const maybeGhost = rng() < 0.16 ? pickFresh(directionalGhostTemplates, recent, rng, 8) : '';
     const maybeBleed = rng() < 0.28 ? pickFresh(systemBleedTemplates[systemState] ?? [], recent, rng, 8) : '';
-    const clauses = [impression, maybeAgent, maybeBleed].filter(Boolean);
+    const clauses = [impression, maybeGhost, maybeBleed].filter(Boolean);
     return `- ${direction}: ${clauses.join('; ')}.`;
   });
 }

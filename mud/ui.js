@@ -85,6 +85,13 @@ import {
   ghostNearEncounterLine,
   scoreIdentityComparison,
 } from './presence.js';
+import {
+  createAutonomyState,
+  ensureAutonomyState,
+  maybeAdvanceInstitutionalAutonomy,
+  roomAutonomyConsequence,
+  takePorterWitnessLine,
+} from './autonomy.js';
 
 function createGameState() {
   return {
@@ -109,6 +116,7 @@ function createGameState() {
       lastDecisionFailed: false,
     },
     ghost: createGhostPresenceState(),
+    autonomy: createAutonomyState(),
     turnVisibleNpcs: [],
     turnVisibleNpcRoomId: null,
   };
@@ -142,6 +150,11 @@ const narrativePriority = {
 function ensureGhostState() {
   if (!state.ghost) state.ghost = createGhostPresenceState();
   return ensureGhostPresenceState(state.ghost);
+}
+
+function ensureAutonomy() {
+  if (!state.autonomy) state.autonomy = createAutonomyState();
+  return ensureAutonomyState(state.autonomy);
 }
 
 const ghostResidueTemplates = {
@@ -749,6 +762,14 @@ function renderRoom(turnPresence = null) {
       cooldownTurns: 4,
     });
   }
+  const autonomyLine = roomAutonomyConsequence(roomId, ensureAutonomy());
+  if (autonomyLine) {
+    emitNarrativeLine(autonomyLine, {
+      priority: narrativePriority.P2,
+      cooldownKey: `autonomy-${roomId}`,
+      cooldownTurns: 5,
+    });
+  }
   const roomGhost = maybeDirectionalGhostGlimpse(state.narrative);
   if (roomGhost) emitNarrativeLine(roomGhost, { priority: narrativePriority.P3 });
   if (visits === 1) {
@@ -824,6 +845,7 @@ function load() {
   }
   ensurePlayerIdentity(state.player);
   ensureGhostState();
+  ensureAutonomy();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
     state.agents.bernard.roomId = 'eastCorridor';
@@ -1627,6 +1649,15 @@ function processCommand(input) {
 
   tickSystem(state.system);
   maybeAdvanceGhostPresence();
+  maybeAdvanceInstitutionalAutonomy({
+    autonomy: ensureAutonomy(),
+    world: state.world,
+    governance: state.governance,
+    system: state.system,
+    agents: state.agents,
+    ghost: ensureGhostState(),
+    player: state.player,
+  });
   tickWeather(state.weather);
   state.social.porterSignals = { ...(state.agents.porter.memorySignals ?? {}) };
   decayAgentMemories(state.agents);
@@ -1694,6 +1725,14 @@ function processCommand(input) {
     cooldownKey: 'porter-absence',
     cooldownTurns: 7,
   });
+  if (porterIsHere()) {
+    const witness = takePorterWitnessLine(ensureAutonomy());
+    if (witness) emitNarrativeLine(witness, {
+      priority: narrativePriority.P2,
+      cooldownKey: 'porter-autonomy-witness',
+      cooldownTurns: 4,
+    });
+  }
   maybeShowGovernanceHints(verb);
   maybeShowTensionWarning(verb, tensionBefore);
   const weatherChange = weatherShiftLine(state.weather);

@@ -428,46 +428,75 @@ function levenshteinDistance(a, b) {
   return matrix[a.length][b.length];
 }
 
-function resolveItemName(inputRaw, candidates) {
-  const input = inputRaw.toLowerCase().trim();
-  if (!input) return null;
-  const words = input.split(' ');
-  const exact = candidates.find((candidate) => candidate.toLowerCase() === input);
-  if (exact) return exact;
+function typoDistanceLimit(input) {
+  if (input.length <= 4) return 1;
+  return 2;
+}
 
-  const partial = candidates
-    .filter((candidate) => {
-      const lower = candidate.toLowerCase();
-      return lower.startsWith(input) || words.every((word) => lower.includes(word));
+function buildItemReferenceCandidates(scopes = []) {
+  const candidateNames = [...new Set(scopes.flat().filter(Boolean))];
+  const phraseToItems = new Map();
+
+  const addPhrase = (phraseRaw, itemName) => {
+    const phrase = normalizeCommandInput(phraseRaw);
+    if (!phrase) return;
+    if (!phraseToItems.has(phrase)) phraseToItems.set(phrase, new Set());
+    phraseToItems.get(phrase).add(itemName);
+  };
+
+  candidateNames.forEach((itemName) => {
+    const def = getItemDefinition(state.world, itemName);
+    const label = def?.label ?? itemName;
+    const aliases = def?.aliases ?? [];
+    const basePhrases = new Set([itemName, label, ...aliases]);
+    basePhrases.forEach((phrase) => {
+      addPhrase(phrase, itemName);
+      const words = normalizeCommandInput(phrase).split(' ').filter(Boolean);
+      words.forEach((word) => {
+        if (word.length >= 3) addPhrase(word, itemName);
+      });
     });
-  if (partial.length === 1) return partial[0];
-  if (partial.length > 1) return null;
+  });
 
-  const ranked = candidates
-    .map((candidate) => ({
-      candidate,
-      distance: levenshteinDistance(input, candidate.toLowerCase()),
-    }))
-    .filter(({ candidate, distance }) => candidate.length >= 4 && distance <= 2)
-    .sort((a, b) => a.distance - b.distance);
+  return { candidateNames, phraseToItems };
+}
 
-  if (!ranked.length) return null;
-  if (ranked.length > 1 && ranked[0].distance === ranked[1].distance) return null;
-  return ranked[0].candidate;
+function resolveItemName(inputRaw, scopes = []) {
+  const input = normalizeCommandInput(inputRaw);
+  if (!input) return { matchedName: null, suggestion: null };
+  const { candidateNames, phraseToItems } = buildItemReferenceCandidates(scopes);
+  if (!candidateNames.length) return { matchedName: null, suggestion: null };
+  const words = input.split(' ');
+
+  const exactMatches = phraseToItems.get(input);
+  if (exactMatches?.size === 1) return { matchedName: [...exactMatches][0], suggestion: null };
+
+  const partialMatches = [...phraseToItems.entries()]
+    .filter(([phrase]) => phrase.startsWith(input) || words.every((word) => phrase.includes(word)))
+    .flatMap(([, itemNames]) => [...itemNames]);
+  const partialItems = [...new Set(partialMatches)];
+  if (partialItems.length === 1) return { matchedName: partialItems[0], suggestion: null };
+
+  const rankedByItem = new Map();
+  [...phraseToItems.entries()].forEach(([phrase, itemNames]) => {
+    const limit = Math.min(typoDistanceLimit(input), typoDistanceLimit(phrase));
+    const distance = levenshteinDistance(input, phrase);
+    if (distance > limit) return;
+    itemNames.forEach((itemName) => {
+      const current = rankedByItem.get(itemName);
+      if (!current || distance < current.distance) rankedByItem.set(itemName, { itemName, distance });
+    });
+  });
+
+  const ranked = [...rankedByItem.values()].sort((a, b) => a.distance - b.distance);
+  if (!ranked.length) return { matchedName: null, suggestion: null };
+  if (ranked.length === 1) return { matchedName: ranked[0].itemName, suggestion: null };
+  if (ranked[0].distance < ranked[1].distance) return { matchedName: ranked[0].itemName, suggestion: null };
+  return { matchedName: null, suggestion: ranked[0].itemName };
 }
 
 function resolveItemInScope(itemRaw, scopes = []) {
-  const candidateNames = [...new Set(scopes.flat().filter(Boolean))];
-  const aliases = new Map();
-  candidateNames.forEach((itemName) => {
-    const def = getItemDefinition(state.world, itemName);
-    (def?.aliases ?? []).forEach((alias) => {
-      aliases.set(alias.toLowerCase(), itemName);
-    });
-  });
-  const directAlias = aliases.get(itemRaw.toLowerCase().trim());
-  if (directAlias) return directAlias;
-  return resolveItemName(itemRaw, candidateNames);
+  return resolveItemName(itemRaw, scopes);
 }
 
 const itemPronouns = new Set(['it', 'that', 'this']);
@@ -483,13 +512,14 @@ function resolveItemReference(itemRaw, scopes = []) {
   const normalized = normalizeCommandInput(itemRaw);
   const usingPronoun = itemPronouns.has(normalized);
   const pronounFallback = usingPronoun ? state.player.lastReferencedItem : null;
-  const matchedName = usingPronoun
+  const resolution = usingPronoun
     ? resolveItemInScope(pronounFallback ?? '', scopes)
     : resolveItemInScope(stripItemArticles(itemRaw), scopes);
   return {
-    matchedName,
+    matchedName: resolution.matchedName,
+    suggestion: resolution.suggestion,
     usedPronoun: usingPronoun,
-    pronounFailed: usingPronoun && !matchedName,
+    pronounFailed: usingPronoun && !resolution.matchedName,
   };
 }
 
@@ -820,17 +850,26 @@ function move(direction) {
 
 function takeItem(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const exact = resolveItemInScope(stripItemArticles(itemRaw), [roomObj.items]);
-  if (!exact) {
-    line('That item is not here.', 'warn');
+  const { matchedName, pronounFailed, suggestion } = resolveItemReference(itemRaw, [roomObj.items]);
+  if (pronounFailed) {
+    line('You pause. It is not clear what "it" refers to.', 'warn');
     return;
   }
-  removeItemFromRoom(state.world, state.player.currentRoom, exact);
-  state.player.inventory.push(exact);
-  rememberReferencedItem(exact);
-  line(`You take ${itemDisplayLabel(exact)}.`, 'good');
+  if (!matchedName) {
+    line(
+      suggestion
+        ? `That item is not here. Did you mean ${itemDisplayLabel(suggestion)}?`
+        : 'That item is not here.',
+      'warn',
+    );
+    return;
+  }
+  removeItemFromRoom(state.world, state.player.currentRoom, matchedName);
+  state.player.inventory.push(matchedName);
+  rememberReferencedItem(matchedName);
+  line(`You take ${itemDisplayLabel(matchedName)}.`, 'good');
 
-  if (exact === 'iron key') {
+  if (matchedName === 'iron key') {
     if (porterIsHere()) {
       maybeLinePorter("The porter notes that you took it without pocketing ceremony. 'Practical,' he says.");
       applyRelationship(state.social, 'porter', 1);
@@ -841,13 +880,22 @@ function takeItem(itemRaw) {
 }
 
 function useItem(itemRaw) {
-  const { matchedName: invExact, pronounFailed } = resolveItemReference(itemRaw, [state.player.inventory]);
+  const {
+    matchedName: invExact,
+    pronounFailed,
+    suggestion,
+  } = resolveItemReference(itemRaw, [state.player.inventory]);
   if (pronounFailed) {
     line('You pause. It is not clear what "it" refers to.', 'warn');
     return;
   }
   if (!invExact) {
-    line('You are not carrying that.', 'warn');
+    line(
+      suggestion
+        ? `You are not carrying that. Did you mean ${itemDisplayLabel(suggestion)}?`
+        : 'You are not carrying that.',
+      'warn',
+    );
     return;
   }
 
@@ -1023,7 +1071,12 @@ function interactNpc(parsed, turnPresence = null) {
       return;
     }
     if (!exactItem) {
-      line('You are not carrying that item to give.', 'warn');
+      line(
+        giveResolution.suggestion
+          ? `You are not carrying that item to give. Did you mean ${itemDisplayLabel(giveResolution.suggestion)}?`
+          : 'You are not carrying that item to give.',
+        'warn',
+      );
       return;
     }
     rememberReferencedItem(exactItem);
@@ -1172,13 +1225,22 @@ function maybeNormChangeHint(lastVerb, turnPresence = null) {
 
 function inspect(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const { matchedName, pronounFailed } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
+  const {
+    matchedName,
+    pronounFailed,
+    suggestion,
+  } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
   if (pronounFailed) {
     line('You pause. It is not clear what "it" refers to.', 'warn');
     return;
   }
   if (!matchedName) {
-    line('You find little to inspect.', 'warn');
+    line(
+      suggestion
+        ? `You find little to inspect. Did you mean ${itemDisplayLabel(suggestion)}?`
+        : 'You find little to inspect.',
+      'warn',
+    );
     return;
   }
   rememberReferencedItem(matchedName);
@@ -1189,13 +1251,22 @@ function inspect(itemRaw) {
 
 function readItem(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const { matchedName, pronounFailed } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
+  const {
+    matchedName,
+    pronounFailed,
+    suggestion,
+  } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
   if (pronounFailed) {
     line('You pause. It is not clear what "it" refers to.', 'warn');
     return;
   }
   if (!matchedName) {
-    line('There is nothing by that name here to read.', 'warn');
+    line(
+      suggestion
+        ? `There is nothing by that name here to read. Did you mean ${itemDisplayLabel(suggestion)}?`
+        : 'There is nothing by that name here to read.',
+      'warn',
+    );
     return;
   }
   rememberReferencedItem(matchedName);
@@ -1210,14 +1281,23 @@ function readItem(itemRaw) {
 }
 
 function drop(itemRaw) {
-  const exact = resolveItemInScope(itemRaw, [state.player.inventory]);
-  if (!exact) {
-    line('You do not have that item.', 'warn');
+  const { matchedName, pronounFailed, suggestion } = resolveItemReference(itemRaw, [state.player.inventory]);
+  if (pronounFailed) {
+    line('You pause. It is not clear what "it" refers to.', 'warn');
     return;
   }
-  state.player.inventory = state.player.inventory.filter((i) => i !== exact);
-  addItemToRoom(state.world, state.player.currentRoom, exact);
-  line(`You leave ${itemDisplayLabel(exact)}.`);
+  if (!matchedName) {
+    line(
+      suggestion
+        ? `You do not have that item. Did you mean ${itemDisplayLabel(suggestion)}?`
+        : 'You do not have that item.',
+      'warn',
+    );
+    return;
+  }
+  state.player.inventory = state.player.inventory.filter((i) => i !== matchedName);
+  addItemToRoom(state.world, state.player.currentRoom, matchedName);
+  line(`You leave ${itemDisplayLabel(matchedName)}.`);
 }
 
 function handleAmbientSocialCommand(verb, turnPresence = null) {

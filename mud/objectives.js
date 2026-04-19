@@ -133,6 +133,14 @@ export function currentConcernLine(objectives) {
   return `Current concern: "${currentConcern(objectives).unresolved}"`;
 }
 
+export function recentUnresolvedConcernLines(objectives, max = 3) {
+  const safe = ensureObjectiveState(objectives);
+  const unresolved = concernFlow
+    .filter((concern) => safe.discovered.includes(concern.id) && !safe.resolved.includes(concern.id))
+    .map((concern) => concern.unresolved);
+  return unresolved.slice(0, Math.max(1, max));
+}
+
 function markResolved(objectives, reason) {
   const safe = ensureObjectiveState(objectives);
   const current = concernFlow[safe.currentIndex];

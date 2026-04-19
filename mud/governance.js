@@ -70,6 +70,7 @@ export function createGovernanceState() {
       consensusFirst: true,
     },
     pendingProposal: null,
+    proposalLedger: {},
     committeeMemory: [],
     access: {
       gates: {
@@ -84,9 +85,105 @@ export function createGovernanceState() {
   };
 }
 
-export function proposeRule(governance, social, ruleText) {
+function compactText(text = '') {
+  return text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function detectConcepts(text = '') {
+  const compact = compactText(text);
+  if (!compact) return new Set();
+  const concepts = new Set();
+
+  if (/\b(minute|item 7|item7|missing minute|timing|ledger)\b/.test(compact)) concepts.add('minute-record');
+  if (/\b(key|east chamber|east door|east access|unlock|access east|hall east)\b/.test(compact)) concepts.add('access');
+  if (/\b(procedure|procedural|policy|norm|governance|vote|decide|committee|process)\b/.test(compact)) concepts.add('procedure');
+  if (/\b(consensus|commitment|agreement)\b/.test(compact)) concepts.add('alignment-order');
+  if (/\b(stillness|stagnation|stagnant|movement)\b/.test(compact)) concepts.add('movement');
+  if (/\b(contradiction|record|disagree|dispute)\b/.test(compact)) concepts.add('record-integrity');
+
+  return concepts;
+}
+
+export function normalizeProposalMeaning(text = '') {
+  const compact = compactText(text);
+  const concepts = detectConcepts(compact);
+  const isConsensusFirst = (/\b(consensus|commitment|agreement)\b/.test(compact) && /\bfirst\b/.test(compact))
+    || /\b(consensusfirst|commitmentfirst|agreementfirst)\b/.test(compact);
+  const semanticKey = (() => {
+    if (!compact) return 'empty-proposal';
+    if (isConsensusFirst) return 'consensus-first-order';
+    const norm = parseNormChange(compact);
+    if (norm) return `norm:${norm.key}:${norm.value ? 'on' : 'off'}`;
+    const access = parseAccessProposal(compact);
+    if (access?.gateId) return `access:${access.gateId}`;
+    if (!concepts.size) return compact.replace(/\s+/g, '-');
+    return [...concepts].sort().join('|');
+  })();
+
+  const canonicalText = isConsensusFirst ? 'consensus first' : compact || 'proposal';
+  return { semanticKey, canonicalText, compactText: compact, concepts };
+}
+
+export function assessProposalRelevance(text = '', context = {}) {
+  const normalized = normalizeProposalMeaning(text);
+  const concernText = compactText(context.currentConcern ?? '');
+  const objectiveText = compactText(context.activeObjective ?? '');
+  const unresolvedText = compactText((context.recentUnresolvedIssues ?? []).join(' '));
+
+  const concernConcepts = detectConcepts(concernText);
+  const objectiveConcepts = detectConcepts(objectiveText);
+  const unresolvedConcepts = detectConcepts(unresolvedText);
+  const contextConcepts = new Set([...concernConcepts, ...objectiveConcepts, ...unresolvedConcepts]);
+
+  const proposalConcepts = normalized.concepts;
+  const overlapCount = [...proposalConcepts].filter((concept) => contextConcepts.has(concept)).length;
+  const onlyProcedure = proposalConcepts.size > 0
+    && [...proposalConcepts].every((concept) => ['procedure', 'alignment-order'].includes(concept));
+
+  let tier = 'mostly procedural drift';
+  let score = overlapCount * 0.34;
+  if (overlapCount >= 2 || (overlapCount >= 1 && concernConcepts.size && [...proposalConcepts].some((c) => concernConcepts.has(c) && c !== 'procedure'))) {
+    tier = 'directly relevant';
+    score = Math.max(score, 0.82);
+  } else if (overlapCount >= 1 || (!overlapCount && proposalConcepts.has('record-integrity') && concernConcepts.has('minute-record'))) {
+    tier = 'adjacent';
+    score = Math.max(score, 0.56);
+  } else if (onlyProcedure) {
+    tier = 'mostly procedural drift';
+    score = Math.min(score, 0.22);
+  }
+
+  return {
+    ...normalized,
+    tier,
+    score: Number(score.toFixed(2)),
+    overlapCount,
+  };
+}
+
+export function proposeRule(governance, social, ruleText, relevance = null) {
+  const normalized = normalizeProposalMeaning(ruleText);
+  const existing = governance.pendingProposal;
+  governance.proposalLedger ??= {};
+  const cluster = governance.proposalLedger[normalized.semanticKey] ?? { count: 0, aliases: [] };
+  cluster.count += 1;
+  if (!cluster.aliases.includes(ruleText)) cluster.aliases.push(ruleText);
+  cluster.aliases = cluster.aliases.slice(-6);
+  governance.proposalLedger[normalized.semanticKey] = cluster;
+
+  if (existing?.semanticKey === normalized.semanticKey) {
+    existing.aliases = Array.from(new Set([...(existing.aliases ?? []), ruleText])).slice(-6);
+    existing.relevance = relevance ?? existing.relevance ?? null;
+    logBehaviour(social, 'propose');
+    return `The clerk treats "${ruleText}" as the standing proposal: "${existing.canonicalText}".`;
+  }
+
   governance.pendingProposal = {
     text: ruleText,
+    canonicalText: normalized.canonicalText,
+    semanticKey: normalized.semanticKey,
+    aliases: [ruleText],
+    relevance: relevance ?? null,
     turnOpened: Date.now(),
   };
   logBehaviour(social, 'propose');
@@ -110,6 +207,7 @@ function parseNormChange(text) {
     sneezeblessing: 'blessOnSneeze',
     sneezeritual: 'blessOnSneeze',
     consensusfirst: 'consensusFirst',
+    commitmentfirst: 'consensusFirst',
     consensus: 'consensusFirst',
     agreementfirst: 'consensusFirst',
     decisionpace: 'consensusFirst',
@@ -131,6 +229,9 @@ function parseNormChange(text) {
     return { key: 'consensusFirst', value: true };
   }
   if (compact.includes('agreement before commitment')) {
+    return { key: 'consensusFirst', value: true };
+  }
+  if (/\b(consensusfirst|commitmentfirst|agreementfirst)\b/.test(compact)) {
     return { key: 'consensusFirst', value: true };
   }
 
@@ -269,6 +370,7 @@ export function vote(governance, agents, social, system, context = {}, rng = Mat
   }
 
   const memo = governance.pendingProposal.text;
+  const memoCanonical = governance.pendingProposal.canonicalText ?? memo;
   governance.pendingProposal = null;
 
   return {
@@ -277,7 +379,7 @@ export function vote(governance, agents, social, system, context = {}, rng = Mat
     text: passed
       ? `The vote carries (${yes}/3). The adjustment stands, in the record at least.`
       : `The vote fails (${yes}/3). Objections gather again around risk and precedent.`,
-    detail: `Most recent vote: ${memo}`,
+    detail: `Most recent vote: ${memoCanonical}`,
     narrative: governance.lastNarrative,
     coalitionHint,
     stanceScene,

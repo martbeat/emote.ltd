@@ -342,6 +342,7 @@ function createNpcTurnInvariant() {
   return {
     roomId: state.player.currentRoom,
     presentHereIds: new Set(),
+    arrivedIds: new Set(),
     ambientSpeakerIds: new Set(),
   };
 }
@@ -417,6 +418,11 @@ function beginNarrativeTurn() {
 function notePresentHere(agentIds, roomId = state.player.currentRoom) {
   if (!npcTurnInvariant || npcTurnInvariant.roomId !== roomId) return;
   agentIds.forEach((id) => npcTurnInvariant.presentHereIds.add(id));
+}
+
+function noteArrivals(agentIds, roomId = state.player.currentRoom) {
+  if (!npcTurnInvariant || npcTurnInvariant.roomId !== roomId) return;
+  agentIds.forEach((id) => npcTurnInvariant.arrivedIds.add(id));
 }
 
 function noteAmbientSpeech(agentId, roomId = state.player.currentRoom) {
@@ -1225,14 +1231,27 @@ function parseNpcInteraction(textRaw) {
 
 function resolveNpcPresenceForInteraction(targetId, turnPresence = null) {
   const roomId = state.player.currentRoom;
+  const inCurrentTurnSnapshot = Boolean(turnPresence?.presentIds?.has(targetId));
+  const inRenderedPresentHereThisTurn = Boolean(
+    npcTurnInvariant
+      && npcTurnInvariant.roomId === roomId
+      && npcTurnInvariant.presentHereIds.has(targetId),
+  );
+  const inArrivalNarrationThisTurn = Boolean(
+    npcTurnInvariant
+      && npcTurnInvariant.roomId === roomId
+      && npcTurnInvariant.arrivedIds.has(targetId),
+  );
+  const inCanonicalRoomPresence = isAgentPresentInRoom(targetId, roomId, turnPresence);
   const visibleThisTurn = getTurnVisibleNpcSet(roomId);
   const inTurnVisibleNpcs = visibleThisTurn.has(targetId);
-  if (inTurnVisibleNpcs) {
+  if (inTurnVisibleNpcs || inCurrentTurnSnapshot || inRenderedPresentHereThisTurn || inArrivalNarrationThisTurn || inCanonicalRoomPresence) {
     return {
       present: true,
       justMissed: false,
-      inCurrentTurnSnapshot: Boolean(turnPresence?.presentIds?.has(targetId)),
-      inPresentHereThisTurn: false,
+      inCurrentTurnSnapshot,
+      inPresentHereThisTurn: inRenderedPresentHereThisTurn,
+      inArrivalNarrationThisTurn,
       inTurnVisibleNpcs,
       inAmbientSpeechThisTurn: false,
       recentDeparture: false,
@@ -1250,8 +1269,9 @@ function resolveNpcPresenceForInteraction(targetId, turnPresence = null) {
     return {
       present: true,
       justMissed: false,
-      inCurrentTurnSnapshot: Boolean(turnPresence?.presentIds?.has(targetId)),
-      inPresentHereThisTurn: false,
+      inCurrentTurnSnapshot,
+      inPresentHereThisTurn: inRenderedPresentHereThisTurn,
+      inArrivalNarrationThisTurn,
       inTurnVisibleNpcs,
       inAmbientSpeechThisTurn,
       recentDeparture: false,
@@ -1264,8 +1284,9 @@ function resolveNpcPresenceForInteraction(targetId, turnPresence = null) {
   return {
     present: false,
     justMissed: recentDeparture,
-    inCurrentTurnSnapshot: Boolean(turnPresence?.presentIds?.has(targetId)),
-    inPresentHereThisTurn: false,
+    inCurrentTurnSnapshot,
+    inPresentHereThisTurn: inRenderedPresentHereThisTurn,
+    inArrivalNarrationThisTurn,
     inTurnVisibleNpcs,
     inAmbientSpeechThisTurn,
     recentDeparture,
@@ -1303,6 +1324,15 @@ function interactNpc(parsed, turnPresence = null) {
 
   const presence = resolveNpcPresenceForInteraction(targetId, turnPresence);
   if (!presence.present) {
+    if (
+      presence.inTurnVisibleNpcs
+      || presence.inCurrentTurnSnapshot
+      || presence.inPresentHereThisTurn
+      || presence.inArrivalNarrationThisTurn
+      || presence.inAmbientSpeechThisTurn
+    ) {
+      console.error('Presence contradiction:', state.agents[targetId].name);
+    }
     if (presence.justMissed) {
       const roomId = state.player.currentRoom;
       if (getTurnVisibleNpcSet(roomId).has(targetId)) {
@@ -1965,12 +1995,24 @@ function processCommand(input) {
   decayAgentMemories(state.agents);
   const previousAgentRooms = moveAgents(state.agents, state.system.state);
   rememberRecentDepartures(previousAgentRooms, state.player.currentRoom);
-  const continuityLine = narrateAgentContinuity(
+  const continuity = narrateAgentContinuity(
     state.agents,
     previousAgentRooms,
     state.player.currentRoom,
   );
-  if (continuityLine) emitNarrativeLine(continuityLine, { priority: narrativePriority.P2 });
+  if (continuity?.line) {
+    if (continuity.kind === 'arrival') {
+      noteArrivals(continuity.agentIds ?? [], state.player.currentRoom);
+      notePresentHere(continuity.agentIds ?? [], state.player.currentRoom);
+      setTurnVisibleNpcs([
+        ...new Set([
+          ...Array.from(getTurnVisibleNpcSet(state.player.currentRoom)),
+          ...(continuity.agentIds ?? []),
+        ]),
+      ], state.player.currentRoom);
+    }
+    emitNarrativeLine(continuity.line, { priority: narrativePriority.P2 });
+  }
   const tensionLine = tensionShiftNarrative(tensionBefore, state.system.tension, state.narrative);
   if (tensionLine) emitNarrativeLine(tensionLine, { priority: narrativePriority.P2 });
   if (state.system.lastTransition && state.system.lastTransition.turn !== priorTransitionTurn) {

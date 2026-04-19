@@ -468,20 +468,38 @@ function maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng = 
     const subject = agentLabel[agentId] ?? 'Someone';
     const roomHint = playerRoomId === 'hall' ? 'from the stairwell' : `from the ${titleCaseRoom(previousRooms[agentId])}`;
     const verb = pick(arrivalVerbs[agentId] ?? arrivalVerbs.ada, rng);
-    return joinArrivalNarration(subject, verb, roomHint);
+    return {
+      line: joinArrivalNarration(subject, verb, roomHint),
+      kind: 'arrival',
+      agentIds: [agentId],
+    };
   }
 
   if (departures.length && rng() < 0.52) {
     const agentId = pick(departures, rng);
     const subject = agentLabel[agentId] ?? 'Someone';
     const verb = pick(departureVerbs[agentId] ?? departureVerbs.bernard, rng);
-    return `${subject} ${verb}.`;
+    return {
+      line: `${subject} ${verb}.`,
+      kind: 'departure',
+      agentIds: [agentId],
+    };
   }
 
   if (nearMisses.length && rng() < 0.26) {
     const agentId = pick(nearMisses, rng);
-    if (agentId === 'porter') return pick(nearMissLines.porter, rng);
-    return pick(nearMissLines.generic, rng);
+    if (agentId === 'porter') {
+      return {
+        line: pick(nearMissLines.porter, rng),
+        kind: 'near-miss',
+        agentIds: [agentId],
+      };
+    }
+    return {
+      line: pick(nearMissLines.generic, rng),
+      kind: 'near-miss',
+      agentIds: [agentId],
+    };
   }
 
   return null;

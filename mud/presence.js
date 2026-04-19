@@ -27,6 +27,8 @@ const proposalFragments = [
   'courtesy survives pressure',
   'minor repairs before major promises',
   'questions before force',
+  'defer acclaim, preserve process',
+  'repair trust before tallying wins',
 ];
 
 export function createPlayerIdentity(rng = Math.random) {
@@ -90,8 +92,8 @@ export function ghostProposalEntry(ghost, rng = Math.random) {
   return {
     actor,
     text,
-    line: `A proposal is already waiting in the minutes: "${text}" (margin mark: ${actor.display}).`,
-    memory: `tabled: ${text} [${actor.display}]`,
+    line: `A proposal is already waiting in the minutes: "${text}" (initialled in the margin: ${actor.display}).`,
+    memory: `tabled before arrival: ${text} [${actor.display}]`,
   };
 }
 
@@ -109,9 +111,10 @@ export function porterGhostWitnessLine(ghost, rng = Math.random) {
   const actor = ghost.roster?.find((entry) => entry.id === ghost.lastActorId) ?? pick(ghost.roster ?? ghostProfiles, rng);
   const lines = [
     `Porter: "You're asking the same question ${actor.surname} asked yesterday."`,
-    `Porter: "${actor.surname} tried force. It went about as well as expected."`,
+    `Porter: "${actor.surname} initialled the ledger, then vanished before roll call."`,
     `Porter: "You just missed ${actor.surname}; apology already in motion."`,
     `Porter: "${actor.display} left a note, then left before agreeing with themselves."`,
+    `Porter: "${actor.surname} nearly collided with you at the stair turn, or so the register insists."`,
   ];
   return pick(lines, rng);
 }

@@ -144,28 +144,34 @@ function ensureGhostState() {
 
 const ghostResidueTemplates = {
   foyer: [
-    'The noticeboard has been altered since your last certainty: two pins moved, one line underlined twice.',
+    'The noticeboard has been altered since your last certainty: two pins moved, one line underlined twice, and "carry Item 2" initialled "R.V.".',
     'A partial signature trails off in the margin of a posted agenda: "signed only: K."',
+    'A posted motion already bears a seconding mark from "J.M." though no seconder is present.',
   ],
   hall: [
     'One chair by the table still carries body-warmth, though no one claims it.',
     'The table already holds a proposal card, weighted with a brass clip you did not place.',
+    'The iron key sits at a new angle, recently handled, as if returned by someone rushing onward.',
   ],
   lockedRoom: [
     'A pen lies uncapped beside the minutes, as if interrupted mid-sentence.',
     'The seal sits a finger-width off its usual place, recently handled.',
+    'The minutes include an added line — "provisional assent logged" — initialled only "S.H.".',
   ],
   eastCorridor: [
     'Recent footsteps seem to have ended at a blank wall and then chosen silence.',
     'A door is not fully latched, as if someone left in a hurry and remembered decorum late.',
+    'A margin slip on the notice rail reads "M.C. already objected" in hurried pencil.',
   ],
   archive: [
     'The ledger fragment is not where memory says it was.',
     'A folder spine has a fresh pencilled initial: "M. Vale".',
+    'A bound ledger is open to a page marked "carried over by K." and then shut before context arrives.',
   ],
   courtyard: [
     'Two sentences drift from an unseen corner, then stop before either speaker can be identified.',
     'A distant sneeze is followed by a faint "bless you" from somewhere the walls do not specify.',
+    'Someone has shifted a rain barrel ledger slate; the chalk note now reads "E.V. passed through".',
   ],
 };
 
@@ -249,7 +255,8 @@ function maybePorterNearMissDialogue() {
   const baseLines = [
     porterGhostWitnessLine(ghost),
     'Porter: "Hart preferred the east door and refused to explain why."',
-    'Porter: "Another visitor moved the proposal cards into urgency order."',
+    'Porter: "Another visitor moved the proposal cards into urgency order, signed only J.M."',
+    'Porter: "Vale nearly crossed paths with you at the archive bend, then thought better of being seen."',
     'Porter: "Someone left before agreeing with themselves."',
   ];
   const signatureLine = ghost.lastSignature && Math.random() < 0.3

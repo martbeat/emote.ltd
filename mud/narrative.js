@@ -222,17 +222,18 @@ const phaseTemplates = {
 
 const ghostTraceTemplates = {
   intentionalTrace: [
-    'A proposal appears in the margin of the agenda in ink fresher than the surrounding notes.',
-    'Someone has moved a key document to the top of the stack, with two lines bracketed in pencil.',
+    'A proposal appears in the margin of the agenda in ink fresher than the surrounding notes, initialled \"R.V.\".',
+    'Someone has moved a key document to the top of the stack, with two lines bracketed in pencil and \"J.M.\" beside them.',
     'A decision marker sits beside an item you did not vote on, as if business continued without you.',
+    'A ledger edge shows a fresh note: \"carry this before noon — S.H.\", with no corresponding signature block filled.',
   ],
   distantPresence: [
-    'From somewhere deeper in the structure, a voice almost forms, then falls away.',
+    'From somewhere deeper in the structure, a voice almost forms, then falls away before you can place who it was.',
     'A faint rustle suggests activity several rooms off, never close enough to place.',
     'You sense someone nearby in the way silence keeps changing shape.',
   ],
   porterLedger: [
-    'The porter glances at the ledger and says, "You just missed someone asking that exact question."',
+    'The porter glances at the ledger and says, "You just missed someone asking that exact question. Initials only: M.C."',
     'The porter notes, "Another visitor moved this file and left no name, only a vote mark."',
     'The porter murmurs, "They left before introductions, but not before changing the order of business."',
   ],
@@ -241,7 +242,7 @@ const ghostTraceTemplates = {
 const ghostDirectionalTemplates = [
   'In an adjacent room, a chair is out of place and still turning slightly.',
   'A file drawer stands open one notch, as if someone expected to return.',
-  'You glimpse movement one room over; by the time you focus, it is gone.',
+  'A note card is displaced from its stack, tagged "seen by E.V." in compressed handwriting.',
 ];
 
 const ambientSneezeTemplates = {
@@ -263,8 +264,10 @@ const ambientSneezeTemplates = {
 const ambientWorldTemplates = {
   intentionalTrace: [
     'A note appears on the board: "Item 3 advanced pending objections." You did not write it.',
-    'Someone has reordered the proposal cards by risk, not chronology.',
+    'Someone has reordered the proposal cards by risk, not chronology, with initials "S.H." in the corner.',
     'A margin now reads, "agreed in principle, details deferred," in handwriting you do not recognize.',
+    'A ledger correction adds "already carried by R. Vale" and then trails off mid-stroke.',
+    'The committee seal rests half a handspan from where memory left it, as though recently returned.',
   ],
   distantSound: [
     'Far off, footsteps gather and then scatter as if choosing another route.',
@@ -302,6 +305,15 @@ export function createNarrativeState() {
   };
 }
 
+function recentIntentionalTraceWeight(narrative) {
+  const recent = narrative.recentLines.slice(-8);
+  return recent.reduce((count, line) => {
+    if (!line) return count;
+    if (/(initial|initialled|ledger|noticeboard|proposal card|margin|not where memory left)/i.test(line)) return count + 1;
+    return count;
+  }, 0);
+}
+
 export function maybeGhostTraceNarrative(narrative, rng = Math.random, chance = 0.14) {
   ensureNarrativeInternals(narrative);
   if (rng() > chance) return null;
@@ -313,7 +325,9 @@ export function maybeGhostTraceNarrative(narrative, rng = Math.random, chance = 
 
 export function maybeDirectionalGhostGlimpse(narrative, rng = Math.random, chance = 0.06) {
   ensureNarrativeInternals(narrative);
-  if (rng() > chance) return null;
+  const strongTraceCount = recentIntentionalTraceWeight(narrative);
+  const adjustedChance = strongTraceCount >= 2 ? chance * 0.45 : chance;
+  if (rng() > adjustedChance) return null;
   const line = pickFresh(ghostDirectionalTemplates, narrative.recentLines, rng, 8);
   remember(narrative, line, 'ghost-directional');
   return line;

@@ -831,17 +831,21 @@ function useItem(itemRaw) {
   );
 }
 
-function isNpcPresentForTurn(targetId, turnPresence) {
-  return isAgentPresentInRoom(targetId, state.player.currentRoom, turnPresence);
-}
-
 const npcIds = ['porter', 'ada', 'bernard', 'cyra'];
 const npcInteractionVerbs = new Set([
   'hi',
   'hello',
+  'hey',
   'greet',
+  'talk',
+  'chat',
+  'speak',
   'ask',
+  'question',
+  'inquire',
   'thank',
+  'thanks',
+  'praise',
   'poke',
   'slap',
   'kick',
@@ -849,6 +853,9 @@ const npcInteractionVerbs = new Set([
   'mock',
   'observe',
   'give',
+  'hand',
+  'offer',
+  'pass',
 ]);
 const ambientCommands = new Set([
   'smile',
@@ -884,15 +891,15 @@ function parseNpcInteraction(textRaw) {
 
   let match = text.match(/^(?:hello|hi|hey|greet)\s+(?:to\s+)?(.+)$/);
   if (match) return { action: 'hello', targetText: match[1] };
-  match = text.match(/^talk(?:\s+to)?\s+(.+)$/);
+  match = text.match(/^(?:talk|chat|speak)(?:\s+to)?\s+(.+)$/);
   if (match) return { action: 'talk', targetText: match[1] };
   match = text.match(/^say\s+(?:hello|hi|hey|greetings?)(?:\s+to)?\s+(.+)$/);
   if (match) return { action: 'hello', targetText: match[1] };
-  match = text.match(/^(?:ask|question)\s+(.+?)(?:\s+about\s+(.+))?$/);
+  match = text.match(/^(?:ask|question|inquire)\s+(.+?)(?:\s+about\s+(.+))?$/);
   if (match) return { action: 'ask', targetText: match[1], topic: match[2] ?? '' };
-  match = text.match(/^give\s+(.+?)\s+to\s+(.+)$/);
+  match = text.match(/^(?:give|hand|offer|pass)\s+(.+?)\s+to\s+(.+)$/);
   if (match) return { action: 'give', item: match[1], targetText: match[2] };
-  match = text.match(/^(?:thank|praise)\s+(.+)$/);
+  match = text.match(/^(?:thank|thanks|praise)\s+(.+)$/);
   if (match) return { action: 'thank', targetText: match[1] };
   match = text.match(/^(?:insult|mock)\s+(.+)$/);
   if (match) return { action: 'insult', targetText: match[1] };
@@ -903,15 +910,42 @@ function parseNpcInteraction(textRaw) {
   return null;
 }
 
+function resolveNpcPresenceForInteraction(targetId, turnPresence = null) {
+  const roomId = state.player.currentRoom;
+  const presence = turnPresence && turnPresence.roomId === roomId
+    ? turnPresence
+    : capturePresenceSnapshot(roomId);
+  return {
+    present: presence.presentIds.has(targetId),
+    justMissed: wasRecentlyPresent(targetId, roomId),
+  };
+}
+
 function interactNpc(parsed, turnPresence = null) {
   const targetId = resolveNpcTarget(parsed.targetText);
   if (!targetId) {
     line('Nobody by that name answers here.', 'warn');
     return;
   }
-  const present = isNpcPresentForTurn(targetId, turnPresence);
-  if (!present) {
-    if (wasRecentlyPresent(targetId)) {
+
+  let exactItem = null;
+  if (parsed.action === 'give') {
+    const giveResolution = resolveItemReference(parsed.item ?? '', [state.player.inventory]);
+    exactItem = giveResolution.matchedName;
+    if (giveResolution.pronounFailed) {
+      line('You pause. It is not clear what "it" refers to.', 'warn');
+      return;
+    }
+    if (!exactItem) {
+      line('You are not carrying that item to give.', 'warn');
+      return;
+    }
+    rememberReferencedItem(exactItem);
+  }
+
+  const presence = resolveNpcPresenceForInteraction(targetId, turnPresence);
+  if (!presence.present) {
+    if (presence.justMissed) {
       line(`You just missed ${state.agents[targetId].name}.`, 'warn');
     } else {
       line('They are not here.', 'warn');
@@ -931,21 +965,6 @@ function interactNpc(parsed, turnPresence = null) {
   }
 
   const effectiveAction = parsed.action === 'talk' ? 'hello' : parsed.action;
-
-  let exactItem = null;
-  if (parsed.action === 'give') {
-    const giveResolution = resolveItemReference(parsed.item ?? '', [state.player.inventory]);
-    exactItem = giveResolution.matchedName;
-    if (giveResolution.pronounFailed) {
-      line('You pause. It is not clear what "it" refers to.', 'warn');
-      return;
-    }
-    if (!exactItem) {
-      line('You are not carrying that item to give.', 'warn');
-      return;
-    }
-    rememberReferencedItem(exactItem);
-  }
 
   const outcome = interpretAgentInteraction(state.agents, state.social, {
     targetId,

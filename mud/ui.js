@@ -75,6 +75,17 @@ import {
   weatherShiftLine,
   maybeWeatherGovernanceMoment,
 } from './weather.js';
+import {
+  createPlayerIdentity,
+  ensurePlayerIdentity,
+  createGhostPresenceState,
+  ensureGhostPresenceState,
+  ghostProposalEntry,
+  porterIdentityLine,
+  porterGhostWitnessLine,
+  ghostNearEncounterLine,
+  scoreIdentityComparison,
+} from './presence.js';
 
 function createGameState() {
   return {
@@ -91,12 +102,13 @@ function createGameState() {
       lastReferencedItem: null,
       attemptedForceDoor: false,
       visitCounts: {},
+      identity: createPlayerIdentity(),
     },
     governanceUi: {
       suggestionStreak: 0,
       lastDecisionFailed: false,
     },
-    ghost: createGhostState(),
+    ghost: createGhostPresenceState(),
   };
 }
 
@@ -111,6 +123,7 @@ const dom = {
   form: document.getElementById('commandForm'),
   input: document.getElementById('commandInput'),
   room: document.getElementById('roomLabel'),
+  identity: document.getElementById('identityLabel'),
   exits: document.getElementById('exitsLabel'),
   inventory: document.getElementById('inventoryLabel'),
   norms: document.getElementById('normsLabel'),
@@ -124,37 +137,15 @@ const narrativePriority = {
   P3: 3,
 };
 
-function createGhostState() {
-  return {
-    turn: 0,
-    lastEventTurn: -9,
-    proposalCooldown: 0,
-    roomResidue: {},
-    lastPorterNearMissTurn: -99,
-    seededAtLeastOnce: false,
-    lastSignature: null,
-  };
-}
-
 function ensureGhostState() {
-  if (!state.ghost) state.ghost = createGhostState();
-  if (!state.ghost.roomResidue) state.ghost.roomResidue = {};
-  if (!Object.prototype.hasOwnProperty.call(state.ghost, 'seededAtLeastOnce')) state.ghost.seededAtLeastOnce = false;
-  if (!Object.prototype.hasOwnProperty.call(state.ghost, 'lastSignature')) state.ghost.lastSignature = null;
-  return state.ghost;
+  if (!state.ghost) state.ghost = createGhostPresenceState();
+  return ensureGhostPresenceState(state.ghost);
 }
-
-const ghostProposalTexts = [
-  'clarity before urgency',
-  'record before momentum',
-  'courtesy survives pressure',
-  'minor repairs before major promises',
-];
 
 const ghostResidueTemplates = {
   foyer: [
     'The noticeboard has been altered since your last certainty: two pins moved, one line underlined twice.',
-    'A partial signature trails off in the margin of a posted agenda: "signed only: R."',
+    'A partial signature trails off in the margin of a posted agenda: "signed only: K."',
   ],
   hall: [
     'One chair by the table still carries body-warmth, though no one claims it.',
@@ -184,17 +175,18 @@ function maybeSeedGhostProposal(initial = false) {
   if (ghost.proposalCooldown > 0) return null;
   const chance = initial ? 0.45 : 0.09;
   if (Math.random() > chance) return null;
-  const text = ghostProposalTexts[Math.floor(Math.random() * ghostProposalTexts.length)];
+  const seeded = ghostProposalEntry(ghost);
   state.governance.pendingProposal = {
-    text,
+    text: seeded.text,
     turnOpened: Date.now(),
-    source: 'unattributed',
+    source: 'institutional-trace',
+    attribution: seeded.actor.display,
   };
-  state.governance.committeeMemory.unshift(`tabled: ${text}`);
+  state.governance.committeeMemory.unshift(seeded.memory);
   state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
   ghost.seededAtLeastOnce = true;
   ghost.proposalCooldown = 7;
-  return `The table already holds a proposal: "${text}".`;
+  return seeded.line;
 }
 
 function decayGhostResidue() {
@@ -209,6 +201,7 @@ function decayGhostResidue() {
 
 function maybeAdvanceGhostPresence() {
   const ghost = ensureGhostState();
+  ensurePlayerIdentity(state.player);
   ghost.turn += 1;
   decayGhostResidue();
 
@@ -216,6 +209,7 @@ function maybeAdvanceGhostPresence() {
   const seeded = maybeSeedGhostProposal(initialSeed);
   if (seeded) emitNarrativeLine(seeded, { priority: narrativePriority.P2, cooldownKey: 'ghost-proposal', cooldownTurns: 6 });
 
+  if (ghost.nearEncounterCooldown > 0) ghost.nearEncounterCooldown -= 1;
   if (ghost.turn - ghost.lastEventTurn < 2) return;
   if (Math.random() > 0.2) return;
 
@@ -227,8 +221,14 @@ function maybeAdvanceGhostPresence() {
     text: lineText,
     freshness: 5 + Math.floor(Math.random() * 4),
   };
-  if (Math.random() < 0.06) {
-    ghost.lastSignature = Math.random() < 0.5 ? 'M. Vale' : 'signed only: R.';
+  if (Math.random() < 0.5) ghostProposalEntry(ghost);
+  if (ghost.nearEncounterCooldown <= 0 && Math.random() < 0.03) {
+    emitNarrativeLine(ghostNearEncounterLine(ghost), {
+      priority: narrativePriority.P2,
+      cooldownKey: 'ghost-near-encounter',
+      cooldownTurns: 10,
+    });
+    ghost.nearEncounterCooldown = 8;
   }
   ghost.lastEventTurn = ghost.turn;
 }
@@ -247,10 +247,10 @@ function maybePorterNearMissDialogue() {
   if (Math.random() > 0.28) return null;
 
   const baseLines = [
-    'Porter: "You just missed someone asking that exact question."',
-    'Porter: "They thanked Cyra, checked the register, and left before introductions."',
+    porterGhostWitnessLine(ghost),
+    'Porter: "Hart preferred the east door and refused to explain why."',
     'Porter: "Another visitor moved the proposal cards into urgency order."',
-    'Porter: "A minute earlier and you would have crossed paths at the east door."',
+    'Porter: "Someone left before agreeing with themselves."',
   ];
   const signatureLine = ghost.lastSignature && Math.random() < 0.3
     ? `Porter: "The register kept only ${ghost.lastSignature}."`
@@ -574,7 +574,10 @@ function institutionalEffectLine(system) {
 }
 
 function showScore() {
+  ensurePlayerIdentity(state.player);
+  const identityName = state.player.identity.name;
   line('Standing review:', 'system');
+  line(`- Record identity: ${identityName}.`, 'hint');
   line(`- ${socialStandingLine('The porter', state.social.relationships.porter)}`, 'hint');
   const porterAttitude = state.agents.porter.attitude;
   if (porterAttitude === 'resistant') {
@@ -594,6 +597,7 @@ function showScore() {
     line('- People increasingly expect you to mediate before lines harden.', 'hint');
   }
   line(`- ${institutionalEffectLine(state.system)}`, 'hint');
+  line(`- ${scoreIdentityComparison(state.player.identity, ensureGhostState())}`, 'hint');
   const latestMemory = state.governance.committeeMemory[0];
   line(
     latestMemory
@@ -605,7 +609,9 @@ function showScore() {
 
 function refreshSidebar() {
   const roomObj = state.world.rooms[state.player.currentRoom];
+  ensurePlayerIdentity(state.player);
   dom.room.textContent = roomObj.name;
+  if (dom.identity) dom.identity.textContent = state.player.identity.name;
   dom.exits.textContent = Object.keys(roomObj.exits).join(', ');
   dom.inventory.textContent = state.player.inventory.map(itemDisplayLabel).join(', ') || 'empty';
   dom.norms.textContent = tagsFromObject(state.governance.norms);
@@ -708,6 +714,7 @@ function load() {
   if (!state.player) {
     state.player = createGameState().player;
   }
+  ensurePlayerIdentity(state.player);
   ensureGhostState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
@@ -965,7 +972,9 @@ function forceDoor() {
 }
 
 function showStatus() {
+  ensurePlayerIdentity(state.player);
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
+  line(`Record: ${state.player.identity.name}.`, 'hint');
   line(`Atmosphere: ${weatherPhaseLabel(state.weather)}.`, 'hint');
   describeNorms(state.governance.norms).forEach((normLine) => line(`Norm: ${normLine}`, 'hint'));
   line(interpretiveMessage(state.system), 'hint');
@@ -1372,6 +1381,7 @@ function processCommand(input) {
   }
 
   if (verb !== 'talk' && porterIsHere() && Math.random() < 0.05) {
+    if (Math.random() < 0.28) maybeLinePorter(porterIdentityLine(ensurePlayerIdentity(state.player)));
     maybeLinePorter(talkToPorter(state.agents, state.system.state, state.social), 1);
     maybeLinePorter(maybePorterNearMissDialogue(), 0.35);
     maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
@@ -1484,7 +1494,9 @@ function processCommand(input) {
 }
 
 function boot() {
+  ensurePlayerIdentity(state.player);
   line('The Essex chamber stirs awake.', 'system');
+  if (Math.random() < 0.6) maybeLinePorter(porterIdentityLine(state.player.identity), 1);
   line('Type help for commands.');
   const openingProposal = maybeSeedGhostProposal(true);
   if (openingProposal) line(openingProposal, 'hint');

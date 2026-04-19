@@ -533,6 +533,13 @@ const systemBleedTemplates = {
   ],
 };
 
+const directionalModifierJoiners = [
+  'carrying',
+  'with',
+  'under',
+  'against',
+];
+
 function inferDirectionalTexture(world, targetRoomId) {
   const profile = world.roomProfiles?.[targetRoomId];
   const tone = profile?.spatialTone ?? '';
@@ -541,17 +548,25 @@ function inferDirectionalTexture(world, targetRoomId) {
   return 'enclosed';
 }
 
+function composeDirectionalGlimpse(base, modifier, rng = Math.random) {
+  if (!base) return '';
+  if (!modifier) return base;
+  const joiner = pick(directionalModifierJoiners, rng) || 'with';
+  return `${base}, ${joiner} ${modifier}`;
+}
+
 function buildExitGlimpses(world, room, systemState, context = {}) {
   const rng = context.rng ?? Math.random;
   const recent = context.recentNarrativeLines ?? [];
   const directions = Object.entries(room.exits);
   return directions.map(([direction, targetRoomId]) => {
     const texture = inferDirectionalTexture(world, targetRoomId);
-    const impression = pickFresh(directionalImpressions[systemState]?.[texture] ?? [], recent, rng, 8);
+    const impression = pickFresh(directionalImpressions[systemState]?.[texture] ?? [], recent, rng, 8) || '';
     const maybeGhost = rng() < 0.16 ? pickFresh(directionalGhostTemplates, recent, rng, 8) : '';
     const maybeBleed = rng() < 0.28 ? pickFresh(systemBleedTemplates[systemState] ?? [], recent, rng, 8) : '';
-    const clauses = [impression, maybeGhost, maybeBleed].filter(Boolean);
-    return `- ${direction}: ${clauses.join('; ')}.`;
+    const modifier = pick([maybeGhost, maybeBleed].filter(Boolean), rng);
+    const glimpse = composeDirectionalGlimpse(impression, modifier, rng);
+    return `- ${direction}: ${glimpse}.`;
   });
 }
 

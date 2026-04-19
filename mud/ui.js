@@ -91,6 +91,7 @@ function createGameState() {
       lastReferencedItem: null,
       attemptedForceDoor: false,
       visitCounts: {},
+      visibleNpcSnapshot: null,
     },
     governanceUi: {
       suggestionStreak: 0,
@@ -607,6 +608,10 @@ function renderRoom() {
   updatePorterVisibility(state.agents, roomId);
   const pacing = getRoomPacing(state.world, roomId);
   const presentAgents = agentsInRoom(state.agents, roomId);
+  state.player.visibleNpcSnapshot = {
+    roomId,
+    presentIds: presentAgents.map((agent) => agent.id),
+  };
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
   emitNarrativeLine(
@@ -687,6 +692,12 @@ function load() {
   }
   if (!state.weather) {
     state.weather = createWeatherState();
+  }
+  if (!state.player) {
+    state.player = createGameState().player;
+  }
+  if (!Object.prototype.hasOwnProperty.call(state.player, 'visibleNpcSnapshot')) {
+    state.player.visibleNpcSnapshot = null;
   }
   ensureGhostState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
@@ -781,11 +792,17 @@ function useItem(itemRaw) {
 
 function createTurnPresenceSnapshot() {
   const roomId = state.player.currentRoom;
+  const renderedSnapshot = state.player.visibleNpcSnapshot;
+  const renderedIds = Array.isArray(renderedSnapshot?.presentIds) ? renderedSnapshot.presentIds : null;
+  const useRenderedSnapshot = renderedSnapshot?.roomId === roomId && renderedIds;
   const presentIds = new Set(
-    Object.values(state.agents)
-      .filter((agent) => agent?.roomId === roomId)
-      .map((agent) => agent.id),
+    useRenderedSnapshot
+      ? renderedIds
+      : Object.values(state.agents)
+        .filter((agent) => agent?.roomId === roomId)
+        .map((agent) => agent.id),
   );
+  if (useRenderedSnapshot) state.player.visibleNpcSnapshot = null;
   return { roomId, presentIds };
 }
 

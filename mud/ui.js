@@ -96,6 +96,7 @@ function createGameState() {
       suggestionStreak: 0,
       lastDecisionFailed: false,
     },
+    ghost: createGhostState(),
   };
 }
 
@@ -122,6 +123,141 @@ const narrativePriority = {
   P2: 2,
   P3: 3,
 };
+
+function createGhostState() {
+  return {
+    turn: 0,
+    lastEventTurn: -9,
+    proposalCooldown: 0,
+    roomResidue: {},
+    lastPorterNearMissTurn: -99,
+    seededAtLeastOnce: false,
+    lastSignature: null,
+  };
+}
+
+function ensureGhostState() {
+  if (!state.ghost) state.ghost = createGhostState();
+  if (!state.ghost.roomResidue) state.ghost.roomResidue = {};
+  if (!Object.prototype.hasOwnProperty.call(state.ghost, 'seededAtLeastOnce')) state.ghost.seededAtLeastOnce = false;
+  if (!Object.prototype.hasOwnProperty.call(state.ghost, 'lastSignature')) state.ghost.lastSignature = null;
+  return state.ghost;
+}
+
+const ghostProposalTexts = [
+  'clarity before urgency',
+  'record before momentum',
+  'courtesy survives pressure',
+  'minor repairs before major promises',
+];
+
+const ghostResidueTemplates = {
+  foyer: [
+    'The noticeboard has been altered since your last certainty: two pins moved, one line underlined twice.',
+    'A partial signature trails off in the margin of a posted agenda: "signed only: R."',
+  ],
+  hall: [
+    'One chair by the table still carries body-warmth, though no one claims it.',
+    'The table already holds a proposal card, weighted with a brass clip you did not place.',
+  ],
+  lockedRoom: [
+    'A pen lies uncapped beside the minutes, as if interrupted mid-sentence.',
+    'The seal sits a finger-width off its usual place, recently handled.',
+  ],
+  eastCorridor: [
+    'Recent footsteps seem to have ended at a blank wall and then chosen silence.',
+    'A door is not fully latched, as if someone left in a hurry and remembered decorum late.',
+  ],
+  archive: [
+    'The ledger fragment is not where memory says it was.',
+    'A folder spine has a fresh pencilled initial: "M. Vale".',
+  ],
+  courtyard: [
+    'Two sentences drift from an unseen corner, then stop before either speaker can be identified.',
+    'A distant sneeze is followed by a faint "bless you" from somewhere the walls do not specify.',
+  ],
+};
+
+function maybeSeedGhostProposal(initial = false) {
+  const ghost = ensureGhostState();
+  if (state.governance.pendingProposal) return null;
+  if (ghost.proposalCooldown > 0) return null;
+  const chance = initial ? 0.45 : 0.09;
+  if (Math.random() > chance) return null;
+  const text = ghostProposalTexts[Math.floor(Math.random() * ghostProposalTexts.length)];
+  state.governance.pendingProposal = {
+    text,
+    turnOpened: Date.now(),
+    source: 'unattributed',
+  };
+  state.governance.committeeMemory.unshift(`tabled: ${text}`);
+  state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
+  ghost.seededAtLeastOnce = true;
+  ghost.proposalCooldown = 7;
+  return `The table already holds a proposal: "${text}".`;
+}
+
+function decayGhostResidue() {
+  const ghost = ensureGhostState();
+  Object.entries(ghost.roomResidue).forEach(([roomId, residue]) => {
+    if (!residue) return;
+    residue.freshness = (residue.freshness ?? 0) - 1;
+    if (residue.freshness <= 0) delete ghost.roomResidue[roomId];
+  });
+  ghost.proposalCooldown = Math.max(0, (ghost.proposalCooldown ?? 0) - 1);
+}
+
+function maybeAdvanceGhostPresence() {
+  const ghost = ensureGhostState();
+  ghost.turn += 1;
+  decayGhostResidue();
+
+  const initialSeed = !ghost.seededAtLeastOnce && ghost.turn <= 1;
+  const seeded = maybeSeedGhostProposal(initialSeed);
+  if (seeded) emitNarrativeLine(seeded, { priority: narrativePriority.P2, cooldownKey: 'ghost-proposal', cooldownTurns: 6 });
+
+  if (ghost.turn - ghost.lastEventTurn < 2) return;
+  if (Math.random() > 0.2) return;
+
+  const candidateRooms = Object.keys(ghostResidueTemplates);
+  const roomId = candidateRooms[Math.floor(Math.random() * candidateRooms.length)];
+  const options = ghostResidueTemplates[roomId];
+  const lineText = options[Math.floor(Math.random() * options.length)];
+  ghost.roomResidue[roomId] = {
+    text: lineText,
+    freshness: 5 + Math.floor(Math.random() * 4),
+  };
+  if (Math.random() < 0.06) {
+    ghost.lastSignature = Math.random() < 0.5 ? 'M. Vale' : 'signed only: R.';
+  }
+  ghost.lastEventTurn = ghost.turn;
+}
+
+function roomGhostResidueLine(roomId) {
+  const ghost = ensureGhostState();
+  const residue = ghost.roomResidue?.[roomId];
+  if (!residue?.text) return null;
+  return residue.text;
+}
+
+function maybePorterNearMissDialogue() {
+  const ghost = ensureGhostState();
+  if (!porterIsHere()) return null;
+  if (ghost.turn - ghost.lastPorterNearMissTurn < 4) return null;
+  if (Math.random() > 0.28) return null;
+
+  const baseLines = [
+    'Porter: "You just missed them."',
+    'Porter: "They asked the same question."',
+    'Porter: "Someone else preferred the east door."',
+    'Porter: "A minute earlier and you would have crossed paths."',
+  ];
+  const signatureLine = ghost.lastSignature && Math.random() < 0.3
+    ? `Porter: "The register kept only ${ghost.lastSignature}."`
+    : null;
+  ghost.lastPorterNearMissTurn = ghost.turn;
+  return [baseLines[Math.floor(Math.random() * baseLines.length)], signatureLine].filter(Boolean).join(' ');
+}
 
 function line(text, cls = '') {
   const p = document.createElement('p');
@@ -466,6 +602,7 @@ function refreshSidebar() {
 }
 
 function renderRoom() {
+  ensureGhostState();
   const roomId = state.player.currentRoom;
   updatePorterVisibility(state.agents, roomId);
   const pacing = getRoomPacing(state.world, roomId);
@@ -485,6 +622,14 @@ function renderRoom() {
   if (Math.random() < pacing.ambientNarrativeChance) {
     emitNarrativeLine(atmosphereNarrative(state.system.state, state.narrative), {
       priority: narrativePriority.P3,
+    });
+  }
+  const residueLine = roomGhostResidueLine(roomId);
+  if (residueLine) {
+    emitNarrativeLine(residueLine, {
+      priority: narrativePriority.P3,
+      cooldownKey: `ghost-residue-${roomId}`,
+      cooldownTurns: 4,
     });
   }
   const roomGhost = maybeDirectionalGhostGlimpse(state.narrative);
@@ -543,6 +688,7 @@ function load() {
   if (!state.weather) {
     state.weather = createWeatherState();
   }
+  ensureGhostState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
     state.agents.bernard.roomId = 'eastCorridor';
@@ -731,6 +877,8 @@ function interactNpc(parsed, turnPresence = null) {
 
   if (parsed.action === 'talk' && targetId === 'porter') {
     line(talkToPorter(state.agents, state.system.state, state.social));
+    const nearMiss = maybePorterNearMissDialogue();
+    if (nearMiss) maybeLinePorter(nearMiss, 1);
     applyRelationship(state.social, 'porter', 1);
     shiftPorterTrust(state.agents, 1);
     notePorterSocialMemory(state.agents, 'help', 0.6);
@@ -974,6 +1122,7 @@ function processCommand(input) {
   if (!text) return;
   const normalizedText = normalizeCommandInput(text);
   beginNarrativeTurn();
+  ensureGhostState();
 
   line(`> ${text}`, 'input');
   const turnPresence = createTurnPresenceSnapshot();
@@ -1200,6 +1349,8 @@ function processCommand(input) {
   } else if (verb === 'restart') {
     state = createGameState();
     line('The scene resets. The institution forgets, mostly.', 'system');
+    const openingProposal = maybeSeedGhostProposal(true);
+    if (openingProposal) line(openingProposal, 'hint');
     renderRoom();
   } else if (verb === 'help') {
     line('Explore with: look, n/s/e/w, go <dir>, take/drop/use/read/inspect/examine/x <item>, talk porter, force.');
@@ -1212,6 +1363,7 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
+  maybeAdvanceGhostPresence();
   tickWeather(state.weather);
   state.social.porterSignals = { ...(state.agents.porter.memorySignals ?? {}) };
   decayAgentMemories(state.agents);
@@ -1280,6 +1432,7 @@ function processCommand(input) {
   });
   if (verb !== 'talk' && porterIsHere() && Math.random() < 0.05) {
     maybeLinePorter(talkToPorter(state.agents, state.system.state, state.social), 1);
+    maybeLinePorter(maybePorterNearMissDialogue(), 0.35);
     maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
     if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
@@ -1323,6 +1476,8 @@ function processCommand(input) {
 function boot() {
   line('The Essex chamber stirs awake.', 'system');
   line('Type help for commands.');
+  const openingProposal = maybeSeedGhostProposal(true);
+  if (openingProposal) line(openingProposal, 'hint');
   renderRoom();
   refreshSidebar();
 
@@ -1337,6 +1492,8 @@ function boot() {
   document.getElementById('restartBtn').addEventListener('click', () => {
     state = createGameState();
     line('The scene resets.');
+    const openingProposal = maybeSeedGhostProposal(true);
+    if (openingProposal) line(openingProposal, 'hint');
     renderRoom();
     refreshSidebar();
   });

@@ -271,6 +271,16 @@ function porterIsHere() {
   return isAgentPresentInRoom('porter', state.player.currentRoom);
 }
 
+function createNpcTurnInvariant() {
+  return {
+    roomId: state.player.currentRoom,
+    presentHereIds: new Set(),
+    ambientSpeakerIds: new Set(),
+  };
+}
+
+let npcTurnInvariant = createNpcTurnInvariant();
+
 function capturePresenceSnapshot(roomId = state.player.currentRoom) {
   const presentIds = new Set(
     Object.values(state.agents)
@@ -324,6 +334,18 @@ function beginNarrativeTurn() {
   const pacing = ensureNarrativePacing();
   pacing.turn += 1;
   pacing.priorityCap = narrativePriority.P3;
+  npcTurnInvariant = createNpcTurnInvariant();
+}
+
+function notePresentHere(agentIds, roomId = state.player.currentRoom) {
+  if (!npcTurnInvariant || npcTurnInvariant.roomId !== roomId) return;
+  agentIds.forEach((id) => npcTurnInvariant.presentHereIds.add(id));
+}
+
+function noteAmbientSpeech(agentId, roomId = state.player.currentRoom) {
+  if (!agentId) return;
+  if (!npcTurnInvariant || npcTurnInvariant.roomId !== roomId) return;
+  npcTurnInvariant.ambientSpeakerIds.add(agentId);
 }
 
 function markNarrativePriority(priority) {
@@ -372,6 +394,7 @@ function maybeLinePorter(text, chance = 1, cls = 'hint') {
   const recent = state.narrative?.recentLines ?? [];
   if (recent.slice(-10).includes(text)) return false;
   line(text, cls);
+  noteAmbientSpeech('porter');
   rememberPorterLine(text);
   return true;
 }
@@ -699,6 +722,7 @@ function renderRoom(turnPresence = null) {
   }
   if (presentAgents.length) {
     const names = presentAgents.map((agent) => agent.name).join(', ');
+    notePresentHere(presentAgents.map((agent) => agent.id), roomId);
     emitNarrativeLine(`Present here: ${names}.`, {
       priority: narrativePriority.P1,
     });
@@ -832,6 +856,12 @@ function useItem(itemRaw) {
 }
 
 const npcIds = ['porter', 'ada', 'bernard', 'cyra'];
+const npcTargetAliases = {
+  porter: ['porter', 'the porter'],
+  ada: ['ada'],
+  bernard: ['bernard'],
+  cyra: ['cyra'],
+};
 const npcInteractionVerbs = new Set([
   'hi',
   'hello',
@@ -882,7 +912,9 @@ function normalizeCommandInput(textRaw = '') {
 function resolveNpcTarget(textRaw = '') {
   const lower = normalizeCommandInput(textRaw);
   if (!lower) return null;
-  return npcIds.find((id) => lower === id || lower.endsWith(` ${id}`) || lower.startsWith(`${id} `)) ?? null;
+  return npcIds.find((id) => (npcTargetAliases[id] ?? [id]).some((alias) => (
+    lower === alias || lower.endsWith(` ${alias}`) || lower.startsWith(`${alias} `)
+  ))) ?? null;
 }
 
 function parseNpcInteraction(textRaw) {
@@ -915,9 +947,16 @@ function resolveNpcPresenceForInteraction(targetId, turnPresence = null) {
   const presence = turnPresence && turnPresence.roomId === roomId
     ? turnPresence
     : capturePresenceSnapshot(roomId);
+  const invariantIndicatesPresence = npcTurnInvariant
+    && npcTurnInvariant.roomId === roomId
+    && (npcTurnInvariant.presentHereIds.has(targetId) || npcTurnInvariant.ambientSpeakerIds.has(targetId));
+  if (invariantIndicatesPresence && !presence.presentIds.has(targetId)) {
+    console.warn(`[npc-invariant] ${targetId} flagged present in-turn but absent in live snapshot; forcing interactable target.`);
+  }
   return {
-    present: presence.presentIds.has(targetId),
+    present: presence.presentIds.has(targetId) || invariantIndicatesPresence,
     justMissed: wasRecentlyPresent(targetId, roomId),
+    invariantIndicatesPresence,
   };
 }
 
@@ -945,6 +984,12 @@ function interactNpc(parsed, turnPresence = null) {
 
   const presence = resolveNpcPresenceForInteraction(targetId, turnPresence);
   if (!presence.present) {
+    const contradiction = npcTurnInvariant
+      && npcTurnInvariant.roomId === state.player.currentRoom
+      && (npcTurnInvariant.presentHereIds.has(targetId) || npcTurnInvariant.ambientSpeakerIds.has(targetId));
+    if (contradiction) {
+      console.error(`[npc-invariant] attempted absence response for ${targetId} despite same-turn presence/speech.`);
+    }
     if (presence.justMissed) {
       line(`You just missed ${state.agents[targetId].name}.`, 'warn');
     } else {
@@ -1066,6 +1111,7 @@ function maybeNormChangeHint(lastVerb, turnPresence = null) {
   const speaker = present[Math.floor(Math.random() * present.length)];
   const options = hintsByAgent[speaker.id] ?? hintsByAgent.porter;
   const chosen = options[Math.floor(Math.random() * options.length)];
+  noteAmbientSpeech(speaker.id, roomId);
   if (speaker.id === 'porter') maybeLinePorter(chosen, 1);
   else line(chosen, 'hint');
 }

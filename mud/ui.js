@@ -159,6 +159,24 @@ function ensureAutonomy() {
   return ensureAutonomyState(state.autonomy);
 }
 
+function ensureGovernanceAccessState() {
+  const defaults = createGovernanceState().access;
+  state.governance.access ??= defaults;
+  state.governance.access.gates ??= {};
+  Object.entries(defaults.gates).forEach(([gateId, gateDefault]) => {
+    state.governance.access.gates[gateId] = {
+      ...gateDefault,
+      ...(state.governance.access.gates[gateId] ?? {}),
+    };
+  });
+  return state.governance.access;
+}
+
+function eastGateState() {
+  ensureGovernanceAccessState();
+  return state.governance.access.gates['hall:east'];
+}
+
 const ghostResidueTemplates = {
   foyer: [
     'The noticeboard has been altered since your last certainty: two pins moved, one line underlined twice, and "carry Item 2" initialled "R.V.".',
@@ -848,6 +866,7 @@ function load() {
   ensurePlayerIdentity(state.player);
   ensureGhostState();
   ensureAutonomy();
+  ensureGovernanceAccessState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
     state.agents.bernard.roomId = 'eastCorridor';
@@ -867,10 +886,19 @@ function move(direction) {
   }
 
   if (state.player.currentRoom === 'hall' && direction === 'east') {
+    const gate = eastGateState();
     const hasKey = state.player.inventory.includes('iron key');
-    const trust = state.agents.porter.trust;
     const porterPresent = isAgentPresentInRoom('porter', 'hall');
-    if (!hasKey) {
+    if (gate.status === 'locked') {
+      line(
+        porterPresent
+          ? "The porter places a hand on the brass plate. 'Not now. The refusal has hardened into policy.'"
+          : 'The refusal has settled into the lock; the mechanism does not answer.',
+        'warn',
+      );
+      return;
+    }
+    if (gate.status === 'socially blocked' && !hasKey) {
       line(
         porterPresent
           ? "The porter taps the keyhole. 'Mechanisms still matter.'"
@@ -879,14 +907,22 @@ function move(direction) {
       );
       return;
     }
-    if (trust < 2) {
+    if (gate.status === 'socially blocked' && hasKey) {
       line(
         porterPresent
-          ? "The porter says, 'Not yet. You have the key, not the standing.'"
+          ? "The porter says, 'You have the key, not the standing. Secure clearance first.'"
           : 'The mechanism yields halfway, then stops as if waiting for social clearance.',
         'warn',
       );
       return;
+    }
+    if (gate.status === 'provisionally approved' && !hasKey) {
+      line(
+        porterPresent
+          ? "The porter checks the ledger, then opens the door. 'Approved provisionally. I will witness entry.'"
+          : 'A facilities runner appears with a temporary release order and opens the east door for one passage.',
+        'good',
+      );
     }
   }
 
@@ -947,7 +983,19 @@ function useItem(itemRaw) {
 
   rememberReferencedItem(invExact);
   const itemDef = getItemDefinition(state.world, invExact);
-  const contextual = itemDef?.useTextByRoom?.[state.player.currentRoom];
+  let contextual = itemDef?.useTextByRoom?.[state.player.currentRoom];
+  if (invExact === 'iron key' && state.player.currentRoom === 'hall') {
+    const gate = eastGateState();
+    if (gate.status === 'socially blocked') {
+      contextual = 'You test the key in the brass lock. The mechanism turns, then waits for social clearance.';
+    } else if (gate.status === 'provisionally approved') {
+      contextual = 'The key turns this time. Provisional approval has already loosened the mechanism.';
+    } else if (gate.status === 'open') {
+      contextual = 'The key turns freely. Facilities already released east access after the vote.';
+    } else if (gate.status === 'locked') {
+      contextual = 'The key bites, but the lock refuses to complete the turn. The refusal has become institutional.';
+    }
+  }
   line(
     contextual
       ?? itemDef?.useText
@@ -1203,6 +1251,7 @@ function forceDoor() {
 
 function showStatus() {
   ensurePlayerIdentity(state.player);
+  const eastGate = eastGateState();
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
   line(`Record: ${state.player.identity.name}.`, 'hint');
   line(`Atmosphere: ${weatherPhaseLabel(state.weather)}.`, 'hint');
@@ -1211,6 +1260,7 @@ function showStatus() {
   line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
   line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
   line(getInfluenceHint(state.agents), 'hint');
+  line(`Access east: ${eastGate.status} (resistance ${eastGate.resistance}).`, 'hint');
   line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
   const latestMemory = state.governance.committeeMemory[0];
@@ -1485,7 +1535,13 @@ function processCommand(input) {
       );
     } else {
       line('You call for a decision.', 'system');
-      const result = vote(state.governance, state.agents, state.social, state.system);
+      const result = vote(
+        state.governance,
+        state.agents,
+        state.social,
+        state.system,
+        { hasHallKey: state.player.inventory.includes('iron key') },
+      );
       lastVoteResult = result;
       markNarrativePriority(narrativePriority.P2);
       line(result.text, result.ok ? 'good' : 'warn');
@@ -1498,6 +1554,9 @@ function processCommand(input) {
       if (result.normChange) {
         line(`Norm updated: ${result.normChange.summary}`, 'good');
         line(`Gameplay impact: ${result.normChange.gameplay}`, 'hint');
+      }
+      if (result.accessOutcome) {
+        line(result.accessOutcome, result.ok ? 'good' : 'warn');
       }
       line(voteNarrative(result.ok, result.yesVotes ?? 0, state.narrative), 'hint');
       const votePositioning = result.ok

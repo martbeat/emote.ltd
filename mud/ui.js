@@ -9,7 +9,6 @@ import {
 import {
   createAgents,
   moveAgents,
-  agentsInRoom,
   talkToPorter,
   getInfluenceHint,
   agentExchangeHint,
@@ -102,6 +101,7 @@ function createGameState() {
       lastReferencedItem: null,
       attemptedForceDoor: false,
       visitCounts: {},
+      recentDeparturesByRoom: {},
       identity: createPlayerIdentity(),
     },
     governanceUi: {
@@ -280,10 +280,31 @@ function capturePresenceSnapshot(roomId = state.player.currentRoom) {
   return { roomId, presentIds };
 }
 
+function presentAgentsForRoom(roomId = state.player.currentRoom, presence = null) {
+  const activePresence = presence && presence.roomId === roomId
+    ? presence
+    : capturePresenceSnapshot(roomId);
+  return Object.values(state.agents).filter((agent) => activePresence.presentIds.has(agent.id));
+}
+
 function isAgentPresentInRoom(agentId, roomId = state.player.currentRoom, presence = null) {
   if (!agentId) return false;
   if (presence && presence.roomId === roomId) return presence.presentIds.has(agentId);
   return state.agents[agentId]?.roomId === roomId;
+}
+
+function rememberRecentDepartures(previousRooms, playerRoomId) {
+  if (!state.player.recentDeparturesByRoom) state.player.recentDeparturesByRoom = {};
+  const departed = Object.entries(previousRooms)
+    .filter(([, fromRoom]) => fromRoom === playerRoomId)
+    .map(([agentId]) => agentId)
+    .filter((agentId) => state.agents[agentId]?.roomId !== playerRoomId);
+  state.player.recentDeparturesByRoom[playerRoomId] = departed;
+}
+
+function wasRecentlyPresent(agentId, roomId = state.player.currentRoom) {
+  const departures = state.player.recentDeparturesByRoom?.[roomId] ?? [];
+  return departures.includes(agentId);
 }
 
 function ensureNarrativePacing() {
@@ -622,14 +643,15 @@ function refreshSidebar() {
     : 'Nothing has settled into institutional memory yet.';
 }
 
-function renderRoom() {
+function renderRoom(turnPresence = null) {
   ensureGhostState();
   const roomId = state.player.currentRoom;
   updatePorterVisibility(state.agents, roomId);
   const pacing = getRoomPacing(state.world, roomId);
-  const roomPresence = capturePresenceSnapshot(roomId);
-  const presentAgents = agentsInRoom(state.agents, roomId)
-    .filter((agent) => roomPresence.presentIds.has(agent.id));
+  const roomPresence = turnPresence && turnPresence.roomId === roomId
+    ? turnPresence
+    : capturePresenceSnapshot(roomId);
+  const presentAgents = presentAgentsForRoom(roomId, roomPresence);
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
   emitNarrativeLine(
@@ -713,6 +735,9 @@ function load() {
   }
   if (!state.player) {
     state.player = createGameState().player;
+  }
+  if (!state.player.recentDeparturesByRoom) {
+    state.player.recentDeparturesByRoom = {};
   }
   ensurePlayerIdentity(state.player);
   ensureGhostState();
@@ -886,7 +911,11 @@ function interactNpc(parsed, turnPresence = null) {
   }
   const present = isNpcPresentForTurn(targetId, turnPresence);
   if (!present) {
-    line('They are not here.', 'warn');
+    if (wasRecentlyPresent(targetId)) {
+      line(`You just missed ${state.agents[targetId].name}.`, 'warn');
+    } else {
+      line('They are not here.', 'warn');
+    }
     return;
   }
 
@@ -988,12 +1017,14 @@ function showStatus() {
   }
 }
 
-function maybeNormChangeHint(lastVerb) {
+function maybeNormChangeHint(lastVerb, turnPresence = null) {
   if (['suggest', 'propose', 'decide', 'vote', 'status', 'help'].includes(lastVerb)) return;
   if (Math.random() >= 0.11) return;
 
   const roomId = state.player.currentRoom;
-  const presence = capturePresenceSnapshot(roomId);
+  const presence = turnPresence && turnPresence.roomId === roomId
+    ? turnPresence
+    : capturePresenceSnapshot(roomId);
   const present = Object.values(state.agents).filter((agent) => presence.presentIds.has(agent.id));
   if (!present.length) return;
 
@@ -1070,8 +1101,8 @@ function drop(itemRaw) {
   line(`You leave ${itemDisplayLabel(exact)}.`);
 }
 
-function handleAmbientSocialCommand(verb) {
-  const presentAgents = agentsInRoom(state.agents, state.player.currentRoom);
+function handleAmbientSocialCommand(verb, turnPresence = null) {
+  const presentAgents = presentAgentsForRoom(state.player.currentRoom, turnPresence);
   const visibleIds = new Set(presentAgents.map((agent) => agent.id));
   const porterPresent = visibleIds.has('porter');
 
@@ -1161,7 +1192,7 @@ function processCommand(input) {
   }
 
   if (ambientCommands.has(verb)) {
-    handleAmbientSocialCommand(verb);
+    handleAmbientSocialCommand(verb, turnPresence);
   } else if (npcParsed) {
     interactNpc(npcParsed, turnPresence);
   } else if (npcInteractionVerbs.has(verb)) {
@@ -1173,7 +1204,7 @@ function processCommand(input) {
   } else if (verb === 'go') {
     move(arg.toLowerCase());
   } else if (verb === 'look') {
-    renderRoom();
+    renderRoom(turnPresence);
   } else if (verb === 'take') {
     takeItem(arg);
   } else if (verb === 'drop') {
@@ -1335,7 +1366,7 @@ function processCommand(input) {
   } else if (verb === 'sneeze') {
     state.social.playerCold = true;
     state.social.sneezeCount += 1;
-    const porterHere = isAgentPresentInRoom('porter');
+    const porterHere = isAgentPresentInRoom('porter', state.player.currentRoom, turnPresence);
     const response = porterHere ? porterSneezeResponse(state.agents, state.social) : null;
     if (response) {
       emitNarrativeLine(`You sneeze. ${response}`, {
@@ -1387,7 +1418,7 @@ function processCommand(input) {
     maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
     if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
-  maybeNormChangeHint(verb);
+  maybeNormChangeHint(verb, turnPresence);
 
   tickSystem(state.system);
   maybeAdvanceGhostPresence();
@@ -1395,6 +1426,7 @@ function processCommand(input) {
   state.social.porterSignals = { ...(state.agents.porter.memorySignals ?? {}) };
   decayAgentMemories(state.agents);
   const previousAgentRooms = moveAgents(state.agents, state.system.state);
+  rememberRecentDepartures(previousAgentRooms, state.player.currentRoom);
   const continuityLine = narrateAgentContinuity(
     state.agents,
     previousAgentRooms,
@@ -1426,7 +1458,7 @@ function processCommand(input) {
     });
   }
   const ambientSneezeLines = maybeAmbientSneezeNarrative(
-    { porterNearby: isAgentPresentInRoom('porter') },
+    { porterNearby: isAgentPresentInRoom('porter', state.player.currentRoom, turnPresence) },
     state.narrative,
   );
   ambientSneezeLines.forEach((ambientLine, index) => {

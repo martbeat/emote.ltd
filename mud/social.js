@@ -1,4 +1,4 @@
-import { porterSneezeResponse, recordPorterMemory, shiftPorterTrust } from './agents.js?v=build10';
+import { porterSneezeResponse, recordPorterMemory, shiftPorterTrust } from './agents.js';
 
 export function createSocialState() {
   return {

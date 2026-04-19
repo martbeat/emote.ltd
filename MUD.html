@@ -141,6 +141,13 @@
     </section>
   </main>
 
-  <script type="module" src="./mud/ui.js?v=build10"></script>
+  <script type="module">
+    const existingBuild = sessionStorage.getItem("mudSessionBuild");
+    const build = existingBuild || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    if (!existingBuild) {
+      sessionStorage.setItem("mudSessionBuild", build);
+    }
+    await import(`./mud/ui.js?v=${build}`);
+  </script>
 </body>
 </html>

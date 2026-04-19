@@ -71,6 +71,16 @@ export function createGovernanceState() {
     },
     pendingProposal: null,
     committeeMemory: [],
+    access: {
+      gates: {
+        'hall:east': {
+          label: 'East committee door',
+          status: 'socially blocked',
+          resistance: 0,
+          approvals: 0,
+        },
+      },
+    },
   };
 }
 
@@ -137,7 +147,46 @@ function agentVote(agent, relationship, systemState, influencePull) {
   return score >= 0;
 }
 
-export function vote(governance, agents, social, system, rng = Math.random) {
+function parseAccessProposal(text = '') {
+  const compact = text.toLowerCase().trim().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+  if (!compact) return null;
+
+  const eastRouteMentioned = /\b(east|east door|door east|go east|access east)\b/.test(compact);
+  if (!eastRouteMentioned) return null;
+
+  const accessIntent = compact === 'east'
+    || /\b(open|unlock|unblock|grant|allow|approve|access|go|move|enter)\b/.test(compact);
+  if (!accessIntent) return null;
+
+  return { gateId: 'hall:east' };
+}
+
+function applyAccessOutcome(governance, proposalText, passed, context = {}) {
+  const parsed = parseAccessProposal(proposalText);
+  if (!parsed) return null;
+
+  const gate = governance.access?.gates?.[parsed.gateId];
+  if (!gate) return null;
+
+  const hasKey = Boolean(context.hasHallKey);
+  if (passed) {
+    gate.approvals = (gate.approvals ?? 0) + 1;
+    gate.resistance = Math.max(0, (gate.resistance ?? 0) - 1);
+    gate.status = hasKey ? 'open' : 'provisionally approved';
+    return hasKey
+      ? 'Facilities release the east mechanism at once; key and approval align.'
+      : 'Facilities grant provisional east access pending porter intervention.';
+  }
+
+  gate.resistance = (gate.resistance ?? 0) + 1;
+  gate.approvals = Math.max(0, (gate.approvals ?? 0) - 1);
+  gate.status = gate.resistance >= 2 ? 'locked' : 'socially blocked';
+  return gate.resistance >= 2
+    ? 'The refusal settles into the lock; institutional resistance hardens.'
+    : 'The refusal settles into social clearance; east access remains blocked.';
+}
+
+export function vote(governance, agents, social, system, context = {}, rng = Math.random) {
   if (!governance.pendingProposal) {
     return { ok: false, text: 'No proposal currently stands before the table.' };
   }
@@ -196,6 +245,7 @@ export function vote(governance, agents, social, system, rng = Math.random) {
   if (passed && parsed) {
     governance.norms[parsed.key] = parsed.value;
   }
+  const accessOutcome = applyAccessOutcome(governance, governance.pendingProposal.text, passed, context);
 
   governance.committeeMemory.unshift(`${passed ? 'accepted' : 'rejected'}: ${governance.pendingProposal.text}`);
   governance.committeeMemory = governance.committeeMemory.slice(0, 6);
@@ -236,6 +286,7 @@ export function vote(governance, agents, social, system, rng = Math.random) {
         ? 'It was a narrow outcome; allegiance may shift again by morning.'
         : 'The margin looked clear, but intent did not.',
     normChange: passed && parsed ? describeNormChange(parsed.key, parsed.value) : null,
+    accessOutcome,
   };
 }
 

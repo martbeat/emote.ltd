@@ -94,6 +94,13 @@ import {
   roomAutonomyConsequence,
   takePorterWitnessLine,
 } from './autonomy.js';
+import {
+  createObjectiveState,
+  ensureObjectiveState,
+  currentConcernLine,
+  noteObjectiveEvent,
+  maybeConcernHint,
+} from './objectives.js';
 
 function createGameState() {
   return {
@@ -119,6 +126,7 @@ function createGameState() {
     },
     ghost: createGhostPresenceState(),
     autonomy: createAutonomyState(),
+    objectives: createObjectiveState(),
     turnVisibleNpcs: [],
     turnVisibleNpcRoomId: null,
   };
@@ -157,6 +165,18 @@ function ensureGhostState() {
 function ensureAutonomy() {
   if (!state.autonomy) state.autonomy = createAutonomyState();
   return ensureAutonomyState(state.autonomy);
+}
+
+function ensureObjectives() {
+  state.objectives = ensureObjectiveState(state.objectives);
+  return state.objectives;
+}
+
+function applyObjectiveEvent(event, context = {}) {
+  const outcome = noteObjectiveEvent(ensureObjectives(), event, context);
+  if (!outcome) return;
+  line(outcome.resolvedLine, 'good');
+  line(outcome.nextLine, 'hint');
 }
 
 function ensureGovernanceAccessState() {
@@ -723,6 +743,7 @@ function showScore() {
     line('- People increasingly expect you to mediate before lines harden.', 'hint');
   }
   line(`- ${institutionalEffectLine(state.system)}`, 'hint');
+  line(`- ${currentConcernLine(ensureObjectives())}`, 'hint');
   line(`- ${scoreIdentityComparison(state.player.identity, ensureGhostState())}`, 'hint');
   const latestMemory = state.governance.committeeMemory[0];
   line(
@@ -743,9 +764,10 @@ function refreshSidebar() {
   dom.norms.textContent = tagsFromObject(state.governance.norms);
   const mood = moodDescriptor(state.system);
   dom.tension.textContent = `${mood.title}\n${mood.reflection}`;
+  const concernLine = currentConcernLine(ensureObjectives());
   dom.memory.textContent = state.governance.committeeMemory[0]
-    ? `Most recent entry: ${renderCommitteeMemory(state.governance.committeeMemory[0])}`
-    : 'Nothing has settled into institutional memory yet.';
+    ? `Most recent entry: ${renderCommitteeMemory(state.governance.committeeMemory[0])}\n${concernLine}`
+    : `Nothing has settled into institutional memory yet.\n${concernLine}`;
 }
 
 function renderRoom(turnPresence = null) {
@@ -781,6 +803,10 @@ function renderRoom(turnPresence = null) {
       cooldownKey: `ghost-residue-${roomId}`,
       cooldownTurns: 4,
     });
+  }
+  if (Math.random() < 0.14) {
+    const concernNote = maybeConcernHint(ensureObjectives(), 'ambient');
+    if (concernNote) emitNarrativeLine(concernNote, { priority: narrativePriority.P3, cls: 'hint' });
   }
   const autonomyLine = roomAutonomyConsequence(roomId, ensureAutonomy());
   if (autonomyLine) {
@@ -866,6 +892,7 @@ function load() {
   ensurePlayerIdentity(state.player);
   ensureGhostState();
   ensureAutonomy();
+  ensureObjectives();
   ensureGovernanceAccessState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
@@ -927,6 +954,9 @@ function move(direction) {
   }
 
   state.player.currentRoom = target;
+  if (target === 'lockedRoom') {
+    applyObjectiveEvent('entered-east-chamber');
+  }
   renderRoom();
 }
 
@@ -1191,6 +1221,8 @@ function interactNpc(parsed, turnPresence = null) {
     shiftPorterTrust(state.agents, 1);
     notePorterSocialMemory(state.agents, 'help', 0.6);
     recordPorterMemory(state.agents, 'Player initiated civil conversation.');
+    applyObjectiveEvent('talk-porter');
+    if (Math.random() < 0.5) maybeLinePorter(maybeConcernHint(ensureObjectives(), 'porter'), 1, 'hint');
     return;
   }
 
@@ -1229,6 +1261,10 @@ function interactNpc(parsed, turnPresence = null) {
     }
   }
   if (targetId === 'porter') {
+    const topic = (parsed.topic ?? '').toLowerCase();
+    if (topic.includes('m. cole') || topic.includes('m cole') || /\bcole\b/.test(topic)) {
+      applyObjectiveEvent('asked-m-cole');
+    }
     recordPorterMemory(state.agents, `Player used ${effectiveAction} with porter.`);
   }
 }
@@ -1262,6 +1298,7 @@ function showStatus() {
   line(getInfluenceHint(state.agents), 'hint');
   line(`Access east: ${eastGate.status} (resistance ${eastGate.resistance}).`, 'hint');
   line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
+  line(currentConcernLine(ensureObjectives()), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
   const latestMemory = state.governance.committeeMemory[0];
   if (latestMemory) {
@@ -1466,6 +1503,7 @@ function processCommand(input) {
   const verb = verbRaw.toLowerCase();
   const arg = rest.join(' ').trim();
   const tensionBefore = state.system.tension;
+  const systemStateBefore = state.system.state;
   const priorTransitionTurn = state.system.lastTransition?.turn;
   const governanceVerbs = new Set(['suggest', 'decide', 'push', 'calm', 'shift', 'propose', 'vote', 'challenge', 'mediate', 'reset']);
   let queuedAmbientEvent = null;
@@ -1490,7 +1528,7 @@ function processCommand(input) {
     move(arg.toLowerCase());
   } else if (verb === 'look') {
     renderRoom(turnPresence);
-  } else if (verb === 'take') {
+  } else if (verb === 'take' || verb === 'get') {
     takeItem(arg);
   } else if (verb === 'drop') {
     drop(arg);
@@ -1502,6 +1540,7 @@ function processCommand(input) {
     inspect(arg);
   } else if (verb === 'read') {
     readItem(arg);
+    applyObjectiveEvent('read-item', { item: arg.toLowerCase() });
   } else if (verb === 'talk') {
     const parsedTalk = parseNpcInteraction(`talk ${arg}`) ?? { action: 'talk', targetText: arg.toLowerCase() };
     interactNpc(parsedTalk, turnPresence);
@@ -1535,6 +1574,7 @@ function processCommand(input) {
       );
     } else {
       line('You call for a decision.', 'system');
+      const proposalSource = state.governance.pendingProposal?.source ?? null;
       const result = vote(
         state.governance,
         state.agents,
@@ -1557,6 +1597,13 @@ function processCommand(input) {
       }
       if (result.accessOutcome) {
         line(result.accessOutcome, result.ok ? 'good' : 'warn');
+      }
+      if (['lockedRoom', 'archive'].includes(state.player.currentRoom) && (result.ok || result.yesVotes >= 1)) {
+        applyObjectiveEvent('vote-resolved-ledger');
+      }
+      if (proposalSource === 'institutional-trace') {
+        applyObjectiveEvent('edited-proposal-seen');
+        applyObjectiveEvent('edited-proposal-voted');
       }
       line(voteNarrative(result.ok, result.yesVotes ?? 0, state.narrative), 'hint');
       const votePositioning = result.ok
@@ -1700,7 +1747,7 @@ function processCommand(input) {
     if (openingProposal) line(openingProposal, 'hint');
     renderRoom();
   } else if (verb === 'help') {
-    line('Explore with: look, n/s/e/w, go <dir>, take/drop/use/read/inspect/examine/x <item>, talk porter, force.');
+    line('Explore with: look, n/s/e/w, go <dir>, take/get/drop/use/read/inspect/examine/x <item>, talk porter, force.');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
     line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, status, score/sc, history, save, load, restart.');
@@ -1719,6 +1766,12 @@ function processCommand(input) {
   maybeNormChangeHint(verb, turnPresence);
 
   tickSystem(state.system);
+  if (state.system.state === 'stagnant') {
+    applyObjectiveEvent('state-stagnant');
+  }
+  if (systemStateBefore === 'stagnant' && state.system.state !== 'stagnant') {
+    applyObjectiveEvent('state-not-stagnant');
+  }
   maybeAdvanceGhostPresence();
   maybeAdvanceInstitutionalAutonomy({
     autonomy: ensureAutonomy(),
@@ -1729,6 +1782,14 @@ function processCommand(input) {
     ghost: ensureGhostState(),
     player: state.player,
   });
+  if (
+    eastGateState().status === 'open'
+    && state.agents.porter.trust >= 2
+    && state.governance.committeeMemory.length >= 3
+    && state.system.state !== 'stagnant'
+  ) {
+    applyObjectiveEvent('movement-restored');
+  }
   tickWeather(state.weather);
   state.social.porterSignals = { ...(state.agents.porter.memorySignals ?? {}) };
   decayAgentMemories(state.agents);

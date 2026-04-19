@@ -415,9 +415,10 @@ const nearMissLines = {
     'The porter is already moving on, muttering about a visitor who asked the same thing.',
   ],
   generic: [
-    'Someone has just left a pencilled amendment on a nearby noticeboard.',
+    'Someone has just left a pencilled amendment on a nearby noticeboard: "R.V. reviewed".',
     'A chair is still warm and pulled back, but whoever used it has moved on.',
     'A folder has been resorted with fresh urgency marks and no signature.',
+    'The key log sits open at "J.M." though no one remains to claim the entry.',
   ],
 };
 

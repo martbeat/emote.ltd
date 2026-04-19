@@ -592,10 +592,10 @@ const directionalImpressions = {
 };
 
 const directionalGhostTemplates = [
-  'a figure in the next room, already turning out of view',
+  'a file recently shifted with fresh initials and no body nearby',
   'movement that vanishes before you can fix its source',
   'someone crossing an adjacent threshold, then gone',
-  'a partial silhouette that dissolves into corridor light',
+  'a chair angled toward a conversation that has already moved elsewhere',
   'a brief shift of presence with no one left in frame',
 ];
 

@@ -399,7 +399,7 @@ const arrivalVerbs = {
   porter: ['arrives with measured steps', 'appears at the edge of the room'],
   ada: ['arrives quietly', 'joins you without ceremony'],
   bernard: ['enters without comment', 'steps in, scanning the room once'],
-  cyra: ['joins you from nearby', 'appears with an easy, unreadable pace'],
+  cyra: ['joins you', 'appears with an easy, unreadable pace'],
 };
 
 const departureVerbs = {
@@ -427,6 +427,14 @@ function titleCaseRoom(roomId = '') {
     .replace(/([A-Z])/g, ' $1')
     .trim()
     .toLowerCase();
+}
+
+function joinArrivalNarration(subject, verb, sourcePhrase = '') {
+  const cleanedVerb = String(verb ?? '').trim();
+  const cleanedSource = String(sourcePhrase ?? '').trim();
+  if (!cleanedSource) return `${subject} ${cleanedVerb}.`;
+  if (/\bfrom\b/i.test(cleanedVerb)) return `${subject} ${cleanedVerb}.`;
+  return `${subject} ${cleanedVerb} ${cleanedSource}.`;
 }
 
 function maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng = Math.random) {
@@ -459,7 +467,7 @@ function maybePresenceContinuityLine(agents, previousRooms, playerRoomId, rng = 
     const subject = agentLabel[agentId] ?? 'Someone';
     const roomHint = playerRoomId === 'hall' ? 'from the stairwell' : `from the ${titleCaseRoom(previousRooms[agentId])}`;
     const verb = pick(arrivalVerbs[agentId] ?? arrivalVerbs.ada, rng);
-    return `${subject} ${verb} ${roomHint}.`;
+    return joinArrivalNarration(subject, verb, roomHint);
   }
 
   if (departures.length && rng() < 0.52) {

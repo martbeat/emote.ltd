@@ -954,16 +954,56 @@ function resolveNpcPresenceForInteraction(targetId, turnPresence = null) {
   const presence = turnPresence && turnPresence.roomId === roomId
     ? turnPresence
     : capturePresenceSnapshot(roomId);
-  const invariantIndicatesPresence = npcTurnInvariant
-    && npcTurnInvariant.roomId === roomId
-    && (npcTurnInvariant.presentHereIds.has(targetId) || npcTurnInvariant.ambientSpeakerIds.has(targetId));
-  if (invariantIndicatesPresence && !presence.presentIds.has(targetId)) {
-    console.warn(`[npc-invariant] ${targetId} flagged present in-turn but absent in live snapshot; forcing interactable target.`);
+  const inCurrentTurnSnapshot = presence.presentIds.has(targetId);
+  const inPresentHereThisTurn = Boolean(
+    npcTurnInvariant
+      && npcTurnInvariant.roomId === roomId
+      && npcTurnInvariant.presentHereIds.has(targetId),
+  );
+  if (inPresentHereThisTurn && !inCurrentTurnSnapshot) {
+    console.warn(`[npc-invariant] ${targetId} listed in Present here this turn but missing from live snapshot; forcing interactable target.`);
   }
+  if (inCurrentTurnSnapshot || inPresentHereThisTurn) {
+    return {
+      present: true,
+      justMissed: false,
+      inCurrentTurnSnapshot,
+      inPresentHereThisTurn,
+      inAmbientSpeechThisTurn: false,
+      recentDeparture: false,
+      lastSeenRoom: state.agents[targetId]?.lastSeenRoom ?? null,
+      turnsSinceSeen: state.agents[targetId]?.turnsSinceSeen ?? null,
+    };
+  }
+
+  const inAmbientSpeechThisTurn = Boolean(
+    npcTurnInvariant
+      && npcTurnInvariant.roomId === roomId
+      && npcTurnInvariant.ambientSpeakerIds.has(targetId),
+  );
+  if (inAmbientSpeechThisTurn) {
+    return {
+      present: true,
+      justMissed: false,
+      inCurrentTurnSnapshot,
+      inPresentHereThisTurn,
+      inAmbientSpeechThisTurn,
+      recentDeparture: false,
+      lastSeenRoom: state.agents[targetId]?.lastSeenRoom ?? null,
+      turnsSinceSeen: state.agents[targetId]?.turnsSinceSeen ?? null,
+    };
+  }
+
+  const recentDeparture = wasRecentlyPresent(targetId, roomId);
   return {
-    present: presence.presentIds.has(targetId) || invariantIndicatesPresence,
-    justMissed: wasRecentlyPresent(targetId, roomId),
-    invariantIndicatesPresence,
+    present: false,
+    justMissed: recentDeparture,
+    inCurrentTurnSnapshot,
+    inPresentHereThisTurn,
+    inAmbientSpeechThisTurn,
+    recentDeparture,
+    lastSeenRoom: state.agents[targetId]?.lastSeenRoom ?? null,
+    turnsSinceSeen: state.agents[targetId]?.turnsSinceSeen ?? null,
   };
 }
 
@@ -991,13 +1031,20 @@ function interactNpc(parsed, turnPresence = null) {
 
   const presence = resolveNpcPresenceForInteraction(targetId, turnPresence);
   if (!presence.present) {
-    const contradiction = npcTurnInvariant
-      && npcTurnInvariant.roomId === state.player.currentRoom
-      && (npcTurnInvariant.presentHereIds.has(targetId) || npcTurnInvariant.ambientSpeakerIds.has(targetId));
-    if (contradiction) {
-      console.error(`[npc-invariant] attempted absence response for ${targetId} despite same-turn presence/speech.`);
-    }
     if (presence.justMissed) {
+      const roomId = state.player.currentRoom;
+      const presentSnapshot = turnPresence && turnPresence.roomId === roomId
+        ? turnPresence
+        : capturePresenceSnapshot(roomId);
+      const inPresentHereSnapshot = presentSnapshot.presentIds.has(targetId)
+        || Boolean(
+          npcTurnInvariant
+          && npcTurnInvariant.roomId === roomId
+          && npcTurnInvariant.presentHereIds.has(targetId),
+        );
+      if (inPresentHereSnapshot) {
+        console.error(`[npc-invariant] impossible near-miss for ${targetId}; target is in Present here snapshot.`);
+      }
       line(`You just missed ${state.agents[targetId].name}.`, 'warn');
     } else {
       line('They are not here.', 'warn');

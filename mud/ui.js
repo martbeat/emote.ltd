@@ -37,6 +37,7 @@ import {
 import {
   createGovernanceState,
   proposeRule,
+  assessProposalRelevance,
   vote,
   describeNorms,
   describeNormChange,
@@ -97,7 +98,9 @@ import {
 import {
   createObjectiveState,
   ensureObjectiveState,
+  currentConcern,
   currentConcernLine,
+  recentUnresolvedConcernLines,
   noteObjectiveEvent,
   maybeConcernHint,
 } from './objectives.js';
@@ -123,6 +126,7 @@ function createGameState() {
     governanceUi: {
       suggestionStreak: 0,
       lastDecisionFailed: false,
+      lowRelevanceStreak: 0,
     },
     ghost: createGhostPresenceState(),
     autonomy: createAutonomyState(),
@@ -611,6 +615,32 @@ function suggestionThreshold(roomId) {
   return 3;
 }
 
+function governanceRelevanceContext() {
+  const objectives = ensureObjectives();
+  const concern = currentConcern(objectives);
+  return {
+    currentConcern: concern?.unresolved ?? '',
+    activeObjective: concern?.title ?? '',
+    recentUnresolvedIssues: recentUnresolvedConcernLines(objectives, 3),
+  };
+}
+
+function governanceRedirectionLine(streak, speaker = 'porter') {
+  if (speaker === 'bernard') {
+    return streak >= 3
+      ? "Bernard says, 'Procedure is elegant. Item 7 is still missing.'"
+      : "Bernard says, 'Useful form. The unresolved minute still outranks it.'";
+  }
+  if (speaker === 'room') {
+    return streak >= 3
+      ? 'The room records your vote, but the absent minute remains absent.'
+      : 'The room accepts the formality, while the unresolved file keeps its weight.';
+  }
+  return streak >= 3
+    ? "The porter says, 'That may matter later. The missing minute matters now.'"
+    : "The porter says, 'Noted. Keep one hand on the live concern while we do this.'";
+}
+
 function governanceNarrativeDepth(roomId) {
   const presence = governancePresence(roomId);
   if (presence === 'primary') return 3;
@@ -742,6 +772,9 @@ function showScore() {
   } else if ((state.agents.porter.memorySignals?.governanceCalm ?? 0) >= 2.5) {
     line('- People increasingly expect you to mediate before lines harden.', 'hint');
   }
+  if ((state.governanceUi.lowRelevanceStreak ?? 0) >= 2) {
+    line('- Your attention is being noticed, though not always for the right problem.', 'hint');
+  }
   line(`- ${institutionalEffectLine(state.system)}`, 'hint');
   line(`- ${currentConcernLine(ensureObjectives())}`, 'hint');
   line(`- ${scoreIdentityComparison(state.player.identity, ensureGhostState())}`, 'hint');
@@ -872,8 +905,10 @@ function load() {
     state.governanceUi = {
       suggestionStreak: 0,
       lastDecisionFailed: false,
+      lowRelevanceStreak: 0,
     };
   }
+  state.governanceUi.lowRelevanceStreak ??= 0;
   if (!state.weather) {
     state.weather = createWeatherState();
   }
@@ -1512,6 +1547,7 @@ function processCommand(input) {
   const dirAliases = { n: 'north', s: 'south', e: 'east', w: 'west' };
   if (!governanceVerbs.has(verb)) {
     state.governanceUi.suggestionStreak = Math.max(0, state.governanceUi.suggestionStreak - 1);
+    state.governanceUi.lowRelevanceStreak = Math.max(0, (state.governanceUi.lowRelevanceStreak ?? 0) - 1);
   }
 
   if (ambientCommands.has(verb)) {
@@ -1550,9 +1586,25 @@ function processCommand(input) {
   } else if (verb === 'suggest' || verb === 'propose') {
     if (verb === 'propose') line('Tip: "propose" is now "suggest".', 'hint');
     const ruleText = arg || 'blessOnSneeze=true';
+    const relevance = assessProposalRelevance(ruleText, governanceRelevanceContext());
     state.governanceUi.suggestionStreak += 1;
     line(`You suggest a direction: "${ruleText}".`, 'system');
-    line(proposeRule(state.governance, state.social, ruleText), 'hint');
+    line(proposeRule(state.governance, state.social, ruleText, relevance), 'hint');
+    if (relevance.tier === 'mostly procedural drift') {
+      state.governanceUi.lowRelevanceStreak = (state.governanceUi.lowRelevanceStreak ?? 0) + 1;
+      const streak = state.governanceUi.lowRelevanceStreak;
+      if (porterIsHere()) maybeLinePorter(governanceRedirectionLine(streak, 'porter'), 1, 'hint');
+      else if (streak >= 2) line(governanceRedirectionLine(streak, 'bernard'), 'hint');
+    } else {
+      state.governanceUi.lowRelevanceStreak = Math.max(0, (state.governanceUi.lowRelevanceStreak ?? 0) - 1);
+    }
+    if (relevance.tier === 'directly relevant') {
+      line('It lands as directly tied to the active institutional concern.', 'good');
+    } else if (relevance.tier === 'adjacent') {
+      line('It is heard as adjacent: useful, but not the center file.', 'hint');
+    } else {
+      line('It is heard as procedural drift unless tied back to the active file.', 'hint');
+    }
     notePorterGovernancePattern(state.agents, 'propose');
     const needed = suggestionThreshold(state.player.currentRoom);
     if (state.governanceUi.suggestionStreak < needed) {
@@ -1574,6 +1626,10 @@ function processCommand(input) {
       );
     } else {
       line('You call for a decision.', 'system');
+      const pendingRelevance = state.governance.pendingProposal?.relevance;
+      if (pendingRelevance?.tier === 'mostly procedural drift') {
+        state.governanceUi.lowRelevanceStreak = (state.governanceUi.lowRelevanceStreak ?? 0) + 1;
+      }
       const proposalSource = state.governance.pendingProposal?.source ?? null;
       const result = vote(
         state.governance,
@@ -1591,6 +1647,10 @@ function processCommand(input) {
       if (depth >= 2 && result.coalitionHint) line(result.coalitionHint, 'hint');
       if (depth >= 3 && result.stanceScene) line(result.stanceScene, 'hint');
       if (depth >= 2 && result.ambiguity) line(result.ambiguity, 'hint');
+      if ((state.governanceUi.lowRelevanceStreak ?? 0) >= 2 && pendingRelevance?.tier === 'mostly procedural drift') {
+        if (porterIsHere()) maybeLinePorter(governanceRedirectionLine(state.governanceUi.lowRelevanceStreak, 'porter'), 1, 'hint');
+        else line(governanceRedirectionLine(state.governanceUi.lowRelevanceStreak, 'room'), 'hint');
+      }
       if (result.normChange) {
         line(`Norm updated: ${result.normChange.summary}`, 'good');
         line(`Gameplay impact: ${result.normChange.gameplay}`, 'hint');
@@ -1659,6 +1719,10 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    if ((state.governanceUi.lowRelevanceStreak ?? 0) >= 2 && Math.random() < 0.75) {
+      if (porterIsHere()) maybeLinePorter(governanceRedirectionLine(state.governanceUi.lowRelevanceStreak, 'porter'), 1, 'hint');
+      else line(governanceRedirectionLine(state.governanceUi.lowRelevanceStreak, 'bernard'), 'hint');
+    }
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('challenge', state.narrative), 'hint');
       line(positioningNarrative('disagreement', state.narrative), 'hint');

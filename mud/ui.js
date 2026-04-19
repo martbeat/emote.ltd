@@ -91,7 +91,6 @@ function createGameState() {
       lastReferencedItem: null,
       attemptedForceDoor: false,
       visitCounts: {},
-      visibleNpcSnapshot: null,
     },
     governanceUi: {
       suggestionStreak: 0,
@@ -248,10 +247,10 @@ function maybePorterNearMissDialogue() {
   if (Math.random() > 0.28) return null;
 
   const baseLines = [
-    'Porter: "You just missed them."',
-    'Porter: "They asked the same question."',
-    'Porter: "Someone else preferred the east door."',
-    'Porter: "A minute earlier and you would have crossed paths."',
+    'Porter: "You just missed someone asking that exact question."',
+    'Porter: "They thanked Cyra, checked the register, and left before introductions."',
+    'Porter: "Another visitor moved the proposal cards into urgency order."',
+    'Porter: "A minute earlier and you would have crossed paths at the east door."',
   ];
   const signatureLine = ghost.lastSignature && Math.random() < 0.3
     ? `Porter: "The register kept only ${ghost.lastSignature}."`
@@ -269,7 +268,22 @@ function line(text, cls = '') {
 }
 
 function porterIsHere() {
-  return state.agents.porter.roomId === state.player.currentRoom;
+  return isAgentPresentInRoom('porter', state.player.currentRoom);
+}
+
+function capturePresenceSnapshot(roomId = state.player.currentRoom) {
+  const presentIds = new Set(
+    Object.values(state.agents)
+      .filter((agent) => agent?.roomId === roomId)
+      .map((agent) => agent.id),
+  );
+  return { roomId, presentIds };
+}
+
+function isAgentPresentInRoom(agentId, roomId = state.player.currentRoom, presence = null) {
+  if (!agentId) return false;
+  if (presence && presence.roomId === roomId) return presence.presentIds.has(agentId);
+  return state.agents[agentId]?.roomId === roomId;
 }
 
 function ensureNarrativePacing() {
@@ -607,11 +621,9 @@ function renderRoom() {
   const roomId = state.player.currentRoom;
   updatePorterVisibility(state.agents, roomId);
   const pacing = getRoomPacing(state.world, roomId);
-  const presentAgents = agentsInRoom(state.agents, roomId);
-  state.player.visibleNpcSnapshot = {
-    roomId,
-    presentIds: presentAgents.map((agent) => agent.id),
-  };
+  const roomPresence = capturePresenceSnapshot(roomId);
+  const presentAgents = agentsInRoom(state.agents, roomId)
+    .filter((agent) => roomPresence.presentIds.has(agent.id));
   state.player.visitCounts[roomId] = (state.player.visitCounts[roomId] ?? 0) + 1;
   const visits = state.player.visitCounts[roomId];
   emitNarrativeLine(
@@ -696,9 +708,6 @@ function load() {
   if (!state.player) {
     state.player = createGameState().player;
   }
-  if (!Object.prototype.hasOwnProperty.call(state.player, 'visibleNpcSnapshot')) {
-    state.player.visibleNpcSnapshot = null;
-  }
   ensureGhostState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
@@ -721,7 +730,7 @@ function move(direction) {
   if (state.player.currentRoom === 'hall' && direction === 'east') {
     const hasKey = state.player.inventory.includes('iron key');
     const trust = state.agents.porter.trust;
-    const porterPresent = state.agents.porter.roomId === 'hall';
+    const porterPresent = isAgentPresentInRoom('porter', 'hall');
     if (!hasKey) {
       line(
         porterPresent
@@ -790,26 +799,8 @@ function useItem(itemRaw) {
   );
 }
 
-function createTurnPresenceSnapshot() {
-  const roomId = state.player.currentRoom;
-  const renderedSnapshot = state.player.visibleNpcSnapshot;
-  const renderedIds = Array.isArray(renderedSnapshot?.presentIds) ? renderedSnapshot.presentIds : null;
-  const useRenderedSnapshot = renderedSnapshot?.roomId === roomId && renderedIds;
-  const presentIds = new Set(
-    useRenderedSnapshot
-      ? renderedIds
-      : Object.values(state.agents)
-        .filter((agent) => agent?.roomId === roomId)
-        .map((agent) => agent.id),
-  );
-  if (useRenderedSnapshot) state.player.visibleNpcSnapshot = null;
-  return { roomId, presentIds };
-}
-
 function isNpcPresentForTurn(targetId, turnPresence) {
-  if (!targetId) return false;
-  if (!turnPresence) return state.agents[targetId]?.roomId === state.player.currentRoom;
-  return turnPresence.roomId === state.player.currentRoom && turnPresence.presentIds.has(targetId);
+  return isAgentPresentInRoom(targetId, state.player.currentRoom, turnPresence);
 }
 
 const npcIds = ['porter', 'ada', 'bernard', 'cyra'];
@@ -993,7 +984,8 @@ function maybeNormChangeHint(lastVerb) {
   if (Math.random() >= 0.11) return;
 
   const roomId = state.player.currentRoom;
-  const present = Object.values(state.agents).filter((agent) => agent.roomId === roomId);
+  const presence = capturePresenceSnapshot(roomId);
+  const present = Object.values(state.agents).filter((agent) => presence.presentIds.has(agent.id));
   if (!present.length) return;
 
   const hintsByAgent = {
@@ -1142,7 +1134,7 @@ function processCommand(input) {
   ensureGhostState();
 
   line(`> ${text}`, 'input');
-  const turnPresence = createTurnPresenceSnapshot();
+  const turnPresence = capturePresenceSnapshot();
 
   const npcParsed = parseNpcInteraction(normalizedText);
   const [verbRaw, ...rest] = normalizedText.split(' ');
@@ -1334,7 +1326,7 @@ function processCommand(input) {
   } else if (verb === 'sneeze') {
     state.social.playerCold = true;
     state.social.sneezeCount += 1;
-    const porterHere = state.agents.porter.roomId === state.player.currentRoom;
+    const porterHere = isAgentPresentInRoom('porter');
     const response = porterHere ? porterSneezeResponse(state.agents, state.social) : null;
     if (response) {
       emitNarrativeLine(`You sneeze. ${response}`, {
@@ -1379,6 +1371,14 @@ function processCommand(input) {
     line('The command is not understood. Try "help".', 'warn');
   }
 
+  if (verb !== 'talk' && porterIsHere() && Math.random() < 0.05) {
+    maybeLinePorter(talkToPorter(state.agents, state.system.state, state.social), 1);
+    maybeLinePorter(maybePorterNearMissDialogue(), 0.35);
+    maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
+    if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
+  }
+  maybeNormChangeHint(verb);
+
   tickSystem(state.system);
   maybeAdvanceGhostPresence();
   tickWeather(state.weather);
@@ -1416,7 +1416,7 @@ function processCommand(input) {
     });
   }
   const ambientSneezeLines = maybeAmbientSneezeNarrative(
-    { porterNearby: state.agents.porter.roomId === state.player.currentRoom },
+    { porterNearby: isAgentPresentInRoom('porter') },
     state.narrative,
   );
   ambientSneezeLines.forEach((ambientLine, index) => {
@@ -1447,15 +1447,8 @@ function processCommand(input) {
     cooldownKey: 'porter-absence',
     cooldownTurns: 7,
   });
-  if (verb !== 'talk' && porterIsHere() && Math.random() < 0.05) {
-    maybeLinePorter(talkToPorter(state.agents, state.system.state, state.social), 1);
-    maybeLinePorter(maybePorterNearMissDialogue(), 0.35);
-    maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.18);
-    if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
-  }
   maybeShowGovernanceHints(verb);
   maybeShowTensionWarning(verb, tensionBefore);
-  maybeNormChangeHint(verb);
   const weatherChange = weatherShiftLine(state.weather);
   if (weatherChange) emitNarrativeLine(weatherChange, {
     priority: narrativePriority.P2,

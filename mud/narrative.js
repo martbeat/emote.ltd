@@ -221,27 +221,26 @@ const phaseTemplates = {
 };
 
 const ghostTraceTemplates = {
-  movement: [
-    'A few moments late, footsteps seem to pass where no one is now.',
-    'You catch the tail end of movement, as if someone just rounded a corner.',
-    'A doorframe holds the afterimage of someone having moved through it recently.',
+  intentionalTrace: [
+    'A proposal appears in the margin of the agenda in ink fresher than the surrounding notes.',
+    'Someone has moved a key document to the top of the stack, with two lines bracketed in pencil.',
+    'A decision marker sits beside an item you did not vote on, as if business continued without you.',
   ],
   distantPresence: [
     'From somewhere deeper in the structure, a voice almost forms, then falls away.',
     'A faint rustle suggests activity several rooms off, never close enough to place.',
     'You sense someone nearby in the way silence keeps changing shape.',
   ],
-  partialVisibility: [
-    'At the edge of sight, a figure pauses, then is no longer there.',
-    'For a second, someone is framed by a threshold, then swallowed by shadow.',
-    'A shoulder, a turn, a vanishing line of motion—never enough to confirm.',
+  porterLedger: [
+    'The porter glances at the ledger and says, "You just missed someone asking that exact question."',
+    'The porter notes, "Another visitor moved this file and left no name, only a vote mark."',
+    'The porter murmurs, "They left before introductions, but not before changing the order of business."',
   ],
 };
 
 const ghostDirectionalTemplates = [
-  'In an adjacent room, a figure crosses your view and disappears.',
-  'Something moves just beyond the threshold, then leaves only still air.',
-  'A silhouette seems to pass through the next space and dissolve into distance.',
+  'In an adjacent room, a chair is out of place and still turning slightly.',
+  'A file drawer stands open one notch, as if someone expected to return.',
   'You glimpse movement one room over; by the time you focus, it is gone.',
 ];
 
@@ -262,10 +261,10 @@ const ambientSneezeTemplates = {
 };
 
 const ambientWorldTemplates = {
-  movementTrace: [
-    'Down the corridor, a figure passes between doorframes and is gone before the shape settles.',
-    'A presence seems to cross a lit threshold, leaving only ordinary stillness behind it.',
-    'At the far edge of the hall, movement folds into shadow before you can place who it was.',
+  intentionalTrace: [
+    'A note appears on the board: "Item 3 advanced pending objections." You did not write it.',
+    'Someone has reordered the proposal cards by risk, not chronology.',
+    'A margin now reads, "agreed in principle, details deferred," in handwriting you do not recognize.',
   ],
   distantSound: [
     'Far off, footsteps gather and then scatter as if choosing another route.',
@@ -273,9 +272,9 @@ const ambientWorldTemplates = {
     'From deeper in the building, voices rise briefly and blur into distance.',
   ],
   socialEcho: [
-    'A stray phrase drifts in from elsewhere — not enough to know who said it or why.',
-    'Two sentences overlap in another room, then dissolve before any subject becomes clear.',
-    'You catch the tail of a conversation fragment that could have belonged to anyone.',
+    'From the corridor: "They already tabled it." The speaker is gone by the time you look.',
+    'A passing voice says, "The porter said you were close behind," then fades into another room.',
+    'You hear, "No, that decision was made five minutes ago," followed by a closing door.',
   ],
   sneeze: [
     'From some uncertain room, a muffled sneeze interrupts the quiet and vanishes.',
@@ -306,13 +305,13 @@ export function createNarrativeState() {
 export function maybeGhostTraceNarrative(narrative, rng = Math.random, chance = 0.14) {
   ensureNarrativeInternals(narrative);
   if (rng() > chance) return null;
-  const category = pick(['movement', 'distantPresence', 'partialVisibility'], rng);
+  const category = pick(['intentionalTrace', 'intentionalTrace', 'distantPresence', 'porterLedger'], rng);
   const line = pickFresh(ghostTraceTemplates[category], narrative.recentLines, rng, 8);
   remember(narrative, line, 'ghost');
   return line;
 }
 
-export function maybeDirectionalGhostGlimpse(narrative, rng = Math.random, chance = 0.14) {
+export function maybeDirectionalGhostGlimpse(narrative, rng = Math.random, chance = 0.06) {
   ensureNarrativeInternals(narrative);
   if (rng() > chance) return null;
   const line = pickFresh(ghostDirectionalTemplates, narrative.recentLines, rng, 8);
@@ -343,7 +342,7 @@ export function maybeAmbientWorldEvent(narrative, rng = Math.random, chance = 0.
   ensureNarrativeInternals(narrative);
   if (rng() > chance) return null;
 
-  const weightedTypes = ['movementTrace', 'movementTrace', 'movementTrace', 'distantSound', 'distantSound', 'socialEcho', 'socialEcho', 'socialEcho', 'sneeze'];
+  const weightedTypes = ['intentionalTrace', 'intentionalTrace', 'intentionalTrace', 'distantSound', 'socialEcho', 'socialEcho', 'socialEcho', 'sneeze'];
   const selectedType = pick(weightedTypes, rng);
   const line = pickFresh(ambientWorldTemplates[selectedType], narrative.recentLines, rng, 10);
   remember(narrative, line, 'ambient-world');

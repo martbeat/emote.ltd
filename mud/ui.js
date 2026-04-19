@@ -79,6 +79,7 @@ function createGameState() {
     player: {
       currentRoom: 'foyer',
       inventory: [],
+      lastReferencedItem: null,
       attemptedForceDoor: false,
       visitCounts: {},
     },
@@ -255,6 +256,34 @@ function resolveItemInScope(itemRaw, scopes = []) {
   const directAlias = aliases.get(itemRaw.toLowerCase().trim());
   if (directAlias) return directAlias;
   return resolveItemName(itemRaw, candidateNames);
+}
+
+const itemPronouns = new Set(['it', 'that', 'this']);
+const itemArticles = new Set(['the', 'a', 'an', 'my']);
+
+function stripItemArticles(itemRaw = '') {
+  const words = normalizeCommandInput(itemRaw).split(' ').filter(Boolean);
+  while (words.length > 1 && itemArticles.has(words[0])) words.shift();
+  return words.join(' ');
+}
+
+function resolveItemReference(itemRaw, scopes = []) {
+  const normalized = normalizeCommandInput(itemRaw);
+  const usingPronoun = itemPronouns.has(normalized);
+  const pronounFallback = usingPronoun ? state.player.lastReferencedItem : null;
+  const matchedName = usingPronoun
+    ? resolveItemInScope(pronounFallback ?? '', scopes)
+    : resolveItemInScope(stripItemArticles(itemRaw), scopes);
+  return {
+    matchedName,
+    usedPronoun: usingPronoun,
+    pronounFailed: usingPronoun && !matchedName,
+  };
+}
+
+function rememberReferencedItem(itemName) {
+  if (!itemName) return;
+  state.player.lastReferencedItem = itemName;
 }
 
 function itemDisplayLabel(itemName) {
@@ -548,13 +577,14 @@ function move(direction) {
 
 function takeItem(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const exact = resolveItemInScope(itemRaw, [roomObj.items]);
+  const exact = resolveItemInScope(stripItemArticles(itemRaw), [roomObj.items]);
   if (!exact) {
     line('That item is not here.', 'warn');
     return;
   }
   removeItemFromRoom(state.world, state.player.currentRoom, exact);
   state.player.inventory.push(exact);
+  rememberReferencedItem(exact);
   line(`You take ${itemDisplayLabel(exact)}.`, 'good');
 
   if (exact === 'iron key') {
@@ -568,12 +598,17 @@ function takeItem(itemRaw) {
 }
 
 function useItem(itemRaw) {
-  const invExact = resolveItemInScope(itemRaw, [state.player.inventory]);
+  const { matchedName: invExact, pronounFailed } = resolveItemReference(itemRaw, [state.player.inventory]);
+  if (pronounFailed) {
+    line('You pause. It is not clear what "it" refers to.', 'warn');
+    return;
+  }
   if (!invExact) {
     line('You are not carrying that.', 'warn');
     return;
   }
 
+  rememberReferencedItem(invExact);
   const itemDef = getItemDefinition(state.world, invExact);
   const contextual = itemDef?.useTextByRoom?.[state.player.currentRoom];
   line(
@@ -677,11 +712,17 @@ function interactNpc(parsed) {
 
   let exactItem = null;
   if (parsed.action === 'give') {
-    exactItem = resolveItemInScope(parsed.item ?? '', [state.player.inventory]);
+    const giveResolution = resolveItemReference(parsed.item ?? '', [state.player.inventory]);
+    exactItem = giveResolution.matchedName;
+    if (giveResolution.pronounFailed) {
+      line('You pause. It is not clear what "it" refers to.', 'warn');
+      return;
+    }
     if (!exactItem) {
       line('You are not carrying that item to give.', 'warn');
       return;
     }
+    rememberReferencedItem(exactItem);
   }
 
   const outcome = interpretAgentInteraction(state.agents, state.social, {
@@ -784,11 +825,16 @@ function maybeNormChangeHint(lastVerb) {
 
 function inspect(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const matchedName = resolveItemInScope(itemRaw, [state.player.inventory, roomObj.items]);
+  const { matchedName, pronounFailed } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
+  if (pronounFailed) {
+    line('You pause. It is not clear what "it" refers to.', 'warn');
+    return;
+  }
   if (!matchedName) {
     line('You find little to inspect.', 'warn');
     return;
   }
+  rememberReferencedItem(matchedName);
   const itemDef = getItemDefinition(state.world, matchedName);
   const inspectText = itemDef?.inspectText ?? state.world.itemDescriptions?.[matchedName];
   line(inspectText ?? 'It appears ordinary until you decide otherwise.');
@@ -796,11 +842,16 @@ function inspect(itemRaw) {
 
 function readItem(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const matchedName = resolveItemInScope(itemRaw, [state.player.inventory, roomObj.items]);
+  const { matchedName, pronounFailed } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
+  if (pronounFailed) {
+    line('You pause. It is not clear what "it" refers to.', 'warn');
+    return;
+  }
   if (!matchedName) {
     line('There is nothing by that name here to read.', 'warn');
     return;
   }
+  rememberReferencedItem(matchedName);
   const itemDef = getItemDefinition(state.world, matchedName);
   if (!itemDef?.readable || !itemDef?.readText) {
     line(`You study ${itemDisplayLabel(matchedName)}. It offers texture, not text.`, 'hint');

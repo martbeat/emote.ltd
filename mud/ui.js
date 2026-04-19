@@ -715,6 +715,70 @@ function drop(itemRaw) {
   line(`You leave ${exact}.`);
 }
 
+function handleAmbientSocialCommand(verb) {
+  const presentAgents = agentsInRoom(state.agents, state.player.currentRoom);
+  const visibleIds = new Set(presentAgents.map((agent) => agent.id));
+  const porterPresent = visibleIds.has('porter');
+
+  const ambientByVerb = {
+    smile: 'You smile, and the room agrees not to overinterpret it.',
+    giggle: 'A brief giggle escapes before protocol can classify it.',
+    cough: 'You cough into your sleeve; decorum survives.',
+    wink: 'You wink at no one in particular, which may have been the point.',
+    shrug: 'You shrug. Institutional ambiguity accepts the gesture as native.',
+    sigh: 'You sigh quietly, like a memo losing urgency.',
+    listen: 'You go still and listen. Even the corridor sounds mildly procedural.',
+    fart: 'A discreet trumpet of dissent escapes into the air.',
+    nod: 'You nod once, as if ratifying a private amendment.',
+    wave: 'You wave with clerical restraint.',
+    laugh: 'You laugh softly. The sound is tolerated as a temporary exception.',
+  };
+
+  const baseLine = ambientByVerb[verb];
+  if (!baseLine) return false;
+  line(baseLine, 'system');
+
+  if (verb === 'smile' && porterPresent && Math.random() < 0.45) {
+    maybeLinePorter("The porter notices. 'Morale is not forbidden,' he says.");
+    applyRelationship(state.social, 'porter', 1);
+  } else if (verb === 'cough') {
+    if (porterPresent && Math.random() < 0.75) {
+      maybeLinePorter("The porter inclines his head. 'Blessings, in the secular sense.'");
+      applyRelationship(state.social, 'porter', 1);
+      shiftPorterTrust(state.agents, 1);
+      recordPorterMemory(state.agents, 'Player coughed; porter offered ritual courtesy.');
+    } else if (presentAgents.length && Math.random() < 0.35) {
+      line(`${presentAgents[Math.floor(Math.random() * presentAgents.length)].name} glances over, then returns to procedure.`, 'hint');
+    }
+  } else if (verb === 'fart') {
+    if (porterPresent && Math.random() < 0.8) {
+      maybeLinePorter("The porter says, 'Not minuted, unless it becomes precedent.'", 1, 'hint');
+      applyRelationship(state.social, 'porter', -1);
+      shiftPorterTrust(state.agents, -1);
+      recordPorterMemory(state.agents, 'Player introduced atmospheric disruption in public.');
+    } else if (presentAgents.length && Math.random() < 0.5) {
+      line(`${presentAgents[Math.floor(Math.random() * presentAgents.length)].name} studies the ceiling with new professionalism.`, 'hint');
+    }
+  } else if (verb === 'listen' && presentAgents.length && Math.random() < 0.4) {
+    line(`${presentAgents[Math.floor(Math.random() * presentAgents.length)].name} seems to notice you noticing. Nothing is said.`, 'hint');
+  } else if ((verb === 'wink' || verb === 'giggle' || verb === 'laugh') && porterPresent && Math.random() < 0.28) {
+    maybeLinePorter("The porter files the moment under 'informal confidence.'", 1, 'hint');
+    applyRelationship(state.social, 'porter', 1);
+  } else if (verb === 'shrug' || verb === 'sigh' || verb === 'nod' || verb === 'wave') {
+    if (presentAgents.length && Math.random() < 0.25) {
+      line(`${presentAgents[Math.floor(Math.random() * presentAgents.length)].name} acknowledges the gesture with almost no expression.`, 'hint');
+    }
+  }
+
+  if (verb === 'listen' || verb === 'smile' || verb === 'nod') {
+    logBehaviour(state.social, 'mediate');
+  } else if (verb === 'fart') {
+    logBehaviour(state.social, 'challenge');
+  }
+
+  return true;
+}
+
 function processCommand(input) {
   const text = input.trim();
   if (!text) return;
@@ -936,8 +1000,10 @@ function processCommand(input) {
     line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
-    line('Utility: sneeze, status, score/sc, history, save, load, restart.');
+    line('Utility: sneeze, status, score/sc, history, save, load, restart (and a few ordinary social verbs).');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
+  } else if (handleAmbientSocialCommand(verb)) {
+    // handled above
   } else {
     line('The command is not understood. Try "help".', 'warn');
   }

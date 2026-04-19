@@ -234,6 +234,85 @@ export function createWorld() {
         ],
       },
     },
+    itemDefinitions: {
+      'ledger fragment': {
+        label: 'ledger fragment',
+        aliases: ['ledger', 'fragment', 'ledger page'],
+        readable: true,
+        inspectText:
+          'A torn quarter-page from an accounting ledger, stained at one edge and folded enough times to become nearly cloth.',
+        readText:
+          'In narrow ink: "Item 4 — maintain courtesy rituals even under strain." A later hand adds, "Public composure first; private dissent by corridor." The margin carries a pencilled tick beside "porter informed".',
+        giveResponses: {
+          porter: {
+            text:
+              "The porter reads the fragment, then folds it along the old crease. 'Yes. We trained for this season.' He tucks it into his ledger.",
+            relationshipDelta: 2,
+            trustDelta: 2,
+            memory:
+              'Player returned a ledger fragment naming courtesy rituals under strain.',
+          },
+          ada: {
+            text: "Ada scans it. 'Useful. It proves we improvised less than we pretend.'",
+            relationshipDelta: 1,
+          },
+          bernard: {
+            text: "Bernard adjusts his glasses. 'A procedural fossil. Still, fossils can indict us.'",
+            relationshipDelta: 1,
+          },
+          cyra: {
+            text: "Cyra smirks. 'Lovely. Even our rebellion came with stationery.'",
+            relationshipDelta: 1,
+          },
+        },
+        useTextByRoom: {
+          archive:
+            'You hold the fragment against old ledgers. The handwriting style matches a shelf marked "transitional protocols".',
+        },
+        useText:
+          'You smooth the fragment on your palm. It refuses to become a key, but it does remind you what counted as dignity here.',
+      },
+      'iron key': {
+        label: 'iron key',
+        aliases: ['key', 'hall key', 'committee key'],
+        readable: false,
+        inspectText: 'A heavy iron key with a stamped crest: Committee Access. Its teeth are worn from regular negotiation.',
+        useTextByRoom: {
+          hall: 'You test the key in the brass lock. The mechanism answers, then pauses for social clearance.',
+        },
+        useText:
+          'You weigh the key in your hand. It promises access, not permission.',
+        giveResponses: {
+          porter: {
+            text:
+              "The porter declines with a small gesture. 'Keep it. Procedure works better when responsibility remains visible.'",
+            relationshipDelta: 0,
+            trustDelta: 1,
+          },
+        },
+      },
+      'committee seal': {
+        label: 'committee seal',
+        aliases: ['seal', 'stamp'],
+        readable: false,
+        inspectText:
+          'A wax-and-brass stamp engraved with the committee crest. The handle is warm, as if someone ratified a decision moments ago.',
+        useTextByRoom: {
+          lockedRoom:
+            'You press the seal into a blank margin. It leaves a neat crest and a feeling of obligations multiplying.',
+        },
+        useText: 'You test the weight of the seal. It could legitimise a page, but not a motive.',
+        giveResponses: {
+          porter: {
+            text:
+              "The porter accepts the seal with both hands. 'Better to hand over symbols than rely on rumours.'",
+            relationshipDelta: 1,
+            trustDelta: 2,
+            memory: 'Player handed over the committee seal instead of keeping it.',
+          },
+        },
+      },
+    },
     itemDescriptions: {
       'ledger fragment':
         'A torn agenda sheet: "Item 4 — maintain courtesy rituals even under strain."',
@@ -634,4 +713,9 @@ export function removeItemFromRoom(world, roomId, itemName) {
 
 export function addItemToRoom(world, roomId, itemName) {
   world.rooms[roomId].items.push(itemName);
+}
+
+export function getItemDefinition(world, itemName) {
+  if (!itemName) return null;
+  return world.itemDefinitions?.[itemName] ?? null;
 }

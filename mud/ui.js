@@ -40,6 +40,8 @@ import {
   vote,
   describeNorms,
   describeNormChange,
+  renderCommitteeMemory,
+  renderCommitteeMemoryHistory,
 } from './governance.js';
 import {
   createSystemState,
@@ -707,7 +709,7 @@ function showScore() {
   const latestMemory = state.governance.committeeMemory[0];
   line(
     latestMemory
-      ? `- Most recent committee memory: ${latestMemory}.`
+      ? `- Most recent committee memory: ${renderCommitteeMemory(latestMemory)}`
       : '- Committee memory has not accepted or rejected anything yet.',
     'hint',
   );
@@ -724,7 +726,7 @@ function refreshSidebar() {
   const mood = moodDescriptor(state.system);
   dom.tension.textContent = `${mood.title}\n${mood.reflection}`;
   dom.memory.textContent = state.governance.committeeMemory[0]
-    ? `Most recent entry: ${state.governance.committeeMemory[0]}`
+    ? `Most recent entry: ${renderCommitteeMemory(state.governance.committeeMemory[0])}`
     : 'Nothing has settled into institutional memory yet.';
 }
 
@@ -1211,6 +1213,12 @@ function showStatus() {
   line(getInfluenceHint(state.agents), 'hint');
   line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
+  const latestMemory = state.governance.committeeMemory[0];
+  if (latestMemory) {
+    line(`Institutional memory: ${renderCommitteeMemory(latestMemory)}`, 'hint');
+  } else {
+    line('Institutional memory: Nothing has settled into shared consequence yet.', 'hint');
+  }
   if (state.system.recentRipples.length) {
     line(`Recent ripple: ${state.system.recentRipples[0]}`, 'hint');
   }
@@ -1584,12 +1592,16 @@ function processCommand(input) {
   } else if (verb === 'score' || verb === 'sc') {
     showScore();
   } else if (verb === 'history') {
+    const renderedMemory = renderCommitteeMemoryHistory(state.governance.committeeMemory);
     line(
-      state.governance.committeeMemory.length
-        ? `Committee memory: ${state.governance.committeeMemory.join(' | ')}.`
+      renderedMemory.length
+        ? `Committee memory: ${renderedMemory.join(' | ')}.`
         : 'Nothing has settled into institutional memory yet.',
       'hint',
     );
+    if (porterIsHere() && Math.random() < 0.4) {
+      maybeLinePorter("The porter says, 'People remember the argument longer than the vote.'", 1, 'hint');
+    }
   } else if (verb === 'sneeze') {
     state.social.playerCold = true;
     state.social.sneezeCount += 1;

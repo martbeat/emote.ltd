@@ -238,3 +238,98 @@ export function vote(governance, agents, social, system, rng = Math.random) {
     normChange: passed && parsed ? describeNormChange(parsed.key, parsed.value) : null,
   };
 }
+
+function hashString(text = '') {
+  return [...String(text)].reduce((acc, char) => ((acc * 31) + char.charCodeAt(0)) >>> 0, 7);
+}
+
+function pickByHash(options, seedText) {
+  if (!options.length) return '';
+  return options[hashString(seedText) % options.length];
+}
+
+function extractMemoryPayload(entry = '', prefix = '') {
+  return entry.startsWith(prefix) ? entry.slice(prefix.length).trim() : '';
+}
+
+function parseVoteMemory(entry = '', label = '') {
+  const proposal = extractMemoryPayload(entry, `${label}:`);
+  const narrow = /\b(narrow|provisional|temporary|faster|urgent|food)\b/i.test(proposal);
+  return { proposal, narrow };
+}
+
+export function renderCommitteeMemory(entry = '') {
+  if (!entry) return 'Institutional memory remains unsettled.';
+
+  if (entry.startsWith('read:')) {
+    const source = extractMemoryPayload(entry, 'read:');
+    return pickByHash([
+      'The ledger was consulted before agreement.',
+      'A record was opened, then interpreted more than trusted.',
+      'The room remembers the consultation more than what it proved.',
+      source.includes('ledger')
+        ? 'A ledger fragment changed the mood before anyone changed position.'
+        : 'A fragment was read aloud, and the tone shifted before conclusions did.',
+    ], entry);
+  }
+
+  if (entry.startsWith('accepted:')) {
+    const { proposal, narrow } = parseVoteMemory(entry, 'accepted');
+    const narrowed = narrow
+      ? [
+        'The proposal passed, but only narrowly.',
+        'Agreement was reached, though no one fully claimed it.',
+        'Consensus was recorded before conviction existed.',
+      ]
+      : [
+        'Agreement was reached, though no one fully claimed it.',
+        'The committee marked assent while motives remained private.',
+        'Consensus was recorded before conviction existed.',
+      ];
+    if (/\bfood\b/i.test(proposal)) narrowed.push('Food was approved faster than procedure usually permits.');
+    return pickByHash(narrowed, entry);
+  }
+
+  if (entry.startsWith('rejected:')) {
+    return pickByHash([
+      'The room remembers the resistance more than the motion.',
+      'Refusal held for now, though its reasons never fully aligned.',
+      'The proposal stalled, and the argument outlived the vote.',
+      'The room remembers that challenge more than the decision.',
+    ], entry);
+  }
+
+  if (entry.startsWith('gifted:')) {
+    return pickByHash([
+      'An item changed hands, and responsibility changed shape with it.',
+      'The transfer was noted as trust, not merely logistics.',
+      'Custody shifted; interpretation followed.',
+    ], entry);
+  }
+
+  if (entry.startsWith('norm pressure:')) {
+    return pickByHash([
+      'Pressure gathered around process before any formal amendment appeared.',
+      'Procedure bent slightly under repeated insistence.',
+      'The room felt nudged toward a different norm before anyone admitted it.',
+    ], entry);
+  }
+
+  if (entry.startsWith('tabled before arrival:')) {
+    return pickByHash([
+      'A proposal was already waiting when the room assembled.',
+      'The agenda remembered someone who was no longer present.',
+      'The motion arrived before its author could be held to it.',
+    ], entry);
+  }
+
+  return pickByHash([
+    'The institution keeps the consequence and lets the motive blur.',
+    'The record preserved an outcome and misplaced the certainty.',
+    'What was decided survived; why it was decided did not.',
+  ], entry);
+}
+
+export function renderCommitteeMemoryHistory(entries = []) {
+  return entries.map((entry) => renderCommitteeMemory(entry));
+}

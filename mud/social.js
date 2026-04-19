@@ -22,6 +22,12 @@ export function createSocialState() {
       count: 0,
     },
     porterSignals: {},
+    standing: {
+      porter: 0,
+      ada: 0,
+      bernard: 0,
+      cyra: 0,
+    },
   };
 }
 
@@ -38,6 +44,21 @@ export function logBehaviour(social, label) {
   }
   social.behaviouralLog.push(label);
   if (social.behaviouralLog.length > 20) social.behaviouralLog.shift();
+}
+
+export function shiftStanding(social, target, delta) {
+  if (!social.standing) {
+    social.standing = {
+      porter: 0,
+      ada: 0,
+      bernard: 0,
+      cyra: 0,
+    };
+  }
+  const before = social.standing[target] ?? 0;
+  const after = Math.max(-4, Math.min(6, before + delta));
+  social.standing[target] = after;
+  return { before, after, delta: after - before };
 }
 
 export function behaviourEcho(social) {

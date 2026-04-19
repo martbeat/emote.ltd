@@ -27,6 +27,7 @@ import {
 import {
   createSocialState,
   applyRelationship,
+  shiftStanding,
   behaviourEcho,
   behaviouralDrift,
   maybeTriggerCold,
@@ -721,6 +722,57 @@ function socialStandingLine(name, value) {
   return `${name} is still reading you in real time.`;
 }
 
+const standingSignalThresholds = {
+  ada: [
+    { at: 2, up: 'Ada stops interrupting.', down: 'Ada starts cutting in before your point lands.' },
+    { at: 4, up: 'Ada treats your calls for motion as timing, not noise.', down: 'Ada now reads your urgency as noise again.' },
+  ],
+  bernard: [
+    { at: 2, up: 'Bernard no longer challenges the premise first.', down: 'Bernard returns to contesting your premise before anything else.' },
+    { at: 4, up: 'Bernard asks process questions as if you already belong in the sequence.', down: 'Bernard reverts to procedural cross-examination.' },
+  ],
+  cyra: [
+    { at: 2, up: 'Cyra answers directly for once.', down: 'Cyra returns to framing around you rather than with you.' },
+    { at: 4, up: 'Cyra starts using your wording when mediating between others.', down: 'Cyra drops your wording and reframes from distance again.' },
+  ],
+  porter: [
+    { at: 2, up: 'The porter does not correct your wording.', down: 'The porter resumes correcting your terms.' },
+    { at: 4, up: 'The porter treats your requests as continuity, not interruption.', down: 'The porter reads you as interruption again.' },
+  ],
+};
+
+function applyStandingDelta(target, delta, reason = 'routine') {
+  const result = shiftStanding(state.social, target, delta);
+  if (!result.delta) return;
+  const thresholds = standingSignalThresholds[target] ?? [];
+  thresholds.forEach((threshold) => {
+    if (result.before < threshold.at && result.after >= threshold.at) {
+      line(threshold.up, result.delta > 0 ? 'good' : 'hint');
+    } else if (result.before >= threshold.at && result.after < threshold.at) {
+      line(threshold.down, 'warn');
+    }
+  });
+  if (reason === 'drift' && delta < 0 && Math.random() < 0.45) {
+    line('Someone notes the move as procedural theatre rather than contribution.', 'warn');
+  }
+}
+
+function legitimacyStandingScore() {
+  const standing = state.social.standing ?? {};
+  const total = (standing.ada ?? 0) + (standing.bernard ?? 0) + (standing.cyra ?? 0) + (standing.porter ?? 0);
+  const supports = ['ada', 'bernard', 'cyra', 'porter'].filter((id) => (standing[id] ?? 0) >= 1).length;
+  const ready = (standing.porter ?? 0) >= 2 && total >= 7 && supports >= 3;
+  return { total, supports, ready };
+}
+
+function legitimacyStatusLine() {
+  const { ready, total, supports } = legitimacyStandingScore();
+  if (ready) return 'You are beginning to be treated as part of the process.';
+  if (total <= 0 || supports <= 1) return 'They still hear you as interruption, not continuity.';
+  if (total <= 4) return 'Some members now treat you as procedural, others as temporary noise.';
+  return 'Your legitimacy is uneven but increasingly legible across the room.';
+}
+
 function behaviouralReputationLine(log) {
   if (!log.length) return 'Your procedural reputation has not yet settled.';
   const recent = log.slice(-10);
@@ -776,6 +828,7 @@ function showScore() {
     line('- Your attention is being noticed, though not always for the right problem.', 'hint');
   }
   line(`- ${institutionalEffectLine(state.system)}`, 'hint');
+  line(`- ${legitimacyStatusLine()}`, 'hint');
   line(`- ${currentConcernLine(ensureObjectives())}`, 'hint');
   line(`- ${scoreIdentityComparison(state.player.identity, ensureGhostState())}`, 'hint');
   const latestMemory = state.governance.committeeMemory[0];
@@ -950,6 +1003,7 @@ function move(direction) {
   if (state.player.currentRoom === 'hall' && direction === 'east') {
     const gate = eastGateState();
     const hasKey = state.player.inventory.includes('iron key');
+    const legitimacy = legitimacyStandingScore();
     const porterPresent = isAgentPresentInRoom('porter', 'hall');
     if (gate.status === 'locked') {
       line(
@@ -970,6 +1024,15 @@ function move(direction) {
       return;
     }
     if (gate.status === 'socially blocked' && hasKey) {
+      if (legitimacy.ready) {
+        line(
+          porterPresent
+            ? 'The porter watches, says nothing, and does not stop you.'
+            : 'The lock turns cleanly; no one contests your passage.',
+          'good',
+        );
+        gate.status = 'open';
+      } else {
       line(
         porterPresent
           ? "The porter says, 'You have the key, not the standing. Secure clearance first.'"
@@ -977,6 +1040,7 @@ function move(direction) {
         'warn',
       );
       return;
+      }
     }
     if (gate.status === 'provisionally approved' && !hasKey) {
       line(
@@ -1051,8 +1115,11 @@ function useItem(itemRaw) {
   let contextual = itemDef?.useTextByRoom?.[state.player.currentRoom];
   if (invExact === 'iron key' && state.player.currentRoom === 'hall') {
     const gate = eastGateState();
+    const legitimacy = legitimacyStandingScore();
     if (gate.status === 'socially blocked') {
-      contextual = 'You test the key in the brass lock. The mechanism turns, then waits for social clearance.';
+      contextual = legitimacy.ready
+        ? 'You test the key in the brass lock. It turns fully; nobody contests the motion.'
+        : 'You test the key in the brass lock. The mechanism turns, then waits for social clearance.';
     } else if (gate.status === 'provisionally approved') {
       contextual = 'The key turns this time. Provisional approval has already loosened the mechanism.';
     } else if (gate.status === 'open') {
@@ -1253,6 +1320,7 @@ function interactNpc(parsed, turnPresence = null) {
     const nearMiss = maybePorterNearMissDialogue();
     if (nearMiss) maybeLinePorter(nearMiss, 1);
     applyRelationship(state.social, 'porter', 1);
+    applyStandingDelta('porter', 1, 'continuity');
     shiftPorterTrust(state.agents, 1);
     notePorterSocialMemory(state.agents, 'help', 0.6);
     recordPorterMemory(state.agents, 'Player initiated civil conversation.');
@@ -1285,6 +1353,10 @@ function interactNpc(parsed, turnPresence = null) {
       }
     }
     if (specific?.memory && targetId === 'porter') recordPorterMemory(state.agents, specific.memory);
+    if (specific && exactItem === 'ledger fragment' && ['porter', 'bernard'].includes(targetId)) {
+      applyStandingDelta(targetId, 2, 'record');
+      if (targetId === 'porter') applyStandingDelta('bernard', 1, 'record');
+    }
     if (specific && (specific.relationshipDelta || specific.trustDelta)) {
       state.governance.committeeMemory.unshift(`gifted:${exactItem}->${targetId}`);
       state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
@@ -1297,6 +1369,10 @@ function interactNpc(parsed, turnPresence = null) {
   }
   if (targetId === 'porter') {
     const topic = (parsed.topic ?? '').toLowerCase();
+    if (parsed.action === 'ask' && /\b(missing minute|item 7|item7|ledger)\b/.test(topic)) {
+      applyStandingDelta('porter', 1, 'record');
+      applyStandingDelta('bernard', 1, 'record');
+    }
     if (topic.includes('m. cole') || topic.includes('m cole') || /\bcole\b/.test(topic)) {
       applyObjectiveEvent('asked-m-cole');
     }
@@ -1312,6 +1388,8 @@ function forceDoor() {
   state.player.attemptedForceDoor = true;
   shiftPorterTrust(state.agents, -2);
   applyRelationship(state.social, 'porter', -2);
+  applyStandingDelta('porter', -2, 'manipulation');
+  applyStandingDelta('bernard', -1, 'manipulation');
   recordPorterMemory(state.agents, 'Player attempted to brute-force access.');
   if (porterIsHere()) {
     maybeLinePorter("You shoulder the door. The porter sighs: 'Velocity is not legitimacy.'", 1, 'danger');
@@ -1332,6 +1410,7 @@ function showStatus() {
   line(phaseNarrative(state.system, state.governance.committeeMemory, state.narrative), 'hint');
   line(getInfluenceHint(state.agents), 'hint');
   line(`Access east: ${eastGate.status} (resistance ${eastGate.resistance}).`, 'hint');
+  line(`Legitimacy: ${legitimacyStatusLine()}`, 'hint');
   line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   line(currentConcernLine(ensureObjectives()), 'hint');
   line(inferIdentity(state.social, state.system), 'hint');
@@ -1591,11 +1670,18 @@ function processCommand(input) {
     line(`You suggest a direction: "${ruleText}".`, 'system');
     line(proposeRule(state.governance, state.social, ruleText, relevance), 'hint');
     if (relevance.tier === 'mostly procedural drift') {
+      applyStandingDelta('bernard', -1, 'drift');
+      applyStandingDelta('porter', -1, 'drift');
       state.governanceUi.lowRelevanceStreak = (state.governanceUi.lowRelevanceStreak ?? 0) + 1;
       const streak = state.governanceUi.lowRelevanceStreak;
       if (porterIsHere()) maybeLinePorter(governanceRedirectionLine(streak, 'porter'), 1, 'hint');
       else if (streak >= 2) line(governanceRedirectionLine(streak, 'bernard'), 'hint');
     } else {
+      if (relevance.tier === 'directly relevant') {
+        applyStandingDelta('bernard', 1, 'process');
+      } else if (relevance.tier === 'adjacent') {
+        applyStandingDelta('cyra', 1, 'mediation');
+      }
       state.governanceUi.lowRelevanceStreak = Math.max(0, (state.governanceUi.lowRelevanceStreak ?? 0) - 1);
     }
     if (relevance.tier === 'directly relevant') {
@@ -1628,6 +1714,7 @@ function processCommand(input) {
       line('You call for a decision.', 'system');
       const pendingRelevance = state.governance.pendingProposal?.relevance;
       if (pendingRelevance?.tier === 'mostly procedural drift') {
+        applyStandingDelta('bernard', -1, 'drift');
         state.governanceUi.lowRelevanceStreak = (state.governanceUi.lowRelevanceStreak ?? 0) + 1;
       }
       const proposalSource = state.governance.pendingProposal?.source ?? null;
@@ -1657,6 +1744,12 @@ function processCommand(input) {
       }
       if (result.accessOutcome) {
         line(result.accessOutcome, result.ok ? 'good' : 'warn');
+      }
+      if (result.ok) {
+        applyStandingDelta('ada', 1, 'decisive');
+        applyStandingDelta('porter', 1, 'consistency');
+      } else {
+        applyStandingDelta('ada', -1, 'decisive');
       }
       if (['lockedRoom', 'archive'].includes(state.player.currentRoom) && (result.ok || result.yesVotes >= 1)) {
         applyObjectiveEvent('vote-resolved-ledger');
@@ -1695,6 +1788,10 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    applyStandingDelta('cyra', result.ok ? 1 : -1, 'mediation');
+    if (result.ok && (state.social.repeatedCommandStreak.command === 'mediate' && state.social.repeatedCommandStreak.count >= 3)) {
+      applyStandingDelta('porter', 1, 'consistency');
+    }
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('mediate', state.narrative), 'hint');
       line(positioningNarrative('mediation', state.narrative), 'hint');
@@ -1719,6 +1816,10 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    applyStandingDelta('ada', result.ok ? 1 : -1, 'decisive');
+    if (result.ok && (state.social.repeatedCommandStreak.command === 'challenge' && state.social.repeatedCommandStreak.count >= 3)) {
+      applyStandingDelta('porter', 1, 'consistency');
+    }
     if ((state.governanceUi.lowRelevanceStreak ?? 0) >= 2 && Math.random() < 0.75) {
       if (porterIsHere()) maybeLinePorter(governanceRedirectionLine(state.governanceUi.lowRelevanceStreak, 'porter'), 1, 'hint');
       else line(governanceRedirectionLine(state.governanceUi.lowRelevanceStreak, 'bernard'), 'hint');
@@ -1746,6 +1847,7 @@ function processCommand(input) {
     if (drift.hint) line(drift.hint, 'hint');
     line(result.text, result.ok ? 'good' : 'warn');
     line(result.ripple, 'hint');
+    applyStandingDelta('bernard', result.ok ? 1 : -1, 'process');
     if (governanceNarrativeDepth(state.player.currentRoom) >= 2) {
       line(interventionNarrative('reset', state.narrative), 'hint');
       maybeLinePorter(porterReflection(state.system.state, state.social, state.narrative), 0.2);
@@ -1828,6 +1930,10 @@ function processCommand(input) {
     if (Math.random() < 0.4) line(agentExchangeHint(state.system.state, state.governance, state.social, state.system.alignment), 'hint');
   }
   maybeNormChangeHint(verb, turnPresence);
+  if ((verb === 'wink' || verb === 'giggle' || verb === 'laugh' || verb === 'fart') && porterIsHere()) {
+    applyStandingDelta('porter', -1, 'manipulation');
+    applyStandingDelta('bernard', -1, 'manipulation');
+  }
 
   tickSystem(state.system);
   if (state.system.state === 'stagnant') {

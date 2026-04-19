@@ -411,13 +411,13 @@ const departureVerbs = {
 
 const nearMissLines = {
   porter: [
-    'You catch sight of the porter disappearing down a side corridor.',
-    'A familiar coat passes a doorway and is gone before you focus.',
+    'You catch sight of the porter closing his ledger as he turns a corner.',
+    'The porter is already moving on, muttering about a visitor who asked the same thing.',
   ],
   generic: [
-    'Someone has just moved on; the room still feels recently occupied.',
-    'A quick movement nearby fades before it resolves into a face.',
-    'At the edge of your vision, someone turns a corner and vanishes.',
+    'Someone has just left a pencilled amendment on a nearby noticeboard.',
+    'A chair is still warm and pulled back, but whoever used it has moved on.',
+    'A folder has been resorted with fresh urgency marks and no signature.',
   ],
 };
 

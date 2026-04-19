@@ -560,6 +560,19 @@ const npcInteractionVerbs = new Set([
   'observe',
   'give',
 ]);
+const ambientCommands = new Set([
+  'smile',
+  'giggle',
+  'cough',
+  'wink',
+  'shrug',
+  'sigh',
+  'listen',
+  'fart',
+  'nod',
+  'wave',
+  'laugh',
+]);
 
 function normalizeCommandInput(textRaw = '') {
   return textRaw
@@ -801,7 +814,9 @@ function processCommand(input) {
     state.governanceUi.suggestionStreak = Math.max(0, state.governanceUi.suggestionStreak - 1);
   }
 
-  if (npcParsed) {
+  if (ambientCommands.has(verb)) {
+    handleAmbientSocialCommand(verb);
+  } else if (npcParsed) {
     interactNpc(npcParsed);
   } else if (npcInteractionVerbs.has(verb)) {
     line('Who do you mean?', 'warn');
@@ -1000,10 +1015,8 @@ function processCommand(input) {
     line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
-    line('Utility: sneeze, status, score/sc, history, save, load, restart (and a few ordinary social verbs).');
+    line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, status, score/sc, history, save, load, restart.');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
-  } else if (handleAmbientSocialCommand(verb)) {
-    // handled above
   } else {
     line('The command is not understood. Try "help".', 'warn');
   }

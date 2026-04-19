@@ -4,6 +4,7 @@ import {
   getRoomPacing,
   removeItemFromRoom,
   addItemToRoom,
+  getItemDefinition,
 } from './world.js';
 import {
   createAgents,
@@ -210,8 +211,17 @@ function levenshteinDistance(a, b) {
 function resolveItemName(inputRaw, candidates) {
   const input = inputRaw.toLowerCase().trim();
   if (!input) return null;
+  const words = input.split(' ');
   const exact = candidates.find((candidate) => candidate.toLowerCase() === input);
   if (exact) return exact;
+
+  const partial = candidates
+    .filter((candidate) => {
+      const lower = candidate.toLowerCase();
+      return lower.startsWith(input) || words.every((word) => lower.includes(word));
+    });
+  if (partial.length === 1) return partial[0];
+  if (partial.length > 1) return null;
 
   const ranked = candidates
     .map((candidate) => ({
@@ -224,6 +234,25 @@ function resolveItemName(inputRaw, candidates) {
   if (!ranked.length) return null;
   if (ranked.length > 1 && ranked[0].distance === ranked[1].distance) return null;
   return ranked[0].candidate;
+}
+
+function resolveItemInScope(itemRaw, scopes = []) {
+  const candidateNames = [...new Set(scopes.flat().filter(Boolean))];
+  const aliases = new Map();
+  candidateNames.forEach((itemName) => {
+    const def = getItemDefinition(state.world, itemName);
+    (def?.aliases ?? []).forEach((alias) => {
+      aliases.set(alias.toLowerCase(), itemName);
+    });
+  });
+  const directAlias = aliases.get(itemRaw.toLowerCase().trim());
+  if (directAlias) return directAlias;
+  return resolveItemName(itemRaw, candidateNames);
+}
+
+function itemDisplayLabel(itemName) {
+  const def = getItemDefinition(state.world, itemName);
+  return def?.label ?? itemName;
 }
 
 function governancePresence(roomId) {
@@ -368,7 +397,7 @@ function refreshSidebar() {
   const roomObj = state.world.rooms[state.player.currentRoom];
   dom.room.textContent = roomObj.name;
   dom.exits.textContent = Object.keys(roomObj.exits).join(', ');
-  dom.inventory.textContent = state.player.inventory.join(', ') || 'empty';
+  dom.inventory.textContent = state.player.inventory.map(itemDisplayLabel).join(', ') || 'empty';
   dom.norms.textContent = tagsFromObject(state.governance.norms);
   const mood = moodDescriptor(state.system);
   dom.tension.textContent = `${mood.title}\n${mood.reflection}`;
@@ -414,7 +443,7 @@ function renderRoom() {
   }
   const roomObj = state.world.rooms[state.player.currentRoom];
   if (roomObj.items.length) {
-    emitNarrativeLine(`Items here: ${roomObj.items.join(', ')}.`, {
+    emitNarrativeLine(`Items here: ${roomObj.items.map(itemDisplayLabel).join(', ')}.`, {
       priority: narrativePriority.P1,
     });
   }
@@ -499,14 +528,14 @@ function move(direction) {
 
 function takeItem(itemRaw) {
   const roomObj = state.world.rooms[state.player.currentRoom];
-  const exact = resolveItemName(itemRaw, roomObj.items);
+  const exact = resolveItemInScope(itemRaw, [roomObj.items]);
   if (!exact) {
     line('That item is not here.', 'warn');
     return;
   }
   removeItemFromRoom(state.world, state.player.currentRoom, exact);
   state.player.inventory.push(exact);
-  line(`You take ${exact}.`, 'good');
+  line(`You take ${itemDisplayLabel(exact)}.`, 'good');
 
   if (exact === 'iron key') {
     if (porterIsHere()) {
@@ -519,18 +548,20 @@ function takeItem(itemRaw) {
 }
 
 function useItem(itemRaw) {
-  const invExact = resolveItemName(itemRaw, state.player.inventory);
+  const invExact = resolveItemInScope(itemRaw, [state.player.inventory]);
   if (!invExact) {
     line('You are not carrying that.', 'warn');
     return;
   }
 
-  if (invExact === 'iron key' && state.player.currentRoom === 'hall') {
-    line('The lock turns halfway, then waits for social clearance from the porter.', 'hint');
-    return;
-  }
-
-  line(`You use ${invExact}, but nothing decisive follows.`, 'hint');
+  const itemDef = getItemDefinition(state.world, invExact);
+  const contextual = itemDef?.useTextByRoom?.[state.player.currentRoom];
+  line(
+    contextual
+      ?? itemDef?.useText
+      ?? `You use ${itemDisplayLabel(invExact)}, but the world answers with professional ambiguity.`,
+    'hint',
+  );
 }
 
 function talk(target) {
@@ -625,12 +656,11 @@ function interactNpc(parsed) {
 
   let exactItem = null;
   if (parsed.action === 'give') {
-    exactItem = resolveItemName(parsed.item ?? '', state.player.inventory);
+    exactItem = resolveItemInScope(parsed.item ?? '', [state.player.inventory]);
     if (!exactItem) {
       line('You are not carrying that item to give.', 'warn');
       return;
     }
-    state.player.inventory = state.player.inventory.filter((item) => item !== exactItem);
   }
 
   const outcome = interpretAgentInteraction(state.agents, state.social, {
@@ -640,6 +670,25 @@ function interactNpc(parsed) {
     item: exactItem ?? '',
   });
   line(outcome.text, outcome.css ?? 'hint');
+  if (parsed.action === 'give') {
+    const itemDef = getItemDefinition(state.world, exactItem);
+    const specific = itemDef?.giveResponses?.[targetId];
+    if (specific?.text) line(specific.text, 'hint');
+    const relDelta = specific?.relationshipDelta ?? (targetId === 'porter' ? 1 : 0);
+    if (relDelta) applyRelationship(state.social, targetId, relDelta);
+    const trustDelta = specific?.trustDelta ?? 0;
+    if (targetId === 'porter' && trustDelta) shiftPorterTrust(state.agents, trustDelta);
+    if (specific?.memory && targetId === 'porter') recordPorterMemory(state.agents, specific.memory);
+    if (specific && (specific.relationshipDelta || specific.trustDelta)) {
+      state.governance.committeeMemory.unshift(`gifted:${exactItem}->${targetId}`);
+      state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
+    }
+    if (specific) {
+      state.player.inventory = state.player.inventory.filter((item) => item !== exactItem);
+    } else {
+      line(`${state.agents[targetId].name} leaves it with you for now; it seems more useful in your hands.`, 'hint');
+    }
+  }
   if (targetId === 'porter') {
     recordPorterMemory(state.agents, `Player used ${parsed.action} with porter.`);
   }
@@ -707,25 +756,43 @@ function maybeNormChangeHint(lastVerb) {
 }
 
 function inspect(itemRaw) {
-  const names = Object.keys(state.world.itemDescriptions);
-  const matchedName = resolveItemName(itemRaw, names);
-  const found = matchedName ? [matchedName, state.world.itemDescriptions[matchedName]] : null;
-  if (!found) {
+  const roomObj = state.world.rooms[state.player.currentRoom];
+  const matchedName = resolveItemInScope(itemRaw, [state.player.inventory, roomObj.items]);
+  if (!matchedName) {
     line('You find little to inspect.', 'warn');
     return;
   }
-  line(found[1]);
+  const itemDef = getItemDefinition(state.world, matchedName);
+  const inspectText = itemDef?.inspectText ?? state.world.itemDescriptions?.[matchedName];
+  line(inspectText ?? 'It appears ordinary until you decide otherwise.');
+}
+
+function readItem(itemRaw) {
+  const roomObj = state.world.rooms[state.player.currentRoom];
+  const matchedName = resolveItemInScope(itemRaw, [state.player.inventory, roomObj.items]);
+  if (!matchedName) {
+    line('There is nothing by that name here to read.', 'warn');
+    return;
+  }
+  const itemDef = getItemDefinition(state.world, matchedName);
+  if (!itemDef?.readable || !itemDef?.readText) {
+    line(`You study ${itemDisplayLabel(matchedName)}. It offers texture, not text.`, 'hint');
+    return;
+  }
+  line(itemDef.readText, 'hint');
+  state.governance.committeeMemory.unshift(`read:${matchedName}`);
+  state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
 }
 
 function drop(itemRaw) {
-  const exact = resolveItemName(itemRaw, state.player.inventory);
+  const exact = resolveItemInScope(itemRaw, [state.player.inventory]);
   if (!exact) {
     line('You do not have that item.', 'warn');
     return;
   }
   state.player.inventory = state.player.inventory.filter((i) => i !== exact);
   addItemToRoom(state.world, state.player.currentRoom, exact);
-  line(`You leave ${exact}.`);
+  line(`You leave ${itemDisplayLabel(exact)}.`);
 }
 
 function handleAmbientSocialCommand(verb) {
@@ -836,6 +903,10 @@ function processCommand(input) {
     useItem(arg);
   } else if (verb === 'inspect') {
     inspect(arg);
+  } else if (verb === 'examine' || verb === 'x') {
+    inspect(arg);
+  } else if (verb === 'read') {
+    readItem(arg);
   } else if (verb === 'talk') {
     talk(arg.toLowerCase());
   } else if (verb === 'force') {
@@ -1012,7 +1083,7 @@ function processCommand(input) {
     line('The scene resets. The institution forgets, mostly.', 'system');
     renderRoom();
   } else if (verb === 'help') {
-    line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
+    line('Explore with: look, n/s/e/w, go <dir>, take/drop/use/read/inspect/examine/x <item>, talk porter, force.');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
     line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, status, score/sc, history, save, load, restart.');

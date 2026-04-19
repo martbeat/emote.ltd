@@ -19,6 +19,9 @@ import {
   maybePorterAbsenceLine,
   shiftPorterTrust,
   recordPorterMemory,
+  decayAgentMemories,
+  notePorterGovernancePattern,
+  notePorterSocialMemory,
   narrateAgentContinuity,
   interpretAgentInteraction,
 } from './agents.js';
@@ -174,7 +177,11 @@ function rememberPorterLine(text) {
 }
 
 function porterContextSystem() {
-  return { ...state.system, porterPresent: porterIsHere() };
+  return {
+    ...state.system,
+    porterPresent: porterIsHere(),
+    porterSignals: { ...(state.agents.porter.memorySignals ?? {}) },
+  };
 }
 
 function maybeLinePorter(text, chance = 1, cls = 'hint') {
@@ -379,10 +386,23 @@ function institutionalEffectLine(system) {
 function showScore() {
   line('Standing review:', 'system');
   line(`- ${socialStandingLine('The porter', state.social.relationships.porter)}`, 'hint');
+  const porterAttitude = state.agents.porter.attitude;
+  if (porterAttitude === 'resistant') {
+    line('- The porter remains polite, but no longer assumes good intent.', 'hint');
+  } else if (porterAttitude === 'cooperative') {
+    line('- The porter now meets you with practical trust and occasional procedural shortcuts.', 'hint');
+  } else {
+    line('- The porter is watchful: civil, observant, and not yet persuaded.', 'hint');
+  }
   line(`- ${socialStandingLine('Ada', state.social.relationships.ada)}`, 'hint');
   line(`- ${socialStandingLine('Bernard', state.social.relationships.bernard)}`, 'hint');
   line(`- ${socialStandingLine('Cyra', state.social.relationships.cyra)}`, 'hint');
   line(`- ${behaviouralReputationLine(state.social.behaviouralLog)}`, 'hint');
+  if ((state.agents.porter.memorySignals?.governancePush ?? 0) >= 2.5) {
+    line('- People are beginning to expect you to press decisions before consensus.', 'hint');
+  } else if ((state.agents.porter.memorySignals?.governanceCalm ?? 0) >= 2.5) {
+    line('- People increasingly expect you to mediate before lines harden.', 'hint');
+  }
   line(`- ${institutionalEffectLine(state.system)}`, 'hint');
   const latestMemory = state.governance.committeeMemory[0];
   line(
@@ -573,6 +593,7 @@ function talk(target) {
   line(talkToPorter(state.agents, state.system.state, state.social));
   applyRelationship(state.social, 'porter', 1);
   shiftPorterTrust(state.agents, 1);
+  notePorterSocialMemory(state.agents, 'help', 0.6);
   recordPorterMemory(state.agents, 'Player initiated civil conversation.');
 }
 
@@ -678,6 +699,12 @@ function interactNpc(parsed) {
     if (relDelta) applyRelationship(state.social, targetId, relDelta);
     const trustDelta = specific?.trustDelta ?? 0;
     if (targetId === 'porter' && trustDelta) shiftPorterTrust(state.agents, trustDelta);
+    if (targetId === 'porter' && specific) {
+      notePorterSocialMemory(state.agents, 'gift', 1.2);
+      if ((specific.relationshipDelta ?? 0) > 0 || (specific.trustDelta ?? 0) > 0) {
+        notePorterSocialMemory(state.agents, 'help', 0.9);
+      }
+    }
     if (specific?.memory && targetId === 'porter') recordPorterMemory(state.agents, specific.memory);
     if (specific && (specific.relationshipDelta || specific.trustDelta)) {
       state.governance.committeeMemory.unshift(`gifted:${exactItem}->${targetId}`);
@@ -826,6 +853,7 @@ function handleAmbientSocialCommand(verb) {
       maybeLinePorter("The porter inclines his head. 'Blessings, in the secular sense.'");
       applyRelationship(state.social, 'porter', 1);
       shiftPorterTrust(state.agents, 1);
+      notePorterSocialMemory(state.agents, 'cough', 1);
       recordPorterMemory(state.agents, 'Player coughed; porter offered ritual courtesy.');
     } else if (presentAgents.length && Math.random() < 0.35) {
       line(`${presentAgents[Math.floor(Math.random() * presentAgents.length)].name} glances over, then returns to procedure.`, 'hint');
@@ -911,12 +939,14 @@ function processCommand(input) {
     talk(arg.toLowerCase());
   } else if (verb === 'force') {
     forceDoor();
+    notePorterGovernancePattern(state.agents, 'bypass');
   } else if (verb === 'suggest' || verb === 'propose') {
     if (verb === 'propose') line('Tip: "propose" is now "suggest".', 'hint');
     const ruleText = arg || 'blessOnSneeze=true';
     state.governanceUi.suggestionStreak += 1;
     line(`You suggest a direction: "${ruleText}".`, 'system');
     line(proposeRule(state.governance, state.social, ruleText), 'hint');
+    notePorterGovernancePattern(state.agents, 'propose');
     const needed = suggestionThreshold(state.player.currentRoom);
     if (state.governanceUi.suggestionStreak < needed) {
       line('The room notes it, but momentum has not built yet.', 'hint');
@@ -972,6 +1002,7 @@ function processCommand(input) {
   } else if (verb === 'calm' || verb === 'mediate') {
     if (verb === 'mediate') line('Tip: "mediate" is now "calm".', 'hint');
     logBehaviour(state.social, 'mediate');
+    notePorterGovernancePattern(state.agents, 'calm');
     const drift = behaviouralDrift(state.social, 'mediate');
     const result = mediate(state.system, drift.modifier);
     markNarrativePriority(narrativePriority.P2);
@@ -995,6 +1026,7 @@ function processCommand(input) {
   } else if (verb === 'push' || verb === 'challenge') {
     if (verb === 'challenge') line('Tip: "challenge" is now "push".', 'hint');
     logBehaviour(state.social, 'challenge');
+    notePorterGovernancePattern(state.agents, 'push');
     const drift = behaviouralDrift(state.social, 'challenge');
     const result = challenge(state.system, drift.modifier);
     markNarrativePriority(narrativePriority.P2);
@@ -1060,6 +1092,7 @@ function processCommand(input) {
       });
       shiftPorterTrust(state.agents, 1);
       applyRelationship(state.social, 'porter', 1);
+      notePorterSocialMemory(state.agents, 'sneeze', 1);
       recordPorterMemory(state.agents, 'Player sneezed directly; porter responded.');
     } else if (state.social.sneezeCount > 2) {
       emitNarrativeLine('You sneeze again. No one comments.', {
@@ -1093,6 +1126,8 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
+  state.social.porterSignals = { ...(state.agents.porter.memorySignals ?? {}) };
+  decayAgentMemories(state.agents);
   const previousAgentRooms = moveAgents(state.agents, state.system.state);
   const continuityLine = narrateAgentContinuity(
     state.agents,

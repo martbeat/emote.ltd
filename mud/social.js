@@ -1,4 +1,9 @@
-import { porterSneezeResponse, recordPorterMemory, shiftPorterTrust } from './agents.js';
+import {
+  porterSneezeResponse,
+  recordPorterMemory,
+  shiftPorterTrust,
+  notePorterSocialMemory,
+} from './agents.js';
 
 export function createSocialState() {
   return {
@@ -16,6 +21,7 @@ export function createSocialState() {
       command: null,
       count: 0,
     },
+    porterSignals: {},
   };
 }
 
@@ -130,6 +136,7 @@ export function maybeSneeze(social, agents, playerRoomId, rng = Math.random) {
   if (porterReply) {
     applyRelationship(social, 'porter', 1);
     shiftPorterTrust(agents, 1);
+    notePorterSocialMemory(agents, 'sneeze', 1);
     recordPorterMemory(agents, 'Player sneezed; porter acknowledged with ritual courtesy.');
     return `You sneeze. ${porterReply}`;
   }

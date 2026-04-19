@@ -280,14 +280,101 @@ function tagsFromObject(obj) {
   return describeNorms(obj).join(' • ');
 }
 
+function moodDescriptor(system) {
+  if (system.tension <= 2) {
+    return {
+      title: 'Quiet confidence',
+      reflection: 'People proceed gently, as if the room trusts its own rhythm for now.',
+    };
+  }
+  if (system.tension <= 4) {
+    return {
+      title: 'Workable equilibrium',
+      reflection: 'Differences are still manageable, and process is carrying more weight than personality.',
+    };
+  }
+  if (system.tension <= 6) {
+    return {
+      title: 'Careful strain',
+      reflection: 'The group is still functioning, though tone now matters as much as substance.',
+    };
+  }
+  if (system.tension <= 8) {
+    return {
+      title: 'Frayed coordination',
+      reflection: 'Everyone is tracking risk; small gestures are interpreted as signals.',
+    };
+  }
+  return {
+    title: 'Brittle atmosphere',
+    reflection: 'The institution is operating, but every move is being read for threat or retreat.',
+  };
+}
+
+function socialStandingLine(name, value) {
+  if (value >= 3) return `${name} now treats you as a credible participant, not a passing interruption.`;
+  if (value >= 1) return `${name} remains open to your voice, though not unguarded.`;
+  if (value <= -3) return `${name} keeps marked distance, expecting disruption before cooperation.`;
+  if (value <= -1) return `${name} has become watchful around your interventions.`;
+  return `${name} is still reading you in real time.`;
+}
+
+function behaviouralReputationLine(log) {
+  if (!log.length) return 'Your procedural reputation has not yet settled.';
+  const recent = log.slice(-10);
+  const counts = recent.reduce((acc, label) => {
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const top = ranked[0]?.[0];
+  if (top === 'challenge') return 'You are known for pushing pressure points until the room has to answer.';
+  if (top === 'mediate') return 'You are read as a stabiliser who prefers de-escalation over spectacle.';
+  if (top === 'propose') return 'You are seen as someone who keeps introducing frames for collective action.';
+  if (top === 'reset') return 'You are associated with revisiting routines when they harden too quickly.';
+  return 'Your behavioural signature is still mixed, and interpretations vary by observer.';
+}
+
+function institutionalEffectLine(system) {
+  if (!system.recentRipples.length) return 'No durable institutional effect is visible yet.';
+  const ripple = system.recentRipples[0].toLowerCase();
+  if (ripple.includes('de-escalation') || ripple.includes('calm')) {
+    return 'Recent moves have lowered the emotional temperature of committee work.';
+  }
+  if (ripple.includes('escalation') || ripple.includes('conflict')) {
+    return 'Recent moves have made contestation feel more central to how decisions happen.';
+  }
+  return `Current institutional drift: ${system.recentRipples[0]}`;
+}
+
+function showScore() {
+  line('Standing review:', 'system');
+  line(`- ${socialStandingLine('The porter', state.social.relationships.porter)}`, 'hint');
+  line(`- ${socialStandingLine('Ada', state.social.relationships.ada)}`, 'hint');
+  line(`- ${socialStandingLine('Bernard', state.social.relationships.bernard)}`, 'hint');
+  line(`- ${socialStandingLine('Cyra', state.social.relationships.cyra)}`, 'hint');
+  line(`- ${behaviouralReputationLine(state.social.behaviouralLog)}`, 'hint');
+  line(`- ${institutionalEffectLine(state.system)}`, 'hint');
+  const latestMemory = state.governance.committeeMemory[0];
+  line(
+    latestMemory
+      ? `- Most recent committee memory: ${latestMemory}.`
+      : '- Committee memory has not accepted or rejected anything yet.',
+    'hint',
+  );
+}
+
 function refreshSidebar() {
   const roomObj = state.world.rooms[state.player.currentRoom];
   dom.room.textContent = roomObj.name;
   dom.exits.textContent = Object.keys(roomObj.exits).join(', ');
   dom.inventory.textContent = state.player.inventory.join(', ') || 'empty';
   dom.norms.textContent = tagsFromObject(state.governance.norms);
-  dom.tension.textContent = `${state.system.tension}/10 (${state.system.state})`;
-  dom.memory.textContent = state.governance.committeeMemory[0] ?? 'none yet';
+  const mood = moodDescriptor(state.system);
+  dom.tension.textContent = `${mood.title}\n${mood.reflection}`;
+  dom.memory.textContent = state.governance.committeeMemory[0]
+    ? `Most recent entry: ${state.governance.committeeMemory[0]}`
+    : 'Nothing has settled into institutional memory yet.';
 }
 
 function renderRoom() {
@@ -801,8 +888,15 @@ function processCommand(input) {
     maybeLinePorter(porterOutcomeReflection(porterContextSystem(), state.governance, state.social), 0.25);
   } else if (verb === 'status') {
     showStatus();
+  } else if (verb === 'score' || verb === 'sc') {
+    showScore();
   } else if (verb === 'history') {
-    line(`Committee memory: ${state.governance.committeeMemory.join(' | ') || 'none'}.`, 'hint');
+    line(
+      state.governance.committeeMemory.length
+        ? `Committee memory: ${state.governance.committeeMemory.join(' | ')}.`
+        : 'Nothing has settled into institutional memory yet.',
+      'hint',
+    );
   } else if (verb === 'sneeze') {
     state.social.playerCold = true;
     state.social.sneezeCount += 1;
@@ -842,7 +936,7 @@ function processCommand(input) {
     line('Explore with: look, n/s/e/w, go <dir>, take/use/drop/inspect <item>, talk porter, force.');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
-    line('Utility: sneeze, status, history, save, load, restart.');
+    line('Utility: sneeze, status, score/sc, history, save, load, restart.');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {
     line('The command is not understood. Try "help".', 'warn');

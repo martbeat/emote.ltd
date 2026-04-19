@@ -4,12 +4,12 @@ import { shiftPorterTrust, recordPorterMemory } from './agents.js?v=build10';
 
 const normNarratives = {
   blessOnSneeze: {
-    true: 'People still observe the blessing ritual after sneezes.',
-    false: 'People no longer expect anyone to bless a sneeze.',
+    true: 'Courtesy still follows sneezing.',
+    false: 'Sneezes pass without ceremonial reply.',
   },
   consensusFirst: {
-    true: 'People prefer agreement before commitment.',
-    false: 'People permit commitments before full agreement.',
+    true: 'Agreement is preferred before commitment.',
+    false: 'Commitment can proceed before full agreement.',
   },
 };
 

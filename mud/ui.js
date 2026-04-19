@@ -633,17 +633,20 @@ function useItem(itemRaw) {
   );
 }
 
-function talk(target) {
-  const porterInRoom = state.agents.porter.roomId === state.player.currentRoom;
-  if (target !== 'porter' || !porterInRoom) {
-    line('Nobody by that name answers here.', 'warn');
-    return;
-  }
-  line(talkToPorter(state.agents, state.system.state, state.social));
-  applyRelationship(state.social, 'porter', 1);
-  shiftPorterTrust(state.agents, 1);
-  notePorterSocialMemory(state.agents, 'help', 0.6);
-  recordPorterMemory(state.agents, 'Player initiated civil conversation.');
+function createTurnPresenceSnapshot() {
+  const roomId = state.player.currentRoom;
+  const presentIds = new Set(
+    Object.values(state.agents)
+      .filter((agent) => agent?.roomId === roomId)
+      .map((agent) => agent.id),
+  );
+  return { roomId, presentIds };
+}
+
+function isNpcPresentForTurn(targetId, turnPresence) {
+  if (!targetId) return false;
+  if (!turnPresence) return state.agents[targetId]?.roomId === state.player.currentRoom;
+  return turnPresence.roomId === state.player.currentRoom && turnPresence.presentIds.has(targetId);
 }
 
 const npcIds = ['porter', 'ada', 'bernard', 'cyra'];
@@ -695,6 +698,8 @@ function parseNpcInteraction(textRaw) {
 
   let match = text.match(/^(?:hello|hi|hey|greet)\s+(?:to\s+)?(.+)$/);
   if (match) return { action: 'hello', targetText: match[1] };
+  match = text.match(/^talk(?:\s+to)?\s+(.+)$/);
+  if (match) return { action: 'talk', targetText: match[1] };
   match = text.match(/^say\s+(?:hello|hi|hey|greetings?)(?:\s+to)?\s+(.+)$/);
   if (match) return { action: 'hello', targetText: match[1] };
   match = text.match(/^(?:ask|question)\s+(.+?)(?:\s+about\s+(.+))?$/);
@@ -712,17 +717,28 @@ function parseNpcInteraction(textRaw) {
   return null;
 }
 
-function interactNpc(parsed) {
+function interactNpc(parsed, turnPresence = null) {
   const targetId = resolveNpcTarget(parsed.targetText);
   if (!targetId) {
     line('Nobody by that name answers here.', 'warn');
     return;
   }
-  const present = state.agents[targetId]?.roomId === state.player.currentRoom;
+  const present = isNpcPresentForTurn(targetId, turnPresence);
   if (!present) {
     line('They are not here.', 'warn');
     return;
   }
+
+  if (parsed.action === 'talk' && targetId === 'porter') {
+    line(talkToPorter(state.agents, state.system.state, state.social));
+    applyRelationship(state.social, 'porter', 1);
+    shiftPorterTrust(state.agents, 1);
+    notePorterSocialMemory(state.agents, 'help', 0.6);
+    recordPorterMemory(state.agents, 'Player initiated civil conversation.');
+    return;
+  }
+
+  const effectiveAction = parsed.action === 'talk' ? 'hello' : parsed.action;
 
   let exactItem = null;
   if (parsed.action === 'give') {
@@ -741,7 +757,7 @@ function interactNpc(parsed) {
 
   const outcome = interpretAgentInteraction(state.agents, state.social, {
     targetId,
-    action: parsed.action,
+    action: effectiveAction,
     topic: parsed.topic ?? '',
     item: exactItem ?? '',
   });
@@ -772,7 +788,7 @@ function interactNpc(parsed) {
     }
   }
   if (targetId === 'porter') {
-    recordPorterMemory(state.agents, `Player used ${parsed.action} with porter.`);
+    recordPorterMemory(state.agents, `Player used ${effectiveAction} with porter.`);
   }
 }
 
@@ -960,6 +976,7 @@ function processCommand(input) {
   beginNarrativeTurn();
 
   line(`> ${text}`, 'input');
+  const turnPresence = createTurnPresenceSnapshot();
 
   const npcParsed = parseNpcInteraction(normalizedText);
   const [verbRaw, ...rest] = normalizedText.split(' ');
@@ -979,7 +996,7 @@ function processCommand(input) {
   if (ambientCommands.has(verb)) {
     handleAmbientSocialCommand(verb);
   } else if (npcParsed) {
-    interactNpc(npcParsed);
+    interactNpc(npcParsed, turnPresence);
   } else if (npcInteractionVerbs.has(verb)) {
     line('Who do you mean?', 'warn');
   } else if (dirAliases[verb]) {
@@ -1003,7 +1020,8 @@ function processCommand(input) {
   } else if (verb === 'read') {
     readItem(arg);
   } else if (verb === 'talk') {
-    talk(arg.toLowerCase());
+    const parsedTalk = parseNpcInteraction(`talk ${arg}`) ?? { action: 'talk', targetText: arg.toLowerCase() };
+    interactNpc(parsedTalk, turnPresence);
   } else if (verb === 'force') {
     forceDoor();
     notePorterGovernancePattern(state.agents, 'bypass');

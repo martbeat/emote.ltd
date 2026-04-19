@@ -1,3 +1,8 @@
+import {
+  weatherRoomLine,
+  weatherDirectionalModifier,
+} from './weather.js';
+
 const roomProfiles = {
   foyer: { interaction: 'medium', spatialTone: 'enclosed-threshold', ambience: 'transitional' },
   hall: { interaction: 'high', spatialTone: 'civic-interior', ambience: 'active' },
@@ -638,12 +643,13 @@ function buildExitGlimpses(world, room, systemState, context = {}) {
   const rng = context.rng ?? Math.random;
   const recent = context.recentNarrativeLines ?? [];
   const directions = Object.entries(room.exits);
+  const weatherModifier = weatherDirectionalModifier(context.weather);
   return directions.map(([direction, targetRoomId]) => {
     const texture = inferDirectionalTexture(world, targetRoomId);
     const impression = pickFresh(directionalImpressions[systemState]?.[texture] ?? [], recent, rng, 8) || '';
     const maybeGhost = rng() < 0.16 ? pickFresh(directionalGhostTemplates, recent, rng, 8) : '';
     const maybeBleed = rng() < 0.28 ? pickFresh(systemBleedTemplates[systemState] ?? [], recent, rng, 8) : '';
-    const modifier = pick([maybeGhost, maybeBleed].filter(Boolean), rng);
+    const modifier = pick([maybeGhost, maybeBleed, weatherModifier].filter(Boolean), rng);
     const glimpse = composeDirectionalGlimpse(impression, modifier, rng);
     return `- ${direction}: ${glimpse}.`;
   });
@@ -670,6 +676,7 @@ export function describeRoom(world, roomId, systemState, context = {}) {
     decisionTag && visitCount % 2 === 0 ? rotateVariant(decisionEchoes[decisionTag], visitCount, 2) : '';
   const ambientScope = profile.spatialTone.includes('exterior') ? 'exterior' : 'interior';
   const ambientSignal = rotateVariant(world.ambientEffects?.[ambientScope]?.[systemState], visitCount, 2);
+  const weatherSignal = weatherRoomLine(context.weather, profile, roomId, visitCount);
   const sensory = {
     balanced: 'Somewhere nearby, a pen scratches steadily across paper.',
     chaotic: 'You hear overlapping voices, then a sudden shared silence.',
@@ -682,6 +689,7 @@ export function describeRoom(world, roomId, systemState, context = {}) {
     localTexture,
     environmentalMetaphor,
     ambientSignal,
+    weatherSignal,
     world.roomFlavour[systemState],
     tensionEcho,
     decisionEcho,

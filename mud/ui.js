@@ -67,6 +67,14 @@ import {
   maybeAmbientSneezeNarrative,
   maybeAmbientWorldEvent,
 } from './narrative.js';
+import {
+  createWeatherState,
+  tickWeather,
+  weatherSocialTexture,
+  weatherPhaseLabel,
+  weatherShiftLine,
+  maybeWeatherGovernanceMoment,
+} from './weather.js';
 
 function createGameState() {
   return {
@@ -76,6 +84,7 @@ function createGameState() {
     governance: createGovernanceState(),
     system: createSystemState(),
     narrative: createNarrativeState(),
+    weather: createWeatherState(),
     player: {
       currentRoom: 'foyer',
       inventory: [],
@@ -90,7 +99,8 @@ function createGameState() {
   };
 }
 
-const SAVE_KEY = 'essexMudGovV1';
+const SAVE_KEY = 'essexMudGovV2';
+const LEGACY_SAVE_KEY = 'essexMudGovV1';
 let state = createGameState();
 const governanceKeyRooms = new Set(['hall', 'lockedRoom']);
 const governanceSupportRooms = new Set(['foyer', 'eastCorridor', 'archive']);
@@ -468,6 +478,7 @@ function renderRoom() {
       lastTensionDirection: state.narrative?.context?.lastTensionDirection ?? 'flat',
       recentDecisions: state.governance.committeeMemory.slice(0, 3),
       recentNarrativeLines: state.narrative?.recentLines ?? [],
+      weather: state.weather,
     }),
     { cls: 'system', priority: narrativePriority.P1 },
   );
@@ -514,7 +525,7 @@ function save() {
 }
 
 function load() {
-  const raw = localStorage.getItem(SAVE_KEY);
+  const raw = localStorage.getItem(SAVE_KEY) || localStorage.getItem(LEGACY_SAVE_KEY);
   if (!raw) {
     line('No prior record is found.', 'warn');
     return;
@@ -528,6 +539,9 @@ function load() {
       suggestionStreak: 0,
       lastDecisionFailed: false,
     };
+  }
+  if (!state.weather) {
+    state.weather = createWeatherState();
   }
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
@@ -780,6 +794,7 @@ function forceDoor() {
 
 function showStatus() {
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
+  line(`Atmosphere: ${weatherPhaseLabel(state.weather)}.`, 'hint');
   describeNorms(state.governance.norms).forEach((normLine) => line(`Norm: ${normLine}`, 'hint'));
   line(interpretiveMessage(state.system), 'hint');
   line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
@@ -954,6 +969,7 @@ function processCommand(input) {
   const priorTransitionTurn = state.system.lastTransition?.turn;
   const governanceVerbs = new Set(['suggest', 'decide', 'push', 'calm', 'shift', 'propose', 'vote', 'challenge', 'mediate', 'reset']);
   let queuedAmbientEvent = null;
+  let lastVoteResult = null;
 
   const dirAliases = { n: 'north', s: 'south', e: 'east', w: 'west' };
   if (!governanceVerbs.has(verb)) {
@@ -1019,6 +1035,7 @@ function processCommand(input) {
     } else {
       line('You call for a decision.', 'system');
       const result = vote(state.governance, state.agents, state.social, state.system);
+      lastVoteResult = result;
       markNarrativePriority(narrativePriority.P2);
       line(result.text, result.ok ? 'good' : 'warn');
       const depth = governanceNarrativeDepth(state.player.currentRoom);
@@ -1177,6 +1194,7 @@ function processCommand(input) {
   }
 
   tickSystem(state.system);
+  tickWeather(state.weather);
   state.social.porterSignals = { ...(state.agents.porter.memorySignals ?? {}) };
   decayAgentMemories(state.agents);
   const previousAgentRooms = moveAgents(state.agents, state.system.state);
@@ -1250,6 +1268,24 @@ function processCommand(input) {
   maybeShowGovernanceHints(verb);
   maybeShowTensionWarning(verb, tensionBefore);
   maybeNormChangeHint(verb);
+  const weatherChange = weatherShiftLine(state.weather);
+  if (weatherChange) emitNarrativeLine(weatherChange, {
+    priority: narrativePriority.P2,
+    cooldownKey: 'weather-shift',
+    cooldownTurns: 3,
+  });
+  const rareGovernanceWeather = maybeWeatherGovernanceMoment(state.weather, lastVoteResult);
+  if (rareGovernanceWeather) emitNarrativeLine(rareGovernanceWeather, {
+    priority: narrativePriority.P2,
+    cooldownKey: 'weather-governance-moment',
+    cooldownTurns: 6,
+  });
+  const weatherSocialLine = weatherSocialTexture(state.weather);
+  if (weatherSocialLine) emitNarrativeLine(weatherSocialLine, {
+    priority: narrativePriority.P3,
+    cooldownKey: 'weather-social',
+    cooldownTurns: 5,
+  });
 
   if (queuedAmbientEvent?.delayed) {
     const delayedLine = queuedAmbientEvent.line;

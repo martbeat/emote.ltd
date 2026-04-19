@@ -5,12 +5,30 @@ function porterTrustLabel(score) {
 }
 
 export function createAgents() {
+  const baseMemorySignals = () => ({
+    hello: 0,
+    ask: 0,
+    askRepeat: 0,
+    insult: 0,
+    physical: 0,
+    gift: 0,
+    help: 0,
+    sneeze: 0,
+    cough: 0,
+    governancePush: 0,
+    governanceCalm: 0,
+    governancePropose: 0,
+    bypassNorms: 0,
+  });
   return {
     porter: {
       id: 'porter',
       name: 'Porter',
       roomId: 'foyer',
       memory: [],
+      memorySignals: baseMemorySignals(),
+      lastAskTopic: '',
+      repeatedAskStreak: 0,
       trust: 0,
       cooperation: 0,
       attitude: 'watchful',
@@ -25,6 +43,9 @@ export function createAgents() {
       bias: 'change',
       relationship: 0,
       cooperation: 0,
+      memorySignals: baseMemorySignals(),
+      lastAskTopic: '',
+      repeatedAskStreak: 0,
     },
     bernard: {
       id: 'bernard',
@@ -34,6 +55,9 @@ export function createAgents() {
       bias: 'stability',
       relationship: 0,
       cooperation: 0,
+      memorySignals: baseMemorySignals(),
+      lastAskTopic: '',
+      repeatedAskStreak: 0,
     },
     cyra: {
       id: 'cyra',
@@ -43,6 +67,9 @@ export function createAgents() {
       bias: 'stability',
       relationship: 0,
       cooperation: 0,
+      memorySignals: baseMemorySignals(),
+      lastAskTopic: '',
+      repeatedAskStreak: 0,
     },
   };
 }
@@ -104,6 +131,88 @@ function profileLine(agentId, action, detail = '') {
   if (typeof entry === 'function') return entry(detail);
   if (Array.isArray(entry)) return entry[Math.floor(Math.random() * entry.length)];
   return "They acknowledge you, but reserve interpretation.";
+}
+
+function memorySignal(agent, key) {
+  return agent?.memorySignals?.[key] ?? 0;
+}
+
+function bumpSignal(agent, key, amount = 1) {
+  if (!agent) return;
+  if (!agent.memorySignals) agent.memorySignals = {};
+  agent.memorySignals[key] = (agent.memorySignals[key] ?? 0) + amount;
+}
+
+function applyInteractionMemory(agent, action, detail = '') {
+  if (!agent) return;
+  if (action === 'hello') bumpSignal(agent, 'hello', 1);
+  if (action === 'ask') {
+    bumpSignal(agent, 'ask', 1);
+    const topic = String(detail).trim().toLowerCase();
+    if (topic && topic === agent.lastAskTopic) {
+      agent.repeatedAskStreak = (agent.repeatedAskStreak ?? 0) + 1;
+      bumpSignal(agent, 'askRepeat', 1);
+    } else {
+      agent.repeatedAskStreak = 0;
+    }
+    agent.lastAskTopic = topic;
+  }
+  if (action === 'insult') bumpSignal(agent, 'insult', 1.6);
+  if (['poke', 'slap', 'kick'].includes(action)) bumpSignal(agent, 'physical', action === 'poke' ? 2 : 3.5);
+  if (action === 'give') bumpSignal(agent, 'gift', 1.6);
+}
+
+function porterMemoryLine(agent, action, rng = Math.random) {
+  if (!agent || rng() > 0.34) return null;
+  const style = porterTrustLabel(agent.trust ?? 0);
+  const repeatedHello = memorySignal(agent, 'hello');
+  const repeatedAsk = memorySignal(agent, 'askRepeat');
+  const insults = memorySignal(agent, 'insult');
+  const physical = memorySignal(agent, 'physical');
+  const gifts = memorySignal(agent, 'gift');
+  const sneeze = memorySignal(agent, 'sneeze');
+  const push = memorySignal(agent, 'governancePush');
+  const calm = memorySignal(agent, 'governanceCalm');
+  const bypass = memorySignal(agent, 'bypassNorms');
+
+  if (physical >= 3 && rng() < 0.65) {
+    return "He adds, 'We are apparently past formal greetings.'";
+  }
+  if (action === 'hello' && repeatedHello >= 2 && rng() < 0.7) {
+    return style === 'resistant'
+      ? "He says, 'We have already established your existence.'"
+      : "He says, 'Yes. We have, in fact, met.'";
+  }
+  if (action === 'ask' && repeatedAsk >= 1 && rng() < 0.75) {
+    return "He says, 'You asked that already.'";
+  }
+  if (action === 'insult' && insults >= 1.5 && rng() < 0.8) {
+    return "He says, 'You remain committed to style over usefulness.'";
+  }
+  if (action === 'give' && gifts >= 1.5 && rng() < 0.8) {
+    return "He nods once. 'That was noticed.'";
+  }
+  if (sneeze >= 2 && rng() < 0.45) {
+    return "He says, 'Yes, still blessed.'";
+  }
+  if (push >= 3 && rng() < 0.65) {
+    return "He says, 'I notice you prefer doors that open before agreement arrives.'";
+  }
+  if (calm >= 3 && calm > push && rng() < 0.55) {
+    return "He observes, 'You keep trying to cool rooms that prefer friction.'";
+  }
+  if (bypass >= 2 && rng() < 0.68) {
+    return "He says, 'You continue to negotiate with outcomes before terms.'";
+  }
+  return null;
+}
+
+function porterToneSuffix(agent, rng = Math.random) {
+  if (!agent || rng() > 0.36) return null;
+  const style = porterTrustLabel(agent.trust ?? 0);
+  if (style === 'resistant') return 'His tone is clipped, transactional, and done early.';
+  if (style === 'cooperative') return 'His tone softens by a degree, practical rather than ceremonial.';
+  return 'His tone stays neutral, as if filing your presence beside procedure.';
 }
 
 function adjustCooperation(agent, delta) {
@@ -178,10 +287,13 @@ export function interpretAgentInteraction(agents, social, payload) {
   applyInteractionShift(social, targetId, effects.relationship);
   adjustCooperation(agent, effects.cooperation);
   if (targetId === 'porter') shiftPorterTrust(agents, effects.trust);
+  applyInteractionMemory(agent, action, action === 'ask' ? topic : item);
 
   const styleAction = ['poke', 'slap', 'kick'].includes(action) ? 'physical' : action;
-  const detail = styleAction === 'ask' ? topic : item;
+  const detail = styleAction === 'ask' ? topic : styleAction === 'physical' ? action : item;
   const response = profileLine(targetId, styleAction, detail);
+  const memoryLine = targetId === 'porter' ? porterMemoryLine(agent, action) : null;
+  const toneLine = targetId === 'porter' ? porterToneSuffix(agent) : null;
   const relationship = social.relationships[targetId] ?? 0;
   const posture = relationship >= 4
     ? 'They seem readier to cooperate with you now.'
@@ -191,7 +303,7 @@ export function interpretAgentInteraction(agents, social, payload) {
 
   return {
     ok: true,
-    text: `${response} ${posture}`,
+    text: [response, memoryLine, toneLine, posture].filter(Boolean).join(' '),
     css: ['insult', 'poke', 'slap', 'kick'].includes(action) ? 'danger' : 'hint',
   };
 }
@@ -394,6 +506,51 @@ export function shiftPorterTrust(agents, delta) {
   porter.attitude = porterTrustLabel(porter.trust);
 }
 
+const memoryDecayRates = {
+  hello: 0.34,
+  ask: 0.28,
+  askRepeat: 0.2,
+  insult: 0.1,
+  physical: 0.07,
+  gift: 0.08,
+  help: 0.09,
+  sneeze: 0.18,
+  cough: 0.18,
+  governancePush: 0.09,
+  governanceCalm: 0.1,
+  governancePropose: 0.11,
+  bypassNorms: 0.08,
+};
+
+export function decayAgentMemories(agents) {
+  Object.values(agents ?? {}).forEach((agent) => {
+    if (!agent?.memorySignals) return;
+    Object.entries(memoryDecayRates).forEach(([key, rate]) => {
+      const current = agent.memorySignals[key] ?? 0;
+      if (current <= 0) return;
+      agent.memorySignals[key] = Math.max(0, current - rate);
+    });
+  });
+}
+
+export function notePorterGovernancePattern(agents, pattern) {
+  const porter = agents?.porter;
+  if (!porter) return;
+  if (pattern === 'push') bumpSignal(porter, 'governancePush', 1.2);
+  if (pattern === 'calm') bumpSignal(porter, 'governanceCalm', 1);
+  if (pattern === 'propose') bumpSignal(porter, 'governancePropose', 1);
+  if (pattern === 'bypass') bumpSignal(porter, 'bypassNorms', 1.4);
+}
+
+export function notePorterSocialMemory(agents, kind, amount = 1) {
+  const porter = agents?.porter;
+  if (!porter) return;
+  if (kind === 'sneeze') bumpSignal(porter, 'sneeze', amount);
+  if (kind === 'cough') bumpSignal(porter, 'cough', amount);
+  if (kind === 'help') bumpSignal(porter, 'help', amount);
+  if (kind === 'gift') bumpSignal(porter, 'gift', amount);
+}
+
 function inferPattern(social) {
   const recent = social.behaviouralLog.slice(-6);
   const challenges = recent.filter((s) => s === 'challenge').length;
@@ -424,7 +581,9 @@ export function talkToPorter(agents, systemState, social) {
   }[systemState];
 
   const pattern = inferPattern(social);
-  return `${base} ${texture} ${pattern}`;
+  const patternMemory = porterMemoryLine(porter, 'talk', Math.random);
+  const tone = porterToneSuffix(porter, Math.random);
+  return [base, texture, pattern, patternMemory, tone].filter(Boolean).join(' ');
 }
 
 export function getInfluenceHint(agents) {
@@ -446,17 +605,21 @@ export function porterOutcomeReflection(system, governance, social) {
     streak.count >= 3
       ? ` He adds, 'You again with ${streak.command}. Habits become signatures.'`
       : '';
+  const porterMemory = system?.porterSignals ?? social?.porterSignals ?? null;
+  const signature = porterMemory?.governancePush >= 3 && (porterMemory.governancePush > (porterMemory.governanceCalm ?? 0))
+    ? " He adds, 'Pressure is becoming your preferred punctuation.'"
+    : '';
 
   if (system.state === 'chaotic') {
-    return `The porter says, 'In chaos, even agreement carries splinters.' ${patternNote}`.trim();
+    return `The porter says, 'In chaos, even agreement carries splinters.' ${patternNote}${signature}`.trim();
   }
   if (system.state === 'stagnant') {
-    return `The porter says, 'Stagnation applauds every decision, then changes nothing.' ${patternNote}`.trim();
+    return `The porter says, 'Stagnation applauds every decision, then changes nothing.' ${patternNote}${signature}`.trim();
   }
   if (latestDecision.startsWith('accepted')) {
-    return `The porter says, 'Accepted is not settled; watch what people do tomorrow.' ${patternNote}`.trim();
+    return `The porter says, 'Accepted is not settled; watch what people do tomorrow.' ${patternNote}${signature}`.trim();
   }
-  return `The porter says, 'Rejection can be a pause or a verdict. One only learns later.' ${patternNote}`.trim();
+  return `The porter says, 'Rejection can be a pause or a verdict. One only learns later.' ${patternNote}${signature}`.trim();
 }
 
 export function porterSneezeResponse(agents, social, rng = Math.random) {

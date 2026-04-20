@@ -297,12 +297,173 @@ export function weatherPhaseLabel(weather) {
   return phaseById(weather?.phaseId).label;
 }
 
+const institutionalWeatherBriefs = {
+  rainApproaching: {
+    pressure: [
+      'The day is holding its breath.',
+      'Rain is near, but still negotiating terms.',
+    ],
+    dayState: [
+      'Windows brighten and then reconsider.',
+      'The building listens for rain before admitting it expects any.',
+    ],
+    seasonal: [
+      'A shoulder-season patience settles into the corridors.',
+      'The season feels undecided, and so does everyone else.',
+    ],
+    social: [
+      'People keep remarks shorter, as if saving dry margins.',
+      'Even confident voices leave themselves an exit clause.',
+    ],
+  },
+  steadyRain: {
+    pressure: [
+      'Rain settles in and keeps to its work.',
+      'The weather becomes procedural: continuous, unpersuaded, exact.',
+    ],
+    dayState: [
+      'Stone, steps, and coats all keep separate rain memories.',
+      'The room sounds padded, as if each sentence arrives through cloth.',
+    ],
+    seasonal: [
+      'The season feels fully present and mildly supervisory.',
+      'Cold edges soften, but resolve does not.',
+    ],
+    social: [
+      'People speak more quietly, though not more kindly.',
+      'Minor disagreements are postponed rather than withdrawn.',
+    ],
+  },
+  brightColdMorning: {
+    pressure: [
+      'Clear light sharpens every edge.',
+      'Cold brightness keeps everyone briefly honest about distance.',
+    ],
+    dayState: [
+      'Corridor margins stay cold even after the doors begin moving.',
+      'The morning arrives precise enough to make hesitation visible.',
+    ],
+    seasonal: [
+      'Seasonal signals read as alertness rather than comfort.',
+      'The air has that early-term crispness that rewards brisk voices.',
+    ],
+    social: [
+      'People sound more certain than they are.',
+      'Greeting rituals are quick, almost efficient.',
+    ],
+  },
+  staleWarmAfternoon: {
+    pressure: [
+      'Warmth thickens into the sort of afternoon that slows declarations.',
+      'The day presses down without raising its voice.',
+    ],
+    dayState: [
+      'The windows brighten, but do not freshen the room.',
+      'Paper edges curl into a slower tempo.',
+    ],
+    seasonal: [
+      'Late-season heaviness lingers in cloth, wood, and patience.',
+      'The season behaves like a long committee meeting after lunch.',
+    ],
+    social: [
+      'People restart sentences they might have finished this morning.',
+      'Even urgency arrives with a yawn behind it.',
+    ],
+  },
+  windyUnsettledDay: {
+    pressure: [
+      'The day keeps changing its emphasis.',
+      'Wind pressure moves faster than institutional certainty.',
+    ],
+    dayState: [
+      'Drafts keep editing the room before anyone can finalise tone.',
+      'Doorframes report the weather in clipped interruptions.',
+    ],
+    seasonal: [
+      'Seasonal change feels active, not negotiated.',
+      'It has the edge of an in-between month refusing to settle.',
+    ],
+    social: [
+      'People stop mid-claim, then resume with narrower wording.',
+      'The room checks hinges as often as faces.',
+    ],
+  },
+  stillHeavyWeather: {
+    pressure: [
+      'Air pressure leans in and waits.',
+      'The day carries weight without offering explanation.',
+    ],
+    dayState: [
+      'Silence deepens at the thresholds first.',
+      'Even light seems to arrive carefully, as if not to disturb a verdict.',
+    ],
+    seasonal: [
+      'Seasonal signals feel suspended between two decisions.',
+      'It reads like pre-storm season, even when no storm is announced.',
+    ],
+    social: [
+      'People keep jokes dry and close to the table.',
+      'Agreement sounds easier than disagreement, but less sincere.',
+    ],
+  },
+  clearAfterRain: {
+    pressure: [
+      'Pressure lifts, but does not leave entirely.',
+      'The day exhales in measured installments.',
+    ],
+    dayState: [
+      'Clean light arrives over glass still marked by rain.',
+      'Floors retain a damp memory while voices recover speed.',
+    ],
+    seasonal: [
+      'The season turns practical: cleaner air, unchanged tasks.',
+      'Post-rain clarity reads as temporary reprieve, not reset.',
+    ],
+    social: [
+      'People sound a little more generous and pretend not to notice.',
+      'Minor courtesies return before major trust does.',
+    ],
+  },
+  dryAdministrativeSunlight: {
+    pressure: [
+      'Dry administrative sunlight takes over.',
+      'The day is clear, exact, and faintly prosecutorial.',
+    ],
+    dayState: [
+      'Rectangular light files itself across desks and benches.',
+      'Clear brightness sharpens outlines without softening outcomes.',
+    ],
+    seasonal: [
+      'Seasonal tone is late-term austerity: bright, dry, unromantic.',
+      'It feels like the part of the season that audits promises.',
+    ],
+    social: [
+      'People phrase certainty as policy and doubt as procedure.',
+      'Voices are crisp; empathy remains a discretionary expense.',
+    ],
+  },
+};
+
+export function describeInstitutionalWeather(weather, rng = Math.random) {
+  const phase = phaseById(weather?.phaseId);
+  const brief = institutionalWeatherBriefs[phase.id] ?? institutionalWeatherBriefs.rainApproaching;
+  const lines = [
+    pick(brief.pressure, rng),
+    `Day-state: ${pick(brief.dayState, rng)}`,
+    `Seasonal tone: ${pick(brief.seasonal, rng)}`,
+  ];
+  if (rng() < 0.72) {
+    lines.push(`Social weather: ${pick(brief.social, rng)}`);
+  }
+  return lines.join('\n');
+}
+
 export function weatherShiftLine(weather) {
   if (!weather?.changedThisTurn) return null;
   const phase = phaseById(weather.phaseId);
   const shifts = {
     rainApproaching: 'The day leans toward rain without committing out loud.',
-    steadyRain: 'Rain finally settles in and keeps to its work.',
+    steadyRain: 'Rain settles in and keeps to its work.',
     brightColdMorning: 'The light turns clear and cold enough to sharpen every edge.',
     staleWarmAfternoon: 'Warmth thickens into the sort of afternoon that slows declarations.',
     windyUnsettledDay: 'A restless wind starts editing the open spaces sentence by sentence.',

@@ -627,13 +627,14 @@ export function describeRoom(world, roomId, systemState, context = {}) {
   const ambientScope = profile.spatialTone.includes('exterior') ? 'exterior' : 'interior';
   const ambientSignal = rotateVariant(world.ambientEffects?.[ambientScope]?.[systemState], visitCount, 2);
   const weatherSignal = weatherRoomLine(context.weather, profile, roomId, visitCount);
-  const atmosphereLine = [localTexture, weatherSignal, environmentalMetaphor].filter(Boolean)[0];
+  const atmosphereLine = [localTexture, environmentalMetaphor].filter(Boolean)[0];
   const systemPulse = [ambientSignal, world.roomFlavour[systemState], tensionEcho, decisionEcho].filter(Boolean)[0];
   const exitGlimpses = buildExitGlimpses(world, room, systemState, context);
   return [
     room.name,
     `Place: ${room.description}`,
-    atmosphereLine ? `Atmosphere: ${atmosphereLine}` : '',
+    atmosphereLine ? `Local atmosphere: ${atmosphereLine}` : '',
+    weatherSignal ? `Weather: ${weatherSignal}` : '',
     systemPulse ? `System pulse: ${systemPulse}` : '',
     'Exits:',
     ...exitGlimpses,

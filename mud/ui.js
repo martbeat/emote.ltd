@@ -77,6 +77,7 @@ import {
   weatherPhaseLabel,
   weatherShiftLine,
   maybeWeatherGovernanceMoment,
+  describeInstitutionalWeather,
 } from './weather.js';
 import {
   createPlayerIdentity,
@@ -1576,7 +1577,7 @@ function showStatus() {
   const eastGate = eastGateState();
   line(`System: tension ${state.system.tension}, state ${state.system.state}.`, 'system');
   line(`Record: ${state.player.identity.name}.`, 'hint');
-  line(`Atmosphere: ${weatherPhaseLabel(state.weather)}.`, 'hint');
+  line(`Weather: ${weatherPhaseLabel(state.weather)}.`, 'hint');
   describeNorms(state.governance.norms).forEach((normLine) => line(`Norm: ${normLine}`, 'hint'));
   line(interpretiveMessage(state.system), 'hint');
   line(derivePhaseSummary(state.system, state.governance.committeeMemory), 'hint');
@@ -1598,8 +1599,13 @@ function showStatus() {
   }
 }
 
+function showWeather() {
+  line('Institutional weather:', 'system');
+  line(describeInstitutionalWeather(state.weather), 'hint');
+}
+
 function maybeNormChangeHint(lastVerb, turnPresence = null) {
-  if (['suggest', 'propose', 'decide', 'vote', 'status', 'help'].includes(lastVerb)) return;
+  if (['suggest', 'propose', 'decide', 'vote', 'status', 'weather', 'help'].includes(lastVerb)) return;
   if (Math.random() >= 0.11) return;
 
   const roomId = state.player.currentRoom;
@@ -2039,6 +2045,8 @@ function processCommand(input) {
     maybeLinePorter(porterOutcomeReflection(porterContextSystem(), state.governance, state.social), 0.25);
   } else if (verb === 'status') {
     showStatus();
+  } else if (verb === 'weather') {
+    showWeather();
   } else if (verb === 'score' || verb === 'sc') {
     showScore();
   } else if (verb === 'history') {
@@ -2095,7 +2103,7 @@ function processCommand(input) {
     line('Archive investigation: search archive, inspect folders, read minutes, check latch, open cabinet, move box, examine shelves, review files, look behind ledgers.', 'hint');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
-    line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, status, score/sc, history, save, load, restart.');
+    line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, weather, status, score/sc, history, save, load, restart.');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {
     line('The command is not understood. Try "help".', 'warn');

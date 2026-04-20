@@ -317,6 +317,17 @@ export function createWorld() {
           },
         },
       },
+      'minute of deferred actions': {
+        label: 'minute of deferred actions',
+        aliases: ['missing minute', 'minute', 'minutes', 'item 7 minute', 'deferred minute'],
+        readable: true,
+        inspectText:
+          'A routine minute sheet clipped to a deferred-actions cover page. The paper is intact and recently refiled.',
+        readText:
+          'Item 7 is recorded in full, but filed beneath Deferred Actions and porter transfer notes. The wording confirms east-door clearance was delayed procedurally, not denied substantively.',
+        useText:
+          'You square the page against the light. It is mundane, complete, and politically inconvenient in exactly the institutional way.',
+      },
     },
     itemDescriptions: {
       'ledger fragment':
@@ -325,6 +336,8 @@ export function createWorld() {
         'A heavy key with a stamped crest: Committee Access.',
       'committee seal':
         'A wax stamp used to ratify decisions. Warm from recent use.',
+      'minute of deferred actions':
+        'A minute sheet misfiled under deferred actions rather than the active agenda sequence.',
     },
   };
 }

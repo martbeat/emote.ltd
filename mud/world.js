@@ -1,6 +1,5 @@
 import {
   weatherRoomLine,
-  weatherDirectionalModifier,
 } from './weather.js';
 
 const roomProfiles = {
@@ -539,132 +538,70 @@ function rotateVariant(list, visitCount, phase = 0) {
   return list[(safeVisit + phase - 1) % list.length];
 }
 
-function pick(list, rng = Math.random) {
-  if (!Array.isArray(list) || list.length === 0) return '';
-  return list[Math.floor(rng() * list.length)];
-}
-
-function pickFresh(list, recent = [], rng = Math.random, window = 6) {
-  const blocked = recent.slice(-window);
-  const options = list.filter((line) => !blocked.includes(line));
-  return pick(options.length ? options : list, rng);
-}
-
-const directionalImpressions = {
-  balanced: {
-    open: [
-      'open stone and measured movement',
-      'air that carries readable activity',
-      'space that feels navigable, not exposed',
-    ],
-    enclosed: [
-      'contained work in a steady rhythm',
-      'low voices that hold shape through the walls',
-      'a settled room with clear edges',
-    ],
-    transitional: [
-      'a corridor pulse, calm but active',
-      'footsteps arriving in orderly intervals',
-      'movement that feels deliberate, not urgent',
-    ],
-  },
-  chaotic: {
-    open: [
-      'cross-currents of motion and clipped voices',
-      'overlapping signals scattered by wind',
-      'too many threads moving at once',
-    ],
-    enclosed: [
-      'stacked voices with no clean source',
-      'a room where interruptions outrun conclusions',
-      'fragmented sound pressing through the seams',
-    ],
-    transitional: [
-      'uneven traffic and unfinished remarks',
-      'quick motion that never resolves into flow',
-      'bursts of noise, then sharp drop-offs',
-    ],
-  },
-  stagnant: {
-    open: [
-      'still air stretched across the space',
-      'quiet ground with almost no drift',
-      'an open pause that does not break',
-    ],
-    enclosed: [
-      'muffled silence and static fixtures',
-      'a held room with little sign of use',
-      'slow, sealed quiet',
-    ],
-    transitional: [
-      'a passage settled into near-silence',
-      'long gaps between any sign of motion',
-      'a threshold that feels paused',
-    ],
-  },
-};
-
-const directionalGhostTemplates = [
-  'a file recently shifted with fresh initials and no body nearby',
-  'movement that vanishes before you can fix its source',
-  'someone crossing an adjacent threshold, then gone',
-  'a chair angled toward a conversation that has already moved elsewhere',
-  'a brief shift of presence with no one left in frame',
-];
-
-const systemBleedTemplates = {
-  balanced: [
-    'a distant voice resolves, then fades cleanly',
-    'committee murmur arrives as soft background weather',
-    'unresolved work hums at the edge of hearing',
+const directionalInstitutionalSignals = {
+  foyer: [
+    'a threshold where drafts decide who sounds prepared',
+    'noticeboards that remember old priorities better than current ones',
   ],
-  chaotic: [
-    'voices overlap and split before meaning lands',
-    'a clipped argument bleeds through, then cuts out',
-    'remote activity collides into static fragments',
+  hall: [
+    'a chamber where interruption is always public record',
+    'sightlines that turn hesitation into visible procedure',
   ],
-  stagnant: [
-    'stillness holds longer than expected',
-    'far-off halls answer with almost nothing',
-    'unresolved silence lingers in the structure',
+  lockedRoom: [
+    'a room where silence is often mistaken for agreement',
+    'minutes under lantern light, waiting to become precedent',
+  ],
+  westPassage: [
+    'a passage for side-route conversations that avoid the table',
+    'brick length built for detours before formal positions harden',
+  ],
+  quadrangle: [
+    'open stone where choices are legible before they are explained',
+    'crossing ground that exposes direction more than motive',
+  ],
+  courtyard: [
+    'an open square where routine absorbs whatever the chambers refuse',
+    'weather and paving teaching scale to institutional urgency',
+  ],
+  eastCorridor: [
+    'closed office doors and inward nameplates guarding procedural memory',
+    'the administrative spine where access is granted in stages',
+  ],
+  stairwell: [
+    'vertical movement where every step commits you to another layer',
+    'landings that frame transition more than destination',
+  ],
+  upperLanding: [
+    'a vantage where governance looks like one district, not the whole map',
+    'balustrade space for deciding whether to re-enter or reroute',
+  ],
+  archive: [
+    'records that remember more than people admit',
+    'shelved minutes carrying the weight of deferred decisions',
+  ],
+  perimeterPath: [
+    'the outer edge where institutional pressure arrives by delay',
+    'gravel distance that lets consequence appear before argument',
+  ],
+  gallery: [
+    'benches for witness roles: near enough to observe, far enough to abstain',
+    'a public margin where scrutiny outlasts applause',
+  ],
+  garden: [
+    'openness with enough distance to imagine release',
+    'a gate-facing calm where the institution briefly loses jurisdiction',
   ],
 };
-
-const directionalModifierJoiners = [
-  'carrying',
-  'with',
-  'under',
-  'against',
-];
-
-function inferDirectionalTexture(world, targetRoomId) {
-  const profile = world.roomProfiles?.[targetRoomId];
-  const tone = profile?.spatialTone ?? '';
-  if (tone.includes('open')) return 'open';
-  if (tone.includes('transitional') || tone.includes('threshold')) return 'transitional';
-  return 'enclosed';
-}
-
-function composeDirectionalGlimpse(base, modifier, rng = Math.random) {
-  if (!base) return '';
-  if (!modifier) return base;
-  const joiner = pick(directionalModifierJoiners, rng) || 'with';
-  return `${base}, ${joiner} ${modifier}`;
-}
 
 function buildExitGlimpses(world, room, systemState, context = {}) {
-  const rng = context.rng ?? Math.random;
-  const recent = context.recentNarrativeLines ?? [];
+  const visitCount = Math.max(1, context.visitCount ?? 1);
   const directions = Object.entries(room.exits);
-  const weatherModifier = weatherDirectionalModifier(context.weather);
-  return directions.map(([direction, targetRoomId]) => {
-    const texture = inferDirectionalTexture(world, targetRoomId);
-    const impression = pickFresh(directionalImpressions[systemState]?.[texture] ?? [], recent, rng, 8) || '';
-    const maybeGhost = rng() < 0.16 ? pickFresh(directionalGhostTemplates, recent, rng, 8) : '';
-    const maybeBleed = rng() < 0.28 ? pickFresh(systemBleedTemplates[systemState] ?? [], recent, rng, 8) : '';
-    const modifier = pick([maybeGhost, maybeBleed, weatherModifier].filter(Boolean), rng);
-    const glimpse = composeDirectionalGlimpse(impression, modifier, rng);
-    return `- ${direction}: ${glimpse}.`;
+  return directions.map(([direction, targetRoomId], index) => {
+    const signalPool = directionalInstitutionalSignals[targetRoomId] ?? [
+      'a corridor of unclear authority and implied decisions',
+    ];
+    const signal = signalPool[(visitCount + index - 1) % signalPool.length];
+    return `- ${direction}: ${signal}.`;
   });
 }
 
@@ -690,23 +627,14 @@ export function describeRoom(world, roomId, systemState, context = {}) {
   const ambientScope = profile.spatialTone.includes('exterior') ? 'exterior' : 'interior';
   const ambientSignal = rotateVariant(world.ambientEffects?.[ambientScope]?.[systemState], visitCount, 2);
   const weatherSignal = weatherRoomLine(context.weather, profile, roomId, visitCount);
-  const sensory = {
-    balanced: 'Somewhere nearby, a pen scratches steadily across paper.',
-    chaotic: 'You hear overlapping voices, then a sudden shared silence.',
-    stagnant: 'Even footsteps seem to wait before committing to the floor.',
-  }[systemState];
+  const atmosphereLine = [localTexture, weatherSignal, environmentalMetaphor].filter(Boolean)[0];
+  const systemPulse = [ambientSignal, world.roomFlavour[systemState], tensionEcho, decisionEcho].filter(Boolean)[0];
   const exitGlimpses = buildExitGlimpses(world, room, systemState, context);
   return [
     room.name,
-    room.description,
-    localTexture,
-    environmentalMetaphor,
-    ambientSignal,
-    weatherSignal,
-    world.roomFlavour[systemState],
-    tensionEcho,
-    decisionEcho,
-    sensory,
+    `Place: ${room.description}`,
+    atmosphereLine ? `Atmosphere: ${atmosphereLine}` : '',
+    systemPulse ? `System pulse: ${systemPulse}` : '',
     'Exits:',
     ...exitGlimpses,
   ]

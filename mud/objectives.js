@@ -1,14 +1,14 @@
 const concernFlow = [
   {
     id: 'missing-minute',
-    title: 'Recover the missing minute',
+    title: 'Investigate the missing minute contradiction',
     unresolved: 'The missing minute matters more than the missing key.',
-    resolvedBy: 'A missing minute has been recovered into live memory.',
+    resolvedBy: 'The institutional contradiction around the missing minute has been understood.',
     porterHints: [
       "The porter says, 'The missing minute matters more than the missing key.'",
-      "The porter taps his ledger. 'Minutes go missing when someone needs the room to forget timing.'",
-      "The porter says, 'Minutes disappear by being recorded too correctly.'",
-      "The porter says, 'It was never missing. Only filed where nobody wanted to look.'",
+      "The porter taps his ledger. 'Minutes go missing when someone needs form without ownership.'",
+      "The porter says, 'Procedure can preserve ambiguity as carefully as it preserves truth.'",
+      "The porter says, 'It was never missing. It was never allowed to become formal.'",
     ],
     ambientHints: [
       "A marginal note reads: 'Ask why Item 7 vanished.'",
@@ -99,7 +99,7 @@ export function createObjectiveState() {
     flags: {
       minuteRead: false,
       minutePorterDiscussed: false,
-      minuteRecovered: false,
+      minuteContradictionUnderstood: false,
       eastVisited: false,
       contradictionVoteSeen: false,
       mColeAsked: false,
@@ -172,7 +172,7 @@ export function noteObjectiveEvent(objectives, event, context = {}) {
 
   if (event === 'read-item' && context.item === 'ledger fragment') flags.minuteRead = true;
   if (event === 'talk-porter' && flags.minuteRead) flags.minutePorterDiscussed = true;
-  if (event === 'minute-recovered') flags.minuteRecovered = true;
+  if (event === 'minute-contradiction-understood') flags.minuteContradictionUnderstood = true;
   if (event === 'entered-east-chamber') flags.eastVisited = true;
   if (event === 'vote-resolved-ledger') flags.contradictionVoteSeen = true;
   if (event === 'asked-m-cole') flags.mColeAsked = true;
@@ -183,8 +183,8 @@ export function noteObjectiveEvent(objectives, event, context = {}) {
   if (event === 'movement-restored') flags.movementRestored = true;
 
   const concernId = concernFlow[safe.currentIndex].id;
-  if (concernId === 'missing-minute' && flags.minuteRecovered) {
-    return markResolved(safe, 'The missing minute was physically recovered from procedural misfiling.');
+  if (concernId === 'missing-minute' && flags.minuteContradictionUnderstood) {
+    return markResolved(safe, 'The minute was never missing; formalisation was intentionally withheld.');
   }
   if (concernId === 'east-chamber' && flags.eastVisited) {
     return markResolved(safe, 'Entry to the east chamber was achieved through standing and mechanism.');

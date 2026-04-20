@@ -123,13 +123,21 @@ function createGameState() {
       lastReferencedItem: null,
       attemptedForceDoor: false,
       archiveInvestigation: {
-        latchChecked: false,
-        cabinetOpened: false,
-        boxMoved: false,
-        shelvesExamined: false,
-        ledgersChecked: false,
-        clueCount: 0,
-        minuteDiscovered: false,
+        actions: {
+          searchedArchive: false,
+          inspectedMinutes: false,
+          reviewedLedger: false,
+          comparedRecords: false,
+          tracedInitials: false,
+          followedItem7: false,
+        },
+        fragments: {
+          proceduralTruth: false,
+          practicalTruth: false,
+          formalContradiction: false,
+          socialTruth: false,
+        },
+        contradictionUnderstood: false,
       },
       visitCounts: {},
       recentDeparturesByRoom: {},
@@ -198,13 +206,19 @@ function applyObjectiveEvent(event, context = {}) {
 function ensureArchiveInvestigationState() {
   state.player.archiveInvestigation ??= {};
   const archive = state.player.archiveInvestigation;
-  archive.latchChecked ??= false;
-  archive.cabinetOpened ??= false;
-  archive.boxMoved ??= false;
-  archive.shelvesExamined ??= false;
-  archive.ledgersChecked ??= false;
-  archive.clueCount ??= 0;
-  archive.minuteDiscovered ??= false;
+  archive.actions ??= {};
+  archive.fragments ??= {};
+  archive.actions.searchedArchive ??= false;
+  archive.actions.inspectedMinutes ??= false;
+  archive.actions.reviewedLedger ??= false;
+  archive.actions.comparedRecords ??= false;
+  archive.actions.tracedInitials ??= false;
+  archive.actions.followedItem7 ??= false;
+  archive.fragments.proceduralTruth ??= false;
+  archive.fragments.practicalTruth ??= false;
+  archive.fragments.formalContradiction ??= false;
+  archive.fragments.socialTruth ??= false;
+  archive.contradictionUnderstood ??= false;
   return archive;
 }
 
@@ -1425,10 +1439,16 @@ function interactNpc(parsed, turnPresence = null) {
   if (targetId === 'porter') {
     const topic = (parsed.topic ?? '').toLowerCase();
     if (parsed.action === 'ask' && /\b(missing minute|item 7|item7|ledger)\b/.test(topic)) {
-      line('Porter: "Minutes disappear by being recorded too correctly."', 'hint');
-      line('Porter: "It was never missing. Only filed where nobody wanted to look."', 'hint');
-      applyStandingDelta('porter', 1, 'record');
-      applyStandingDelta('bernard', 1, 'record');
+      const archive = ensureArchiveInvestigationState();
+      line('Porter: "Procedure can keep truth visible while keeping responsibility unofficial."', 'hint');
+      if ((state.agents.porter.trust ?? 0) >= 1 || (state.social.standing?.porter ?? 0) >= 2) {
+        archive.fragments.proceduralTruth = true;
+        line('Porter: "Item 7 moved by transfer protocol, not by theft. We logged movement and withheld formalisation."', 'hint');
+        applyStandingDelta('porter', 1, 'record');
+        applyStandingDelta('bernard', 1, 'record');
+      } else {
+        line('Porter watches you. "Earn procedural trust first; then we can discuss what was intentionally unminuted."', 'hint');
+      }
     }
     if (parsed.action === 'ask' && /\b(weather|rain|storm|sun|sunlight|wind|cold|warmth|forecast)\b/.test(topic)) {
       const weatherReplies = [
@@ -1449,73 +1469,93 @@ function interactNpc(parsed, turnPresence = null) {
   } else if (parsed.action === 'ask' && targetId === 'bernard') {
     const topic = (parsed.topic ?? '').toLowerCase();
     if (/\b(missing minute|item 7|item7|minute)\b/.test(topic)) {
-      line('Bernard says, "It was never missing. Only filed where nobody wanted to look."', 'hint');
-      line('Bernard says, "Try deferred actions, not contested actions. People hide decisions in sequence."', 'hint');
-      applyStandingDelta('bernard', 1, 'process');
+      const archive = ensureArchiveInvestigationState();
+      line('Bernard says, "Formally speaking, there is no missing page."', 'hint');
+      if ((state.social.standing?.bernard ?? 0) >= 2) {
+        archive.fragments.formalContradiction = true;
+        line('Bernard says, "The contradiction is structural: vote passage appears in tallies while the minute remains provisional."', 'hint');
+        line('Bernard adds, "A private alignment occurred, then procedure declined to ratify authorship."', 'hint');
+        applyStandingDelta('bernard', 1, 'process');
+      } else {
+        line('Bernard folds his notes. "If you want formal contradiction, bring comparative records first."', 'hint');
+      }
+    }
+  } else if (parsed.action === 'ask' && targetId === 'ada') {
+    const topic = (parsed.topic ?? '').toLowerCase();
+    if (/\b(missing minute|item 7|item7|minute)\b/.test(topic)) {
+      const archive = ensureArchiveInvestigationState();
+      line('Ada says, "Nobody hid a paper. People skipped formal closure because closure would name a winner."', 'hint');
+      if ((state.social.standing?.ada ?? 0) >= 1) {
+        archive.fragments.practicalTruth = true;
+        line('Ada adds, "Operationally we acted as if Item 7 passed. Formally we left it floating."', 'hint');
+        applyStandingDelta('ada', 1, 'record');
+      } else {
+        line('Ada shrugs. "Watch who behaves as if the decision already happened."', 'hint');
+      }
     }
   } else if (parsed.action === 'ask' && targetId === 'cyra') {
     const topic = (parsed.topic ?? '').toLowerCase();
     if (/\b(missing minute|item 7|item7|minute)\b/.test(topic)) {
-      line('Cyra says, "People hide decisions in sequence, not in secrecy."', 'hint');
-      line('Cyra adds, "Check what was carried over, not what was redacted."', 'hint');
-      applyStandingDelta('cyra', 1, 'mediation');
+      const archive = ensureArchiveInvestigationState();
+      line('Cyra says, "The room chose ambiguity. That kept coalition peace while scattering blame."', 'hint');
+      if ((state.social.standing?.cyra ?? 0) >= 2) {
+        archive.fragments.socialTruth = true;
+        line('Cyra adds, "Everyone can claim continuity because no formal line forces ownership."', 'hint');
+        applyStandingDelta('cyra', 1, 'mediation');
+      } else {
+        line('Cyra smiles thinly. "Ask again when people stop performing certainty for you."', 'hint');
+      }
     }
   }
+  if (archiveDiscoveryReady(ensureArchiveInvestigationState())) discoverMissingMinuteContradiction();
 }
 
 function archiveDiscoveryReady(archiveState) {
-  const steps = [
-    archiveState.latchChecked,
-    archiveState.cabinetOpened,
-    archiveState.boxMoved,
-    archiveState.shelvesExamined,
-    archiveState.ledgersChecked,
-  ].filter(Boolean).length;
-  return steps >= 3 || archiveState.clueCount >= 4;
+  const actionCount = Object.values(archiveState.actions ?? {}).filter(Boolean).length;
+  const fragmentCount = Object.values(archiveState.fragments ?? {}).filter(Boolean).length;
+  return actionCount >= 4 && fragmentCount >= 2;
 }
 
-function discoverMissingMinute() {
+function discoverMissingMinuteContradiction() {
   const archiveState = ensureArchiveInvestigationState();
-  if (archiveState.minuteDiscovered) return false;
-  archiveState.minuteDiscovered = true;
-  addItemToRoom(state.world, 'archive', 'minute of deferred actions');
-  line('Behind a shifted ledger stack, you find a minute filed under deferred maintenance actions.', 'good');
-  line('The signature block is complete. The agenda header is wrong by one sequence.', 'hint');
-  line('Nothing was hidden; it was indexed under the prior norm template.', 'hint');
-  state.governance.committeeMemory.unshift('recovered:minute-item7');
+  if (archiveState.contradictionUnderstood) return false;
+  archiveState.contradictionUnderstood = true;
+  line('The contradiction resolves into shape: no page is missing; the formal record was never allowed to hold the real agreement.', 'good');
+  line('Item 7 was agreed privately, then left procedurally unformalised so accountability stayed deniable.', 'hint');
+  line('The institution protected ambiguity, not truth or falsehood alone.', 'hint');
+  state.governance.committeeMemory.unshift('understood:missing-minute-contradiction');
   state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
   applyStandingDelta('porter', 2, 'record');
-  applyStandingDelta('bernard', 1, 'record');
+  applyStandingDelta('bernard', 2, 'record');
   applyStandingDelta('cyra', 1, 'record');
+  applyStandingDelta('ada', 1, 'record');
   const gate = eastGateState();
   if (gate.status === 'socially blocked') {
     gate.status = 'provisionally approved';
   }
-  applyObjectiveEvent('minute-recovered');
+  applyObjectiveEvent('minute-contradiction-understood');
   return true;
 }
 
 function handleArchiveInvestigationCommand(verb, arg, normalizedText) {
   const roomId = state.player.currentRoom;
   const archiveState = ensureArchiveInvestigationState();
-  const text = `${verb} ${arg}`.trim();
-  const isArchiveSearch = (
+  const isInvestigation = (
     normalizedText === 'search archive'
-    || normalizedText === 'inspect folders'
-    || normalizedText === 'review files'
-    || normalizedText === 'examine shelves'
-    || normalizedText === 'read minutes'
-    || normalizedText === 'check latch'
-    || normalizedText === 'open cabinet'
-    || normalizedText === 'move box'
-    || normalizedText === 'look behind ledgers'
-    || normalizedText === 'latch'
+    || normalizedText === 'inspect minutes'
+    || normalizedText === 'review ledger'
+    || normalizedText === 'review records'
+    || normalizedText === 'compare records'
+    || normalizedText === 'trace initials'
+    || normalizedText === 'follow item 7'
+    || normalizedText === 'follow item7'
+    || normalizedText === 'follow the minute'
   );
-  const cueMentions = /\b(latch|warm chair|fresh initials|shifted file|chair|initials|file)\b/.test(normalizedText);
+  const cueMentions = /\b(item 7|item7|missing minute|minute|initials|ledger|records|trace|follow)\b/.test(normalizedText);
 
-  if (!isArchiveSearch && !cueMentions) return false;
+  if (!isInvestigation && !cueMentions) return false;
   if (roomId !== 'archive') {
-    if (normalizedText.includes('archive')) {
+    if (isInvestigation || normalizedText.includes('archive')) {
       line('The archive is upstairs to the east from the upper landing.', 'hint');
       return true;
     }
@@ -1523,47 +1563,33 @@ function handleArchiveInvestigationCommand(verb, arg, normalizedText) {
     return true;
   }
 
-  if (verb === 'search' || /inspect folders|review files/.test(text)) {
-    archiveState.clueCount += 1;
-    line('You review archive folders by sequence. One file is shifted into deferred actions without cross-reference.', 'hint');
-  } else if (normalizedText === 'read minutes') {
-    if (archiveState.minuteDiscovered) {
-      readItem('minute');
-    } else {
-      archiveState.clueCount += 1;
-      line('Most minute books are routine. One index card points to "Deferred Actions, Porter Records".', 'hint');
-    }
-  } else if (normalizedText === 'check latch' || normalizedText === 'latch') {
-    archiveState.latchChecked = true;
-    archiveState.clueCount += 1;
-    line('The latch gives slightly. Someone used this recently.', 'hint');
-  } else if (normalizedText === 'open cabinet') {
-    archiveState.cabinetOpened = true;
-    archiveState.clueCount += 1;
-    line('The cabinet opens to porter transfer binders and a warm chair pulled half clear.', 'hint');
-  } else if (normalizedText === 'move box') {
-    archiveState.boxMoved = true;
-    archiveState.clueCount += 1;
-    line('You move a mislabeled box. Fresh initials mark the underside: "P.R. carry-over".', 'hint');
-  } else if (normalizedText === 'examine shelves') {
-    archiveState.shelvesExamined = true;
-    archiveState.clueCount += 1;
-    line('The shelves are orderly except for one shifted file tucked after older norm assumptions.', 'hint');
-  } else if (normalizedText === 'look behind ledgers') {
-    archiveState.ledgersChecked = true;
-    archiveState.clueCount += 1;
-    line('Behind the ledgers, the dust line breaks where a document was recently replaced.', 'hint');
-  } else if (normalizedText.includes('warm chair')) {
-    line('The chair is warm enough to suggest recent filing, not long-term storage.', 'hint');
-  } else if (normalizedText.includes('fresh initials') || normalizedText.includes('initials')) {
-    line('The initials are recent and practical: routing marks, not signatures for credit.', 'hint');
-  } else if (normalizedText.includes('shifted file') || normalizedText.includes('file')) {
-    line('The shifted file sits under deferred actions rather than disputed agenda items.', 'hint');
-  } else if (normalizedText.includes('chair')) {
-    line('A warm chair in a cold archive usually means someone was filing, not debating.', 'hint');
+  if (verb === 'search' && arg === 'archive') {
+    archiveState.actions.searchedArchive = true;
+    line('You search the archive sequence-by-sequence: Item 7 appears in voting tallies but not in the formal minute index.', 'hint');
+  } else if (normalizedText === 'inspect minutes') {
+    archiveState.actions.inspectedMinutes = true;
+    line('You inspect minutes across sessions. A decision appears to have passed, yet the minute line remains intentionally provisional.', 'hint');
+  } else if (normalizedText === 'review ledger' || normalizedText === 'review records') {
+    archiveState.actions.reviewedLedger = true;
+    line('You review the ledger: signatures route custody, but final credit is assigned to the wrong officer in the public register.', 'hint');
+  } else if (normalizedText === 'compare records') {
+    archiveState.actions.comparedRecords = true;
+    line('You compare vote slips with published minutes: totals match passage, wording does not.', 'hint');
+  } else if (normalizedText === 'trace initials') {
+    archiveState.actions.tracedInitials = true;
+    line('You trace initials through transfer marks. The same hand records movement but is absent from formal authorship.', 'hint');
+  } else if (normalizedText === 'follow item 7' || normalizedText === 'follow item7' || normalizedText === 'follow the minute') {
+    archiveState.actions.followedItem7 = true;
+    line('You follow Item 7 through committee pathways. Agreement happened in corridor consultation, never in a ratified sitting.', 'hint');
+  } else if (normalizedText.includes('initials')) {
+    line('The initials authenticate handling, not responsibility.', 'hint');
+  } else if (normalizedText.includes('records') || normalizedText.includes('ledger')) {
+    line('The records are internally consistent only if you accept deliberate procedural gaps.', 'hint');
+  } else if (normalizedText.includes('minute')) {
+    line('There is no missing page to recover; there is a missing permission to formalise.', 'hint');
   }
 
-  if (archiveDiscoveryReady(archiveState)) discoverMissingMinute();
+  if (archiveDiscoveryReady(archiveState)) discoverMissingMinuteContradiction();
   return true;
 }
 
@@ -1712,9 +1738,6 @@ function readItem(itemRaw) {
     return;
   }
   line(itemDef.readText, 'hint');
-  if (matchedName === 'minute of deferred actions') {
-    applyObjectiveEvent('minute-recovered');
-  }
   state.governance.committeeMemory.unshift(`read:${matchedName}`);
   state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
 }
@@ -2129,9 +2152,9 @@ function processCommand(input) {
     renderRoom();
   } else if (verb === 'help') {
     line('Explore with: look, n/s/e/w, go <dir>, take/get/drop/use/read/inspect/examine/x <item>, talk porter, force.');
-    line('Archive investigation: search archive, inspect folders, read minutes, check latch, open cabinet, move box, examine shelves, review files, look behind ledgers.', 'hint');
+    line('Archive investigation: search archive, inspect minutes, review ledger, review records, compare records, trace initials, follow item 7.', 'hint');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
-    line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
+    line('Examples: ask porter about the missing minute, ask bernard about item 7, ask ada about item 7, ask cyra about the minute.', 'hint');
     line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, weather, status, score/sc, history, save, load, restart.');
     line('Interpretive prompts: why, huh, how did i notice the rain.', 'hint');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');

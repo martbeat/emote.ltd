@@ -1540,6 +1540,19 @@ function discoverMissingMinuteContradiction() {
 function handleArchiveInvestigationCommand(verb, arg, normalizedText) {
   const roomId = state.player.currentRoom;
   const archiveState = ensureArchiveInvestigationState();
+  const roomObj = state.world.rooms[roomId];
+  const physicalInteractionVerbs = new Set(['take', 'get', 'drop', 'use', 'read', 'inspect', 'examine', 'x']);
+  if (physicalInteractionVerbs.has(verb) && arg) {
+    const searchScopes = verb === 'drop'
+      ? [state.player.inventory]
+      : verb === 'take' || verb === 'get'
+        ? [roomObj.items]
+        : [state.player.inventory, roomObj.items];
+    const { matchedName } = resolveItemReference(arg, searchScopes);
+    if (matchedName) return false;
+  }
+
+  const investigationIntentVerbs = new Set(['search', 'inspect', 'review', 'compare', 'trace', 'follow']);
   const isInvestigation = (
     normalizedText === 'search archive'
     || normalizedText === 'inspect minutes'
@@ -1552,8 +1565,9 @@ function handleArchiveInvestigationCommand(verb, arg, normalizedText) {
     || normalizedText === 'follow the minute'
   );
   const cueMentions = /\b(item 7|item7|missing minute|minute|initials|ledger|records|trace|follow)\b/.test(normalizedText);
+  const cueDrivenInvestigation = investigationIntentVerbs.has(verb) && cueMentions;
 
-  if (!isInvestigation && !cueMentions) return false;
+  if (!isInvestigation && !cueDrivenInvestigation) return false;
   if (roomId !== 'archive') {
     if (isInvestigation || normalizedText.includes('archive')) {
       line('The archive is upstairs to the east from the upper landing.', 'hint');
@@ -1720,7 +1734,7 @@ function readItem(itemRaw) {
   } = resolveItemReference(itemRaw, [state.player.inventory, roomObj.items]);
   if (pronounFailed) {
     line('You pause. It is not clear what "it" refers to.', 'warn');
-    return;
+    return null;
   }
   if (!matchedName) {
     line(
@@ -1729,17 +1743,18 @@ function readItem(itemRaw) {
         : 'There is nothing by that name here to read.',
       'warn',
     );
-    return;
+    return null;
   }
   rememberReferencedItem(matchedName);
   const itemDef = getItemDefinition(state.world, matchedName);
   if (!itemDef?.readable || !itemDef?.readText) {
     line(`You study ${itemDisplayLabel(matchedName)}. It offers texture, not text.`, 'hint');
-    return;
+    return matchedName;
   }
   line(itemDef.readText, 'hint');
   state.governance.committeeMemory.unshift(`read:${matchedName}`);
   state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
+  return matchedName;
 }
 
 function drop(itemRaw) {
@@ -1881,8 +1896,8 @@ function processCommand(input) {
   } else if (verb === 'examine' || verb === 'x') {
     inspect(arg);
   } else if (verb === 'read') {
-    readItem(arg);
-    applyObjectiveEvent('read-item', { item: arg.toLowerCase() });
+    const readCanonical = readItem(arg);
+    if (readCanonical) applyObjectiveEvent('read-item', { item: readCanonical });
   } else if (verb === 'talk') {
     const parsedTalk = parseNpcInteraction(`talk ${arg}`) ?? { action: 'talk', targetText: arg.toLowerCase() };
     interactNpc(parsedTalk, turnPresence);

@@ -120,6 +120,15 @@ function createGameState() {
       inventory: [],
       lastReferencedItem: null,
       attemptedForceDoor: false,
+      archiveInvestigation: {
+        latchChecked: false,
+        cabinetOpened: false,
+        boxMoved: false,
+        shelvesExamined: false,
+        ledgersChecked: false,
+        clueCount: 0,
+        minuteDiscovered: false,
+      },
       visitCounts: {},
       recentDeparturesByRoom: {},
       identity: createPlayerIdentity(),
@@ -182,6 +191,19 @@ function applyObjectiveEvent(event, context = {}) {
   if (!outcome) return;
   line(outcome.resolvedLine, 'good');
   line(outcome.nextLine, 'hint');
+}
+
+function ensureArchiveInvestigationState() {
+  state.player.archiveInvestigation ??= {};
+  const archive = state.player.archiveInvestigation;
+  archive.latchChecked ??= false;
+  archive.cabinetOpened ??= false;
+  archive.boxMoved ??= false;
+  archive.shelvesExamined ??= false;
+  archive.ledgersChecked ??= false;
+  archive.clueCount ??= 0;
+  archive.minuteDiscovered ??= false;
+  return archive;
 }
 
 function ensureGovernanceAccessState() {
@@ -977,6 +999,7 @@ function load() {
   if (!state.player.recentDeparturesByRoom) {
     state.player.recentDeparturesByRoom = {};
   }
+  ensureArchiveInvestigationState();
   if (!Array.isArray(state.turnVisibleNpcs)) {
     state.turnVisibleNpcs = [];
   }
@@ -1400,6 +1423,8 @@ function interactNpc(parsed, turnPresence = null) {
   if (targetId === 'porter') {
     const topic = (parsed.topic ?? '').toLowerCase();
     if (parsed.action === 'ask' && /\b(missing minute|item 7|item7|ledger)\b/.test(topic)) {
+      line('Porter: "Minutes disappear by being recorded too correctly."', 'hint');
+      line('Porter: "It was never missing. Only filed where nobody wanted to look."', 'hint');
       applyStandingDelta('porter', 1, 'record');
       applyStandingDelta('bernard', 1, 'record');
     }
@@ -1407,7 +1432,125 @@ function interactNpc(parsed, turnPresence = null) {
       applyObjectiveEvent('asked-m-cole');
     }
     recordPorterMemory(state.agents, `Player used ${effectiveAction} with porter.`);
+  } else if (parsed.action === 'ask' && targetId === 'bernard') {
+    const topic = (parsed.topic ?? '').toLowerCase();
+    if (/\b(missing minute|item 7|item7|minute)\b/.test(topic)) {
+      line('Bernard says, "It was never missing. Only filed where nobody wanted to look."', 'hint');
+      line('Bernard says, "Try deferred actions, not contested actions. People hide decisions in sequence."', 'hint');
+      applyStandingDelta('bernard', 1, 'process');
+    }
+  } else if (parsed.action === 'ask' && targetId === 'cyra') {
+    const topic = (parsed.topic ?? '').toLowerCase();
+    if (/\b(missing minute|item 7|item7|minute)\b/.test(topic)) {
+      line('Cyra says, "People hide decisions in sequence, not in secrecy."', 'hint');
+      line('Cyra adds, "Check what was carried over, not what was redacted."', 'hint');
+      applyStandingDelta('cyra', 1, 'mediation');
+    }
   }
+}
+
+function archiveDiscoveryReady(archiveState) {
+  const steps = [
+    archiveState.latchChecked,
+    archiveState.cabinetOpened,
+    archiveState.boxMoved,
+    archiveState.shelvesExamined,
+    archiveState.ledgersChecked,
+  ].filter(Boolean).length;
+  return steps >= 3 || archiveState.clueCount >= 4;
+}
+
+function discoverMissingMinute() {
+  const archiveState = ensureArchiveInvestigationState();
+  if (archiveState.minuteDiscovered) return false;
+  archiveState.minuteDiscovered = true;
+  addItemToRoom(state.world, 'archive', 'minute of deferred actions');
+  line('Behind a shifted ledger stack, you find a minute filed under deferred maintenance actions.', 'good');
+  line('The signature block is complete. The agenda header is wrong by one sequence.', 'hint');
+  line('Nothing was hidden; it was indexed under the prior norm template.', 'hint');
+  state.governance.committeeMemory.unshift('recovered:minute-item7');
+  state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
+  applyStandingDelta('porter', 2, 'record');
+  applyStandingDelta('bernard', 1, 'record');
+  applyStandingDelta('cyra', 1, 'record');
+  const gate = eastGateState();
+  if (gate.status === 'socially blocked') {
+    gate.status = 'provisionally approved';
+  }
+  applyObjectiveEvent('minute-recovered');
+  return true;
+}
+
+function handleArchiveInvestigationCommand(verb, arg, normalizedText) {
+  const roomId = state.player.currentRoom;
+  const archiveState = ensureArchiveInvestigationState();
+  const text = `${verb} ${arg}`.trim();
+  const isArchiveSearch = (
+    normalizedText === 'search archive'
+    || normalizedText === 'inspect folders'
+    || normalizedText === 'review files'
+    || normalizedText === 'examine shelves'
+    || normalizedText === 'read minutes'
+    || normalizedText === 'check latch'
+    || normalizedText === 'open cabinet'
+    || normalizedText === 'move box'
+    || normalizedText === 'look behind ledgers'
+    || normalizedText === 'latch'
+  );
+  const cueMentions = /\b(latch|warm chair|fresh initials|shifted file|chair|initials|file)\b/.test(normalizedText);
+
+  if (!isArchiveSearch && !cueMentions) return false;
+  if (roomId !== 'archive') {
+    if (normalizedText.includes('archive')) {
+      line('The archive is upstairs to the east from the upper landing.', 'hint');
+      return true;
+    }
+    line('You scan the area, but the procedural traces you want are stronger in the archive.', 'hint');
+    return true;
+  }
+
+  if (verb === 'search' || /inspect folders|review files/.test(text)) {
+    archiveState.clueCount += 1;
+    line('You review archive folders by sequence. One file is shifted into deferred actions without cross-reference.', 'hint');
+  } else if (normalizedText === 'read minutes') {
+    if (archiveState.minuteDiscovered) {
+      readItem('minute');
+    } else {
+      archiveState.clueCount += 1;
+      line('Most minute books are routine. One index card points to "Deferred Actions, Porter Records".', 'hint');
+    }
+  } else if (normalizedText === 'check latch' || normalizedText === 'latch') {
+    archiveState.latchChecked = true;
+    archiveState.clueCount += 1;
+    line('The latch gives slightly. Someone used this recently.', 'hint');
+  } else if (normalizedText === 'open cabinet') {
+    archiveState.cabinetOpened = true;
+    archiveState.clueCount += 1;
+    line('The cabinet opens to porter transfer binders and a warm chair pulled half clear.', 'hint');
+  } else if (normalizedText === 'move box') {
+    archiveState.boxMoved = true;
+    archiveState.clueCount += 1;
+    line('You move a mislabeled box. Fresh initials mark the underside: "P.R. carry-over".', 'hint');
+  } else if (normalizedText === 'examine shelves') {
+    archiveState.shelvesExamined = true;
+    archiveState.clueCount += 1;
+    line('The shelves are orderly except for one shifted file tucked after older norm assumptions.', 'hint');
+  } else if (normalizedText === 'look behind ledgers') {
+    archiveState.ledgersChecked = true;
+    archiveState.clueCount += 1;
+    line('Behind the ledgers, the dust line breaks where a document was recently replaced.', 'hint');
+  } else if (normalizedText.includes('warm chair')) {
+    line('The chair is warm enough to suggest recent filing, not long-term storage.', 'hint');
+  } else if (normalizedText.includes('fresh initials') || normalizedText.includes('initials')) {
+    line('The initials are recent and practical: routing marks, not signatures for credit.', 'hint');
+  } else if (normalizedText.includes('shifted file') || normalizedText.includes('file')) {
+    line('The shifted file sits under deferred actions rather than disputed agenda items.', 'hint');
+  } else if (normalizedText.includes('chair')) {
+    line('A warm chair in a cold archive usually means someone was filing, not debating.', 'hint');
+  }
+
+  if (archiveDiscoveryReady(archiveState)) discoverMissingMinute();
+  return true;
 }
 
 function forceDoor() {
@@ -1543,6 +1686,9 @@ function readItem(itemRaw) {
     return;
   }
   line(itemDef.readText, 'hint');
+  if (matchedName === 'minute of deferred actions') {
+    applyObjectiveEvent('minute-recovered');
+  }
   state.governance.committeeMemory.unshift(`read:${matchedName}`);
   state.governance.committeeMemory = state.governance.committeeMemory.slice(0, 8);
 }
@@ -1659,7 +1805,9 @@ function processCommand(input) {
     state.governanceUi.lowRelevanceStreak = Math.max(0, (state.governanceUi.lowRelevanceStreak ?? 0) - 1);
   }
 
-  if (ambientCommands.has(verb)) {
+  if (handleArchiveInvestigationCommand(verb, arg, normalizedText)) {
+    // handled by archive investigation parser
+  } else if (ambientCommands.has(verb)) {
     handleAmbientSocialCommand(verb, turnPresence);
   } else if (npcParsed) {
     interactNpc(npcParsed, turnPresence);
@@ -1944,6 +2092,7 @@ function processCommand(input) {
     renderRoom();
   } else if (verb === 'help') {
     line('Explore with: look, n/s/e/w, go <dir>, take/get/drop/use/read/inspect/examine/x <item>, talk porter, force.');
+    line('Archive investigation: search archive, inspect folders, read minutes, check latch, open cabinet, move box, examine shelves, review files, look behind ledgers.', 'hint');
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
     line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, status, score/sc, history, save, load, restart.');

@@ -277,6 +277,10 @@ export function weatherExposureForRoom(roomProfile = {}, roomId = '') {
 export function weatherRoomLine(weather, roomProfile, roomId, visitCount = 1) {
   if (!weather) return '';
   const phase = phaseById(weather.phaseId);
+  const roomSpecific = roomWeatherNarration[roomId]?.[phase.id];
+  if (Array.isArray(roomSpecific) && roomSpecific.length) {
+    return rotate(roomSpecific, visitCount + weather.turnsInPhase, roomId.length % 3);
+  }
   const exposure = weatherExposureForRoom(roomProfile, roomId);
   const lines = phase.roomLines[exposure] ?? phase.roomLines.interior;
   return rotate(lines, visitCount + weather.turnsInPhase, roomId.length % 2);
@@ -296,6 +300,57 @@ export function weatherSocialTexture(weather, rng = Math.random, chance = 0.2) {
 export function weatherPhaseLabel(weather) {
   return phaseById(weather?.phaseId).label;
 }
+
+const roomWeatherNarration = {
+  courtyard: {
+    rainApproaching: [
+      'Rain settles openly here first, collecting in the paving joints before anyone mentions it.',
+      'The square darkens seam by seam, as if the stone has been briefed ahead of the people.',
+    ],
+    steadyRain: [
+      'Rain works openly in the courtyard, patient enough to outlast conversation.',
+      'Paving joints gather rain into a public record no committee can amend.',
+    ],
+    dryAdministrativeSunlight: [
+      'Dry light files itself across the paving as if auditing each puddle that used to be there.',
+    ],
+  },
+  archive: {
+    rainApproaching: [
+      'You do not hear rain directly here; doors report it by latch, hush, latch.',
+    ],
+    steadyRain: [
+      'Rain arrives as altered handling: damp hems, quieter sleeves, and folders set down more carefully.',
+    ],
+    stillHeavyWeather: [
+      'Air pressure reaches the stacks as a slower reach for old files.',
+    ],
+  },
+  hall: {
+    rainApproaching: [
+      'People arrive carrying weather on their coats before the windows admit any proof.',
+    ],
+    steadyRain: [
+      'Rain enters this hall as drip-lines under chairs and a lower register of interruption.',
+    ],
+    staleWarmAfternoon: [
+      'Warmth thickens here into slower declarations and longer pauses before objections.',
+    ],
+  },
+  lockedRoom: {
+    rainApproaching: [
+      'The room notices rain only when declarations begin to slow by half a clause.',
+    ],
+    stillHeavyWeather: [
+      'Heavy weather reaches this chamber as procedural patience with sharp edges.',
+    ],
+  },
+  westPassage: {
+    brightColdMorning: [
+      'Cold keeps to the corridor margins, following every step without entering debate.',
+    ],
+  },
+};
 
 const institutionalWeatherBriefs = {
   rainApproaching: {
@@ -456,6 +511,41 @@ export function describeInstitutionalWeather(weather, rng = Math.random) {
     lines.push(`Social weather: ${pick(brief.social, rng)}`);
   }
   return lines.join('\n');
+}
+
+export function explainWeatherPerception(weather, roomId, rng = Math.random) {
+  const phase = phaseById(weather?.phaseId);
+  const shared = [
+    'You noticed because this building reports weather socially before it reports it meteorologically.',
+    'In this institution, weather arrives as behaviour first and sky second.',
+    'You catch it in tempo: doors, coats, and pauses change before anyone names a forecast.',
+  ];
+  const phaseHooks = {
+    rainApproaching: 'Today that signal arrives as anticipation before evidence.',
+    steadyRain: 'Today that signal is rain made procedural.',
+    brightColdMorning: 'Today that signal is clarity with a cold edge.',
+    staleWarmAfternoon: 'Today that signal is warmth slowing certainty.',
+    windyUnsettledDay: 'Today that signal is drafts revising the room mid-sentence.',
+    stillHeavyWeather: 'Today that signal is pressure without declaration.',
+    clearAfterRain: 'Today that signal is relief that does not quite reset.',
+    dryAdministrativeSunlight: 'Today that signal is dry brightness with administrative posture.',
+  };
+  const roomSpecific = {
+    archive: [
+      'Here you hear weather through latches and file-handling, not through glass.',
+    ],
+    hall: [
+      'In the hall, weather announces itself in arrivals: coats, cuffs, and arguments delayed half a beat.',
+    ],
+    lockedRoom: [
+      'In this chamber, weather is measured by how quickly certainty is spoken.',
+    ],
+    courtyard: [
+      'In the courtyard the stone confesses weather before any person does.',
+    ],
+  };
+  const roomLine = pick(roomSpecific[roomId] ?? [], rng);
+  return [pick(shared, rng), phaseHooks[phase.id], roomLine].filter(Boolean).join(' ');
 }
 
 export function weatherShiftLine(weather) {

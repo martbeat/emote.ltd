@@ -78,6 +78,7 @@ import {
   weatherShiftLine,
   maybeWeatherGovernanceMoment,
   describeInstitutionalWeather,
+  explainWeatherPerception,
 } from './weather.js';
 import {
   createPlayerIdentity,
@@ -1429,6 +1430,18 @@ function interactNpc(parsed, turnPresence = null) {
       applyStandingDelta('porter', 1, 'record');
       applyStandingDelta('bernard', 1, 'record');
     }
+    if (parsed.action === 'ask' && /\b(weather|rain|storm|sun|sunlight|wind|cold|warmth|forecast)\b/.test(topic)) {
+      const weatherReplies = [
+        "Porter: \"Most storms arrive as scheduling disputes first.\"",
+        "Porter: \"Rain mostly changes who arrives apologising.\"",
+        "Porter: \"The building reports weather through doors before windows.\"",
+        "Porter: \"Forecasts are for sky. We handle weather by conduct.\"",
+      ];
+      line(weatherReplies[Math.floor(Math.random() * weatherReplies.length)], 'hint');
+      notePorterSocialMemory(state.agents, 'help', 0.6);
+      applyRelationship(state.social, 'porter', 1);
+      applyStandingDelta('porter', 1, 'continuity');
+    }
     if (topic.includes('m. cole') || topic.includes('m cole') || /\bcole\b/.test(topic)) {
       applyObjectiveEvent('asked-m-cole');
     }
@@ -1602,6 +1615,13 @@ function showStatus() {
 function showWeather() {
   line('Institutional weather:', 'system');
   line(describeInstitutionalWeather(state.weather), 'hint');
+}
+
+function explainWeatherAwareness() {
+  line(explainWeatherPerception(state.weather, state.player.currentRoom), 'hint');
+  if (porterIsHere() && Math.random() < 0.5) {
+    maybeLinePorter("The porter says, 'You learn weather here by doors, not windows.'", 1, 'hint');
+  }
 }
 
 function maybeNormChangeHint(lastVerb, turnPresence = null) {
@@ -2047,6 +2067,15 @@ function processCommand(input) {
     showStatus();
   } else if (verb === 'weather') {
     showWeather();
+  } else if (
+    verb === 'why'
+    || verb === 'huh'
+    || normalizedText.startsWith('how did i notice')
+    || normalizedText.startsWith('how did i notice the rain')
+    || normalizedText.includes('notice the rain')
+    || normalizedText.includes('notice weather')
+  ) {
+    explainWeatherAwareness();
   } else if (verb === 'score' || verb === 'sc') {
     showScore();
   } else if (verb === 'history') {
@@ -2104,6 +2133,7 @@ function processCommand(input) {
     line('NPC interaction: hi/hello/greet <name>, say hello to <name>, ask <name> about <topic>, give <item> to <name>, thank <name>, insult/mock <name>, observe <name>, poke/slap/kick <name>.');
     line('Examples: hi porter, hello porter, greet porter, say hello to porter, ask porter about key, give ledger fragment to porter.', 'hint');
     line('Utility: sneeze, smile, giggle, cough, wink, shrug, sigh, listen, fart, nod, wave, laugh, weather, status, score/sc, history, save, load, restart.');
+    line('Interpretive prompts: why, huh, how did i notice the rain.', 'hint');
     line('Governance prompts appear in context (suggest, decide, push, calm, shift).', 'hint');
   } else {
     line('The command is not understood. Try "help".', 'warn');

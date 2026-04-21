@@ -153,6 +153,9 @@ function createGameState() {
     objectives: createObjectiveState(),
     turnVisibleNpcs: [],
     turnVisibleNpcRoomId: null,
+    telemetry: {
+      milestones: {},
+    },
   };
 }
 
@@ -180,6 +183,47 @@ const narrativePriority = {
   P2: 2,
   P3: 3,
 };
+
+function ensureTelemetryState() {
+  state.telemetry ??= {};
+  state.telemetry.milestones ??= {};
+  return state.telemetry;
+}
+
+function gping(event, value = '') {
+  const url =
+    `/gping?game=essexmud` +
+    `&event=${encodeURIComponent(event)}` +
+    `&value=${encodeURIComponent(value)}`;
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(url);
+    return;
+  }
+  fetch(url, {
+    method: 'GET',
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function roomTelemetryValue(roomId) {
+  const roomName = state.world.rooms?.[roomId]?.name ?? roomId;
+  return roomName
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+}
+
+function trackRoomEntry(roomId) {
+  gping('room', roomTelemetryValue(roomId));
+}
+
+function trackMilestone(name) {
+  const telemetry = ensureTelemetryState();
+  if (telemetry.milestones[name]) return;
+  telemetry.milestones[name] = true;
+  gping('milestone', name);
+}
 
 function ensureGhostState() {
   if (!state.ghost) state.ghost = createGhostPresenceState();
@@ -1026,6 +1070,7 @@ function load() {
   ensureGhostState();
   ensureAutonomy();
   ensureObjectives();
+  ensureTelemetryState();
   ensureGovernanceAccessState();
   if (state.agents?.porter && !Object.prototype.hasOwnProperty.call(state.agents.ada ?? {}, 'roomId')) {
     state.agents.ada.roomId = 'hall';
@@ -1098,8 +1143,13 @@ function move(direction) {
   }
 
   state.player.currentRoom = target;
+  trackRoomEntry(target);
   if (target === 'lockedRoom') {
+    trackMilestone('east_opened');
     applyObjectiveEvent('entered-east-chamber');
+  }
+  if (target === 'archive') {
+    trackMilestone('archive_reached');
   }
   renderRoom();
 }
@@ -1533,6 +1583,7 @@ function discoverMissingMinuteContradiction() {
   if (gate.status === 'socially blocked') {
     gate.status = 'provisionally approved';
   }
+  trackMilestone('minute_resolved');
   applyObjectiveEvent('minute-contradiction-understood');
   return true;
 }
@@ -2340,6 +2391,8 @@ function processCommand(input) {
 
 function boot() {
   ensurePlayerIdentity(state.player);
+  ensureTelemetryState();
+  gping('start');
   line('The Essex chamber stirs awake.', 'system');
   if (Math.random() < 0.6) maybeLinePorter(porterIdentityLine(state.player.identity), 1);
   line('Type help for commands.');

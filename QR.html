@@ -287,6 +287,7 @@
         <label for="dataFormat">Data format</label>
         <select id="dataFormat">
           <option value="text" selected>Plain text / URL</option>
+          <option value="dynamic">Dynamic redirect URL</option>
           <option value="wifi">Wi-Fi login</option>
           <option value="vcard">Contact card (vCard)</option>
           <option value="email">Email draft</option>
@@ -301,6 +302,19 @@
       <div class="field" id="textField">
         <label for="qrText">Content</label>
         <textarea id="qrText" placeholder="Example: https://example.com">https://example.com</textarea>
+      </div>
+
+      <div id="dynamicFields" class="format-fields">
+        <div class="field">
+          <label for="dynamicUrl">Dynamic redirect URL</label>
+          <input id="dynamicUrl" type="url" placeholder="https://go.example.com/campaign-spring" />
+          <p class="muted-note">Use a short-link you control (Bitly, Rebrandly, your own redirect path, etc.). The QR code points to this URL.</p>
+        </div>
+        <div class="field">
+          <label for="dynamicTarget">Current destination (optional note)</label>
+          <input id="dynamicTarget" type="url" placeholder="https://example.com/current-landing-page" />
+          <p class="muted-note">This does not go in the QR payload. It's just a reminder of the current destination.</p>
+        </div>
       </div>
 
       <div id="wifiFields" class="format-fields">
@@ -525,6 +539,9 @@
     const qrText = document.getElementById('qrText');
     const dataFormat = document.getElementById('dataFormat');
     const textField = document.getElementById('textField');
+    const dynamicFields = document.getElementById('dynamicFields');
+    const dynamicUrl = document.getElementById('dynamicUrl');
+    const dynamicTarget = document.getElementById('dynamicTarget');
     const formatHint = document.getElementById('formatHint');
     const wifiFields = document.getElementById('wifiFields');
     const wifiSsid = document.getElementById('wifiSsid');
@@ -576,6 +593,7 @@
     let centerGraphicDataUrl = '';
     const formatFieldMap = {
       text: textField,
+      dynamic: dynamicFields,
       wifi: wifiFields,
       vcard: vcardFields,
       email: emailFields,
@@ -637,6 +655,21 @@
         }
         const payload = `WIFI:T:${encryption};S:${escapeQrValue(ssid)};P:${escapeQrValue(password)};H:${wifiHidden.checked ? 'true' : 'false'};;`;
         return { text: payload, formatLabel: 'Wi-Fi login' };
+      }
+
+      if (selectedFormat === 'dynamic') {
+        const redirectUrl = dynamicUrl.value.trim();
+        if (!redirectUrl) return { error: 'Dynamic redirect URL is required.' };
+        const normalized = /^https?:\/\//i.test(redirectUrl) ? redirectUrl : `https://${redirectUrl}`;
+        try {
+          const parsed = new URL(normalized);
+          if (!/^https?:$/i.test(parsed.protocol)) {
+            return { error: 'Dynamic redirect URL must use http or https.' };
+          }
+          return { text: parsed.toString(), formatLabel: 'Dynamic redirect' };
+        } catch (error) {
+          return { error: 'Enter a valid dynamic redirect URL.' };
+        }
       }
 
       if (selectedFormat === 'vcard') {
@@ -749,6 +782,7 @@
 
       const formatHints = {
         text: 'Use this for URLs, plain text, coupon codes, and any custom payload.',
+        dynamic: 'Dynamic QR uses a redirect URL you control. Update that redirect destination later without reprinting the QR code.',
         wifi: 'Scanners can connect directly to Wi-Fi when SSID and security details are correct.',
         vcard: 'A vCard QR can add contact details directly to a phone address book.',
         email: 'Creates an email draft with recipient, subject, and message body.',
@@ -1018,6 +1052,8 @@
     clearBtn.addEventListener('click', () => {
       qrText.value = '';
       dataFormat.value = 'text';
+      dynamicUrl.value = '';
+      dynamicTarget.value = '';
       wifiSsid.value = '';
       wifiEncryption.value = 'WPA';
       wifiPassword.value = '';

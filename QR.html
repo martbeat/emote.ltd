@@ -245,6 +245,23 @@
       color: var(--muted);
     }
 
+    .format-fields {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.45);
+    }
+
+    .format-fields.active {
+      display: block;
+    }
+
+    .muted-note {
+      margin: 8px 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
     @media (max-width: 860px) {
       .app {
         grid-template-columns: 1fr;
@@ -267,9 +284,135 @@
       <p class="subtext">Enter a URL, text, contact detail, or any short piece of content. Generate a QR code instantly and download it as an image.</p>
 
       <div class="field">
+        <label for="dataFormat">Data format</label>
+        <select id="dataFormat">
+          <option value="text" selected>Plain text / URL</option>
+          <option value="wifi">Wi-Fi login</option>
+          <option value="vcard">Contact card (vCard)</option>
+          <option value="email">Email draft</option>
+          <option value="sms">SMS message</option>
+          <option value="phone">Phone call</option>
+          <option value="geo">Location</option>
+          <option value="w3w">what3words</option>
+        </select>
+      </div>
+
+      <div class="field" id="textField">
         <label for="qrText">Content</label>
         <textarea id="qrText" placeholder="Example: https://example.com">https://example.com</textarea>
       </div>
+
+      <div id="wifiFields" class="format-fields">
+        <div class="row">
+          <div class="field">
+            <label for="wifiSsid">Network name (SSID)</label>
+            <input id="wifiSsid" type="text" placeholder="Example: OfficeWiFi" />
+          </div>
+          <div class="field">
+            <label for="wifiEncryption">Security</label>
+            <select id="wifiEncryption">
+              <option value="WPA" selected>WPA/WPA2/WPA3</option>
+              <option value="WEP">WEP</option>
+              <option value="nopass">Open (no password)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="wifiPassword">Password</label>
+            <input id="wifiPassword" type="text" placeholder="Enter Wi-Fi password" />
+          </div>
+          <div class="field">
+            <div class="inline-input" style="margin-top: 30px;">
+              <input id="wifiHidden" type="checkbox" />
+              <label for="wifiHidden">Hidden network</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="vcardFields" class="format-fields">
+        <div class="row">
+          <div class="field">
+            <label for="contactFirstName">First name</label>
+            <input id="contactFirstName" type="text" placeholder="Jane" />
+          </div>
+          <div class="field">
+            <label for="contactLastName">Last name</label>
+            <input id="contactLastName" type="text" placeholder="Doe" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="contactPhone">Phone</label>
+            <input id="contactPhone" type="tel" placeholder="+1 555 000 1234" />
+          </div>
+          <div class="field">
+            <label for="contactEmail">Email</label>
+            <input id="contactEmail" type="email" placeholder="jane@example.com" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="contactOrg">Company</label>
+          <input id="contactOrg" type="text" placeholder="Example Inc." />
+        </div>
+      </div>
+
+      <div id="emailFields" class="format-fields">
+        <div class="field">
+          <label for="emailTo">To</label>
+          <input id="emailTo" type="email" placeholder="person@example.com" />
+        </div>
+        <div class="field">
+          <label for="emailSubject">Subject</label>
+          <input id="emailSubject" type="text" placeholder="Quick update" />
+        </div>
+        <div class="field">
+          <label for="emailBody">Body</label>
+          <textarea id="emailBody" placeholder="Write your draft message"></textarea>
+        </div>
+      </div>
+
+      <div id="smsFields" class="format-fields">
+        <div class="field">
+          <label for="smsNumber">Phone number</label>
+          <input id="smsNumber" type="tel" placeholder="+1 555 000 1234" />
+        </div>
+        <div class="field">
+          <label for="smsMessage">Message</label>
+          <textarea id="smsMessage" placeholder="Hello, this is my preset message."></textarea>
+        </div>
+      </div>
+
+      <div id="phoneFields" class="format-fields">
+        <div class="field">
+          <label for="phoneNumber">Phone number</label>
+          <input id="phoneNumber" type="tel" placeholder="+1 555 000 1234" />
+        </div>
+      </div>
+
+      <div id="geoFields" class="format-fields">
+        <div class="row">
+          <div class="field">
+            <label for="geoLat">Latitude</label>
+            <input id="geoLat" type="number" step="any" placeholder="37.7749" />
+          </div>
+          <div class="field">
+            <label for="geoLng">Longitude</label>
+            <input id="geoLng" type="number" step="any" placeholder="-122.4194" />
+          </div>
+        </div>
+        <button id="detectLocationBtn" type="button" class="secondary">Use current location</button>
+        <p class="muted-note">Uses your phone/browser GPS permission to fill latitude and longitude.</p>
+      </div>
+
+      <div id="w3wFields" class="format-fields">
+        <div class="field">
+          <label for="w3wAddress">what3words address</label>
+          <input id="w3wAddress" type="text" placeholder="filled.count.soap" />
+        </div>
+      </div>
+      <p id="formatHint" class="muted-note"></p>
 
       <div class="row">
         <div class="field">
@@ -354,6 +497,35 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const qrText = document.getElementById('qrText');
+    const dataFormat = document.getElementById('dataFormat');
+    const textField = document.getElementById('textField');
+    const formatHint = document.getElementById('formatHint');
+    const wifiFields = document.getElementById('wifiFields');
+    const wifiSsid = document.getElementById('wifiSsid');
+    const wifiEncryption = document.getElementById('wifiEncryption');
+    const wifiPassword = document.getElementById('wifiPassword');
+    const wifiHidden = document.getElementById('wifiHidden');
+    const vcardFields = document.getElementById('vcardFields');
+    const contactFirstName = document.getElementById('contactFirstName');
+    const contactLastName = document.getElementById('contactLastName');
+    const contactPhone = document.getElementById('contactPhone');
+    const contactEmail = document.getElementById('contactEmail');
+    const contactOrg = document.getElementById('contactOrg');
+    const emailFields = document.getElementById('emailFields');
+    const emailTo = document.getElementById('emailTo');
+    const emailSubject = document.getElementById('emailSubject');
+    const emailBody = document.getElementById('emailBody');
+    const smsFields = document.getElementById('smsFields');
+    const smsNumber = document.getElementById('smsNumber');
+    const smsMessage = document.getElementById('smsMessage');
+    const phoneFields = document.getElementById('phoneFields');
+    const phoneNumber = document.getElementById('phoneNumber');
+    const geoFields = document.getElementById('geoFields');
+    const geoLat = document.getElementById('geoLat');
+    const geoLng = document.getElementById('geoLng');
+    const detectLocationBtn = document.getElementById('detectLocationBtn');
+    const w3wFields = document.getElementById('w3wFields');
+    const w3wAddress = document.getElementById('w3wAddress');
     const qrSize = document.getElementById('qrSize');
     const qrLevel = document.getElementById('qrLevel');
     const qrcodeContainer = document.getElementById('qrcode');
@@ -370,6 +542,16 @@
 
     let qrInstance = null;
     let centerGraphicDataUrl = '';
+    const formatFieldMap = {
+      text: textField,
+      wifi: wifiFields,
+      vcard: vcardFields,
+      email: emailFields,
+      sms: smsFields,
+      phone: phoneFields,
+      geo: geoFields,
+      w3w: w3wFields
+    };
 
     function setStatus(message, type = '') {
       statusEl.className = type ? `status ${type}` : 'status';
@@ -393,6 +575,137 @@
         default:
           return { dark: '#000000', light: '#ffffff' };
       }
+    }
+
+    function escapeQrValue(input) {
+      return String(input || '').replace(/([\\;,:"])/g, '\\$1').replace(/\n/g, '\\n');
+    }
+
+    function encodeMailComponent(value) {
+      return encodeURIComponent(String(value || '').trim());
+    }
+
+    function buildFormattedContent() {
+      const selectedFormat = dataFormat.value;
+      if (selectedFormat === 'wifi') {
+        const ssid = wifiSsid.value.trim();
+        if (!ssid) return { error: 'Wi-Fi network name is required.' };
+        const encryption = wifiEncryption.value;
+        const password = wifiPassword.value.trim();
+        if (encryption !== 'nopass' && !password) {
+          return { error: 'Enter a Wi-Fi password or choose Open security.' };
+        }
+        const payload = `WIFI:T:${encryption};S:${escapeQrValue(ssid)};P:${escapeQrValue(password)};H:${wifiHidden.checked ? 'true' : 'false'};;`;
+        return { text: payload, formatLabel: 'Wi-Fi login' };
+      }
+
+      if (selectedFormat === 'vcard') {
+        const firstName = contactFirstName.value.trim();
+        const lastName = contactLastName.value.trim();
+        const phone = contactPhone.value.trim();
+        const email = contactEmail.value.trim();
+        const org = contactOrg.value.trim();
+        if (!firstName && !lastName && !phone && !email && !org) {
+          return { error: 'Enter at least one contact detail for the vCard.' };
+        }
+        const fullName = `${firstName} ${lastName}`.trim();
+        const lines = [
+          'BEGIN:VCARD',
+          'VERSION:3.0',
+          `N:${escapeQrValue(lastName)};${escapeQrValue(firstName)};;;`,
+          `FN:${escapeQrValue(fullName)}`,
+          phone ? `TEL;TYPE=CELL:${escapeQrValue(phone)}` : '',
+          email ? `EMAIL:${escapeQrValue(email)}` : '',
+          org ? `ORG:${escapeQrValue(org)}` : '',
+          'END:VCARD'
+        ].filter(Boolean);
+        return { text: lines.join('\n'), formatLabel: 'vCard contact' };
+      }
+
+      if (selectedFormat === 'email') {
+        const to = emailTo.value.trim();
+        if (!to) return { error: 'Email recipient is required.' };
+        const subject = encodeMailComponent(emailSubject.value);
+        const body = encodeMailComponent(emailBody.value);
+        return { text: `mailto:${to}?subject=${subject}&body=${body}`, formatLabel: 'Email draft' };
+      }
+
+      if (selectedFormat === 'sms') {
+        const number = smsNumber.value.trim();
+        if (!number) return { error: 'SMS phone number is required.' };
+        return {
+          text: `SMSTO:${number}:${smsMessage.value.trim()}`,
+          formatLabel: 'SMS message'
+        };
+      }
+
+      if (selectedFormat === 'phone') {
+        const number = phoneNumber.value.trim();
+        if (!number) return { error: 'Phone number is required.' };
+        return { text: `tel:${number}`, formatLabel: 'Phone call' };
+      }
+
+      if (selectedFormat === 'geo') {
+        const lat = geoLat.value.trim();
+        const lng = geoLng.value.trim();
+        if (!lat || !lng) return { error: 'Both latitude and longitude are required.' };
+        return { text: `geo:${lat},${lng}`, formatLabel: 'Location' };
+      }
+
+      if (selectedFormat === 'w3w') {
+        const address = w3wAddress.value.trim().replace(/^\/+/, '');
+        const validW3w = /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/.test(address);
+        if (!validW3w) return { error: 'Enter a valid what3words address (word.word.word).' };
+        return { text: `https://what3words.com/${address.toLowerCase()}`, formatLabel: 'what3words location' };
+      }
+
+      const plainText = qrText.value.trim();
+      if (!plainText) return { error: 'Please enter some content first.' };
+      return { text: plainText, formatLabel: 'Plain text' };
+    }
+
+    function updateFormatUi() {
+      const selectedFormat = dataFormat.value;
+      Object.entries(formatFieldMap).forEach(([key, section]) => {
+        if (!section) return;
+        const shouldShow = key === selectedFormat;
+        section.classList.toggle('active', shouldShow);
+      });
+
+      const formatHints = {
+        text: 'Use this for URLs, plain text, coupon codes, and any custom payload.',
+        wifi: 'Scanners can connect directly to Wi-Fi when SSID and security details are correct.',
+        vcard: 'A vCard QR can add contact details directly to a phone address book.',
+        email: 'Creates an email draft with recipient, subject, and message body.',
+        sms: 'Pre-fills an SMS to a target phone number.',
+        phone: 'Starts a phone call prompt to the provided number.',
+        geo: 'Use GPS (on supported phones/browsers) or type coordinates manually.',
+        w3w: 'Use a what3words address and open it directly in map/browser apps.'
+      };
+      formatHint.textContent = formatHints[selectedFormat] || '';
+    }
+
+    function detectCurrentLocation() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocation is not supported by this browser.', 'error');
+        return;
+      }
+
+      setStatus('Requesting your current location…');
+      detectLocationBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          geoLat.value = position.coords.latitude.toFixed(6);
+          geoLng.value = position.coords.longitude.toFixed(6);
+          detectLocationBtn.disabled = false;
+          setStatus('Current location filled. Generate to update the QR code.', 'success');
+        },
+        () => {
+          detectLocationBtn.disabled = false;
+          setStatus('Could not get location. Check browser permission settings.', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      );
     }
 
     function drawModule(ctx, style, x, y, size) {
@@ -519,15 +832,16 @@
     }
 
     function generateQr() {
-      const text = qrText.value.trim();
-      const size = Number(qrSize.value);
-      const level = qrLevel.value;
-
-      if (!text) {
+      const payload = buildFormattedContent();
+      if (payload.error) {
         clearQr();
-        setStatus('Please enter some content first.', 'error');
+        setStatus(payload.error, 'error');
         return;
       }
+
+      const text = payload.text;
+      const size = Number(qrSize.value);
+      const level = qrLevel.value;
 
       clearQr();
 
@@ -545,7 +859,7 @@
         applyCenterGraphic();
       });
 
-      setStatus('QR code generated successfully.', 'success');
+      setStatus(`${payload.formatLabel} QR code generated successfully.`, 'success');
     }
 
     function getQrImageElement() {
@@ -627,10 +941,30 @@
 
     clearBtn.addEventListener('click', () => {
       qrText.value = '';
+      dataFormat.value = 'text';
+      wifiSsid.value = '';
+      wifiEncryption.value = 'WPA';
+      wifiPassword.value = '';
+      wifiHidden.checked = false;
+      contactFirstName.value = '';
+      contactLastName.value = '';
+      contactPhone.value = '';
+      contactEmail.value = '';
+      contactOrg.value = '';
+      emailTo.value = '';
+      emailSubject.value = '';
+      emailBody.value = '';
+      smsNumber.value = '';
+      smsMessage.value = '';
+      phoneNumber.value = '';
+      geoLat.value = '';
+      geoLng.value = '';
+      w3wAddress.value = '';
       centerGraphicFile.value = '';
       useCenterGraphic.checked = false;
       centerGraphicDataUrl = '';
       clearQr();
+      updateFormatUi();
       setStatus('Cleared. Enter new content to generate another QR code.');
       qrText.focus();
     });
@@ -660,6 +994,8 @@
     centerGraphicScale.addEventListener('change', applyCenterGraphic);
     moduleStyle.addEventListener('change', generateQr);
     visibilityPreset.addEventListener('change', generateQr);
+    dataFormat.addEventListener('change', updateFormatUi);
+    detectLocationBtn.addEventListener('click', detectCurrentLocation);
 
     qrText.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -667,7 +1003,10 @@
       }
     });
 
-    window.addEventListener('load', generateQr);
+    window.addEventListener('load', () => {
+      updateFormatUi();
+      generateQr();
+    });
   </script>
 </body>
 </html>

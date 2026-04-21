@@ -293,6 +293,7 @@
           <option value="sms">SMS message</option>
           <option value="phone">Phone call</option>
           <option value="geo">Location</option>
+          <option value="w3w">what3words</option>
         </select>
       </div>
 
@@ -400,6 +401,15 @@
             <label for="geoLng">Longitude</label>
             <input id="geoLng" type="number" step="any" placeholder="-122.4194" />
           </div>
+        </div>
+        <button id="detectLocationBtn" type="button" class="secondary">Use current location</button>
+        <p class="muted-note">Uses your phone/browser GPS permission to fill latitude and longitude.</p>
+      </div>
+
+      <div id="w3wFields" class="format-fields">
+        <div class="field">
+          <label for="w3wAddress">what3words address</label>
+          <input id="w3wAddress" type="text" placeholder="filled.count.soap" />
         </div>
       </div>
       <p id="formatHint" class="muted-note"></p>
@@ -513,6 +523,9 @@
     const geoFields = document.getElementById('geoFields');
     const geoLat = document.getElementById('geoLat');
     const geoLng = document.getElementById('geoLng');
+    const detectLocationBtn = document.getElementById('detectLocationBtn');
+    const w3wFields = document.getElementById('w3wFields');
+    const w3wAddress = document.getElementById('w3wAddress');
     const qrSize = document.getElementById('qrSize');
     const qrLevel = document.getElementById('qrLevel');
     const qrcodeContainer = document.getElementById('qrcode');
@@ -536,7 +549,8 @@
       email: emailFields,
       sms: smsFields,
       phone: phoneFields,
-      geo: geoFields
+      geo: geoFields,
+      w3w: w3wFields
     };
 
     function setStatus(message, type = '') {
@@ -638,6 +652,13 @@
         return { text: `geo:${lat},${lng}`, formatLabel: 'Location' };
       }
 
+      if (selectedFormat === 'w3w') {
+        const address = w3wAddress.value.trim().replace(/^\/+/, '');
+        const validW3w = /^[a-zA-Z]+\.[a-zA-Z]+\.[a-zA-Z]+$/.test(address);
+        if (!validW3w) return { error: 'Enter a valid what3words address (word.word.word).' };
+        return { text: `https://what3words.com/${address.toLowerCase()}`, formatLabel: 'what3words location' };
+      }
+
       const plainText = qrText.value.trim();
       if (!plainText) return { error: 'Please enter some content first.' };
       return { text: plainText, formatLabel: 'Plain text' };
@@ -658,9 +679,33 @@
         email: 'Creates an email draft with recipient, subject, and message body.',
         sms: 'Pre-fills an SMS to a target phone number.',
         phone: 'Starts a phone call prompt to the provided number.',
-        geo: 'Opens mapping apps at the specified coordinates.'
+        geo: 'Use GPS (on supported phones/browsers) or type coordinates manually.',
+        w3w: 'Use a what3words address and open it directly in map/browser apps.'
       };
       formatHint.textContent = formatHints[selectedFormat] || '';
+    }
+
+    function detectCurrentLocation() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocation is not supported by this browser.', 'error');
+        return;
+      }
+
+      setStatus('Requesting your current location…');
+      detectLocationBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          geoLat.value = position.coords.latitude.toFixed(6);
+          geoLng.value = position.coords.longitude.toFixed(6);
+          detectLocationBtn.disabled = false;
+          setStatus('Current location filled. Generate to update the QR code.', 'success');
+        },
+        () => {
+          detectLocationBtn.disabled = false;
+          setStatus('Could not get location. Check browser permission settings.', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      );
     }
 
     function drawModule(ctx, style, x, y, size) {
@@ -914,6 +959,7 @@
       phoneNumber.value = '';
       geoLat.value = '';
       geoLng.value = '';
+      w3wAddress.value = '';
       centerGraphicFile.value = '';
       useCenterGraphic.checked = false;
       centerGraphicDataUrl = '';
@@ -949,6 +995,7 @@
     moduleStyle.addEventListener('change', generateQr);
     visibilityPreset.addEventListener('change', generateQr);
     dataFormat.addEventListener('change', updateFormatUi);
+    detectLocationBtn.addEventListener('click', detectCurrentLocation);
 
     qrText.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {

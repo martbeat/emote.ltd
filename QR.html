@@ -294,6 +294,7 @@
           <option value="phone">Phone call</option>
           <option value="geo">Location</option>
           <option value="w3w">what3words</option>
+          <option value="event">Calendar appointment</option>
         </select>
       </div>
 
@@ -412,6 +413,31 @@
           <input id="w3wAddress" type="text" placeholder="filled.count.soap" />
         </div>
       </div>
+
+      <div id="eventFields" class="format-fields">
+        <div class="field">
+          <label for="eventTitle">Event title</label>
+          <input id="eventTitle" type="text" placeholder="Team Sync" />
+        </div>
+        <div class="field">
+          <label for="eventLocation">Location</label>
+          <input id="eventLocation" type="text" placeholder="Conference Room A / Zoom" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="eventStart">Start date/time</label>
+            <input id="eventStart" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="eventEnd">End date/time</label>
+            <input id="eventEnd" type="datetime-local" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="eventNotes">Notes</label>
+          <textarea id="eventNotes" placeholder="Optional meeting details"></textarea>
+        </div>
+      </div>
       <p id="formatHint" class="muted-note"></p>
 
       <div class="row">
@@ -526,6 +552,12 @@
     const detectLocationBtn = document.getElementById('detectLocationBtn');
     const w3wFields = document.getElementById('w3wFields');
     const w3wAddress = document.getElementById('w3wAddress');
+    const eventFields = document.getElementById('eventFields');
+    const eventTitle = document.getElementById('eventTitle');
+    const eventLocation = document.getElementById('eventLocation');
+    const eventStart = document.getElementById('eventStart');
+    const eventEnd = document.getElementById('eventEnd');
+    const eventNotes = document.getElementById('eventNotes');
     const qrSize = document.getElementById('qrSize');
     const qrLevel = document.getElementById('qrLevel');
     const qrcodeContainer = document.getElementById('qrcode');
@@ -550,7 +582,8 @@
       sms: smsFields,
       phone: phoneFields,
       geo: geoFields,
-      w3w: w3wFields
+      w3w: w3wFields,
+      event: eventFields
     };
 
     function setStatus(message, type = '') {
@@ -583,6 +616,13 @@
 
     function encodeMailComponent(value) {
       return encodeURIComponent(String(value || '').trim());
+    }
+
+    function toIcsTimestamp(localDateTime) {
+      const parsed = new Date(localDateTime);
+      if (Number.isNaN(parsed.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${parsed.getUTCFullYear()}${pad(parsed.getUTCMonth() + 1)}${pad(parsed.getUTCDate())}T${pad(parsed.getUTCHours())}${pad(parsed.getUTCMinutes())}${pad(parsed.getUTCSeconds())}Z`;
     }
 
     function buildFormattedContent() {
@@ -659,6 +699,41 @@
         return { text: `https://what3words.com/${address.toLowerCase()}`, formatLabel: 'what3words location' };
       }
 
+      if (selectedFormat === 'event') {
+        const title = eventTitle.value.trim();
+        const startRaw = eventStart.value.trim();
+        if (!title) return { error: 'Event title is required.' };
+        if (!startRaw) return { error: 'Event start date/time is required.' };
+        const startUtc = toIcsTimestamp(startRaw);
+        if (!startUtc) return { error: 'Event start date/time is invalid.' };
+
+        const endRaw = eventEnd.value.trim();
+        const endUtc = endRaw ? toIcsTimestamp(endRaw) : '';
+        if (endRaw && !endUtc) return { error: 'Event end date/time is invalid.' };
+        if (startUtc && endUtc && endUtc <= startUtc) {
+          return { error: 'Event end must be after event start.' };
+        }
+
+        const nowStamp = toIcsTimestamp(new Date().toISOString());
+        const uid = `${Date.now()}@emote-ltd-qr`;
+        const lines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//emote.ltd//QR Appointment//EN',
+          'BEGIN:VEVENT',
+          `UID:${uid}`,
+          `DTSTAMP:${nowStamp}`,
+          `DTSTART:${startUtc}`,
+          endUtc ? `DTEND:${endUtc}` : '',
+          `SUMMARY:${escapeQrValue(title)}`,
+          eventLocation.value.trim() ? `LOCATION:${escapeQrValue(eventLocation.value.trim())}` : '',
+          eventNotes.value.trim() ? `DESCRIPTION:${escapeQrValue(eventNotes.value.trim())}` : '',
+          'END:VEVENT',
+          'END:VCALENDAR'
+        ].filter(Boolean);
+        return { text: lines.join('\n'), formatLabel: 'Calendar appointment' };
+      }
+
       const plainText = qrText.value.trim();
       if (!plainText) return { error: 'Please enter some content first.' };
       return { text: plainText, formatLabel: 'Plain text' };
@@ -680,7 +755,8 @@
         sms: 'Pre-fills an SMS to a target phone number.',
         phone: 'Starts a phone call prompt to the provided number.',
         geo: 'Use GPS (on supported phones/browsers) or type coordinates manually.',
-        w3w: 'Use a what3words address and open it directly in map/browser apps.'
+        w3w: 'Use a what3words address and open it directly in map/browser apps.',
+        event: 'Creates an iCalendar event payload for calendar apps.'
       };
       formatHint.textContent = formatHints[selectedFormat] || '';
     }
@@ -960,6 +1036,11 @@
       geoLat.value = '';
       geoLng.value = '';
       w3wAddress.value = '';
+      eventTitle.value = '';
+      eventLocation.value = '';
+      eventStart.value = '';
+      eventEnd.value = '';
+      eventNotes.value = '';
       centerGraphicFile.value = '';
       useCenterGraphic.checked = false;
       centerGraphicDataUrl = '';

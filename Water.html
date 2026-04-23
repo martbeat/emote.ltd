@@ -45,6 +45,21 @@
     .split{display:grid; grid-template-columns: 1fr 1fr; gap:8px;}
     .toggle{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-top:6px;}
     .toggle input{transform: translateY(1px);}
+    .webgl-error{
+      position:absolute;
+      inset:14px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      border:1px solid rgba(255,255,255,0.16);
+      border-radius:12px;
+      background:rgba(10,16,36,0.82);
+      color:#dce5ff;
+      font-size:13px;
+      line-height:1.45;
+      padding:18px;
+      z-index:5;
+    }
   </style>
 
   <!-- Import map so "three" and "three/addons/" resolve in-browser -->
@@ -1130,6 +1145,15 @@
   let atomMeshes = [];
   let bondLines, weakLines, boxWire;
   let mistPoints, mistBasePos, mistHalfExtent;
+  let webglReady = false;
+
+  function showWebGLError(message){
+    const notice = document.createElement("div");
+    notice.className = "webgl-error";
+    notice.innerHTML = `<div><b>WebGL unavailable</b><br/>${message}</div>`;
+    view.appendChild(notice);
+    ui.fps.textContent = "N/A";
+  }
 
   function initThree(){
     scene = new THREE.Scene();
@@ -1139,7 +1163,13 @@
     camera = new THREE.PerspectiveCamera(60, 1, 0.1, 2000);
     camera.position.set(0, 18, 48);
 
-    renderer = new THREE.WebGLRenderer({antialias:true});
+    try{
+      renderer = new THREE.WebGLRenderer({antialias:true});
+    }catch (err){
+      console.error("THREE.WebGLRenderer init failed:", err);
+      showWebGLError("This browser/environment has graphics disabled (or sandboxed), so 3D rendering cannot start.");
+      return false;
+    }
     renderer.setPixelRatio(window.devicePixelRatio * parseFloat(ui.quality.value));
     renderer.setSize(view.clientWidth, view.clientHeight);
     view.appendChild(renderer.domElement);
@@ -1162,6 +1192,8 @@
     createMistLayer();
 
     window.addEventListener("resize", onResize);
+    webglReady = true;
+    return true;
   }
 
   function createMistLayer(){
@@ -1491,9 +1523,11 @@
       ui.pe.textContent = pe.toFixed(1);
     }
 
-    updateMist(now * 0.001);
-    controls.update();
-    renderer.render(scene, camera);
+    if (webglReady && renderer && controls){
+      updateMist(now * 0.001);
+      controls.update();
+      renderer.render(scene, camera);
+    }
 
     fpsAcc += 1/Math.max(1e-6, frameDt);
     fpsN++;

@@ -7,10 +7,12 @@
   --bg:#0b0f1a;--panel:#12182b;--panel2:#18213a;--border:#2b3a6b;
   --text:#eef2ff;--muted:#9aa6d1;--accent:#6ea8ff;
 }
-body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}
 header{padding:12px;border-bottom:1px solid var(--border)}
-.app{flex:1;display:flex;min-height:0}
-.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border)}
+.app{flex:1;display:flex;min-height:0;overflow:hidden}
+.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border);min-width:0;min-height:0}
 .editor{width:40%;min-width:260px}
 .preview{flex:1}
 .resizer{width:6px;cursor:col-resize;background:var(--border)}
@@ -19,7 +21,7 @@ button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);b
 input{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
 textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
 .preview-area{flex:1;overflow:auto;padding:15px}
-.render-canvas{display:inline-block;cursor:grab}
+.render-canvas{display:inline-block;transform-origin:0 0;cursor:grab}
 .render-canvas.dragging{cursor:grabbing}
 .status{padding:6px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 </style></head>
@@ -37,8 +39,8 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <button id="loadDiagram">Load</button>
 <button id="deleteDiagram">Delete</button>
 <select id="theme">
-<option value="dark">Dark</option>
-<option value="default" selected>Default</option>
+<option value="dark" selected>Dark</option>
+<option value="default">Default</option>
 <option value="neutral">Neutral</option>
 <option value="forest">Forest</option>
 <option value="base">Base</option>
@@ -69,19 +71,11 @@ const output = document.getElementById('output');
 const status = document.getElementById('status');
 const theme = document.getElementById('theme');
 const renderBtn = document.getElementById('render');
-const diagramNameEl = document.getElementById('diagramName');
-const savedDiagramsEl = document.getElementById('savedDiagrams');
-const saveDiagramBtn = document.getElementById('saveDiagram');
-const clearDiagramBtn = document.getElementById('clearDiagram');
-const loadDiagramBtn = document.getElementById('loadDiagram');
-const deleteDiagramBtn = document.getElementById('deleteDiagram');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
 let hasErrorStatus = false;
 let zoomLevel = 1;
-let baseCanvasWidth = 0;
-let baseCanvasHeight = 0;
 let renderCanvas = null;
 let isDragging = false;
 let dragStartX = 0;
@@ -335,69 +329,16 @@ function clearErrorStatus(){
   }
 }
 
-function captureCanvasDimensions(){
-  const svg = renderCanvas?.querySelector('svg');
-  if(!svg){
-    baseCanvasWidth = 0;
-    baseCanvasHeight = 0;
-    return;
-  }
-
-  const viewBox = svg.viewBox?.baseVal;
-  const widthAttr = Number.parseFloat(svg.getAttribute('width'));
-  const heightAttr = Number.parseFloat(svg.getAttribute('height'));
-  const fallbackRect = svg.getBoundingClientRect();
-
-  baseCanvasWidth = viewBox?.width || widthAttr || fallbackRect.width || 1200;
-  baseCanvasHeight = viewBox?.height || heightAttr || fallbackRect.height || 800;
-}
-
 function applyZoom(){
   if(!renderCanvas){
     return;
   }
-
-  const svg = renderCanvas.querySelector('svg');
-  if(!svg){
-    return;
-  }
-
-  if(!baseCanvasWidth || !baseCanvasHeight){
-    captureCanvasDimensions();
-  }
-
-  const scaledWidth = baseCanvasWidth * zoomLevel;
-  const scaledHeight = baseCanvasHeight * zoomLevel;
-
-  renderCanvas.style.width = `${scaledWidth}px`;
-  renderCanvas.style.height = `${scaledHeight}px`;
-  svg.style.width = `${scaledWidth}px`;
-  svg.style.height = `${scaledHeight}px`;
-  zoomResetBtn.textContent = `${Math.round(zoomLevel * 100)}%`;
+  renderCanvas.style.transform = `scale(${zoomLevel})`;
 }
 
-function setZoom(nextZoom, anchorX=null, anchorY=null){
-  if(!output || !renderCanvas){
-    zoomLevel = Math.min(8, Math.max(0.3, nextZoom));
-    return;
-  }
-  const prevZoom = zoomLevel;
-  const clampedZoom = Math.min(8, Math.max(0.3, nextZoom));
-  if(clampedZoom === prevZoom){
-    return;
-  }
-  const outputRect = output.getBoundingClientRect();
-  const focusX = anchorX ?? (outputRect.left + output.clientWidth / 2);
-  const focusY = anchorY ?? (outputRect.top + output.clientHeight / 2);
-  const offsetX = focusX - outputRect.left + output.scrollLeft;
-  const offsetY = focusY - outputRect.top + output.scrollTop;
-
-  zoomLevel = clampedZoom;
+function setZoom(nextZoom){
+  zoomLevel = Math.min(4, Math.max(0.3, nextZoom));
   applyZoom();
-
-  const scaleRatio = zoomLevel / prevZoom;
-  output.scrollLeft = (offsetX * scaleRatio) - (focusX - outputRect.left);
-  output.scrollTop = (offsetY * scaleRatio) - (focusY - outputRect.top);
 }
 
 function setupCanvasNavigation(){
@@ -477,17 +418,17 @@ function getThemePreset(){
   return THEME_PRESETS[theme.value] || THEME_PRESETS.default;
 }
 
+function getThemePreset(){
+  return THEME_PRESETS[theme.value] || THEME_PRESETS.dark;
+}
+
 // --- render ---
 function init(){
 const preset = getThemePreset();
-const readableThemeVariables = {
-  ...(preset.themeVariables || {}),
-  fontSize: '20px'
-};
 mermaid.initialize({
   startOnLoad:false,
   theme:preset.theme,
-  themeVariables:readableThemeVariables,
+  themeVariables:preset.themeVariables,
   securityLevel:'loose',
   suppressErrorRendering:true,
   flowchart:{
@@ -632,10 +573,7 @@ async function render(){
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = `<div class="render-canvas">${svg}</div>`;
     renderCanvas = output.querySelector('.render-canvas');
-    captureCanvasDimensions();
     applyZoom();
-    output.scrollLeft = 0;
-    output.scrollTop = 0;
     setupCanvasNavigation();
 
     setStatus("Rendered");
@@ -666,12 +604,12 @@ zoomOutBtn.onclick = ()=>setZoom(zoomLevel / 1.2);
 zoomResetBtn.onclick = ()=>setZoom(1);
 
 output.addEventListener('wheel',(event)=>{
-  if(!(event.ctrlKey || event.metaKey || event.altKey)){
+  if(!event.ctrlKey){
     return;
   }
   event.preventDefault();
-  const factor = event.deltaY < 0 ? 1.08 : 1 / 1.08;
-  setZoom(zoomLevel * factor, event.clientX, event.clientY);
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  setZoom(zoomLevel * factor);
 },{passive:false});
 
 // --- share link ---
@@ -888,10 +826,32 @@ document.getElementById('png').onclick = async ()=>{
 // --- resize ---
 const resizer=document.getElementById('resizer');
 const editor=document.getElementById('editorPane');
-resizer.onmousedown=()=>{
-  document.onmousemove=e=>editor.style.width=e.clientX+'px';
-  document.onmouseup=()=>document.onmousemove=null;
-};
+const app = document.querySelector('.app');
+let resizing = false;
+
+resizer.addEventListener('mousedown',()=>{
+  resizing = true;
+  document.body.style.userSelect = 'none';
+});
+
+window.addEventListener('mousemove',(event)=>{
+  if(!resizing){
+    return;
+  }
+  const bounds = app.getBoundingClientRect();
+  const minWidth = 260;
+  const maxWidth = Math.max(minWidth, bounds.width - 260);
+  const nextWidth = Math.min(maxWidth, Math.max(minWidth, event.clientX - bounds.left));
+  editor.style.width = `${nextWidth}px`;
+});
+
+window.addEventListener('mouseup',()=>{
+  if(!resizing){
+    return;
+  }
+  resizing = false;
+  document.body.style.userSelect = '';
+});
 
 // init
 loadState();

@@ -16,6 +16,7 @@ header{padding:12px;border-bottom:1px solid var(--border)}
 .resizer{width:6px;cursor:col-resize;background:var(--border)}
 .toolbar{padding:8px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap}
 button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer}
+input{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
 textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
 .preview-area{flex:1;overflow:auto;padding:15px}
 .render-canvas{display:inline-block;transform-origin:0 0;cursor:grab}
@@ -29,6 +30,11 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <button id="render">Render</button>
 <button id="share">Share</button>
 <button id="embed">Embed</button>
+<input id="diagramName" placeholder="Diagram name" value="" />
+<button id="saveDiagram">Save</button>
+<select id="savedDiagrams"></select>
+<button id="loadDiagram">Load</button>
+<button id="deleteDiagram">Delete</button>
 <select id="theme">
 <option value="dark" selected>Dark</option>
 <option value="default">Default</option>
@@ -62,6 +68,11 @@ const output = document.getElementById('output');
 const status = document.getElementById('status');
 const theme = document.getElementById('theme');
 const renderBtn = document.getElementById('render');
+const diagramNameEl = document.getElementById('diagramName');
+const savedDiagramsEl = document.getElementById('savedDiagrams');
+const saveDiagramBtn = document.getElementById('saveDiagram');
+const loadDiagramBtn = document.getElementById('loadDiagram');
+const deleteDiagramBtn = document.getElementById('deleteDiagram');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
@@ -144,6 +155,90 @@ const THEME_PRESETS = {
 
 // --- persistence ---
 const STORAGE_KEY = "mermaid_code";
+const FILESYSTEM_KEY = "mermaid_filesystem";
+const LAST_FILE_KEY = "mermaid_last_file";
+
+function sanitizeDiagramName(name){
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_ ]+/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+function getFilesystem(){
+  try{
+    const parsed = JSON.parse(localStorage.getItem(FILESYSTEM_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }catch{
+    return {};
+  }
+}
+
+function saveFilesystem(filesystem){
+  localStorage.setItem(FILESYSTEM_KEY, JSON.stringify(filesystem));
+}
+
+function refreshSavedDiagramsList(selectedName=''){
+  const filesystem = getFilesystem();
+  const names = Object.keys(filesystem).sort((a,b)=>a.localeCompare(b));
+  savedDiagramsEl.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = names.length ? 'Choose saved diagram' : 'No saved diagrams';
+  savedDiagramsEl.appendChild(placeholder);
+
+  for(const name of names){
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    savedDiagramsEl.appendChild(opt);
+  }
+
+  if(selectedName && names.includes(selectedName)){
+    savedDiagramsEl.value = selectedName;
+  }else{
+    savedDiagramsEl.value = '';
+  }
+}
+
+function saveCurrentDiagramToFilesystem(){
+  const fallbackName = inferDiagramName(codeEl.value);
+  const sanitizedName = sanitizeDiagramName(diagramNameEl.value || fallbackName);
+  if(!sanitizedName){
+    setStatus('Error: provide a valid diagram name',{error:true});
+    return null;
+  }
+
+  const filesystem = getFilesystem();
+  filesystem[sanitizedName] = {
+    code: codeEl.value,
+    updatedAt: new Date().toISOString()
+  };
+  saveFilesystem(filesystem);
+  localStorage.setItem(LAST_FILE_KEY, sanitizedName);
+  diagramNameEl.value = sanitizedName;
+  refreshSavedDiagramsList(sanitizedName);
+  return sanitizedName;
+}
+
+function loadDiagramFromFilesystem(name){
+  const filesystem = getFilesystem();
+  const entry = filesystem[name];
+  if(!entry?.code){
+    setStatus(`Error: diagram "${name}" not found`,{error:true});
+    return;
+  }
+  codeEl.value = entry.code;
+  diagramNameEl.value = name;
+  localStorage.setItem(LAST_FILE_KEY, name);
+  refreshSavedDiagramsList(name);
+  render();
+}
 
 function setStatus(message,{error=false} = {}){
   status.textContent = message;
@@ -205,23 +300,37 @@ function setupCanvasNavigation(){
 
 function loadState(){
   const saved = localStorage.getItem(STORAGE_KEY);
+  const lastFile = localStorage.getItem(LAST_FILE_KEY);
+  const filesystem = getFilesystem();
   const url = new URLSearchParams(location.search).get('c');
+  const urlName = sanitizeDiagramName(new URLSearchParams(location.search).get('n') || '');
   if(url){
     try{
       codeEl.value = decodeMermaidCode(url);
+      diagramNameEl.value = urlName || inferDiagramName(codeEl.value);
     }catch{
       codeEl.value = saved || "flowchart TD\nA-->B\nB-->C";
+      diagramNameEl.value = lastFile || inferDiagramName(codeEl.value);
       setStatus("Warning: invalid shared URL data",{error:true});
     }
+  } else if(lastFile && filesystem[lastFile]?.code){
+    codeEl.value = filesystem[lastFile].code;
+    diagramNameEl.value = lastFile;
   } else if(saved){
     codeEl.value = saved;
+    diagramNameEl.value = inferDiagramName(codeEl.value);
   } else {
     codeEl.value = "flowchart TD\nA-->B\nB-->C";
+    diagramNameEl.value = 'diagram-1';
   }
+  refreshSavedDiagramsList(diagramNameEl.value);
 }
 
 function saveState(){
   localStorage.setItem(STORAGE_KEY, codeEl.value);
+  if(diagramNameEl.value){
+    localStorage.setItem(LAST_FILE_KEY, sanitizeDiagramName(diagramNameEl.value));
+  }
 }
 
 function getThemePreset(){
@@ -423,6 +532,44 @@ document.getElementById('embed').onclick = async ()=>{
   }catch{
     setStatus("Could not copy embed code",{error:true});
   }
+};
+
+saveDiagramBtn.onclick = ()=>{
+  const name = saveCurrentDiagramToFilesystem();
+  if(name){
+    setStatus(`Saved diagram as "${name}"`);
+    saveState();
+  }
+};
+
+loadDiagramBtn.onclick = ()=>{
+  const name = savedDiagramsEl.value;
+  if(!name){
+    setStatus('Error: choose a saved diagram to load',{error:true});
+    return;
+  }
+  loadDiagramFromFilesystem(name);
+  setStatus(`Loaded diagram "${name}"`);
+};
+
+deleteDiagramBtn.onclick = ()=>{
+  const name = savedDiagramsEl.value || sanitizeDiagramName(diagramNameEl.value);
+  if(!name){
+    setStatus('Error: choose a saved diagram to delete',{error:true});
+    return;
+  }
+  const filesystem = getFilesystem();
+  if(!filesystem[name]){
+    setStatus(`Error: diagram "${name}" not found`,{error:true});
+    return;
+  }
+  delete filesystem[name];
+  saveFilesystem(filesystem);
+  if(localStorage.getItem(LAST_FILE_KEY) === name){
+    localStorage.removeItem(LAST_FILE_KEY);
+  }
+  refreshSavedDiagramsList();
+  setStatus(`Deleted diagram "${name}"`);
 };
 
 // --- exports ---

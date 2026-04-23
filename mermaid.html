@@ -19,7 +19,7 @@ button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);b
 input{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
 textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
 .preview-area{flex:1;overflow:auto;padding:15px}
-.render-canvas{display:inline-block;transform-origin:0 0;cursor:grab}
+.render-canvas{display:inline-block;cursor:grab}
 .render-canvas.dragging{cursor:grabbing}
 .status{padding:6px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 </style></head>
@@ -79,7 +79,9 @@ const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
 let hasErrorStatus = false;
-let zoomLevel = 1.6;
+let zoomLevel = 1;
+let baseCanvasWidth = 0;
+let baseCanvasHeight = 0;
 let renderCanvas = null;
 let isDragging = false;
 let dragStartX = 0;
@@ -333,11 +335,44 @@ function clearErrorStatus(){
   }
 }
 
+function captureCanvasDimensions(){
+  const svg = renderCanvas?.querySelector('svg');
+  if(!svg){
+    baseCanvasWidth = 0;
+    baseCanvasHeight = 0;
+    return;
+  }
+
+  const viewBox = svg.viewBox?.baseVal;
+  const widthAttr = Number.parseFloat(svg.getAttribute('width'));
+  const heightAttr = Number.parseFloat(svg.getAttribute('height'));
+  const fallbackRect = svg.getBoundingClientRect();
+
+  baseCanvasWidth = viewBox?.width || widthAttr || fallbackRect.width || 1200;
+  baseCanvasHeight = viewBox?.height || heightAttr || fallbackRect.height || 800;
+}
+
 function applyZoom(){
   if(!renderCanvas){
     return;
   }
-  renderCanvas.style.transform = `scale(${zoomLevel})`;
+
+  const svg = renderCanvas.querySelector('svg');
+  if(!svg){
+    return;
+  }
+
+  if(!baseCanvasWidth || !baseCanvasHeight){
+    captureCanvasDimensions();
+  }
+
+  const scaledWidth = baseCanvasWidth * zoomLevel;
+  const scaledHeight = baseCanvasHeight * zoomLevel;
+
+  renderCanvas.style.width = `${scaledWidth}px`;
+  renderCanvas.style.height = `${scaledHeight}px`;
+  svg.style.width = `${scaledWidth}px`;
+  svg.style.height = `${scaledHeight}px`;
   zoomResetBtn.textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
@@ -597,7 +632,10 @@ async function render(){
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = `<div class="render-canvas">${svg}</div>`;
     renderCanvas = output.querySelector('.render-canvas');
+    captureCanvasDimensions();
     applyZoom();
+    output.scrollLeft = 0;
+    output.scrollTop = 0;
     setupCanvasNavigation();
 
     setStatus("Rendered");
@@ -625,7 +663,7 @@ renderBtn.onclick = render;
 theme.onchange = render;
 zoomInBtn.onclick = ()=>setZoom(zoomLevel * 1.2);
 zoomOutBtn.onclick = ()=>setZoom(zoomLevel / 1.2);
-zoomResetBtn.onclick = ()=>setZoom(1.6);
+zoomResetBtn.onclick = ()=>setZoom(1);
 
 output.addEventListener('wheel',(event)=>{
   if(!(event.ctrlKey || event.metaKey || event.altKey)){

@@ -445,14 +445,28 @@ function getThemePreset(){
 // --- render ---
 function init(){
 const preset = getThemePreset();
+const readableThemeVariables = {
+  ...(preset.themeVariables || {}),
+  fontSize: '20px'
+};
 mermaid.initialize({
   startOnLoad:false,
   theme:preset.theme,
-  themeVariables:preset.themeVariables,
+  themeVariables:readableThemeVariables,
   securityLevel:'loose',
   suppressErrorRendering:true,
   flowchart:{
-    htmlLabels:false
+    htmlLabels:false,
+    useMaxWidth:false
+  },
+  sequence:{
+    useMaxWidth:false
+  },
+  gantt:{
+    useMaxWidth:false
+  },
+  journey:{
+    useMaxWidth:false
   }
 });
 }

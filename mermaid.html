@@ -32,6 +32,7 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <button id="embed">Embed</button>
 <input id="diagramName" placeholder="Diagram name" value="" />
 <button id="saveDiagram">Save</button>
+<button id="clearDiagram">Clear</button>
 <select id="savedDiagrams"></select>
 <button id="loadDiagram">Load</button>
 <button id="deleteDiagram">Delete</button>
@@ -71,6 +72,7 @@ const renderBtn = document.getElementById('render');
 const diagramNameEl = document.getElementById('diagramName');
 const savedDiagramsEl = document.getElementById('savedDiagrams');
 const saveDiagramBtn = document.getElementById('saveDiagram');
+const clearDiagramBtn = document.getElementById('clearDiagram');
 const loadDiagramBtn = document.getElementById('loadDiagram');
 const deleteDiagramBtn = document.getElementById('deleteDiagram');
 const zoomInBtn = document.getElementById('zoomIn');
@@ -208,7 +210,8 @@ function refreshSavedDiagramsList(selectedName=''){
 
 function saveCurrentDiagramToFilesystem(){
   const fallbackName = inferDiagramName(codeEl.value);
-  const sanitizedName = sanitizeDiagramName(diagramNameEl.value || fallbackName);
+  const requestedName = sanitizeDiagramName(diagramNameEl.value || fallbackName);
+  const sanitizedName = getVersionedDiagramName(requestedName, codeEl.value);
   if(!sanitizedName){
     setStatus('Error: provide a valid diagram name',{error:true});
     return null;
@@ -224,6 +227,52 @@ function saveCurrentDiagramToFilesystem(){
   diagramNameEl.value = sanitizedName;
   refreshSavedDiagramsList(sanitizedName);
   return sanitizedName;
+}
+
+function tokenizeDiagram(text){
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/g)
+      .filter(Boolean)
+  );
+}
+
+function getDiagramSimilarityScore(previousCode, nextCode){
+  const previousTokens = tokenizeDiagram(previousCode);
+  const nextTokens = tokenizeDiagram(nextCode);
+  if(!previousTokens.size && !nextTokens.size){
+    return 1;
+  }
+  const intersection = [...previousTokens].filter((token)=>nextTokens.has(token)).length;
+  const union = new Set([...previousTokens, ...nextTokens]).size || 1;
+  return intersection / union;
+}
+
+function incrementDiagramVersion(baseName, filesystem){
+  const versionMatch = baseName.match(/^(.*?)-v(\d+)$/);
+  const stem = versionMatch ? versionMatch[1] : baseName;
+  const startingVersion = versionMatch ? Number(versionMatch[2]) + 1 : 2;
+  let nextVersion = startingVersion;
+  let candidate = `${stem}-v${nextVersion}`;
+  while(filesystem[candidate]){
+    nextVersion += 1;
+    candidate = `${stem}-v${nextVersion}`;
+  }
+  return candidate;
+}
+
+function getVersionedDiagramName(name, currentCode){
+  const filesystem = getFilesystem();
+  const existing = filesystem[name];
+  if(!existing?.code){
+    return name;
+  }
+  const similarity = getDiagramSimilarityScore(existing.code, currentCode);
+  if(similarity >= 0.45){
+    return name;
+  }
+  return incrementDiagramVersion(name, filesystem);
 }
 
 function loadDiagramFromFilesystem(name){
@@ -570,6 +619,17 @@ deleteDiagramBtn.onclick = ()=>{
   }
   refreshSavedDiagramsList();
   setStatus(`Deleted diagram "${name}"`);
+};
+
+clearDiagramBtn.onclick = ()=>{
+  codeEl.value = '';
+  diagramNameEl.value = '';
+  savedDiagramsEl.value = '';
+  output.innerHTML = '';
+  renderCanvas = null;
+  localStorage.removeItem(LAST_FILE_KEY);
+  saveState();
+  setStatus('Cleared current diagram');
 };
 
 // --- exports ---

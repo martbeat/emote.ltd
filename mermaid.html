@@ -7,10 +7,12 @@
   --bg:#0b0f1a;--panel:#12182b;--panel2:#18213a;--border:#2b3a6b;
   --text:#eef2ff;--muted:#9aa6d1;--accent:#6ea8ff;
 }
-body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}
 header{padding:12px;border-bottom:1px solid var(--border)}
-.app{flex:1;display:flex;min-height:0}
-.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border)}
+.app{flex:1;display:flex;min-height:0;overflow:hidden}
+.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border);min-width:0;min-height:0}
 .editor{width:40%;min-width:260px}
 .preview{flex:1}
 .resizer{width:6px;cursor:col-resize;background:var(--border)}
@@ -18,6 +20,8 @@ header{padding:12px;border-bottom:1px solid var(--border)}
 button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer}
 textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
 .preview-area{flex:1;overflow:auto;padding:15px}
+.render-canvas{display:inline-block;transform-origin:0 0;cursor:grab}
+.render-canvas.dragging{cursor:grabbing}
 .status{padding:6px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 </style></head>
 <body>
@@ -30,6 +34,14 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <select id="theme">
 <option value="dark" selected>Dark</option>
 <option value="default">Default</option>
+<option value="neutral">Neutral</option>
+<option value="forest">Forest</option>
+<option value="base">Base</option>
+<option value="midnight">Midnight</option>
+<option value="sunset">Sunset</option>
+<option value="ocean">Ocean</option>
+<option value="slate">Slate</option>
+<option value="rose">Rose</option>
 </select>
 </div>
 <textarea id="code"></textarea>
@@ -37,6 +49,9 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <div class="toolbar">
 <button id="svg">SVG</button>
 <button id="png">PNG</button>
+<button id="zoomOut" title="Zoom out">-</button>
+<button id="zoomIn" title="Zoom in">+</button>
+<button id="zoomReset" title="Reset zoom">100%</button>
 </div>
 <div class="preview-area" id="output"></div>
 <div class="status" id="status">Ready</div>
@@ -49,7 +64,85 @@ const output = document.getElementById('output');
 const status = document.getElementById('status');
 const theme = document.getElementById('theme');
 const renderBtn = document.getElementById('render');
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+const zoomResetBtn = document.getElementById('zoomReset');
 let hasErrorStatus = false;
+let zoomLevel = 1;
+let renderCanvas = null;
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let scrollStartLeft = 0;
+let scrollStartTop = 0;
+let navigationBound = false;
+const THEME_PRESETS = {
+  dark: { theme: 'dark', isDark: true },
+  default: { theme: 'default', isDark: false },
+  neutral: { theme: 'neutral', isDark: false },
+  forest: { theme: 'forest', isDark: false },
+  base: { theme: 'base', isDark: false },
+  midnight: {
+    theme: 'base',
+    isDark: true,
+    themeVariables: {
+      background: '#020617',
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#334155',
+      lineColor: '#7dd3fc',
+      tertiaryColor: '#0f172a'
+    }
+  },
+  sunset: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#fff7ed',
+      primaryColor: '#fed7aa',
+      primaryTextColor: '#7c2d12',
+      primaryBorderColor: '#fb923c',
+      lineColor: '#ea580c',
+      tertiaryColor: '#ffedd5'
+    }
+  },
+  ocean: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#ecfeff',
+      primaryColor: '#a5f3fc',
+      primaryTextColor: '#155e75',
+      primaryBorderColor: '#06b6d4',
+      lineColor: '#0891b2',
+      tertiaryColor: '#cffafe'
+    }
+  },
+  slate: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#f8fafc',
+      primaryColor: '#e2e8f0',
+      primaryTextColor: '#0f172a',
+      primaryBorderColor: '#64748b',
+      lineColor: '#334155',
+      tertiaryColor: '#f1f5f9'
+    }
+  },
+  rose: {
+    theme: 'base',
+    isDark: false,
+    themeVariables: {
+      background: '#fff1f2',
+      primaryColor: '#fecdd3',
+      primaryTextColor: '#881337',
+      primaryBorderColor: '#f43f5e',
+      lineColor: '#e11d48',
+      tertiaryColor: '#ffe4e6'
+    }
+  }
+};
 
 // --- persistence ---
 const STORAGE_KEY = "mermaid_code";
@@ -63,6 +156,53 @@ function clearErrorStatus(){
   if(hasErrorStatus){
     setStatus('Ready');
   }
+}
+
+function applyZoom(){
+  if(!renderCanvas){
+    return;
+  }
+  renderCanvas.style.transform = `scale(${zoomLevel})`;
+}
+
+function setZoom(nextZoom){
+  zoomLevel = Math.min(4, Math.max(0.3, nextZoom));
+  applyZoom();
+}
+
+function setupCanvasNavigation(){
+  if(!renderCanvas || navigationBound){
+    return;
+  }
+  navigationBound = true;
+
+  output.addEventListener('mousedown',(event)=>{
+    if(!event.target.closest('.render-canvas')){
+      return;
+    }
+    isDragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    scrollStartLeft = output.scrollLeft;
+    scrollStartTop = output.scrollTop;
+    renderCanvas?.classList.add('dragging');
+    event.preventDefault();
+  });
+
+  window.addEventListener('mouseup',()=>{
+    isDragging = false;
+    renderCanvas?.classList.remove('dragging');
+  });
+
+  output.addEventListener('mousemove',(event)=>{
+    if(!isDragging){
+      return;
+    }
+    const deltaX = event.clientX - dragStartX;
+    const deltaY = event.clientY - dragStartY;
+    output.scrollLeft = scrollStartLeft - deltaX;
+    output.scrollTop = scrollStartTop - deltaY;
+  });
 }
 
 function loadState(){
@@ -86,12 +226,19 @@ function saveState(){
   localStorage.setItem(STORAGE_KEY, codeEl.value);
 }
 
+function getThemePreset(){
+  return THEME_PRESETS[theme.value] || THEME_PRESETS.dark;
+}
+
 // --- render ---
 function init(){
+const preset = getThemePreset();
 mermaid.initialize({
   startOnLoad:false,
-  theme:theme.value,
+  theme:preset.theme,
+  themeVariables:preset.themeVariables,
   securityLevel:'loose',
+  suppressErrorRendering:true,
   flowchart:{
     htmlLabels:false
   }
@@ -219,9 +366,13 @@ async function render(){
   try{
     init();
     await document.fonts.ready;
+    await mermaid.parse(codeEl.value, { suppressErrors: true });
 
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
-    output.innerHTML = svg;
+    output.innerHTML = `<div class="render-canvas">${svg}</div>`;
+    renderCanvas = output.querySelector('.render-canvas');
+    applyZoom();
+    setupCanvasNavigation();
 
     setStatus("Rendered");
     saveState();
@@ -238,6 +389,18 @@ codeEl.addEventListener('input',()=>{
 
 renderBtn.onclick = render;
 theme.onchange = render;
+zoomInBtn.onclick = ()=>setZoom(zoomLevel * 1.2);
+zoomOutBtn.onclick = ()=>setZoom(zoomLevel / 1.2);
+zoomResetBtn.onclick = ()=>setZoom(1);
+
+output.addEventListener('wheel',(event)=>{
+  if(!event.ctrlKey){
+    return;
+  }
+  event.preventDefault();
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  setZoom(zoomLevel * factor);
+},{passive:false});
 
 // --- share link ---
 document.getElementById('share').onclick = async ()=>{
@@ -368,7 +531,7 @@ document.getElementById('png').onclick = async ()=>{
   const ctx = canvas.getContext('2d');
   ctx.setTransform(scale,0,0,scale,0,0);
 
-  ctx.fillStyle = theme.value === 'dark' ? '#0b0f1a' : '#ffffff';
+  ctx.fillStyle = getThemePreset().isDark ? '#0b0f1a' : '#ffffff';
   ctx.fillRect(0,0,width,height);
 
   const img = new Image();
@@ -396,10 +559,32 @@ document.getElementById('png').onclick = async ()=>{
 // --- resize ---
 const resizer=document.getElementById('resizer');
 const editor=document.getElementById('editorPane');
-resizer.onmousedown=()=>{
-  document.onmousemove=e=>editor.style.width=e.clientX+'px';
-  document.onmouseup=()=>document.onmousemove=null;
-};
+const app = document.querySelector('.app');
+let resizing = false;
+
+resizer.addEventListener('mousedown',()=>{
+  resizing = true;
+  document.body.style.userSelect = 'none';
+});
+
+window.addEventListener('mousemove',(event)=>{
+  if(!resizing){
+    return;
+  }
+  const bounds = app.getBoundingClientRect();
+  const minWidth = 260;
+  const maxWidth = Math.max(minWidth, bounds.width - 260);
+  const nextWidth = Math.min(maxWidth, Math.max(minWidth, event.clientX - bounds.left));
+  editor.style.width = `${nextWidth}px`;
+});
+
+window.addEventListener('mouseup',()=>{
+  if(!resizing){
+    return;
+  }
+  resizing = false;
+  document.body.style.userSelect = '';
+});
 
 // init
 loadState();

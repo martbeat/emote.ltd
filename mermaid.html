@@ -37,8 +37,8 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <button id="loadDiagram">Load</button>
 <button id="deleteDiagram">Delete</button>
 <select id="theme">
-<option value="dark" selected>Dark</option>
-<option value="default">Default</option>
+<option value="dark">Dark</option>
+<option value="default" selected>Default</option>
 <option value="neutral">Neutral</option>
 <option value="forest">Forest</option>
 <option value="base">Base</option>
@@ -79,7 +79,7 @@ const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
 let hasErrorStatus = false;
-let zoomLevel = 1;
+let zoomLevel = 1.6;
 let renderCanvas = null;
 let isDragging = false;
 let dragStartX = 0;
@@ -208,25 +208,42 @@ function refreshSavedDiagramsList(selectedName=''){
   }
 }
 
-function saveCurrentDiagramToFilesystem(){
-  const fallbackName = inferDiagramName(codeEl.value);
+function getDefaultDiagramName(){
+  return 'diagram-1';
+}
+
+function getActiveDiagramName({inferFromCode=false} = {}){
+  const fallbackName = inferFromCode ? inferDiagramName(codeEl.value) : getDefaultDiagramName();
   const requestedName = sanitizeDiagramName(diagramNameEl.value || fallbackName);
+  return requestedName || getDefaultDiagramName();
+}
+
+function writeDiagramToFilesystem(name){
+  const filesystem = getFilesystem();
+  filesystem[name] = {
+    code: codeEl.value,
+    updatedAt: new Date().toISOString()
+  };
+  saveFilesystem(filesystem);
+  localStorage.setItem(LAST_FILE_KEY, name);
+  diagramNameEl.value = name;
+  refreshSavedDiagramsList(name);
+}
+
+function saveCurrentDiagramToFilesystem(){
+  const requestedName = getActiveDiagramName({inferFromCode:true});
   const sanitizedName = getVersionedDiagramName(requestedName, codeEl.value);
   if(!sanitizedName){
     setStatus('Error: provide a valid diagram name',{error:true});
     return null;
   }
-
-  const filesystem = getFilesystem();
-  filesystem[sanitizedName] = {
-    code: codeEl.value,
-    updatedAt: new Date().toISOString()
-  };
-  saveFilesystem(filesystem);
-  localStorage.setItem(LAST_FILE_KEY, sanitizedName);
-  diagramNameEl.value = sanitizedName;
-  refreshSavedDiagramsList(sanitizedName);
+  writeDiagramToFilesystem(sanitizedName);
   return sanitizedName;
+}
+
+function autosaveCurrentDiagramToFilesystem(){
+  const name = getActiveDiagramName({inferFromCode:false});
+  writeDiagramToFilesystem(name);
 }
 
 function tokenizeDiagram(text){
@@ -239,14 +256,30 @@ function tokenizeDiagram(text){
 }
 
 function getDiagramSimilarityScore(previousCode, nextCode){
-  const previousTokens = tokenizeDiagram(previousCode);
-  const nextTokens = tokenizeDiagram(nextCode);
-  if(!previousTokens.size && !nextTokens.size){
+  const previousText = previousCode.trim();
+  const nextText = nextCode.trim();
+  if(!previousText && !nextText){
     return 1;
   }
+  const previousTokens = tokenizeDiagram(previousText);
+  const nextTokens = tokenizeDiagram(nextText);
   const intersection = [...previousTokens].filter((token)=>nextTokens.has(token)).length;
   const union = new Set([...previousTokens, ...nextTokens]).size || 1;
-  return intersection / union;
+  const tokenScore = intersection / union;
+
+  const previousLines = previousText ? previousText.split('\n').map((line)=>line.trim()).filter(Boolean) : [];
+  const nextLines = nextText ? nextText.split('\n').map((line)=>line.trim()).filter(Boolean) : [];
+  const previousLineSet = new Set(previousLines);
+  const nextLineSet = new Set(nextLines);
+  const lineIntersection = [...previousLineSet].filter((line)=>nextLineSet.has(line)).length;
+  const lineUnion = new Set([...previousLineSet, ...nextLineSet]).size || 1;
+  const lineScore = lineIntersection / lineUnion;
+
+  const lengthDelta = Math.abs(previousText.length - nextText.length);
+  const longestLength = Math.max(previousText.length, nextText.length, 1);
+  const lengthScore = 1 - (lengthDelta / longestLength);
+
+  return (tokenScore * 0.45) + (lineScore * 0.45) + (lengthScore * 0.10);
 }
 
 function incrementDiagramVersion(baseName, filesystem){
@@ -269,7 +302,7 @@ function getVersionedDiagramName(name, currentCode){
     return name;
   }
   const similarity = getDiagramSimilarityScore(existing.code, currentCode);
-  if(similarity >= 0.45){
+  if(similarity >= 0.7){
     return name;
   }
   return incrementDiagramVersion(name, filesystem);
@@ -305,11 +338,31 @@ function applyZoom(){
     return;
   }
   renderCanvas.style.transform = `scale(${zoomLevel})`;
+  zoomResetBtn.textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
-function setZoom(nextZoom){
-  zoomLevel = Math.min(4, Math.max(0.3, nextZoom));
+function setZoom(nextZoom, anchorX=null, anchorY=null){
+  if(!output || !renderCanvas){
+    zoomLevel = Math.min(8, Math.max(0.3, nextZoom));
+    return;
+  }
+  const prevZoom = zoomLevel;
+  const clampedZoom = Math.min(8, Math.max(0.3, nextZoom));
+  if(clampedZoom === prevZoom){
+    return;
+  }
+  const outputRect = output.getBoundingClientRect();
+  const focusX = anchorX ?? (outputRect.left + output.clientWidth / 2);
+  const focusY = anchorY ?? (outputRect.top + output.clientHeight / 2);
+  const offsetX = focusX - outputRect.left + output.scrollLeft;
+  const offsetY = focusY - outputRect.top + output.scrollTop;
+
+  zoomLevel = clampedZoom;
   applyZoom();
+
+  const scaleRatio = zoomLevel / prevZoom;
+  output.scrollLeft = (offsetX * scaleRatio) - (focusX - outputRect.left);
+  output.scrollTop = (offsetY * scaleRatio) - (focusY - outputRect.top);
 }
 
 function setupCanvasNavigation(){
@@ -370,7 +423,10 @@ function loadState(){
     diagramNameEl.value = inferDiagramName(codeEl.value);
   } else {
     codeEl.value = "flowchart TD\nA-->B\nB-->C";
-    diagramNameEl.value = 'diagram-1';
+    diagramNameEl.value = getDefaultDiagramName();
+  }
+  if(!diagramNameEl.value){
+    diagramNameEl.value = getDefaultDiagramName();
   }
   refreshSavedDiagramsList(diagramNameEl.value);
 }
@@ -383,7 +439,7 @@ function saveState(){
 }
 
 function getThemePreset(){
-  return THEME_PRESETS[theme.value] || THEME_PRESETS.dark;
+  return THEME_PRESETS[theme.value] || THEME_PRESETS.default;
 }
 
 // --- render ---
@@ -540,22 +596,30 @@ async function render(){
 let timer;
 codeEl.addEventListener('input',()=>{
   clearTimeout(timer);
-  timer = setTimeout(render,500);
+  timer = setTimeout(()=>{
+    render();
+    autosaveCurrentDiagramToFilesystem();
+  },500);
+});
+
+diagramNameEl.addEventListener('change',()=>{
+  diagramNameEl.value = getActiveDiagramName({inferFromCode:false});
+  autosaveCurrentDiagramToFilesystem();
 });
 
 renderBtn.onclick = render;
 theme.onchange = render;
 zoomInBtn.onclick = ()=>setZoom(zoomLevel * 1.2);
 zoomOutBtn.onclick = ()=>setZoom(zoomLevel / 1.2);
-zoomResetBtn.onclick = ()=>setZoom(1);
+zoomResetBtn.onclick = ()=>setZoom(1.6);
 
 output.addEventListener('wheel',(event)=>{
-  if(!event.ctrlKey){
+  if(!(event.ctrlKey || event.metaKey || event.altKey)){
     return;
   }
   event.preventDefault();
-  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
-  setZoom(zoomLevel * factor);
+  const factor = event.deltaY < 0 ? 1.08 : 1 / 1.08;
+  setZoom(zoomLevel * factor, event.clientX, event.clientY);
 },{passive:false});
 
 // --- share link ---
@@ -601,6 +665,14 @@ loadDiagramBtn.onclick = ()=>{
   setStatus(`Loaded diagram "${name}"`);
 };
 
+savedDiagramsEl.onchange = ()=>{
+  if(!savedDiagramsEl.value){
+    return;
+  }
+  loadDiagramFromFilesystem(savedDiagramsEl.value);
+  setStatus(`Loaded diagram "${savedDiagramsEl.value}"`);
+};
+
 deleteDiagramBtn.onclick = ()=>{
   const name = savedDiagramsEl.value || sanitizeDiagramName(diagramNameEl.value);
   if(!name){
@@ -623,7 +695,7 @@ deleteDiagramBtn.onclick = ()=>{
 
 clearDiagramBtn.onclick = ()=>{
   codeEl.value = '';
-  diagramNameEl.value = '';
+  diagramNameEl.value = getDefaultDiagramName();
   savedDiagramsEl.value = '';
   output.innerHTML = '';
   renderCanvas = null;

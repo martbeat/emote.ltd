@@ -8,10 +8,12 @@
   --bg:#0b0f1a;--panel:#12182b;--panel2:#18213a;--border:#2b3a6b;
   --text:#eef2ff;--muted:#9aa6d1;--accent:#6ea8ff;
 }
-body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Inter,sans-serif;background:linear-gradient(#0a0f1f,#0e1530);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}
 header{padding:12px;border-bottom:1px solid var(--border)}
-.app{flex:1;display:flex;min-height:0}
-.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border)}
+.app{flex:1;display:flex;min-height:0;overflow:hidden}
+.pane{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--border);min-width:0;min-height:0}
 .editor{width:40%;min-width:260px}
 .preview{flex:1}
 .resizer{width:6px;cursor:col-resize;background:var(--border)}
@@ -38,8 +40,8 @@ textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text
 <button id="loadDiagram">Load</button>
 <button id="deleteDiagram">Delete</button>
 <select id="theme">
-<option value="dark">Dark</option>
-<option value="default" selected>Default</option>
+<option value="dark" selected>Dark</option>
+<option value="default">Default</option>
 <option value="neutral">Neutral</option>
 <option value="forest">Forest</option>
 <option value="base">Base</option>
@@ -70,12 +72,6 @@ const output = document.getElementById('output');
 const status = document.getElementById('status');
 const theme = document.getElementById('theme');
 const renderBtn = document.getElementById('render');
-const diagramNameEl = document.getElementById('diagramName');
-const savedDiagramsEl = document.getElementById('savedDiagrams');
-const saveDiagramBtn = document.getElementById('saveDiagram');
-const clearDiagramBtn = document.getElementById('clearDiagram');
-const loadDiagramBtn = document.getElementById('loadDiagram');
-const deleteDiagramBtn = document.getElementById('deleteDiagram');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
@@ -377,28 +373,9 @@ function applyZoom(){
   zoomResetBtn.textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
-function setZoom(nextZoom, anchorX=null, anchorY=null){
-  if(!output || !renderCanvas){
-    zoomLevel = Math.min(8, Math.max(0.3, nextZoom));
-    return;
-  }
-  const prevZoom = zoomLevel;
-  const clampedZoom = Math.min(8, Math.max(0.3, nextZoom));
-  if(clampedZoom === prevZoom){
-    return;
-  }
-  const outputRect = output.getBoundingClientRect();
-  const focusX = anchorX ?? (outputRect.left + output.clientWidth / 2);
-  const focusY = anchorY ?? (outputRect.top + output.clientHeight / 2);
-  const offsetX = focusX - outputRect.left + output.scrollLeft;
-  const offsetY = focusY - outputRect.top + output.scrollTop;
-
-  zoomLevel = clampedZoom;
+function setZoom(nextZoom){
+  zoomLevel = Math.min(4, Math.max(0.3, nextZoom));
   applyZoom();
-
-  const scaleRatio = zoomLevel / prevZoom;
-  output.scrollLeft = (offsetX * scaleRatio) - (focusX - outputRect.left);
-  output.scrollTop = (offsetY * scaleRatio) - (focusY - outputRect.top);
 }
 
 function setupCanvasNavigation(){
@@ -478,6 +455,10 @@ function resolveThemePreset(){
   return THEME_PRESETS[theme.value] || THEME_PRESETS.default;
 }
 
+function getThemePreset(){
+  return THEME_PRESETS[theme.value] || THEME_PRESETS.dark;
+}
+
 // --- render ---
 function init(){
 const preset = resolveThemePreset();
@@ -488,7 +469,7 @@ const readableThemeVariables = {
 mermaid.initialize({
   startOnLoad:false,
   theme:preset.theme,
-  themeVariables:readableThemeVariables,
+  themeVariables:preset.themeVariables,
   securityLevel:'loose',
   suppressErrorRendering:true,
   flowchart:{
@@ -667,12 +648,12 @@ zoomOutBtn.onclick = ()=>setZoom(zoomLevel / 1.2);
 zoomResetBtn.onclick = ()=>setZoom(1);
 
 output.addEventListener('wheel',(event)=>{
-  if(!(event.ctrlKey || event.metaKey || event.altKey)){
+  if(!event.ctrlKey){
     return;
   }
   event.preventDefault();
-  const factor = event.deltaY < 0 ? 1.08 : 1 / 1.08;
-  setZoom(zoomLevel * factor, event.clientX, event.clientY);
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  setZoom(zoomLevel * factor);
 },{passive:false});
 
 // --- share link ---
@@ -889,10 +870,32 @@ document.getElementById('png').onclick = async ()=>{
 // --- resize ---
 const resizer=document.getElementById('resizer');
 const editor=document.getElementById('editorPane');
-resizer.onmousedown=()=>{
-  document.onmousemove=e=>editor.style.width=e.clientX+'px';
-  document.onmouseup=()=>document.onmousemove=null;
-};
+const app = document.querySelector('.app');
+let resizing = false;
+
+resizer.addEventListener('mousedown',()=>{
+  resizing = true;
+  document.body.style.userSelect = 'none';
+});
+
+window.addEventListener('mousemove',(event)=>{
+  if(!resizing){
+    return;
+  }
+  const bounds = app.getBoundingClientRect();
+  const minWidth = 260;
+  const maxWidth = Math.max(minWidth, bounds.width - 260);
+  const nextWidth = Math.min(maxWidth, Math.max(minWidth, event.clientX - bounds.left));
+  editor.style.width = `${nextWidth}px`;
+});
+
+window.addEventListener('mouseup',()=>{
+  if(!resizing){
+    return;
+  }
+  resizing = false;
+  document.body.style.userSelect = '';
+});
 
 // init
 loadState();

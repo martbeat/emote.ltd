@@ -2,6 +2,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/assets/icons/favicon.ico" sizes="any" />
 <title>Mermaid Studio+</title><style>
 :root {
   --bg:#0b0f1a;--panel:#12182b;--panel2:#18213a;--border:#2b3a6b;
@@ -21,7 +22,7 @@ button,select{padding:6px 8px;border-radius:8px;border:1px solid var(--border);b
 input{padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
 textarea{flex:1;border:none;outline:none;background:transparent;color:var(--text);padding:10px;font-family:monospace}
 .preview-area{flex:1;overflow:auto;padding:15px}
-.render-canvas{display:inline-block;transform-origin:0 0;cursor:grab}
+.render-canvas{display:inline-block;cursor:grab}
 .render-canvas.dragging{cursor:grabbing}
 .status{padding:6px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 </style></head>
@@ -76,6 +77,8 @@ const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
 let hasErrorStatus = false;
 let zoomLevel = 1;
+let baseCanvasWidth = 0;
+let baseCanvasHeight = 0;
 let renderCanvas = null;
 let isDragging = false;
 let dragStartX = 0;
@@ -329,11 +332,45 @@ function clearErrorStatus(){
   }
 }
 
+function captureCanvasDimensions(){
+  const svg = renderCanvas?.querySelector('svg');
+  if(!svg){
+    baseCanvasWidth = 0;
+    baseCanvasHeight = 0;
+    return;
+  }
+
+  const viewBox = svg.viewBox?.baseVal;
+  const widthAttr = Number.parseFloat(svg.getAttribute('width'));
+  const heightAttr = Number.parseFloat(svg.getAttribute('height'));
+  const fallbackRect = svg.getBoundingClientRect();
+
+  baseCanvasWidth = viewBox?.width || widthAttr || fallbackRect.width || 1200;
+  baseCanvasHeight = viewBox?.height || heightAttr || fallbackRect.height || 800;
+}
+
 function applyZoom(){
   if(!renderCanvas){
     return;
   }
-  renderCanvas.style.transform = `scale(${zoomLevel})`;
+
+  const svg = renderCanvas.querySelector('svg');
+  if(!svg){
+    return;
+  }
+
+  if(!baseCanvasWidth || !baseCanvasHeight){
+    captureCanvasDimensions();
+  }
+
+  const scaledWidth = baseCanvasWidth * zoomLevel;
+  const scaledHeight = baseCanvasHeight * zoomLevel;
+
+  renderCanvas.style.width = `${scaledWidth}px`;
+  renderCanvas.style.height = `${scaledHeight}px`;
+  svg.style.width = `${scaledWidth}px`;
+  svg.style.height = `${scaledHeight}px`;
+  zoomResetBtn.textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
 function setZoom(nextZoom){
@@ -414,7 +451,7 @@ function saveState(){
   }
 }
 
-function getThemePreset(){
+function resolveThemePreset(){
   return THEME_PRESETS[theme.value] || THEME_PRESETS.default;
 }
 
@@ -424,7 +461,11 @@ function getThemePreset(){
 
 // --- render ---
 function init(){
-const preset = getThemePreset();
+const preset = resolveThemePreset();
+const readableThemeVariables = {
+  ...(preset.themeVariables || {}),
+  fontSize: '20px'
+};
 mermaid.initialize({
   startOnLoad:false,
   theme:preset.theme,
@@ -573,7 +614,10 @@ async function render(){
     const {svg} = await mermaid.render('m'+Date.now(), codeEl.value);
     output.innerHTML = `<div class="render-canvas">${svg}</div>`;
     renderCanvas = output.querySelector('.render-canvas');
+    captureCanvasDimensions();
     applyZoom();
+    output.scrollLeft = 0;
+    output.scrollTop = 0;
     setupCanvasNavigation();
 
     setStatus("Rendered");
@@ -798,7 +842,7 @@ document.getElementById('png').onclick = async ()=>{
   const ctx = canvas.getContext('2d');
   ctx.setTransform(scale,0,0,scale,0,0);
 
-  ctx.fillStyle = getThemePreset().isDark ? '#0b0f1a' : '#ffffff';
+  ctx.fillStyle = resolveThemePreset().isDark ? '#0b0f1a' : '#ffffff';
   ctx.fillRect(0,0,width,height);
 
   const img = new Image();

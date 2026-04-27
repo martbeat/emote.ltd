@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Methane2 — Tetrahedral Molecular Dynamics</title>
+  <style>
+    :root{
+      --bg:#071017; --panel:#102233; --line:#24435f; --text:#eaf4ff; --muted:#bad0e6;
+      --btn:#1a3b55; --btn2:#235275;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    #app{display:grid;grid-template-columns:320px 1fr;height:100%}
+    #ui{padding:12px;border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(16,34,51,.96),rgba(7,16,23,.96));overflow:auto}
+    h1{font-size:16px;margin:0 0 8px}
+    .note{font-size:12px;color:var(--muted);line-height:1.35}
+    .group{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px}
+    .group h2{font-size:13px;margin:0 0 8px}
+    .row{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin:8px 0}
+    input[type="range"],input[type="number"]{width:100%}
+    button{border:1px solid var(--line);background:var(--btn);color:var(--text);padding:7px 10px;border-radius:10px;cursor:pointer}
+    button:hover{background:var(--btn2)}
+    .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+    #view{position:relative}
+    #hud{position:absolute;left:10px;bottom:10px;background:rgba(8,14,33,.7);border:1px solid rgba(255,255,255,.08);padding:8px 10px;border-radius:10px;font-size:12px;color:var(--muted)}
+    .pill{display:inline-block;border:1px solid rgba(255,255,255,.12);padding:2px 8px;border-radius:999px;margin:0 6px 6px 0}
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+  <aside id="ui">
+    <h1>Methane2 — CH<sub>4</sub> Tetrahedral Molecules</h1>
+    <p class="note">Each molecule is methane (CH₄): one carbon atom bonded to four hydrogens in a tetrahedral geometry (H-C-H ≈ 109.5°). Methane is nonpolar and does not hydrogen-bond; cohesion is modeled with short-range dispersion-style attraction and steric repulsion.</p>
+
+    <div class="group">
+      <h2>System</h2>
+      <div class="row"><label>Molecules</label><input id="nMol" type="number" min="16" max="280" step="8" value="88" /></div>
+      <div class="row"><label>Box size</label><input id="box" type="range" min="18" max="70" step="1" value="36" /></div>
+      <div class="btnrow">
+        <button id="reset">Reset</button>
+        <button id="pause">Pause</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Dynamics</h2>
+      <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="60" max="420" step="5" value="170" /></div>
+      <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
+      <div class="row"><label>Cohesion</label><input id="hb" type="range" min="0" max="2.2" step="0.02" value="0.92" /></div>
+      <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.6" step="0.02" value="0.95" /></div>
+      <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.2" /></div>
+      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
+      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.013" /></div>
+    </div>
+
+    <div class="group note">
+      <span class="pill">T: <b id="tVal">-</b></span>
+      <span class="pill">Contact links: <b id="hbVal">-</b></span>
+      <span class="pill">FPS: <b id="fps">-</b></span>
+      <div>Research anchors: methane has tetrahedral geometry (∠H-C-H ≈ 109.5°) and a melting point near 90.7 K at 1 atm (NIST WebBook). Sliders are tuned so local ordering rises as temperature approaches cryogenic conditions.</div>
+    </div>
+  </aside>
+  <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const view = document.getElementById('view');
+const ui = {
+  nMol: document.getElementById('nMol'), box: document.getElementById('box'), reset: document.getElementById('reset'), pause: document.getElementById('pause'),
+  temp: document.getElementById('temp'), dt: document.getElementById('dt'), hb: document.getElementById('hb'), elec: document.getElementById('elec'), repel: document.getElementById('repel'), damp: document.getElementById('damp'), rotDamp: document.getElementById('rotDamp'),
+  tVal: document.getElementById('tVal'), hbVal: document.getElementById('hbVal'), fps: document.getElementById('fps')
+};
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x051018);
+scene.fog = new THREE.Fog(0x051018, 58, 136);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
+camera.position.set(0, 14, 43);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.47));
+const key = new THREE.DirectionalLight(0xcde7ff, 1.0); key.position.set(15,20,13); scene.add(key);
+
+const boundary = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)),
+  new THREE.LineBasicMaterial({color:0x4b7aa5, transparent:true, opacity:0.38})
+);
+scene.add(boundary);
+
+const C_RADIUS = 0.50;
+const H_RADIUS = 0.26;
+const H4_RADIUS = 0.24;
+const BOND = 1.32;
+const COHESION_RANGE = 3.2;
+const TETRA_SCALE = 1 / Math.sqrt(3);
+
+const QC = 0.0;
+const QH = 0.0;
+const QH4 = 0.0;
+
+const ROT_INERTIA = 1.45;
+const PAIR_DAMP = 0.50;
+const MAX_REPULSIVE_FORCE = 28.0;
+const SITE_CORE_SCALE = 0.88;
+const SITE_REPULSION = 20.0;
+const KELVIN_TO_SIM = 0.0062;
+const ORDERING_START_K = 180;
+const ORDERING_FULL_K = 100;
+
+const geomC = new THREE.SphereGeometry(C_RADIUS, 20, 16);
+const geomH = new THREE.SphereGeometry(H_RADIUS, 16, 12);
+const geomH4 = new THREE.SphereGeometry(H4_RADIUS, 14, 10);
+const matC = new THREE.MeshStandardMaterial({color:0x525252, roughness:0.5, metalness:0.05});
+const matH = new THREE.MeshStandardMaterial({color:0xf2f7ff, roughness:0.25, metalness:0.02});
+const matH4 = new THREE.MeshStandardMaterial({color:0xf2f7ff, roughness:0.25, metalness:0.02});
+const bondMat = new THREE.LineBasicMaterial({color:0xbbbbbb});
+
+const hbGeom = new THREE.BufferGeometry();
+const hbMat = new THREE.LineBasicMaterial({color:0xa8d2ff, transparent:true, opacity:0.5});
+const hbLines = new THREE.LineSegments(hbGeom, hbMat);
+scene.add(hbLines);
+
+const tetraSites = [
+  new THREE.Vector3( 1, 1, 1),
+  new THREE.Vector3( 1,-1,-1),
+  new THREE.Vector3(-1, 1,-1),
+  new THREE.Vector3(-1,-1, 1)
+].map(v => v.multiplyScalar(TETRA_SCALE));
+
+const baseH1 = tetraSites[0].clone().multiplyScalar(BOND);
+const baseH2 = tetraSites[1].clone().multiplyScalar(BOND);
+const baseH3 = tetraSites[2].clone().multiplyScalar(BOND);
+const baseH4 = tetraSites[3].clone().multiplyScalar(BOND);
+
+const molecules = [];
+let boxSize = +ui.box.value;
+let paused = false;
+
+function randomQuat(){
+  const u1=Math.random(),u2=Math.random(),u3=Math.random();
+  return new THREE.Quaternion(
+    Math.sqrt(1-u1)*Math.sin(2*Math.PI*u2),
+    Math.sqrt(1-u1)*Math.cos(2*Math.PI*u2),
+    Math.sqrt(u1)*Math.sin(2*Math.PI*u3),
+    Math.sqrt(u1)*Math.cos(2*Math.PI*u3)
+  );
+}
+
+function makeMol(){
+  const group = new THREE.Group();
+  const C = new THREE.Mesh(geomC, matC);
+  const H1 = new THREE.Mesh(geomH, matH);
+  const H2 = new THREE.Mesh(geomH, matH);
+  const H3 = new THREE.Mesh(geomH, matH);
+  const H4 = new THREE.Mesh(geomH4, matH4);
+  [H1,H2,H3,H4].forEach(x=>group.add(x));
+  group.add(C);
+
+  const bondPts = new Float32Array(24);
+  const bond = new THREE.LineSegments(new THREE.BufferGeometry(), bondMat);
+  bond.geometry.setAttribute('position', new THREE.BufferAttribute(bondPts, 3));
+  group.add(bond);
+  scene.add(group);
+
+  return {
+    group,C,H1,H2,H3,H4,bond,
+    p:new THREE.Vector3(), v:new THREE.Vector3(), a:new THREE.Vector3(), tau:new THREE.Vector3(),
+    q:randomQuat(), w:new THREE.Vector3(rand(-0.1,0.1),rand(-0.1,0.1),rand(-0.1,0.1))
+  };
+}
+
+function rand(a,b){return a+(b-a)*Math.random();}
+function wrap(m){
+  const h=boxSize*0.5;
+  ['x','y','z'].forEach(k=>{if(m.p[k]>h)m.p[k]-=boxSize; else if(m.p[k]<-h)m.p[k]+=boxSize;});
+}
+function minImage(v){
+  const h=boxSize*0.5;
+  if(v.x>h)v.x-=boxSize; else if(v.x<-h)v.x+=boxSize;
+  if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
+  if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
+}
+function wrapSegment(a,b){
+  const h=boxSize*0.5;
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  let sx=0,sy=0,sz=0;
+  if(mid.x>h)sx=-boxSize; else if(mid.x<-h)sx=boxSize;
+  if(mid.y>h)sy=-boxSize; else if(mid.y<-h)sy=boxSize;
+  if(mid.z>h)sz=-boxSize; else if(mid.z<-h)sz=boxSize;
+  if(sx||sy||sz){
+    const shift = new THREE.Vector3(sx,sy,sz);
+    a.add(shift);
+    b.add(shift);
+  }
+  return [a,b];
+}
+
+function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
+
+function rebuild(){
+  molecules.forEach(m=>scene.remove(m.group));
+  molecules.length=0;
+  boxSize = +ui.box.value;
+  boundary.scale.setScalar(boxSize);
+  const n = +ui.nMol.value;
+  for(let i=0;i<n;i++){
+    const m = makeMol();
+    m.p.set(rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48), rand(-boxSize*0.48, boxSize*0.48));
+    m.v.set(rand(-0.35,0.35),rand(-0.35,0.35),rand(-0.35,0.35));
+    molecules.push(m);
+  }
+}
+
+function applyForces(dt){
+  const repel = +ui.repel.value;
+  const hbStrength = +ui.hb.value;
+  const electro = +ui.elec.value;
+  const damp = +ui.damp.value;
+  const rotDamp = +ui.rotDamp.value;
+  const tempTarget = +ui.temp.value;
+  const targetSimTemp = Math.max(0.0005, tempTarget * KELVIN_TO_SIM);
+  const ordering = THREE.MathUtils.clamp((ORDERING_START_K - tempTarget) / (ORDERING_START_K - ORDERING_FULL_K), 0, 1);
+
+  molecules.forEach(m=>{ m.a.set(0,0,0); m.tau.set(0,0,0); });
+
+  let hbSegments = [];
+  let hbCount = 0;
+
+  for(let i=0;i<molecules.length;i++){
+    const mi = molecules[i];
+    for(let j=i+1;j<molecules.length;j++){
+      const mj = molecules[j];
+      const rij = mj.p.clone().sub(mi.p); minImage(rij);
+      const r2 = rij.lengthSq();
+      if(r2<0.0001 || r2>92) continue;
+      const r = Math.sqrt(r2);
+      const dir = rij.clone().multiplyScalar(1/r);
+
+      const sigma = 3.0;
+      const sr = sigma/r;
+      const sr6 = sr**6;
+      let fNN = 24*repel*(2*sr6*sr6 - sr6)/r;
+      if(fNN > MAX_REPULSIVE_FORCE) fNN = MAX_REPULSIVE_FORCE;
+      const fvec = dir.clone().multiplyScalar(fNN);
+      mi.a.addScaledVector(fvec, -1);
+      mj.a.add(fvec);
+
+      if(r < 3.35){
+        const relV = mj.v.clone().sub(mi.v);
+        const radialV = relV.dot(dir);
+        if(radialV < 0){
+          const dampMag = -PAIR_DAMP * radialV * (1 - (r-2.25));
+          const dampF = dir.clone().multiplyScalar(Math.max(0, dampMag));
+          mi.a.addScaledVector(dampF, -1);
+          mj.a.add(dampF);
+        }
+      }
+
+      const Ni = mi.p;
+      const Nj = mj.p;
+      const HsitesI = [worldSite(mi, baseH1), worldSite(mi, baseH2), worldSite(mi, baseH3), worldSite(mi, baseH4)];
+      const HsitesJ = [worldSite(mj, baseH1), worldSite(mj, baseH2), worldSite(mj, baseH3), worldSite(mj, baseH4)];
+
+      const hardSitesI = [[Ni, C_RADIUS], [HsitesI[0], H_RADIUS], [HsitesI[1], H_RADIUS], [HsitesI[2], H_RADIUS], [HsitesI[3], H4_RADIUS]];
+      const hardSitesJ = [[Nj, C_RADIUS], [HsitesJ[0], H_RADIUS], [HsitesJ[1], H_RADIUS], [HsitesJ[2], H_RADIUS], [HsitesJ[3], H4_RADIUS]];
+      for(const [si, ri] of hardSitesI){
+        for(const [sj, rj] of hardSitesJ){
+          const sep = sj.clone().sub(si); minImage(sep);
+          const d2 = sep.lengthSq();
+          if(d2 < 1e-6) continue;
+          const d = Math.sqrt(d2);
+          const minDist = SITE_CORE_SCALE * (ri + rj);
+          if(d < minDist){
+            const overlap = minDist - d;
+            const mag = SITE_REPULSION * overlap * overlap;
+            const fSite = sep.multiplyScalar(mag / d);
+            mi.a.addScaledVector(fSite, -1);
+            mj.a.add(fSite);
+
+            const riArm = si.clone().sub(mi.p);
+            const rjArm = sj.clone().sub(mj.p);
+            mi.tau.add(riArm.cross(fSite.clone().multiplyScalar(-1)));
+            mj.tau.add(rjArm.cross(fSite));
+          }
+        }
+      }
+
+      const maxElecDist = 14.0;
+      if(electro > 0){
+        const chargeSitesI = [[Ni, QC], [HsitesI[0], QH], [HsitesI[1], QH], [HsitesI[2], QH], [HsitesI[3], QH4]];
+        const chargeSitesJ = [[Nj, QC], [HsitesJ[0], QH], [HsitesJ[1], QH], [HsitesJ[2], QH], [HsitesJ[3], QH4]];
+        for(const [si, qi] of chargeSitesI){
+          for(const [sj, qj] of chargeSitesJ){
+            const rijSite = sj.clone().sub(si); minImage(rijSite);
+            const dsq = rijSite.lengthSq();
+            if(dsq < 0.06 || dsq > maxElecDist*maxElecDist) continue;
+            const d = Math.sqrt(dsq);
+            const soft = Math.sqrt(dsq + 0.11);
+            const screened = Math.exp(-d/10.0);
+            const hLpBoost = ((qi > 0 && qj < 0) || (qi < 0 && qj > 0)) ? 1.4 : 1.0;
+            const magSite = electro * hLpBoost * qi * qj * screened / (soft*soft*soft);
+            const fSite = rijSite.multiplyScalar(magSite);
+
+            mi.a.add(fSite);
+            mj.a.addScaledVector(fSite, -1);
+
+            const ri = si.clone().sub(mi.p);
+            const rj = sj.clone().sub(mj.p);
+            mi.tau.add(ri.cross(fSite));
+            mj.tau.add(rj.cross(fSite.clone().multiplyScalar(-1)));
+          }
+        }
+      }
+
+      hbCount += cohesionPair(mi, mj, HsitesI, HsitesJ, hbStrength, hbSegments, ordering);
+    }
+  }
+
+  molecules.forEach(m=>{
+    m.v.addScaledVector(m.a, dt);
+    const lowTTransDrag = 0.016 + 0.050 * ordering;
+    m.v.multiplyScalar(Math.max(0, 1-damp-lowTTransDrag));
+
+    m.w.addScaledVector(m.tau, dt / ROT_INERTIA);
+    const lowTRotDrag = 0.020 + 0.078 * ordering;
+    m.w.multiplyScalar(Math.max(0, 1-rotDamp-lowTRotDrag));
+    const wLen = m.w.length();
+    if(wLen > 7.0) m.w.multiplyScalar(7.0 / wLen);
+
+    const angSpeed = m.w.length();
+    if(angSpeed>1e-6){
+      const axis = m.w.clone().multiplyScalar(1/angSpeed);
+      const dq = new THREE.Quaternion().setFromAxisAngle(axis, angSpeed*dt);
+      m.q.multiply(dq).normalize();
+    }
+  });
+
+  let ke = 0;
+  molecules.forEach(m=>{ ke += 0.5*m.v.lengthSq(); });
+  const tInst = (2*ke)/(3*molecules.length);
+  const scale = Math.sqrt(Math.max(0,targetSimTemp/Math.max(tInst,1e-6)));
+  const thermo = 0.08 + 0.18*ordering;
+  molecules.forEach(m=>m.v.multiplyScalar(THREE.MathUtils.clamp(1 + (scale-1)*thermo, 0, 1.2)));
+
+  let rotKE = 0;
+  molecules.forEach(m=>{ rotKE += 0.5 * ROT_INERTIA * m.w.lengthSq(); });
+  const rotT = (2*rotKE)/(3*molecules.length);
+  const rotScale = Math.sqrt(Math.max(0,targetSimTemp/Math.max(rotT,1e-6)));
+  const rotThermo = 0.08 + 0.20*ordering;
+  molecules.forEach(m=>m.w.multiplyScalar(THREE.MathUtils.clamp(1 + (rotScale-1)*rotThermo, 0, 1.15)));
+
+  hbGeom.setAttribute('position', new THREE.Float32BufferAttribute(hbSegments, 3));
+  hbGeom.computeBoundingSphere();
+  ui.tVal.textContent = (tInst / KELVIN_TO_SIM).toFixed(1);
+  ui.hbVal.textContent = hbCount;
+}
+
+function cohesionPair(mi, mj, sitesI, sitesJ, strength, segs, ordering){
+  let links = 0;
+  for(const si of sitesI){
+    for(const sj of sitesJ){
+      const d = sj.clone().sub(si); minImage(d);
+      const r = d.length();
+      if(r < 0.0001 || r > COHESION_RANGE) continue;
+      const closeness = 1 - (r / COHESION_RANGE);
+      const score = closeness * (0.6 + 0.4*ordering);
+      if(score < 0.08) continue;
+      const dir = d.clone().multiplyScalar(1/r);
+      const mag = strength * score * 0.95;
+      const f = dir.clone().multiplyScalar(mag);
+      mi.a.add(f);
+      mj.a.addScaledVector(f, -1);
+
+      const armI = si.clone().sub(mi.p); minImage(armI);
+      const armJ = sj.clone().sub(mj.p); minImage(armJ);
+      mi.tau.add(armI.clone().cross(f).multiplyScalar(0.08));
+      mj.tau.add(armJ.clone().cross(f.clone().multiplyScalar(-1)).multiplyScalar(0.08));
+
+      if(links < 2){
+        const a = si.clone();
+        const b = sj.clone();
+        wrapSegment(a,b);
+        segs.push(a.x,a.y,a.z,b.x,b.y,b.z);
+      }
+      links++;
+    }
+  }
+  return links;
+}
+
+function updateMeshes(dt){
+  molecules.forEach(m=>{
+    m.p.addScaledVector(m.v, dt);
+    wrap(m);
+
+    m.group.position.copy(m.p);
+    m.group.quaternion.copy(m.q);
+
+    m.C.position.set(0,0,0);
+    m.H1.position.copy(baseH1); m.H2.position.copy(baseH2); m.H3.position.copy(baseH3); m.H4.position.copy(baseH4);
+
+    const arr = m.bond.geometry.attributes.position.array;
+    arr[0]=0;arr[1]=0;arr[2]=0; arr[3]=baseH1.x;arr[4]=baseH1.y;arr[5]=baseH1.z;
+    arr[6]=0;arr[7]=0;arr[8]=0; arr[9]=baseH2.x;arr[10]=baseH2.y;arr[11]=baseH2.z;
+    arr[12]=0;arr[13]=0;arr[14]=0; arr[15]=baseH3.x;arr[16]=baseH3.y;arr[17]=baseH3.z;
+    arr[18]=0;arr[19]=0;arr[20]=0; arr[21]=baseH4.x;arr[22]=baseH4.y;arr[23]=baseH4.z;
+    m.bond.geometry.attributes.position.needsUpdate = true;
+  });
+}
+
+function resize(){
+  const w=view.clientWidth,h=view.clientHeight;
+  camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);
+}
+window.addEventListener('resize',resize);
+
+ui.reset.onclick = rebuild;
+ui.pause.onclick = ()=>{paused=!paused;ui.pause.textContent=paused?'Resume':'Pause';};
+ui.box.oninput = ()=>{boxSize=+ui.box.value;boundary.scale.setScalar(boxSize);};
+
+let tPrev = performance.now(), frame=0, fAcc=0;
+function tick(now){
+  requestAnimationFrame(tick);
+  const frameDt = (now-tPrev)/1000;
+  const dt = Math.min(+ui.dt.value, Math.max(0.0005, frameDt));
+  tPrev = now;
+  if(!paused){
+    applyForces(dt);
+    updateMeshes(dt);
+  }
+  controls.update();
+  renderer.render(scene,camera);
+
+  frame++; fAcc += dt;
+  if(fAcc>0.5){ ui.fps.textContent = (frame/fAcc).toFixed(0); frame=0; fAcc=0; }
+}
+
+rebuild();
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

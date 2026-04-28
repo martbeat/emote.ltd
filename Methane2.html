@@ -43,8 +43,8 @@
 
     <div class="group">
       <h2>System</h2>
-      <div class="row"><label>Molecules</label><input id="nMol" type="number" min="16" max="280" step="8" value="88" /></div>
-      <div class="row"><label>Box size</label><input id="box" type="range" min="18" max="70" step="1" value="36" /></div>
+      <div class="row"><label>Molecules</label><input id="nMol" type="number" min="16" max="280" step="8" value="80" /></div>
+      <div class="row"><label>Box size</label><input id="box" type="range" min="18" max="70" step="1" value="56" /></div>
       <div class="btnrow">
         <button id="reset">Reset</button>
         <button id="pause">Pause</button>
@@ -53,10 +53,10 @@
 
     <div class="group">
       <h2>Dynamics</h2>
-      <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="60" max="420" step="5" value="170" /></div>
+      <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="60" max="420" step="5" value="300" /></div>
       <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
-      <div class="row"><label>Cohesion</label><input id="hb" type="range" min="0" max="2.2" step="0.02" value="0.45" /></div>
-      <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.6" step="0.02" value="0.95" /></div>
+      <div class="row"><label>Cohesion</label><input id="hb" type="range" min="0" max="2.2" step="0.02" value="0.12" /></div>
+      <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.6" step="0.02" value="0" /></div>
       <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.2" /></div>
       <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0" /></div>
       <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0" /></div>
@@ -66,7 +66,7 @@
       <span class="pill">T: <b id="tVal">-</b></span>
       <span class="pill">Contact links: <b id="hbVal">-</b></span>
       <span class="pill">FPS: <b id="fps">-</b></span>
-      <div>Research anchors: methane has tetrahedral geometry (∠H-C-H ≈ 109.5°) and a melting point near 90.7 K at 1 atm (NIST WebBook). Sliders are tuned so local ordering rises as temperature approaches cryogenic conditions.</div>
+      <div>Research anchors: methane has tetrahedral geometry (∠H-C-H ≈ 109.5°) and a melting point near 90.7 K at 1 atm (NIST WebBook). Defaults are tuned for a room-temperature gas; lower temperatures increase local ordering toward a condensed phase.</div>
     </div>
   </aside>
   <main id="view"><div id="hud">Drag to orbit • scroll to zoom</div></main>

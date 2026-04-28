@@ -58,8 +58,8 @@
       <div class="row"><label>HB strength</label><input id="hb" type="range" min="0" max="2.6" step="0.02" value="1.25" /></div>
       <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.4" step="0.02" value="0.85" /></div>
       <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.1" /></div>
-      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
-      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.012" /></div>
+      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0" /></div>
+      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0" /></div>
     </div>
 
 
@@ -175,6 +175,7 @@ function makeMol(){
   const bond = new THREE.LineSegments(new THREE.BufferGeometry(), bondMat);
   bond.geometry.setAttribute('position', new THREE.BufferAttribute(bondPts, 3));
   group.add(bond);
+  bond.visible = false;
   scene.add(group);
 
   return {
@@ -195,19 +196,21 @@ function minImage(v){
   if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
   if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
 }
-function wrapSegment(a,b){
+function wrapCoord(v){
   const h=boxSize*0.5;
-  const mid = a.clone().add(b).multiplyScalar(0.5);
-  let sx=0,sy=0,sz=0;
-  if(mid.x>h)sx=-boxSize; else if(mid.x<-h)sx=boxSize;
-  if(mid.y>h)sy=-boxSize; else if(mid.y<-h)sy=boxSize;
-  if(mid.z>h)sz=-boxSize; else if(mid.z<-h)sz=boxSize;
-  if(sx||sy||sz){
-    const shift = new THREE.Vector3(sx,sy,sz);
-    a.add(shift);
-    b.add(shift);
-  }
-  return [a,b];
+  if(v>h) return v-boxSize;
+  if(v<-h) return v+boxSize;
+  return v;
+}
+function wrapPointInPlace(p){
+  p.x = wrapCoord(p.x);
+  p.y = wrapCoord(p.y);
+  p.z = wrapCoord(p.z);
+  return p;
+}
+function segmentCrossesBoundary(a,b){
+  const h=boxSize*0.5;
+  return Math.abs(a.x-b.x) > h || Math.abs(a.y-b.y) > h || Math.abs(a.z-b.z) > h;
 }
 
 function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
@@ -403,13 +406,9 @@ function hbPair(donorMol, acceptorMol, Hsites, LPsites, hbStrength, segs, orderi
       donorMol.a.add(f);
       acceptorMol.a.addScaledVector(f,-1);
 
-      const visH = best.h.clone();
-      const visLp = best.h.clone().add(best.vec);
-      const [lineStart, lineEnd] = wrapSegment(visH, visLp);
-      if(
-        Math.abs(lineStart.x) <= boxSize*0.5 && Math.abs(lineStart.y) <= boxSize*0.5 && Math.abs(lineStart.z) <= boxSize*0.5 &&
-        Math.abs(lineEnd.x) <= boxSize*0.5 && Math.abs(lineEnd.y) <= boxSize*0.5 && Math.abs(lineEnd.z) <= boxSize*0.5
-      ){
+      const lineStart = wrapPointInPlace(best.h.clone());
+      const lineEnd = wrapPointInPlace(best.h.clone().add(best.vec));
+      if(!segmentCrossesBoundary(lineStart, lineEnd)){
         segs.push(lineStart.x,lineStart.y,lineStart.z,lineEnd.x,lineEnd.y,lineEnd.z);
       }
 

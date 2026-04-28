@@ -55,11 +55,11 @@
       <h2>Dynamics</h2>
       <div class="row"><label>Temperature (K)</label><input id="temp" type="range" min="60" max="420" step="5" value="170" /></div>
       <div class="row"><label>Time step</label><input id="dt" type="range" min="0.001" max="0.018" step="0.001" value="0.008" /></div>
-      <div class="row"><label>Cohesion</label><input id="hb" type="range" min="0" max="2.2" step="0.02" value="0.92" /></div>
+      <div class="row"><label>Cohesion</label><input id="hb" type="range" min="0" max="2.2" step="0.02" value="0.45" /></div>
       <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.6" step="0.02" value="0.95" /></div>
       <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.2" /></div>
-      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
-      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.013" /></div>
+      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0" /></div>
+      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0" /></div>
     </div>
 
     <div class="group note">
@@ -176,6 +176,7 @@ function makeMol(){
   const bond = new THREE.LineSegments(new THREE.BufferGeometry(), bondMat);
   bond.geometry.setAttribute('position', new THREE.BufferAttribute(bondPts, 3));
   group.add(bond);
+  bond.visible = false;
   scene.add(group);
 
   return {
@@ -196,19 +197,21 @@ function minImage(v){
   if(v.y>h)v.y-=boxSize; else if(v.y<-h)v.y+=boxSize;
   if(v.z>h)v.z-=boxSize; else if(v.z<-h)v.z+=boxSize;
 }
-function wrapSegment(a,b){
+function wrapCoord(v){
   const h=boxSize*0.5;
-  const mid = a.clone().add(b).multiplyScalar(0.5);
-  let sx=0,sy=0,sz=0;
-  if(mid.x>h)sx=-boxSize; else if(mid.x<-h)sx=boxSize;
-  if(mid.y>h)sy=-boxSize; else if(mid.y<-h)sy=boxSize;
-  if(mid.z>h)sz=-boxSize; else if(mid.z<-h)sz=boxSize;
-  if(sx||sy||sz){
-    const shift = new THREE.Vector3(sx,sy,sz);
-    a.add(shift);
-    b.add(shift);
-  }
-  return [a,b];
+  if(v>h) return v-boxSize;
+  if(v<-h) return v+boxSize;
+  return v;
+}
+function wrapPointInPlace(p){
+  p.x = wrapCoord(p.x);
+  p.y = wrapCoord(p.y);
+  p.z = wrapCoord(p.z);
+  return p;
+}
+function segmentCrossesBoundary(a,b){
+  const h=boxSize*0.5;
+  return Math.abs(a.x-b.x) > h || Math.abs(a.y-b.y) > h || Math.abs(a.z-b.z) > h;
 }
 
 function worldSite(m, base){ return base.clone().applyQuaternion(m.q).add(m.p); }
@@ -379,10 +382,10 @@ function cohesionPair(mi, mj, sitesI, sitesJ, strength, segs, ordering){
       const r = d.length();
       if(r < 0.0001 || r > COHESION_RANGE) continue;
       const closeness = 1 - (r / COHESION_RANGE);
-      const score = closeness * (0.6 + 0.4*ordering);
-      if(score < 0.08) continue;
+      const score = closeness * (0.35 + 0.25*ordering);
+      if(score < 0.16) continue;
       const dir = d.clone().multiplyScalar(1/r);
-      const mag = strength * score * 0.95;
+      const mag = strength * score * 0.35;
       const f = dir.clone().multiplyScalar(mag);
       mi.a.add(f);
       mj.a.addScaledVector(f, -1);
@@ -392,11 +395,10 @@ function cohesionPair(mi, mj, sitesI, sitesJ, strength, segs, ordering){
       mi.tau.add(armI.clone().cross(f).multiplyScalar(0.08));
       mj.tau.add(armJ.clone().cross(f.clone().multiplyScalar(-1)).multiplyScalar(0.08));
 
-      if(links < 2){
-        const a = si.clone();
-        const b = sj.clone();
-        wrapSegment(a,b);
-        segs.push(a.x,a.y,a.z,b.x,b.y,b.z);
+      if(links < 1){
+        const a = wrapPointInPlace(si.clone());
+        const b = wrapPointInPlace(sj.clone());
+        if(!segmentCrossesBoundary(a,b)) segs.push(a.x,a.y,a.z,b.x,b.y,b.z);
       }
       links++;
     }

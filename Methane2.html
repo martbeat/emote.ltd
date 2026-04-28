@@ -58,8 +58,8 @@
       <div class="row"><label>Cohesion</label><input id="hb" type="range" min="0" max="2.2" step="0.02" value="0.92" /></div>
       <div class="row"><label>Electrostatics</label><input id="elec" type="range" min="0" max="1.6" step="0.02" value="0.95" /></div>
       <div class="row"><label>Repulsion</label><input id="repel" type="range" min="0.2" max="4" step="0.05" value="1.2" /></div>
-      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0.01" /></div>
-      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0.013" /></div>
+      <div class="row"><label>Damping</label><input id="damp" type="range" min="0" max="0.06" step="0.001" value="0" /></div>
+      <div class="row"><label>Rot. damping</label><input id="rotDamp" type="range" min="0" max="0.08" step="0.001" value="0" /></div>
     </div>
 
     <div class="group note">
@@ -176,6 +176,7 @@ function makeMol(){
   const bond = new THREE.LineSegments(new THREE.BufferGeometry(), bondMat);
   bond.geometry.setAttribute('position', new THREE.BufferAttribute(bondPts, 3));
   group.add(bond);
+  bond.visible = false;
   scene.add(group);
 
   return {

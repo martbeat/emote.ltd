@@ -1,6 +1,11 @@
+<!DOCTYPE html>
+<html>
+<body>
+
 <input type="file" id="file">
 <button onclick="go()">Transcribe</button>
-<pre id="out"></pre>
+
+<pre id="out">Waiting...</pre>
 
 <script>
 async function go() {
@@ -13,18 +18,21 @@ async function go() {
 
   let id = (await res.text()).trim();
 
+  console.log("JOB ID:", id);
+
   let interval = setInterval(async () => {
+    console.log("Polling...");
+
     let r = await fetch("/transcribe-status?" + id);
     let t = await r.text();
 
-    // Always show latest output
-    document.getElementById("out").textContent = t;
+    console.log("Response:", t);
 
-    // STOP when final file appears
-    if (t.includes(".txt ===")) {
-      clearInterval(interval);
-    }
+    document.getElementById("out").textContent = t;
 
   }, 3000);
 }
 </script>
+
+</body>
+</html>

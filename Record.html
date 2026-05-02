@@ -55,9 +55,8 @@
       font-weight: 600;
     }
 
-    #startBtn { background: var(--accent); color: #052e16; }
-    #pauseBtn, #resumeBtn { background: var(--warn); color: #3f2500; }
-    #stopBtn { background: var(--danger); color: #450a0a; }
+    #recordBtn { background: var(--accent); color: #052e16; }
+    #recordBtn.stop { background: var(--danger); color: #450a0a; }
     #downloadBtn { background: #60a5fa; color: #082f49; }
 
     button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -121,10 +120,7 @@
 
     <div class="controls">
       <button id="requestBtn">Request microphone access</button>
-      <button id="startBtn" disabled>Start recording</button>
-      <button id="pauseBtn" disabled>Pause</button>
-      <button id="resumeBtn" disabled>Resume</button>
-      <button id="stopBtn" disabled>Stop</button>
+      <button id="recordBtn" disabled>Start recording</button>
       <button id="downloadBtn" disabled>Download recording</button>
     </div>
 
@@ -138,10 +134,7 @@
 
   <script>
     const requestBtn = document.getElementById('requestBtn');
-    const startBtn = document.getElementById('startBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const resumeBtn = document.getElementById('resumeBtn');
-    const stopBtn = document.getElementById('stopBtn');
+    const recordBtn = document.getElementById('recordBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const playback = document.getElementById('playback');
     const statusWrap = document.getElementById('statusWrap');
@@ -156,17 +149,17 @@
     let recordingUrl;
     let mimeType = 'audio/webm';
     let startedAt = 0;
-    let pausedAt = 0;
     let pausedTotal = 0;
     let timerId;
 
     function pickSupportedMimeType() {
       const preferred = [
+        'audio/mpeg',
+        'audio/mp4',
         'audio/webm;codecs=opus',
         'audio/webm',
         'audio/ogg;codecs=opus',
-        'audio/ogg',
-        'audio/mp4'
+        'audio/ogg'
       ];
       return preferred.find(type => MediaRecorder.isTypeSupported(type)) || '';
     }
@@ -200,6 +193,7 @@
     }
 
     function extensionFromMime(type) {
+      if (type.includes('mpeg')) return 'mp3';
       if (type.includes('ogg')) return 'ogg';
       if (type.includes('mp4')) return 'm4a';
       return 'webm';
@@ -217,12 +211,12 @@
         const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         testStream.getTracks().forEach(track => track.stop());
         permText.textContent = 'Microphone permission: granted';
-        startBtn.disabled = false;
+        recordBtn.disabled = false;
         requestBtn.disabled = true;
       } catch (error) {
         console.error(error);
         permText.textContent = 'Microphone permission: denied (check browser/site settings)';
-        startBtn.disabled = true;
+        recordBtn.disabled = true;
       }
     }
 
@@ -238,14 +232,14 @@
           const result = await navigator.permissions.query({ name: 'microphone' });
           if (result.state === 'granted') {
             permText.textContent = 'Microphone permission: granted';
-            startBtn.disabled = false;
+            recordBtn.disabled = false;
             requestBtn.disabled = true;
           } else if (result.state === 'denied') {
             permText.textContent = 'Microphone permission: denied (check browser/site settings)';
-            startBtn.disabled = true;
+            recordBtn.disabled = true;
           } else {
             permText.textContent = 'Microphone permission: prompt required';
-            startBtn.disabled = true;
+            recordBtn.disabled = true;
           }
           result.onchange = initializePermissionState;
         } catch (_) {
@@ -294,16 +288,13 @@
         mediaRecorder.start(1000);
         startedAt = Date.now();
         pausedTotal = 0;
-        pausedAt = 0;
         timerEl.textContent = '00:00:00';
         startTimer();
 
         setStatus('Recording…', true);
-
-        startBtn.disabled = true;
-        pauseBtn.disabled = false;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = false;
+        recordBtn.disabled = false;
+        recordBtn.textContent = 'Stop recording';
+        recordBtn.classList.add('stop');
         downloadBtn.disabled = true;
       } catch (error) {
         console.error(error);
@@ -312,37 +303,14 @@
       }
     }
 
-    function pauseRecording() {
-      if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-      mediaRecorder.pause();
-      pausedAt = Date.now();
-      stopTimer();
-      setStatus('Paused', false);
-
-      pauseBtn.disabled = true;
-      resumeBtn.disabled = false;
-    }
-
-    function resumeRecording() {
-      if (!mediaRecorder || mediaRecorder.state !== 'paused') return;
-      mediaRecorder.resume();
-      pausedTotal += Date.now() - pausedAt;
-      startTimer();
-      setStatus('Recording…', true);
-
-      pauseBtn.disabled = false;
-      resumeBtn.disabled = true;
-    }
-
     function stopRecording() {
       if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
       mediaRecorder.stop();
       stopTimer();
 
-      startBtn.disabled = false;
-      pauseBtn.disabled = true;
-      resumeBtn.disabled = true;
-      stopBtn.disabled = true;
+      recordBtn.disabled = false;
+      recordBtn.textContent = 'Start recording';
+      recordBtn.classList.remove('stop');
     }
 
     function downloadRecording() {
@@ -356,10 +324,13 @@
     }
 
     requestBtn.addEventListener('click', requestMicrophoneAccess);
-    startBtn.addEventListener('click', startRecording);
-    pauseBtn.addEventListener('click', pauseRecording);
-    resumeBtn.addEventListener('click', resumeRecording);
-    stopBtn.addEventListener('click', stopRecording);
+    recordBtn.addEventListener('click', () => {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        startRecording();
+      } else {
+        stopRecording();
+      }
+    });
     downloadBtn.addEventListener('click', downloadRecording);
 
     initializePermissionState();

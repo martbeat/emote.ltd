@@ -1,0 +1,15 @@
+<input type="file" id="file">
+<button onclick="go()">Transcribe</button>
+<pre id="out"></pre>
+
+<script>
+async function go() {
+  let f = document.getElementById("file").files[0];
+  let res = await fetch("/transcribe", {
+    method: "POST",
+    body: f
+  });
+  let text = await res.text();
+  document.getElementById("out").textContent = text;
+}
+</script>

@@ -13,8 +13,6 @@ async function go() {
 
   let id = (await res.text()).trim();
 
-  document.getElementById("out").textContent = "Processing...";
-
   let interval = setInterval(async () => {
     let r = await fetch("/transcribe-status?" + id);
     let t = await r.text();
@@ -22,8 +20,8 @@ async function go() {
     // Always show latest output
     document.getElementById("out").textContent = t;
 
-    // Stop only when done
-    if (t.startsWith("DONE")) {
+    // STOP when final file appears
+    if (t.includes(".txt ===")) {
       clearInterval(interval);
     }
 

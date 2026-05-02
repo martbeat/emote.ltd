@@ -19,10 +19,14 @@ async function go() {
     let r = await fetch("/transcribe-status?" + id);
     let t = await r.text();
 
-    if (!t.includes("Processing")) {
+    // Always show latest output
+    document.getElementById("out").textContent = t;
+
+    // Stop only when done
+    if (t.startsWith("DONE")) {
       clearInterval(interval);
-      document.getElementById("out").textContent = t;
     }
+
   }, 3000);
 }
 </script>

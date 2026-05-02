@@ -5,11 +5,24 @@
 <script>
 async function go() {
   let f = document.getElementById("file").files[0];
+
   let res = await fetch("/transcribe", {
     method: "POST",
     body: f
   });
-  let text = await res.text();
-  document.getElementById("out").textContent = text;
+
+  let id = (await res.text()).trim();
+
+  document.getElementById("out").textContent = "Processing...";
+
+  let interval = setInterval(async () => {
+    let r = await fetch("/transcribe-status?" + id);
+    let t = await r.text();
+
+    if (!t.includes("Processing")) {
+      clearInterval(interval);
+      document.getElementById("out").textContent = t;
+    }
+  }, 3000);
 }
 </script>

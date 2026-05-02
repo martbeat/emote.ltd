@@ -23,7 +23,7 @@ async function go() {
   let interval = setInterval(async () => {
     console.log("Polling...");
 
-    let r = await fetch("/transcribe-status?" + id);
+    let r = await fetch("/transcribe-status?" + id + "&_=" + Date.now(), {cache: "no-store"});
     let t = await r.text();
 
     console.log("Response:", t);

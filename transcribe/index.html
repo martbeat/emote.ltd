@@ -17,7 +17,8 @@ let interval = null;
 
 async function go() {
 
-  // Clear any previous polling
+  console.log("GO clicked");
+
   if (interval) {
     clearInterval(interval);
   }
@@ -41,12 +42,15 @@ async function go() {
       body: file
     });
 
+    console.log("Upload response received");
+
     const text = (await res.text()).trim();
 
-    // Validate UUID (prevents 504 HTML breaking everything)
+    console.log("Raw response:", text);
+
     if (!text.match(/^[a-f0-9-]{36}$/)) {
-      out.textContent = "Upload failed (no valid job ID returned)";
-      console.error("Bad response:", text);
+      out.textContent = "Upload failed";
+      console.error("Invalid ID:", text);
       return;
     }
 
@@ -54,8 +58,11 @@ async function go() {
 
     out.textContent = "Job started: " + id;
 
-    // Start polling
+    console.log("Starting polling for:", id);
+
     interval = setInterval(async () => {
+
+      console.log("Polling...");
 
       try {
 
@@ -66,18 +73,18 @@ async function go() {
 
         const t = await r.text();
 
-        // Display output (remove DONE header if present)
+        console.log("Status response:", t.substring(0,100));
+
         out.textContent = t.replace(/^DONE\s*/, "");
 
-        // Stop when complete
         if (t.startsWith("DONE")) {
+          console.log("Job complete");
           clearInterval(interval);
           interval = null;
         }
 
       } catch (err) {
         console.error("Polling error:", err);
-        out.textContent = "Connection issue while polling...";
       }
 
     }, 3000);

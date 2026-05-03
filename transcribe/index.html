@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <title>Transcription</title>
+</head>
 <body>
+
+<h2>Upload audio for transcription</h2>
 
 <input type="file" id="file">
 <button onclick="go()">Transcribe</button>
@@ -8,29 +13,79 @@
 <pre id="out">Waiting...</pre>
 
 <script>
+let interval = null;
+
 async function go() {
-  let f = document.getElementById("file").files[0];
 
-  let res = await fetch("/transcribe", {
-    method: "POST",
-    body: f
-  });
+  // Clear any previous polling
+  if (interval) {
+    clearInterval(interval);
+  }
 
-  let id = (await res.text()).trim();
+  const out = document.getElementById("out");
+  const fileInput = document.getElementById("file");
 
-  console.log("JOB ID:", id);
+  if (!fileInput.files.length) {
+    out.textContent = "Please select a file.";
+    return;
+  }
 
-  let interval = setInterval(async () => {
-    console.log("Polling...");
+  const file = fileInput.files[0];
 
-    let r = await fetch("/transcribe-status?" + id + "&_=" + Date.now(), {cache: "no-store"});
-    let t = await r.text();
+  out.textContent = "Uploading...";
 
-    console.log("Response:", t);
+  try {
 
-    document.getElementById("out").textContent = t;
+    const res = await fetch("/transcribe", {
+      method: "POST",
+      body: file
+    });
 
-  }, 3000);
+    const text = (await res.text()).trim();
+
+    // Validate UUID (prevents 504 HTML breaking everything)
+    if (!text.match(/^[a-f0-9-]{36}$/)) {
+      out.textContent = "Upload failed (no valid job ID returned)";
+      console.error("Bad response:", text);
+      return;
+    }
+
+    const id = text;
+
+    out.textContent = "Job started: " + id;
+
+    // Start polling
+    interval = setInterval(async () => {
+
+      try {
+
+        const r = await fetch(
+          "/transcribe-status?" + encodeURIComponent(id) + "&_=" + Date.now(),
+          { cache: "no-store" }
+        );
+
+        const t = await r.text();
+
+        // Display output (remove DONE header if present)
+        out.textContent = t.replace(/^DONE\s*/, "");
+
+        // Stop when complete
+        if (t.startsWith("DONE")) {
+          clearInterval(interval);
+          interval = null;
+        }
+
+      } catch (err) {
+        console.error("Polling error:", err);
+        out.textContent = "Connection issue while polling...";
+      }
+
+    }, 3000);
+
+  } catch (err) {
+    console.error("Upload error:", err);
+    out.textContent = "Upload failed.";
+  }
 }
 </script>
 

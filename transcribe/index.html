@@ -86,8 +86,12 @@ async function go() {
         // Clean display text
         let cleaned = t
           .replace(/^DONE\s*/,'')
-          .replace(/^PROCESSING\s*/,'')
-          .replace(/No chunks yet\.\n?/g,'');
+          .replace(/^PROCESSING\s*/,'');
+
+        // If nothing left, show a message
+        if (!cleaned.trim()) {
+          cleaned = "Processing… (waiting for first chunk)";
+        }
 
         // Update UI
         out.textContent = cleaned + "\n\n(last update: " + new Date().toLocaleTimeString() + ")";

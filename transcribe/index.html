@@ -13,81 +13,42 @@
 <pre id="out">Waiting...</pre>
 
 <script>
-let interval = null;
+interval = setInterval(async () => {
 
-async function go() {
-
-  console.log("GO clicked");
-
-  if (interval) {
-    clearInterval(interval);
-  }
-
-  const out = document.getElementById("out");
-  const fileInput = document.getElementById("file");
-
-  if (!fileInput.files.length) {
-    out.textContent = "Please select a file.";
-    return;
-  }
-
-  const file = fileInput.files[0];
-
-  out.textContent = "Uploading...";
+  console.log("Polling...");
 
   try {
 
-    const res = await fetch("/transcribe", {
-      method: "POST",
-      body: file
-    });
+    const r = await fetch(
+      "/transcribe-status?" + encodeURIComponent(id) + "&_=" + Date.now(),
+      { cache: "no-store" }
+    );
 
-    console.log("Upload response received");
+    const t = await r.text();
 
-    const text = (await res.text()).trim();
+    console.log("Status response:", t.substring(0,100));
 
-    console.log("Raw response:", text);
+    // ✅ DEFINE cleaned properly
+    let cleaned = t
+      .replace(/^DONE\s*/,'')
+      .replace(/^PROCESSING\s*/,'')
+      .replace(/No chunks yet\.\n?/g,'');
 
-    if (!text.match(/^[a-f0-9-]{36}$/)) {
-      out.textContent = "Upload failed";
-      console.error("Invalid ID:", text);
-      return;
+    // ✅ always update UI
+    out.textContent = cleaned + "\n\n(last update: " + new Date().toLocaleTimeString() + ")";
+
+    // ✅ stop when complete
+    if (t.startsWith("DONE")) {
+      console.log("Job complete");
+      clearInterval(interval);
+      interval = null;
     }
 
-    const id = text;
+  } catch (err) {
+    console.error("Polling error:", err);
+  }
 
-    out.textContent = "Job started: " + id;
-
-    console.log("Starting polling for:", id);
-
-    interval = setInterval(async () => {
-
-      console.log("Polling...");
-
-      try {
-
-        const r = await fetch(
-          "/transcribe-status?" + encodeURIComponent(id) + "&_=" + Date.now(),
-          { cache: "no-store" }
-        );
-
-        const t = await r.text();
-
-        console.log("Status response:", t.substring(0,100));
-
-        out.textContent = cleaned + "\n\n(last update: " + new Date().toLocaleTimeString() + ")";
-
-        if (t.startsWith("DONE")) {
-          console.log("Job complete");
-          clearInterval(interval);
-          interval = null;
-        }
-
-      } catch (err) {
-        console.error("Polling error:", err);
-      }
-
-    }, 3000);
+}, 3000);
 
   } catch (err) {
     console.error("Upload error:", err);

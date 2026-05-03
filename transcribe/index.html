@@ -75,7 +75,7 @@ async function go() {
 
         console.log("Status response:", t.substring(0,100));
 
-        out.textContent = t.replace(/^DONE\s*/, "");
+        out.textContent = cleaned + "\n\n(last update: " + new Date().toLocaleTimeString() + ")";
 
         if (t.startsWith("DONE")) {
           console.log("Job complete");

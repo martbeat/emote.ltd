@@ -10,15 +10,17 @@
 <input type="file" id="file">
 <button onclick="go()">Transcribe</button>
 
-<pre id="result" style="background:#eee;padding:10px;"></pre>
+<pre id="result">Waiting...</pre>
 
 <script>
 async function go() {
-    const fileInput = document.getElementById("file");
-    const result = document.getElementById("result");
+    console.log("GO clicked");
+
+    const fileInput = document.getElementById('file');
+    const result = document.getElementById('result');
 
     if (!fileInput.files.length) {
-        alert("Choose a file");
+        alert("Select a file first");
         return;
     }
 
@@ -26,53 +28,60 @@ async function go() {
 
     const file = fileInput.files[0];
 
+    // --- UPLOAD ---
+    let response;
     try {
-        // --- UPLOAD ---
-        const upload = await fetch("/transcribe", {
-            method: "POST",
+        response = await fetch('/transcribe', {
+            method: 'POST',
             body: file
         });
+    } catch (err) {
+        result.innerText = "Upload failed: " + err;
+        return;
+    }
 
-        const jobId = (await upload.text()).trim();
+    console.log("Upload response received");
 
-        console.log("JOB ID:", jobId);
+    const text = await response.text();
+    console.log("Raw response:", text);
 
-        if (!jobId || jobId.length < 10) {
-            result.innerText = "Upload failed:\n" + jobId;
-            return;
-        }
+    const id = text.trim();
 
-        result.innerText = "Processing...";
+    if (!id || id.length < 10) {
+        result.innerText = "Upload failed or invalid ID:\n" + text;
+        return;
+    }
 
-        // --- POLLING ---
-        const poll = setInterval(async () => {
-            try {
-                const res = await fetch(`/transcribe-status?${jobId}&t=${Date.now()}`);
-                const text = await res.text();
+    result.innerText = "Job ID: " + id + "\nStarting...";
 
-                console.log("STATUS:\n", text);
+    // --- POLLING ---
+    const poll = setInterval(async () => {
+        console.log("Polling...");
 
-                // --- DONE ---
-                if (text.startsWith("DONE")) {
-                    clearInterval(poll);
+        try {
+            const r = await fetch('/transcribe-status?' + id + '&nocache=' + Date.now());
+            const t = await r.text();
 
-                    result.innerText = text.replace(/^DONE\s*/, '');
-                    return;
-                }
+            console.log("Status response:", t);
 
-                // --- PROCESSING ---
-                result.innerText = text;
+            // --- DONE ---
+            if (t.includes("DONE")) {
+                clearInterval(poll);
 
-            } catch (e) {
-                console.error("Polling error:", e);
-                result.innerText = "Polling error... retrying";
+                const finalText = t.replace(/DONE\s*/g, '').trim();
+
+                result.innerText = finalText || "(DONE but empty response)";
+                return;
             }
 
-        }, 3000);
+            // --- PROCESSING ---
+            result.innerText = t;
 
-    } catch (e) {
-        result.innerText = "Upload error: " + e;
-    }
+        } catch (err) {
+            console.log("Polling error:", err);
+        }
+
+    }, 3000);
 }
 </script>
 

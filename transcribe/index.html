@@ -2,72 +2,251 @@
 <html>
 <head>
     <title>Transcribe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            max-width: 900px;
+        }
+
+        h2 {
+            margin-bottom: 12px;
+        }
+
+        .controls {
+            margin-bottom: 16px;
+        }
+
+        button {
+            margin-left: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+
+        #status {
+            margin: 12px 0;
+            font-weight: bold;
+        }
+
+        #progress-wrap {
+            width: 100%;
+            background: #e5e5e5;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 22px;
+            margin: 8px 0 16px 0;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #555;
+            color: white;
+            text-align: center;
+            line-height: 22px;
+            font-size: 13px;
+            transition: width 0.3s ease;
+        }
+
+        #result {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 14px;
+            white-space: pre-wrap;
+            min-height: 180px;
+        }
+
+        .hint {
+            color: #555;
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+    </style>
 </head>
 <body>
 
 <h2>Upload audio for transcription</h2>
 
-<input type="file" id="file">
-<button onclick="go()">Transcribe</button>
+<div class="controls">
+    <input type="file" id="file" accept="audio/*">
+    <button onclick="go()">Transcribe</button>
+</div>
 
-<pre id="result">Waiting...</pre>
+<div id="status">Waiting...</div>
+
+<div id="progress-wrap">
+    <div id="progress-bar">0%</div>
+</div>
+
+<pre id="result"></pre>
+
+<div class="hint">
+    Longer files may take several minutes on the Raspberry Pi. Results appear chunk by chunk.
+</div>
 
 <script>
+let pollTimer = null;
+
+function parseStatusResponse(text) {
+    const lines = text.split(/\r?\n/);
+
+    let status = "UNKNOWN";
+    let current = 0;
+    let total = 0;
+    let bodyStart = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (line.startsWith("STATUS:")) {
+            status = line.substring("STATUS:".length).trim();
+            continue;
+        }
+
+        if (line.startsWith("CURRENT:")) {
+            current = parseInt(line.substring("CURRENT:".length).trim(), 10) || 0;
+            continue;
+        }
+
+        if (line.startsWith("TOTAL:")) {
+            total = parseInt(line.substring("TOTAL:".length).trim(), 10) || 0;
+            continue;
+        }
+
+        if (line.trim() === "") {
+            bodyStart = i + 1;
+            break;
+        }
+    }
+
+    const body = lines.slice(bodyStart).join("\n").trim();
+
+    return { status, current, total, body };
+}
+
+function updateProgress(current, total, status) {
+    const wrap = document.getElementById("progress-wrap");
+    const bar = document.getElementById("progress-bar");
+
+    wrap.style.display = "block";
+
+    let percent = 0;
+
+    if (total > 0) {
+        percent = Math.min(100, Math.round((current / total) * 100));
+    } else if (status === "PROCESSING") {
+        percent = 5;
+    } else if (status === "DONE") {
+        percent = 100;
+    }
+
+    bar.style.width = percent + "%";
+    bar.innerText = percent + "%";
+}
+
 async function go() {
-    const fileInput = document.getElementById('file');
-    const result = document.getElementById('result');
+    const fileInput = document.getElementById("file");
+    const result = document.getElementById("result");
+    const statusBox = document.getElementById("status");
+
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
 
     if (!fileInput.files.length) {
-        alert("Select a file first");
+        statusBox.innerText = "Please select a file.";
         return;
     }
 
-    result.innerText = "Uploading...";
-
     const file = fileInput.files[0];
 
-    const response = await fetch('/transcribe', {
-        method: 'POST',
-        body: file
-    });
+    statusBox.innerText = "Uploading...";
+    result.innerText = "";
 
-    const id = (await response.text()).trim();
+    updateProgress(0, 0, "PROCESSING");
 
-    result.innerText = "Job ID: " + id + "\nStarting...";
+    let jobId = "";
 
-    let lastText = "";
-    let stableCount = 0;
+    try {
+        const upload = await fetch("/transcribe", {
+            method: "POST",
+            body: file
+        });
 
-    const poll = setInterval(async () => {
-        try {
-            const r = await fetch('/transcribe-status?' + id + '&nocache=' + Date.now());
-            const t = await r.text();
+        jobId = (await upload.text()).trim();
 
-            // remove DONE label for display
-            const cleaned = t.replace(/DONE\s*/g, '').trim();
-
-            result.innerText = cleaned;
-
-            // --- stability check ---
-            if (cleaned === lastText) {
-                stableCount++;
-            } else {
-                stableCount = 0;
-            }
-
-            lastText = cleaned;
-
-            // --- only stop when stable ---
-            if (stableCount >= 3 && t.includes("DONE")) {
-                clearInterval(poll);
-            }
-
-        } catch (err) {
-            console.log("Polling error:", err);
+        if (!jobId || jobId.length < 10 || jobId.includes("<")) {
+            statusBox.innerText = "Upload failed: invalid job ID returned.";
+            result.innerText = jobId;
+            return;
         }
 
-    }, 3000);
+    } catch (err) {
+        statusBox.innerText = "Upload failed.";
+        result.innerText = String(err);
+        return;
+    }
+
+    statusBox.innerText = "Job started: " + jobId;
+
+    async function poll() {
+        try {
+            const res = await fetch(
+                "/transcribe-status?ID=" + encodeURIComponent(jobId) + "&nocache=" + Date.now(),
+                { cache: "no-store" }
+            );
+
+            const raw = await res.text();
+            const parsed = parseStatusResponse(raw);
+
+            updateProgress(parsed.current, parsed.total, parsed.status);
+
+            if (parsed.status === "PROCESSING") {
+                if (parsed.total > 0) {
+                    statusBox.innerText =
+                        "Processing: " + parsed.current + " of " + parsed.total + " chunks complete";
+                } else {
+                    statusBox.innerText = "Preparing audio...";
+                }
+
+                result.innerText = parsed.body || "Preparing audio and looking for pauses...";
+                return;
+            }
+
+            if (parsed.status === "DONE") {
+                statusBox.innerText = "Complete";
+                updateProgress(parsed.total || 1, parsed.total || 1, "DONE");
+                result.innerText = parsed.body || "(completed but no transcript was produced)";
+
+                clearInterval(pollTimer);
+                pollTimer = null;
+                return;
+            }
+
+            if (parsed.status === "ERROR") {
+                statusBox.innerText = "Error";
+                result.innerText = parsed.body || raw;
+
+                clearInterval(pollTimer);
+                pollTimer = null;
+                return;
+            }
+
+            statusBox.innerText = "Unknown response";
+            result.innerText = raw;
+
+        } catch (err) {
+            statusBox.innerText = "Polling error, retrying...";
+            console.error(err);
+        }
+    }
+
+    await poll();
+    pollTimer = setInterval(poll, 3000);
 }
 </script>
+
 </body>
 </html>

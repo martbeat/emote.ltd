@@ -14,8 +14,6 @@
 
 <script>
 async function go() {
-    console.log("GO clicked");
-
     const fileInput = document.getElementById('file');
     const result = document.getElementById('result');
 
@@ -28,54 +26,41 @@ async function go() {
 
     const file = fileInput.files[0];
 
-    // --- UPLOAD ---
-    let response;
-    try {
-        response = await fetch('/transcribe', {
-            method: 'POST',
-            body: file
-        });
-    } catch (err) {
-        result.innerText = "Upload failed: " + err;
-        return;
-    }
+    const response = await fetch('/transcribe', {
+        method: 'POST',
+        body: file
+    });
 
-    console.log("Upload response received");
-
-    const text = await response.text();
-    console.log("Raw response:", text);
-
-    const id = text.trim();
-
-    if (!id || id.length < 10) {
-        result.innerText = "Upload failed or invalid ID:\n" + text;
-        return;
-    }
+    const id = (await response.text()).trim();
 
     result.innerText = "Job ID: " + id + "\nStarting...";
 
-    // --- POLLING ---
-    const poll = setInterval(async () => {
-        console.log("Polling...");
+    let lastText = "";
+    let stableCount = 0;
 
+    const poll = setInterval(async () => {
         try {
             const r = await fetch('/transcribe-status?' + id + '&nocache=' + Date.now());
             const t = await r.text();
 
-            console.log("Status response:", t);
+            // remove DONE label for display
+            const cleaned = t.replace(/DONE\s*/g, '').trim();
 
-            // --- DONE ---
-            if (t.includes("DONE")) {
-                clearInterval(poll);
+            result.innerText = cleaned;
 
-                const finalText = t.replace(/DONE\s*/g, '').trim();
-
-                result.innerText = finalText || "(DONE but empty response)";
-                return;
+            // --- stability check ---
+            if (cleaned === lastText) {
+                stableCount++;
+            } else {
+                stableCount = 0;
             }
 
-            // --- PROCESSING ---
-            result.innerText = t;
+            lastText = cleaned;
+
+            // --- only stop when stable ---
+            if (stableCount >= 3 && t.includes("DONE")) {
+                clearInterval(poll);
+            }
 
         } catch (err) {
             console.log("Polling error:", err);
@@ -84,6 +69,5 @@ async function go() {
     }, 3000);
 }
 </script>
-
 </body>
 </html>

@@ -83,18 +83,24 @@ async function go() {
 
         console.log("Status response:", t.substring(0,100));
 
-        // Clean display text
+        let isDone = t.startsWith("DONE");
+        
         let cleaned = t
           .replace(/^DONE\s*/,'')
           .replace(/^PROCESSING\s*/,'');
-
-        // If nothing left, show a message
-        if (!cleaned.trim()) {
+        
+        // ONLY show placeholder if still processing AND nothing exists
+        if (!isDone && !cleaned.trim()) {
           cleaned = "Processing… (waiting for first chunk)";
         }
-
-        // Update UI
-        out.textContent = cleaned + "\n\n(last update: " + new Date().toLocaleTimeString() + ")";
+        
+        // Always show something if DONE
+        if (isDone && !cleaned.trim()) {
+          cleaned = "(completed but no text returned)";
+        }
+        
+        out.textContent =
+          cleaned + "\n\n(last update: " + new Date().toLocaleTimeString() + ")";
 
         // Stop polling when complete
         if (t.startsWith("DONE")) {

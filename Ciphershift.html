@@ -499,7 +499,12 @@
 </div>
 
 <script type="module">
-window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
+window.__cipherShiftWordlistsModule = {
+    loadWordLists: async () => {
+        const mod = await import("./js/wordlists.js?v=20260411-6");
+        return mod.loadWordLists();
+    }
+};
 </script>
 
 <script>
@@ -679,7 +684,11 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
         "YEAST","YIELD"
     ];
 
-    const acceptedWords = new Set(fallbackPrototypeWords.filter(w => w.length === 5));
+    const normalizeFiveLetterWords = (words) => words
+        .map(word => String(word).trim().toUpperCase())
+        .filter(word => /^[A-Z]{5}$/.test(word));
+
+    const acceptedWords = new Set(normalizeFiveLetterWords(fallbackPrototypeWords));
 
     const maxRows = 6;
     const cols = 5;
@@ -722,9 +731,7 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
                 const { loadWordLists } = await moduleLoader;
                 const loaded = await loadWordLists();
                 const sharedWords = (loaded?.allWords || loaded?.WORDS || []);
-                const normalized = sharedWords
-                    .map(word => String(word).trim().toUpperCase())
-                    .filter(word => /^[A-Z]{5}$/.test(word));
+                const normalized = normalizeFiveLetterWords(sharedWords);
                 if (normalized.length) {
                     acceptedWords.clear();
                     normalized.forEach(word => acceptedWords.add(word));
@@ -737,9 +744,7 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
 
         try {
             const cached = JSON.parse(localStorage.getItem("wordleWords") || "[]");
-            const normalizedCache = cached
-                .map(word => String(word).trim().toUpperCase())
-                .filter(word => /^[A-Z]{5}$/.test(word));
+            const normalizedCache = normalizeFiveLetterWords(cached);
             if (normalizedCache.length) {
                 acceptedWords.clear();
                 normalizedCache.forEach(word => acceptedWords.add(word));
@@ -1022,9 +1027,10 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
         if (key === "ENTER" || key === "BACKSPACE" || /^[A-Z]$/.test(key)) handleKey(key);
     });
 
-    document.getElementById("newBtn").addEventListener("click", () => {
+    document.getElementById("newBtn").addEventListener("click", async () => {
         puzzleIndex = (puzzleIndex + 1) % puzzles.length;
-        hydrateDictionary().finally(() => init());
+        await hydrateDictionary();
+        init();
     });
 
     document.getElementById("howBtn").addEventListener("click", () => modal.classList.add("show"));
@@ -1035,7 +1041,10 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
     dictionaryModal.addEventListener("click", e => { if (e.target === dictionaryModal) dictionaryModal.classList.remove("show"); });
     shareBtn.addEventListener("click", share);
 
-    hydrateDictionary().finally(() => init());
+    (async () => {
+        await hydrateDictionary();
+        init();
+    })();
 })();
 </script>
 </body>

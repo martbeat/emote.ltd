@@ -648,7 +648,9 @@
 
     ];
 
-    const acceptedWords = new Set([
+    const SHARED_WORDLIST_MODULE_PATH = "./js/wordlists.js?v=20260411-6";
+
+    const fallbackPrototypeWords = [
         "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADAPT","ADMIT","ADOPT","ADULT","AFTER","AGAIN","AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIEN","ALIGN","ALIKE","ALIVE","ALLOW","ALONE","ALONG","ALTER","AMONG","ANGER","ANGLE","APPLE","APPLY","ARGUE","ARISE","ARRAY","ASIDE","ASSET","AUDIO","AUDIT","AVOID","AWARD","AWARE",
         "BAKES","BASIC","BASSY","BEAMS","BEATS","BEGIN","BELIEF","BENCH","BIRTH","BLACK","BLAME","BLEND","BLIND","BLOCK","BOARD","BONDS","BRAND","BREAD","BREAK","BRIEF","BRING","BROAD","BROKE","BROWN","BUILD",
         "CAUSE","CHAIN","CHAIR","CHANGE","CHART","CHASE","CHECK","CHILD","CHOIR","CIVIC","CLAIM","CLASS","CLEAR","CLICK","CLOSE","CLOUD","COACH","CODES","COURT","COVER","CRASH","CREAM","CROWN","CRUMB","CURVE","CYCLE",
@@ -673,7 +675,9 @@
         "VALID","VALUE","VIDEO","VIEWY","VISION","VOICE","VOTER",
         "WATER","WHEAT","WHERE","WHOLE","WORDS","WORLD","WRITE","WRONG",
         "YEAST","YIELD"
-    ].filter(w => w.length === 5));
+    ];
+
+    const acceptedWords = new Set(fallbackPrototypeWords.filter(w => w.length === 5));
 
     const maxRows = 6;
     const cols = 5;
@@ -709,7 +713,38 @@
         return Math.abs(days) % puzzles.length;
     }
 
-    function init() {
+    async function hydrateDictionary() {
+        try {
+            const { loadWordLists } = await import(SHARED_WORDLIST_MODULE_PATH);
+            const loaded = await loadWordLists();
+            const sharedWords = (loaded?.allWords || loaded?.WORDS || []);
+            const normalized = sharedWords
+                .map(word => String(word).trim().toUpperCase())
+                .filter(word => /^[A-Z]{5}$/.test(word));
+            if (normalized.length) {
+                acceptedWords.clear();
+                normalized.forEach(word => acceptedWords.add(word));
+                return;
+            }
+        } catch (error) {
+            console.warn("CipherShift shared wordlist unavailable, trying local cache.", error);
+        }
+
+        try {
+            const cached = JSON.parse(localStorage.getItem("wordleWords") || "[]");
+            const normalizedCache = cached
+                .map(word => String(word).trim().toUpperCase())
+                .filter(word => /^[A-Z]{5}$/.test(word));
+            if (normalizedCache.length) {
+                acceptedWords.clear();
+                normalizedCache.forEach(word => acceptedWords.add(word));
+            }
+        } catch (error) {
+            console.warn("CipherShift local cached dictionary unavailable; using bundled prototype words.", error);
+        }
+    }
+
+    async function init() {
         current = "";
         row = 0;
         guesses = [];
@@ -984,7 +1019,7 @@
 
     document.getElementById("newBtn").addEventListener("click", () => {
         puzzleIndex = (puzzleIndex + 1) % puzzles.length;
-        init();
+        hydrateDictionary().finally(() => init());
     });
 
     document.getElementById("howBtn").addEventListener("click", () => modal.classList.add("show"));
@@ -995,7 +1030,7 @@
     dictionaryModal.addEventListener("click", e => { if (e.target === dictionaryModal) dictionaryModal.classList.remove("show"); });
     shareBtn.addEventListener("click", share);
 
-    init();
+    hydrateDictionary().finally(() => init());
 })();
 </script>
 </body>

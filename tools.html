@@ -4,21 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>eMote Tools | Business Utility Hub</title>
-  <meta name="description" content="Launch eMote business tools from one place: QR generation, recording, transcription, and short URL routing." />
+  <meta name="description" content="Launch eMote business tools from one place: QR, recording, transcription, Mermaid diagrams, and more." />
   <style>
     :root{--bg:#0b1020;--card:#141b33;--text:#f4f7ff;--muted:#b7c0d8;--line:#2a355a;--accent:#33c7ff}
-    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{width:min(980px,92vw);margin:0 auto;padding:36px 0 64px}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);}
+    .wrap{width:min(1060px,92vw);margin:0 auto;padding:36px 0 64px}
     h1{font-size:clamp(1.6rem,2.6vw,2.2rem);margin:0 0 8px}
-    p.lead{margin:0 0 28px;color:var(--muted)}
+    p.lead{margin:0 0 20px;color:var(--muted)}
     .top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:20px}
     .back{color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:8px 12px;border-radius:10px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    h2.section{margin:24px 0 10px;font-size:1rem;color:#d4e2ff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
-    .card h2{font-size:1.05rem;margin:0}
+    .card h3{font-size:1.05rem;margin:0}
     .card p{margin:0;color:var(--muted);font-size:.95rem;line-height:1.4}
     .btn{margin-top:auto;display:inline-block;background:var(--accent);color:#062736;padding:9px 12px;border-radius:10px;font-weight:600;text-decoration:none}
-    .muted{font-size:.85rem;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -26,36 +26,24 @@
     <div class="top">
       <div>
         <h1>Business Tools</h1>
-        <p class="lead">A single launchpad for your operational utilities.</p>
+        <p class="lead">A single launchpad for your operational and delivery tooling.</p>
       </div>
       <a class="back" href="/index.html">← Main site</a>
     </div>
 
-    <section class="grid" aria-label="Business tools">
-      <article class="card">
-        <h2>QR Generator</h2>
-        <p>Create branded QR codes for URLs, text, contacts, and campaign destinations.</p>
-        <a class="btn" href="/QR.html">Open QR tool</a>
-      </article>
+    <h2 class="section">Core business tools</h2>
+    <section class="grid" aria-label="Core business tools">
+      <article class="card"><h3>QR Generator</h3><p>Create branded QR codes for links, contacts, and campaign destinations.</p><a class="btn" href="/QR.html">Open QR tool</a></article>
+      <article class="card"><h3>Audio Recorder</h3><p>Capture voice notes in-browser and download ready-to-share audio files.</p><a class="btn" href="/Record.html">Open recorder</a></article>
+      <article class="card"><h3>Transcription</h3><p>Upload recordings and generate transcript output for meetings and notes.</p><a class="btn" href="/transcribe/">Open transcription</a></article>
+      <article class="card"><h3>Short-link workflow</h3><p>Use dynamic URLs behind QR codes so campaign destinations can change without reprinting.</p><a class="btn" href="/QR.html">Open workflow</a></article>
+    </section>
 
-      <article class="card">
-        <h2>Audio Recorder</h2>
-        <p>Capture voice notes in-browser and download a file ready for upload or sharing.</p>
-        <a class="btn" href="/Record.html">Open recorder</a>
-      </article>
-
-      <article class="card">
-        <h2>Transcription</h2>
-        <p>Upload audio and generate transcript output for meeting notes and summaries.</p>
-        <a class="btn" href="/transcribe/">Open transcription</a>
-      </article>
-
-      <article class="card">
-        <h2>Short URL Router</h2>
-        <p>Manage redirection targets behind short links to keep QR codes and campaigns dynamic.</p>
-        <a class="btn" href="/QR.html">Open dynamic link workflow</a>
-        <span class="muted">Tip: point QR codes to your short links, then update destinations without reprinting.</span>
-      </article>
+    <h2 class="section">Additional build & content tools</h2>
+    <section class="grid" aria-label="Additional tools">
+      <article class="card"><h3>Mermaid Builder</h3><p>Create shareable architecture and process diagrams quickly.</p><a class="btn" href="/mermaid.html">Open Mermaid tool</a></article>
+      <article class="card"><h3>Document Redactor</h3><p>Redact sensitive content in text and PDF workflows.</p><a class="btn" href="/redactor.html">Open redactor</a></article>
+      <article class="card"><h3>Analytics Dashboard</h3><p>Review usage and traffic signals across interactive pages.</p><a class="btn" href="/stats/analytics.html">Open analytics</a></article>
     </section>
   </main>
 </body>

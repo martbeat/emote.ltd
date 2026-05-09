@@ -996,7 +996,7 @@
     if (mode === 'identity' || mode === 'aggressive'){
       text = applyPseudonyms(text, { part, preserveLength }, { companies: toggles.companies });
       const detections = detectEntities(text, state.piiCandidates, {
-        enableIdentityInference: toggles.fullName && (isWordDocPart || mode === 'aggressive' || toggles.lastName || toggles.firstName || !!state.inputDocxBytes),
+        enableIdentityInference: toggles.fullName && (isWordDocPart || mode === 'aggressive' || mode === 'identity' || toggles.lastName || toggles.firstName || !!state.inputDocxBytes),
         redactFullNameVariants: toggles.fullName && (isWordDocPart || mode === 'aggressive' || !!state.inputDocxBytes),
         redactSurnameGlobal: toggles.lastName,
         redactFirstNameGlobal: toggles.firstName,
@@ -1444,7 +1444,7 @@
       const shouldBuildPlainCandidates = isInferenceMode()
         || $('redactSurnameGlobal').checked
         || $('redactFirstNameGlobal').checked
-        || ($('redactFullNameVariants').checked && !!state.inputDocxBytes);
+        || $('redactFullNameVariants').checked;
       state.piiCandidates = shouldBuildPlainCandidates
         ? buildPiiCandidates({ creator: '', lastModifiedBy: '', fullText: plain })
         : null;

@@ -874,7 +874,7 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
 
     function submitGuess() {
         if (current.length !== cols) return notice("Enter a five-letter word.");
-        if (!acceptedWords.has(current)) return notice("That word is not in this prototype dictionary.");
+        if (!acceptedWords.has(current)) return notice("I recognize that word, but it is not in Ciphershift's current prototype list yet.");
 
         const evaluation = evaluate(current);
         guesses.push(evaluation);

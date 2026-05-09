@@ -492,6 +492,8 @@
     <div class="modal">
         <h2>Prototype dictionary</h2>
         <p class="small">These are all accepted guesses, similar to Wordle's visible dictionary approach.</p>
+        <div class="small" id="dictionarySource"></div>
+        <div class="small" id="dictionaryFeedback"></div>
         <div class="small" id="dictionaryCount"></div>
         <div class="history" id="dictionaryList" style="max-height:50vh;"></div>
         <button id="closeDictionary">Close</button>
@@ -700,6 +702,8 @@ window.__cipherShiftWordlistsModule = {
     let gameOver = false;
     let bestSignal = 0;
     let keyStates = {};
+    let dictionarySource = "Bundled prototype words";
+    let dictionaryFeedback = [];
 
     const board = document.getElementById("board");
     const keyboard = document.getElementById("keyboard");
@@ -716,6 +720,8 @@ window.__cipherShiftWordlistsModule = {
     const dictionaryModal = document.getElementById("dictionaryModal");
     const dictionaryList = document.getElementById("dictionaryList");
     const dictionaryCount = document.getElementById("dictionaryCount");
+    const dictionarySourceEl = document.getElementById("dictionarySource");
+    const dictionaryFeedbackEl = document.getElementById("dictionaryFeedback");
 
     function getDailyIndex() {
         const start = new Date("2026-05-09T00:00:00Z");
@@ -725,6 +731,8 @@ window.__cipherShiftWordlistsModule = {
     }
 
     async function hydrateDictionary() {
+        dictionaryFeedback = [];
+        dictionarySource = "Bundled prototype words";
         try {
             const moduleLoader = window.__cipherShiftWordlistsModule;
             if (moduleLoader) {
@@ -735,10 +743,14 @@ window.__cipherShiftWordlistsModule = {
                 if (normalized.length) {
                     acceptedWords.clear();
                     normalized.forEach(word => acceptedWords.add(word));
+                    dictionarySource = "Shared wordlist module";
+                    dictionaryFeedback.push(`Loaded ${normalized.length} words from shared module.`);
                     return;
                 }
+                dictionaryFeedback.push("Shared wordlist module returned no valid five-letter words.");
             }
         } catch (error) {
+            dictionaryFeedback.push("Shared wordlist module failed; falling back to local cache.");
             console.warn("CipherShift shared wordlist unavailable, trying local cache.", error);
         }
 
@@ -748,8 +760,13 @@ window.__cipherShiftWordlistsModule = {
             if (normalizedCache.length) {
                 acceptedWords.clear();
                 normalizedCache.forEach(word => acceptedWords.add(word));
+                dictionarySource = "Local cached dictionary (dwl:words:v1)";
+                dictionaryFeedback.push(`Loaded ${normalizedCache.length} words from local cache.`);
+            } else {
+                dictionaryFeedback.push("Local cache had no valid five-letter words; using bundled prototype words.");
             }
         } catch (error) {
+            dictionaryFeedback.push("Local cache parse failed; using bundled prototype words.");
             console.warn("CipherShift local cached dictionary unavailable; using bundled prototype words.", error);
         }
     }
@@ -778,6 +795,10 @@ window.__cipherShiftWordlistsModule = {
 
     function renderDictionary() {
         const words = [...acceptedWords].sort();
+        dictionarySourceEl.textContent = `Current source: ${dictionarySource}`;
+        dictionaryFeedbackEl.innerHTML = dictionaryFeedback.length
+            ? dictionaryFeedback.map(note => `• ${note}`).join("<br>")
+            : "No dictionary fallback messages.";
         dictionaryCount.textContent = `${words.length} accepted five-letter words`;
         dictionaryList.innerHTML = words.map(word => `<div class="history-item"><strong>${word}</strong></div>`).join("");
     }
@@ -879,7 +900,13 @@ window.__cipherShiftWordlistsModule = {
 
     function submitGuess() {
         if (current.length !== cols) return notice("Enter a five-letter word.");
-        if (!acceptedWords.has(current)) return notice("I recognize that word, but it is not in Ciphershift's current prototype list yet.");
+        if (!acceptedWords.has(current)) {
+            const miss = `${current} not in accepted list from ${dictionarySource}.`;
+            dictionaryFeedback.unshift(miss);
+            dictionaryFeedback = dictionaryFeedback.slice(0, 12);
+            renderDictionary();
+            return notice(`Dictionary miss: ${current} is not in the active list (${dictionarySource}).`);
+        }
 
         const evaluation = evaluate(current);
         guesses.push(evaluation);

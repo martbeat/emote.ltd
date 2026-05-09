@@ -419,6 +419,7 @@
             <p>A daily Wordle-like game where letters matter, but meaning matters too. Find the hidden five-letter concept in six guesses.</p>
         </div>
         <div class="top-actions">
+            <button class="secondary" id="dictionaryBtn">Dictionary</button>
             <button class="secondary" id="howBtn">How to play</button>
             <button class="secondary" id="newBtn">New puzzle</button>
             <button id="shareBtn" disabled>Share</button>
@@ -485,6 +486,15 @@
             <li>Use the hint trail carefully. Hints unlock as you spend guesses or get semantically closer.</li>
         </ul>
         <button id="closeModal">Start playing</button>
+    </div>
+</div>
+<div class="modal-backdrop" id="dictionaryModal">
+    <div class="modal">
+        <h2>Prototype dictionary</h2>
+        <p class="small">These are all accepted guesses, similar to Wordle's visible dictionary approach.</p>
+        <div class="small" id="dictionaryCount"></div>
+        <div class="history" id="dictionaryList" style="max-height:50vh;"></div>
+        <button id="closeDictionary">Close</button>
     </div>
 </div>
 
@@ -688,6 +698,9 @@
     const puzzleName = document.getElementById("puzzleName");
     const shareBtn = document.getElementById("shareBtn");
     const modal = document.getElementById("modal");
+    const dictionaryModal = document.getElementById("dictionaryModal");
+    const dictionaryList = document.getElementById("dictionaryList");
+    const dictionaryCount = document.getElementById("dictionaryCount");
 
     function getDailyIndex() {
         const start = new Date("2026-05-09T00:00:00Z");
@@ -715,6 +728,13 @@
         renderKeyboard();
         renderHints();
         renderHistory();
+        renderDictionary();
+    }
+
+    function renderDictionary() {
+        const words = [...acceptedWords].sort();
+        dictionaryCount.textContent = `${words.length} accepted five-letter words`;
+        dictionaryList.innerHTML = words.map(word => `<div class="history-item"><strong>${word}</strong></div>`).join("");
     }
 
     function renderBoard() {
@@ -970,6 +990,9 @@
     document.getElementById("howBtn").addEventListener("click", () => modal.classList.add("show"));
     document.getElementById("closeModal").addEventListener("click", () => modal.classList.remove("show"));
     modal.addEventListener("click", e => { if (e.target === modal) modal.classList.remove("show"); });
+    document.getElementById("dictionaryBtn").addEventListener("click", () => dictionaryModal.classList.add("show"));
+    document.getElementById("closeDictionary").addEventListener("click", () => dictionaryModal.classList.remove("show"));
+    dictionaryModal.addEventListener("click", e => { if (e.target === dictionaryModal) dictionaryModal.classList.remove("show"); });
     shareBtn.addEventListener("click", share);
 
     init();

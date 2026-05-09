@@ -542,6 +542,7 @@
     <div class="controls">
       <button id="shuffleBtn" type="button" title="Randomise positions (S)">Shuffle</button>
       <button id="gatherBtn" type="button" title="Gather cards to centre (G)">Gather</button>
+      <a id="gameOfDayLink" class="ghost" href="#" title="Open today’s random game">🎲 Game of the Day</a>
       <div class="pill toggle" title="Let the cards drift on their own">
         <input id="autopilot" type="checkbox" />
         <label for="autopilot">Autopilot</label>
@@ -623,6 +624,20 @@ const GAMES = [
     tagClass: "word",
     desc: "Shared-screen guessing with multiple boards in Spanish. Built for taking turns."
   }, 
+  {
+    title: "Squordle v2",
+    href: "XXSquordle_v2.html",
+    tag: "Word",
+    tagClass: "word",
+    desc: "Experimental Squordle variant with upgraded board and clue flow."
+  },
+  {
+    title: "Swordle",
+    href: "Swordle.html",
+    tag: "Word",
+    tagClass: "word",
+    desc: "Fast-paced word challenge with quick rounds and light strategy."
+  },
   {
     title: "Spanish Circle Challenge",
     href: "SpanishCircle.html",
@@ -799,6 +814,34 @@ const GAMES = [
     desc: "Interactive H2O molecular dynamics toy exploring ice, liquid, and steam behaviour."
   },
   {
+    title: "Water Phase Toy 2",
+    href: "Water2.html",
+    tag: "Science",
+    tagClass: "puzzle",
+    desc: "Second water simulation prototype with alternate tuning and visuals."
+  },
+  {
+    title: "Methane Molecule Toy",
+    href: "Methane2.html",
+    tag: "Science",
+    tagClass: "puzzle",
+    desc: "Interactive methane dynamics toy for exploring molecular movement."
+  },
+  {
+    title: "Ammonia Molecule Toy",
+    href: "Ammonia2.html",
+    tag: "Science",
+    tagClass: "puzzle",
+    desc: "Interactive NH3 dynamics toy focused on polarity and motion behaviour."
+  },
+  {
+    title: "Cipher Shift",
+    href: "Ciphershift.html",
+    tag: "Puzzle",
+    tagClass: "puzzle",
+    desc: "Playground for experimenting with simple substitution and shift ciphers."
+  },
+  {
     title: "Aurora Canvas",
     href: "AuroraCanvas.html",
     tag: "Creative",
@@ -839,11 +882,33 @@ const GAMES = [
     const stage = document.getElementById("stage");
     const shuffleBtn = document.getElementById("shuffleBtn");
     const gatherBtn  = document.getElementById("gatherBtn");
+    const gameOfDayLink = document.getElementById("gameOfDayLink");
     const autopilotToggle = document.getElementById("autopilot");
     const statusEl = document.getElementById("status");
     const countEl = document.getElementById("count");
     const updatedEl = document.getElementById("updated");
 let chromeMetrics = measureChrome();
+
+    function pickDailyGameIndex(total){
+      const now = new Date();
+      const dayKey = `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
+      let hash = 0;
+      for (let i = 0; i < dayKey.length; i += 1){
+        hash = ((hash << 5) - hash) + dayKey.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash) % total;
+    }
+
+    function setGameOfDayLink(){
+      if (!gameOfDayLink || !GAMES.length) return;
+      const game = GAMES[pickDailyGameIndex(GAMES.length)];
+      gameOfDayLink.href = game.href;
+      gameOfDayLink.textContent = `🎲 Game of the Day: ${game.title}`;
+      gameOfDayLink.setAttribute("title", `Play today's random game: ${game.title}`);
+      gameOfDayLink.setAttribute("aria-label", `Play game of the day: ${game.title}`);
+    }
+    setGameOfDayLink();
 
 
     const inactivityDelayMs = 15000;

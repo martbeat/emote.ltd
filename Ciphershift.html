@@ -730,7 +730,7 @@ window.__cipherShiftWordlistsModule = {
             if (moduleLoader) {
                 const { loadWordLists } = await moduleLoader;
                 const loaded = await loadWordLists();
-                const sharedWords = (loaded?.allWords || loaded?.WORDS || []);
+                const sharedWords = (loaded?.answers || loaded?.words || loaded?.allWords || loaded?.WORDS || []);
                 const normalized = normalizeFiveLetterWords(sharedWords);
                 if (normalized.length) {
                     acceptedWords.clear();
@@ -743,7 +743,7 @@ window.__cipherShiftWordlistsModule = {
         }
 
         try {
-            const cached = JSON.parse(localStorage.getItem("wordleWords") || "[]");
+            const cached = JSON.parse(localStorage.getItem("dwl:words:v1") || "[]");
             const normalizedCache = normalizeFiveLetterWords(cached);
             if (normalizedCache.length) {
                 acceptedWords.clear();

@@ -652,6 +652,8 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
 
     ];
 
+    const SHARED_WORDLIST_MODULE_PATH = "./js/wordlists.js?v=20260411-6";
+
     const fallbackPrototypeWords = [
         "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADAPT","ADMIT","ADOPT","ADULT","AFTER","AGAIN","AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIEN","ALIGN","ALIKE","ALIVE","ALLOW","ALONE","ALONG","ALTER","AMONG","ANGER","ANGLE","APPLE","APPLY","ARGUE","ARISE","ARRAY","ASIDE","ASSET","AUDIO","AUDIT","AVOID","AWARD","AWARE",
         "BAKES","BASIC","BASSY","BEAMS","BEATS","BEGIN","BELIEF","BENCH","BIRTH","BLACK","BLAME","BLEND","BLIND","BLOCK","BOARD","BONDS","BRAND","BREAD","BREAK","BRIEF","BRING","BROAD","BROKE","BROWN","BUILD",
@@ -717,19 +719,16 @@ window.__cipherShiftWordlistsModule = import("./js/wordlists.js?v=20260411-6");
 
     async function hydrateDictionary() {
         try {
-            const moduleLoader = window.__cipherShiftWordlistsModule;
-            if (moduleLoader) {
-                const { loadWordLists } = await moduleLoader;
-                const loaded = await loadWordLists();
-                const sharedWords = (loaded?.allWords || loaded?.WORDS || []);
-                const normalized = sharedWords
-                    .map(word => String(word).trim().toUpperCase())
-                    .filter(word => /^[A-Z]{5}$/.test(word));
-                if (normalized.length) {
-                    acceptedWords.clear();
-                    normalized.forEach(word => acceptedWords.add(word));
-                    return;
-                }
+            const { loadWordLists } = await import(SHARED_WORDLIST_MODULE_PATH);
+            const loaded = await loadWordLists();
+            const sharedWords = (loaded?.allWords || loaded?.WORDS || []);
+            const normalized = sharedWords
+                .map(word => String(word).trim().toUpperCase())
+                .filter(word => /^[A-Z]{5}$/.test(word));
+            if (normalized.length) {
+                acceptedWords.clear();
+                normalized.forEach(word => acceptedWords.add(word));
+                return;
             }
         } catch (error) {
             console.warn("CipherShift shared wordlist unavailable, trying local cache.", error);

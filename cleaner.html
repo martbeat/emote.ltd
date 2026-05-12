@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blogger HTML Cleaner</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --danger: #b91c1c;
+      --good: #047857;
+      --code-bg: #111827;
+      --code-text: #f9fafb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 2rem 1rem 1rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 .5rem;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .intro {
+      color: var(--muted);
+      max-width: 780px;
+      margin: 0;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 280px;
+      border: 0;
+      padding: 1rem;
+      resize: vertical;
+      font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      color: var(--code-text);
+      background: var(--code-bg);
+      outline: none;
+      tab-size: 2;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      padding: 1rem 1.25rem;
+      align-items: center;
+      border-top: 1px solid var(--border);
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: .7rem 1rem;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--accent-dark); }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.secondary:hover { background: #d1d5db; }
+
+    button.danger {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    button.danger:hover { background: #fecaca; }
+
+    .status {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    .status strong.good { color: var(--good); }
+    .status strong.warn { color: var(--danger); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+      .status { margin-left: 0; width: 100%; }
+    }
+
+    .preview {
+      padding: 1.25rem;
+      min-height: 280px;
+      background: #fff;
+    }
+
+    .preview:empty::before {
+      content: "Preview will appear here after cleaning.";
+      color: var(--muted);
+    }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+      margin: 1rem 1.25rem;
+      background: #fafafa;
+      color: var(--muted);
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: #eff6ff;
+      color: var(--accent-dark);
+    }
+
+    details {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    summary {
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    code {
+      background: #eef2ff;
+      color: #3730a3;
+      padding: .1rem .25rem;
+      border-radius: .25rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Blogger HTML Cleaner</h1>
+    <p class="intro">Paste Blogger HTML here. This removes only <code>data-start</code> and <code>data-end</code> attributes and keeps the rest of your formatting, links, headings, paragraphs and lists intact.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>1. Paste affected Blogger HTML</h2>
+          <div class="hint">Use Blogger HTML view, select all, copy, then paste below.</div>
+        </div>
+      </div>
+      <div id="dropzone" class="dropzone">You can also drag and drop an .html file here.</div>
+      <textarea id="input" spellcheck="false" placeholder='<p data-end="1654" data-start="1484">Paste your Blogger HTML here...</p>'></textarea>
+      <div class="controls">
+        <button id="cleanBtn">Clean HTML</button>
+        <button class="secondary" id="sampleBtn">Load sample</button>
+        <button class="danger" id="clearBtn">Clear</button>
+        <span class="status" id="inputStatus">No HTML loaded.</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>2. Cleaned HTML</h2>
+            <div class="hint">Copy this back into Blogger HTML view.</div>
+          </div>
+        </div>
+        <textarea id="output" spellcheck="false" readonly></textarea>
+        <div class="controls">
+          <button id="copyHtmlBtn">Copy cleaned HTML</button>
+          <span class="status" id="cleanStatus">Nothing cleaned yet.</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>3. Preview</h2>
+            <div class="hint">A quick check that the formatting still looks right.</div>
+          </div>
+        </div>
+        <div id="preview" class="preview"></div>
+        <div class="controls">
+          <button class="secondary" id="copyRichBtn">Copy preview as rich text</button>
+          <span class="status" id="previewStatus">Preview empty.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>What it removes</h2>
+      </div>
+      <details open>
+        <summary>Exact behaviour</summary>
+        <p>This tool parses the HTML in your browser, removes only attributes named <code>data-start</code> and <code>data-end</code> from all elements, then returns the cleaned HTML. Other attributes such as <code>href</code>, <code>src</code>, <code>class</code>, <code>style</code>, <code>alt</code> and <code>title</code> are left alone.</p>
+        <p>Everything runs locally in the page. Nothing is uploaded anywhere.</p>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const preview = document.getElementById('preview');
+    const inputStatus = document.getElementById('inputStatus');
+    const cleanStatus = document.getElementById('cleanStatus');
+    const previewStatus = document.getElementById('previewStatus');
+    const dropzone = document.getElementById('dropzone');
+
+    function countTargetAttributes(html) {
+      const matches = html.match(/\sdata-(?:start|end)=(['"])[^'"]*\1/gi);
+      return matches ? matches.length : 0;
+    }
+
+    function cleanHtml(html) {
+      const template = document.createElement('template');
+      template.innerHTML = html;
+
+      const allElements = template.content.querySelectorAll('*');
+      let removed = 0;
+
+      allElements.forEach(el => {
+        if (el.hasAttribute('data-start')) {
+          el.removeAttribute('data-start');
+          removed++;
+        }
+        if (el.hasAttribute('data-end')) {
+          el.removeAttribute('data-end');
+          removed++;
+        }
+      });
+
+      return {
+        html: template.innerHTML,
+        removed
+      };
+    }
+
+    function refreshInputStatus() {
+      const html = input.value;
+      const count = countTargetAttributes(html);
+      if (!html.trim()) {
+        inputStatus.textContent = 'No HTML loaded.';
+      } else if (count) {
+        inputStatus.innerHTML = `<strong class="warn">${count}</strong> target attributes found.`;
+      } else {
+        inputStatus.innerHTML = '<strong class="good">0</strong> target attributes found.';
+      }
+    }
+
+    function runClean() {
+      const raw = input.value;
+      if (!raw.trim()) {
+        output.value = '';
+        preview.innerHTML = '';
+        cleanStatus.textContent = 'Paste some HTML first.';
+        previewStatus.textContent = 'Preview empty.';
+        return;
+      }
+
+      const beforeCount = countTargetAttributes(raw);
+      const result = cleanHtml(raw);
+      const afterCount = countTargetAttributes(result.html);
+
+      output.value = result.html;
+      preview.innerHTML = result.html;
+
+      cleanStatus.innerHTML = `Removed <strong class="good">${result.removed}</strong> attributes. Remaining: <strong class="${afterCount ? 'warn' : 'good'}">${afterCount}</strong>.`;
+      previewStatus.textContent = 'Preview updated.';
+      refreshInputStatus();
+    }
+
+    async function copyText(text, statusElement, successMessage) {
+      if (!text.trim()) {
+        statusElement.textContent = 'Nothing to copy.';
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        statusElement.textContent = successMessage;
+      } catch (err) {
+        statusElement.textContent = 'Copy failed. Select the text and copy manually.';
+      }
+    }
+
+    async function copyRichPreview() {
+      if (!preview.innerHTML.trim()) {
+        previewStatus.textContent = 'Nothing to copy.';
+        return;
+      }
+
+      try {
+        const htmlBlob = new Blob([preview.innerHTML], { type: 'text/html' });
+        const textBlob = new Blob([preview.innerText], { type: 'text/plain' });
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': htmlBlob,
+            'text/plain': textBlob
+          })
+        ]);
+        previewStatus.textContent = 'Copied preview as rich text.';
+      } catch (err) {
+        previewStatus.textContent = 'Rich copy failed. Use cleaned HTML instead.';
+      }
+    }
+
+    document.getElementById('cleanBtn').addEventListener('click', runClean);
+
+    document.getElementById('copyHtmlBtn').addEventListener('click', () => {
+      copyText(output.value, cleanStatus, 'Cleaned HTML copied.');
+    });
+
+    document.getElementById('copyRichBtn').addEventListener('click', copyRichPreview);
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      input.value = '';
+      output.value = '';
+      preview.innerHTML = '';
+      inputStatus.textContent = 'No HTML loaded.';
+      cleanStatus.textContent = 'Nothing cleaned yet.';
+      previewStatus.textContent = 'Preview empty.';
+    });
+
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      input.value = `<h2 data-start="0" data-end="12">Example heading</h2>\n<p data-end="1654" data-start="1484">In the earlier parts of this series, I have been circling around a fairly simple problem. <strong>Governance</strong> often looks strongest at the point where it is becoming least useful.</p>\n<p data-end="1820" data-start="1656">The papers are complete. The <a href="https://example.com" title="Example link">RAG status</a> is defensible.</p>\n<ul data-start="1821" data-end="1900"><li data-start="1822" data-end="1840">First item</li><li data-start="1841" data-end="1860">Second item</li></ul>`;
+      refreshInputStatus();
+    });
+
+    input.addEventListener('input', refreshInputStatus);
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', event => {
+      const file = event.dataTransfer.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        input.value = e.target.result;
+        refreshInputStatus();
+      };
+      reader.readAsText(file);
+    });
+
+    refreshInputStatus();
+  </script>
+</body>
+</html>

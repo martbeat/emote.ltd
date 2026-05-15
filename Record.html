@@ -205,6 +205,41 @@
       return `meeting-${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}-${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}.${extensionFromMime(mimeType)}`;
     }
 
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if (!("wakeLock" in navigator)) {
+    console.warn("Wake Lock API not supported");
+    return;
+  }
+
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => {
+      console.warn("Wake lock released");
+    });
+  } catch (err) {
+    console.warn("Wake lock request failed:", err);
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) {
+    await wakeLock.release();
+    wakeLock = null;
+  }
+}
+
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && isRecording) {
+    await requestWakeLock();
+  }
+
+  if (document.visibilityState === "hidden" && isRecording) {
+    statusEl.textContent =
+      "Warning: recording may pause. Keep this page open and the screen awake.";
+  }
+});
 
     async function requestMicrophoneAccess() {
       try {
@@ -251,6 +286,8 @@
     }
 
     async function startRecording() {
+    await requestWakeLock();
+      
       try {
         mimeType = pickSupportedMimeType() || 'audio/webm';
         stream = await navigator.mediaDevices.getUserMedia({
@@ -301,6 +338,7 @@
         setStatus('Microphone access denied or unavailable', false);
         alert('Unable to start recording. Please allow microphone access and try again.');
       }
+    isRecording = true;
     }
 
     function stopRecording() {
@@ -311,6 +349,9 @@
       recordBtn.disabled = false;
       recordBtn.textContent = 'Start recording';
       recordBtn.classList.remove('stop');
+      isRecording = false;
+
+      await releaseWakeLock();
     }
 
     function downloadRecording() {

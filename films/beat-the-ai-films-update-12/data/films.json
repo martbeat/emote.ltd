@@ -1,0 +1,173 @@
+[
+  {
+    "slug": "los-olvidados-1950",
+    "title": "Los olvidados",
+    "year": 1950,
+    "director": "Luis Buñuel",
+    "country": "Mexico",
+    "rating": 9,
+    "tags": [
+      "mexico",
+      "surrealism",
+      "poverty"
+    ],
+    "review": "A social-realist nightmare with Buñuel’s fingerprints on the glass.",
+    "ai_review": "A powerful drama about poverty and childhood in Mexico City.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "the-wild-bunch-1969",
+    "title": "The Wild Bunch",
+    "year": 1969,
+    "director": "Sam Peckinpah",
+    "country": "USA",
+    "rating": 9,
+    "tags": [
+      "western",
+      "violence",
+      "memory"
+    ],
+    "review": "A blood-soaked elegy for men who arrive too late to be useful.",
+    "ai_review": "A violent western about ageing outlaws facing the end of their era.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "modern-times-1936",
+    "title": "Modern Times",
+    "year": 1936,
+    "director": "Charlie Chaplin",
+    "country": "USA",
+    "rating": 9,
+    "tags": [
+      "work",
+      "comedy",
+      "machines"
+    ],
+    "review": "The funniest possible warning that the machine has mistaken people for parts.",
+    "ai_review": "A classic comedy about industrial labour and the human cost of machinery.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "y-tu-mama-tambien-2001",
+    "title": "Y tu mamá también",
+    "year": 2001,
+    "director": "Alfonso Cuarón",
+    "country": "Mexico",
+    "rating": 9,
+    "tags": [
+      "mexico",
+      "road movie",
+      "coming of age"
+    ],
+    "review": "A road movie where desire, politics and mortality sit in the same back seat.",
+    "ai_review": "A coming-of-age road movie about friendship, sexuality and social change.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "the-third-man-1949",
+    "title": "The Third Man",
+    "year": 1949,
+    "director": "Carol Reed",
+    "country": "UK",
+    "rating": 9,
+    "tags": [
+      "noir",
+      "postwar",
+      "betrayal"
+    ],
+    "review": "A tilted city, a smiling ghost and the moral cost of charm.",
+    "ai_review": "A stylish post-war noir about friendship, corruption and betrayal in Vienna.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "do-the-right-thing-1989",
+    "title": "Do the Right Thing",
+    "year": 1989,
+    "director": "Spike Lee",
+    "country": "USA",
+    "rating": 9,
+    "tags": [
+      "race",
+      "city",
+      "heat"
+    ],
+    "review": "A neighbourhood argument that becomes a national weather report.",
+    "ai_review": "A vibrant film about racial tension on a hot day in Brooklyn.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "the-exterminating-angel-1962",
+    "title": "The Exterminating Angel",
+    "year": 1962,
+    "director": "Luis Buñuel",
+    "country": "Mexico",
+    "rating": 9,
+    "tags": [
+      "mexico",
+      "surrealism",
+      "class"
+    ],
+    "review": "Polite society discovers that the locked room was inside them all along.",
+    "ai_review": "A surreal satire about upper-class guests who find themselves unable to leave a dinner party.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "blade-runner-1982",
+    "title": "Blade Runner",
+    "year": 1982,
+    "director": "Ridley Scott",
+    "country": "USA",
+    "rating": 9,
+    "tags": [
+      "science fiction",
+      "memory",
+      "identity"
+    ],
+    "review": "A rain-soaked argument about whether memory is evidence of a soul.",
+    "ai_review": "A visually stunning science-fiction film about artificial humans and identity.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  },
+  {
+    "slug": "brief-encounter-1945",
+    "title": "Brief Encounter",
+    "year": 1945,
+    "director": "David Lean",
+    "country": "UK",
+    "rating": 9,
+    "tags": [
+      "romance",
+      "britain",
+      "restraint"
+    ],
+    "review": "A love story where the loudest sound is self-control.",
+    "ai_review": "A restrained British romance about forbidden love and emotional duty.",
+    "status": "reviewed",
+    "ai_rematch": "",
+    "winner": "",
+    "challenge_round": 1
+  }
+]

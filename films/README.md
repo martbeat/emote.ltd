@@ -182,3 +182,52 @@ Changes:
 - Challenge cards show rank, runtime, director, country and genre-style tags
 - Pairing cards show director, country and year for both films
 - Asset references bumped to `?v=6`
+
+
+## Update 07
+
+Fixes a JavaScript syntax error introduced in update 06.
+
+Problem:
+
+```js
+film.year // 10
+```
+
+JavaScript treats `//` as a comment, not integer division.
+
+Fix:
+
+```js
+Math.floor(Number(film.year) / 10) * 10
+```
+
+Assets are bumped to `?v=7`.
+
+
+## Update 08: Recent films and crowd-pleasers
+
+Adds:
+
+```text
+data/recent-crowd-pleasers.json
+tools/merge_recent_crowd_pleasers.py
+```
+
+This supplement includes recent critical favourites, awards films, blockbusters, animation, horror and crowd-pleasers from 2020 onwards.
+
+Merge into the active `films.json`:
+
+```bash
+cd /var/www/emote.ltd/html/films
+python3 tools/merge_recent_crowd_pleasers.py --dry-run
+python3 tools/merge_recent_crowd_pleasers.py
+```
+
+To refresh matching entries as well as adding missing ones:
+
+```bash
+python3 tools/merge_recent_crowd_pleasers.py --replace-existing
+```
+
+If GitHub is your source of truth, copy the updated `data/films.json` back into the repo and commit it.

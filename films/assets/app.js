@@ -134,7 +134,7 @@ function formatRank(film) {
 }
 
 function filmGenres(film, limit = 4) {
-  const hidden = new Set(["canon", String(film.year // 10 * 10) + "s"]);
+  const hidden = new Set(["canon", `${Math.floor(Number(film.year) / 10) * 10}s`]);
   return (film.tags || []).filter(tag => !hidden.has(tag)).slice(0, limit);
 }
 

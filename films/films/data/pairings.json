@@ -1,0 +1,34 @@
+[
+  {
+    "id": "wild-bunch-through-modern-times",
+    "film_id": "the-wild-bunch-1969",
+    "comparison_film_id": "modern-times-1936",
+    "angle": "modernity and obsolescence",
+    "text": "Chaplin turns modernity into slapstick; Peckinpah turns it into a funeral.",
+    "votes": 12
+  },
+  {
+    "id": "blade-runner-through-brief-encounter",
+    "film_id": "blade-runner-1982",
+    "comparison_film_id": "brief-encounter-1945",
+    "angle": "memory and longing",
+    "text": "Lean makes restraint feel human; Scott asks whether longing itself might be manufactured.",
+    "votes": 8
+  },
+  {
+    "id": "y-tu-mama-through-los-olvidados",
+    "film_id": "y-tu-mama-tambien-2001",
+    "comparison_film_id": "los-olvidados-1950",
+    "angle": "Mexico, youth and social blindness",
+    "text": "Buñuel shows children with no escape; Cuarón shows boys who can leave, but not understand what they pass.",
+    "votes": 15
+  },
+  {
+    "id": "third-man-through-exterminating-angel",
+    "film_id": "the-third-man-1949",
+    "comparison_film_id": "the-exterminating-angel-1962",
+    "angle": "corruption and polite society",
+    "text": "Reed finds corruption under the city; Buñuel finds it sitting politely in the drawing room.",
+    "votes": 6
+  }
+]

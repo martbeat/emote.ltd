@@ -535,6 +535,68 @@
       font-size: 0.86rem;
     }
 
+    .submission-form {
+      display: grid;
+      gap: 0.65rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .submission-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.7rem 0.9rem;
+    }
+
+    .submission-list {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .submission-item {
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 0.65rem;
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    .submission-item p {
+      margin: 0 0 0.45rem;
+      line-height: 1.35;
+    }
+
+    .small-button {
+      padding: 0.45rem 0.65rem;
+      font-size: 0.78rem;
+    }
+
+    .admin-split-note {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+
+    .data-card {
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 0.85rem;
+      background: rgba(255,255,255,0.035);
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .data-card strong {
+      display: block;
+      color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+
     .admin-panel {
       margin-top: 2rem;
       padding: 1.25rem;
@@ -599,6 +661,7 @@
       .hero,
       .toolbar,
       .admin-grid,
+      .admin-split-note,
       .challenge-grid,
       .pairing-grid {
         grid-template-columns: 1fr;
@@ -754,8 +817,15 @@
       </div>
 
       <p class="admin-note">
-        In the live version this should separate public archive data from challenge data: <code>films.json</code> for film metadata, <code>reviews.json</code> for the human champion lines, <code>ai-challenges.json</code> for machine first drafts and <code>pairings.json</code> for film-against-film lines. This prototype keeps the pieces together while the concept is still being shaped.
+        In the live version this should separate public archive data from challenge data. This prototype now lets you add a human submission to a challenge, vote locally and export a bundled draft of the current data model.
       </p>
+
+      <div class="admin-split-note" aria-label="Data model preview">
+        <div class="data-card"><strong>films.json</strong>Stable film metadata: title, year, director, country and tags.</div>
+        <div class="data-card"><strong>reviews.json</strong>The current human champion line and any approved alternatives.</div>
+        <div class="data-card"><strong>ai-challenges.json</strong>The deliberately plain AI first draft for each film.</div>
+        <div class="data-card"><strong>pairings.json</strong>One film reviewed through the lens of another.</div>
+      </div>
 
       <form id="addFilmForm" class="admin-grid">
         <input type="hidden" id="editingSlug" />
@@ -790,6 +860,10 @@
           <input id="tagsInput" placeholder="mexico; surrealism; poverty" />
         </div>
         <div class="field full">
+          <label for="aiReviewInput">AI first draft</label>
+          <input id="aiReviewInput" maxlength="220" placeholder="A powerful drama about poverty and childhood in Mexico City." />
+        </div>
+        <div class="field full">
           <label for="reviewInput">Human champion line</label>
           <input id="reviewInput" required maxlength="220" placeholder="A social-realist nightmare with Buñuel’s fingerprints on the glass." />
         </div>
@@ -800,7 +874,8 @@
         <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;">
           <button type="submit" id="saveFilmButton">Add to page</button>
           <button type="button" class="secondary" id="cancelEditButton">Cancel edit</button>
-          <button type="button" class="secondary" id="downloadJsonButton">Download JSON</button>
+          <button type="button" class="secondary" id="downloadJsonButton">Download films.json</button>
+          <button type="button" class="secondary" id="downloadBundleButton">Download data bundle</button>
           <button type="button" class="secondary" id="clearLocalButton">Reset sample data</button>
         </div>
       </form>
@@ -959,9 +1034,14 @@
     ];
 
     const storageKey = "filmSentencePrototypeData";
+    const pairingsStorageKey = "filmSentencePrototypePairings";
+    const votesStorageKey = "filmSentencePrototypeVotes";
+    const submissionsStorageKey = "filmSentencePrototypeSubmissions";
     const dataUrl = "data/films.json";
     let films = [...sampleFilms];
     let pairings = [...samplePairings];
+    let votes = loadStoredObject(votesStorageKey, {});
+    let submissions = loadStoredObject(submissionsStorageKey, {});
     let activeTag = "all";
 
     const grid = document.getElementById("reviewGrid");
@@ -973,10 +1053,23 @@
     const challengeGrid = document.getElementById("challengeGrid");
     const pairingGrid = document.getElementById("pairingGrid");
 
+    function loadStoredObject(key, fallback) {
+      try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : fallback;
+      } catch (error) {
+        console.warn(`Could not load ${key} from localStorage.`, error);
+        return fallback;
+      }
+    }
+
     async function loadFilms() {
       const saved = localStorage.getItem(storageKey);
+      const savedPairings = localStorage.getItem(pairingsStorageKey);
+
       if (saved) {
         films = JSON.parse(saved);
+        if (savedPairings) pairings = JSON.parse(savedPairings);
         return;
       }
 
@@ -992,6 +1085,9 @@
 
     function saveFilms() {
       localStorage.setItem(storageKey, JSON.stringify(films, null, 2));
+      localStorage.setItem(pairingsStorageKey, JSON.stringify(pairings, null, 2));
+      localStorage.setItem(votesStorageKey, JSON.stringify(votes, null, 2));
+      localStorage.setItem(submissionsStorageKey, JSON.stringify(submissions, null, 2));
     }
 
     function getFilm(slug) {
@@ -1109,8 +1205,13 @@
 
     function renderChallenges() {
       const reviewed = films.filter(film => film.ai_review && film.review);
-      challengeGrid.innerHTML = reviewed.map(film => `
-        <article class="line-card">
+      challengeGrid.innerHTML = reviewed.map(film => {
+        const slug = film.slug || slugify(`${film.title}-${film.year}`);
+        const filmVotes = votes[slug] || { ai: 0, human: 0 };
+        const filmSubmissions = submissions[slug] || [];
+
+        return `
+        <article class="line-card" data-challenge-slug="${slug}">
           <div>
             <h3>${film.title} (${film.year})</h3>
             <div class="line-meta">AI first draft</div>
@@ -1121,12 +1222,48 @@
             <blockquote>${film.review}</blockquote>
           </div>
           <div class="vote-row">
-            <button type="button" class="secondary">Vote AI</button>
-            <button type="button">Vote human</button>
-            <span class="vote-count">Prototype vote buttons</span>
+            <button type="button" class="secondary vote-button" data-slug="${slug}" data-target="ai">Vote AI</button>
+            <button type="button" class="vote-button" data-slug="${slug}" data-target="human">Vote human</button>
+            <span class="vote-count">AI ${filmVotes.ai || 0} · Human ${filmVotes.human || 0}</span>
+          </div>
+          <form class="submission-form" data-slug="${slug}">
+            <input class="submission-input" maxlength="220" placeholder="Write a better one-line review..." />
+            <div class="vote-row">
+              <button type="submit" class="secondary">Submit line</button>
+              <span class="vote-count">Saved locally for moderation/export</span>
+            </div>
+          </form>
+          <div class="submission-list">
+            ${filmSubmissions.map((submission, index) => `
+              <div class="submission-item">
+                <p>${submission.text}</p>
+                <div class="vote-row">
+                  <button type="button" class="small-button promote-submission" data-slug="${slug}" data-index="${index}">Make champion</button>
+                  <span class="vote-count">${submission.created_at || "draft"}</span>
+                </div>
+              </div>
+            `).join("")}
           </div>
         </article>
-      `).join("");
+      `;
+      }).join("");
+
+      challengeGrid.querySelectorAll(".vote-button").forEach(button => {
+        button.addEventListener("click", () => voteForLine(button.dataset.slug, button.dataset.target));
+      });
+
+      challengeGrid.querySelectorAll(".submission-form").forEach(form => {
+        form.addEventListener("submit", event => {
+          event.preventDefault();
+          const input = form.querySelector(".submission-input");
+          submitChallengeLine(form.dataset.slug, input.value.trim());
+          input.value = "";
+        });
+      });
+
+      challengeGrid.querySelectorAll(".promote-submission").forEach(button => {
+        button.addEventListener("click", () => promoteSubmission(button.dataset.slug, Number(button.dataset.index)));
+      });
     }
 
     function renderPairings() {
@@ -1143,12 +1280,57 @@
               <blockquote>${pairing.text}</blockquote>
             </div>
             <div class="vote-row">
-              <button type="button">Vote for this line</button>
+              <button type="button" class="pairing-vote-button" data-pairing-id="${pairing.id}">Vote for this line</button>
               <span class="vote-count">${pairing.votes || 0} votes</span>
             </div>
           </article>
         `;
       }).join("");
+
+      pairingGrid.querySelectorAll(".pairing-vote-button").forEach(button => {
+        button.addEventListener("click", () => voteForPairing(button.dataset.pairingId));
+      });
+    }
+
+    function voteForLine(slug, target) {
+      votes[slug] = votes[slug] || { ai: 0, human: 0 };
+      votes[slug][target] = (votes[slug][target] || 0) + 1;
+      saveFilms();
+      renderChallenges();
+    }
+
+    function submitChallengeLine(slug, text) {
+      if (!text) return;
+      submissions[slug] = submissions[slug] || [];
+      submissions[slug].unshift({
+        text,
+        status: "submitted",
+        created_at: new Date().toISOString().slice(0, 10)
+      });
+      saveFilms();
+      renderChallenges();
+    }
+
+    function promoteSubmission(slug, index) {
+      const film = getFilm(slug);
+      const submission = submissions[slug]?.[index];
+      if (!film || !submission) return;
+      film.review = submission.text;
+      film.status = "reviewed";
+      film.updated_at = new Date().toISOString().slice(0, 10);
+      submissions[slug].splice(index, 1);
+      saveFilms();
+      render();
+      randomFilm();
+    }
+
+    function voteForPairing(pairingId) {
+      pairings = pairings.map(pairing => pairing.id === pairingId
+        ? { ...pairing, votes: (pairing.votes || 0) + 1 }
+        : pairing
+      );
+      saveFilms();
+      renderPairings();
     }
 
     function randomFilm() {
@@ -1208,6 +1390,7 @@
       document.getElementById("countryInput").value = film.country || "";
       document.getElementById("ratingInput").value = film.rating || 5;
       document.getElementById("tagsInput").value = (film.tags || []).join("; ");
+      document.getElementById("aiReviewInput").value = film.ai_review || "";
       document.getElementById("reviewInput").value = film.review || "";
       document.getElementById("saveFilmButton").textContent = "Save review";
       document.getElementById("admin").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1234,7 +1417,7 @@
         rating: Number(document.getElementById("ratingInput").value),
         tags: formTags(),
         review: document.getElementById("reviewInput").value.trim(),
-        ai_review: previousFilm?.ai_review || "AI draft pending.",
+        ai_review: document.getElementById("aiReviewInput").value.trim() || previousFilm?.ai_review || "AI draft pending.",
         status: document.getElementById("reviewInput").value.trim() ? "reviewed" : "pending",
         updated_at: new Date().toISOString().slice(0, 10)
       };
@@ -1254,19 +1437,39 @@
 
     document.getElementById("cancelEditButton").addEventListener("click", clearEditor);
 
-    document.getElementById("downloadJsonButton").addEventListener("click", () => {
-      const blob = new Blob([JSON.stringify(films, null, 2)], { type: "application/json" });
+    function downloadJson(filename, data) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "films.json";
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("downloadJsonButton").addEventListener("click", () => {
+      downloadJson("films.json", films);
+    });
+
+    document.getElementById("downloadBundleButton").addEventListener("click", () => {
+      downloadJson("film-review-data-bundle.json", {
+        films,
+        pairings,
+        votes,
+        submissions,
+        exported_at: new Date().toISOString()
+      });
     });
 
     document.getElementById("clearLocalButton").addEventListener("click", () => {
       localStorage.removeItem(storageKey);
+      localStorage.removeItem(pairingsStorageKey);
+      localStorage.removeItem(votesStorageKey);
+      localStorage.removeItem(submissionsStorageKey);
       films = [...sampleFilms];
+      pairings = [...samplePairings];
+      votes = {};
+      submissions = {};
       activeTag = "all";
       searchInput.value = "";
       render();

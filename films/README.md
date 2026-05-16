@@ -255,3 +255,18 @@ New film fields:
   "challenge_round": 1
 }
 ```
+
+
+## Update 10: Today's challenge opens the card
+
+Fixes the top-right Today's Challenge panel.
+
+Changes:
+
+- The selected challenge is now stored as `currentChallengeSlug`
+- Clicking `Take today's challenge` opens the selected challenge card
+- Clicking the top-right AI line or its meta text also opens the selected card
+- If the selected card is beyond the first 12 public cards, the challenge list expands automatically
+- The selected card scrolls into view and pulses briefly
+- `Another challenge` changes the selected challenge and refreshes the visible status
+- Asset references bumped to `?v=10`

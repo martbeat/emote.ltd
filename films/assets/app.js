@@ -24,6 +24,7 @@ let votes = {};
 let submissions = {};
 let activeTag = "all";
 let challengeLimit = ADMIN_ENABLED ? 9999 : 12;
+let currentChallengeSlug = null;
 let apiAvailable = null;
 let dataSource = "server JSON";
 
@@ -424,7 +425,7 @@ function renderChallenges() {
     const filmVotes = filmVotesFor(slug);
     const filmSubmissions = submissions[slug] || [];
     return `
-      <article class="line-card" data-challenge-slug="${slug}">
+      <article class="line-card ${slug === currentChallengeSlug ? "today-focus" : ""}" id="challenge-${slug}" data-challenge-slug="${slug}">
         <div>
           <h3>${film.title} (${film.year})</h3>\n          ${challengeStatusBadges(film, slug)}
           ${metadataGrid(film)}
@@ -705,11 +706,44 @@ async function voteForPairing(pairingId) {
 
 function randomFilm() {
   const challengeFilms = films.filter(film => film.ai_review && film.review);
-  if (!challengeFilms.length) return;
+  if (!challengeFilms.length) return null;
 
   const film = challengeFilms[Math.floor(Math.random() * challengeFilms.length)];
+  currentChallengeSlug = film.slug || slugify(`${film.title}-${film.year}`);
+
   if ($("randomReview")) $("randomReview").textContent = film.ai_review;
-  if ($("randomMeta")) $("randomMeta").textContent = `${film.title}, ${film.director || "Unknown director"}, ${film.year} · Martin: ${scoreText(film.rating)} · Can you beat this AI line?`;
+  if ($("randomMeta")) $("randomMeta").textContent = `${film.title}, ${film.director || "Unknown director"}, ${film.year} · Martin: ${scoreText(film.rating)} · Open this challenge to vote or write a better line.`;
+
+  return film;
+}
+
+
+function openTodayChallenge() {
+  let film = currentChallengeSlug ? getFilm(currentChallengeSlug) : null;
+  if (!film) film = randomFilm();
+  if (!film) return;
+
+  const slug = film.slug || slugify(`${film.title}-${film.year}`);
+  currentChallengeSlug = slug;
+
+  const allChallengeFilms = sortFilms(films.filter(item => item.ai_review && item.review));
+  const index = allChallengeFilms.findIndex(item => (item.slug || slugify(`${item.title}-${item.year}`)) === slug);
+  if (!ADMIN_ENABLED && index >= challengeLimit) {
+    challengeLimit = Math.ceil((index + 1) / 12) * 12;
+  }
+
+  switchMode("beatAiMode");
+  renderChallenges();
+  renderSystemStatus();
+
+  window.setTimeout(() => {
+    const card = document.getElementById(`challenge-${slug}`);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.add("today-focus-pulse");
+      window.setTimeout(() => card.classList.remove("today-focus-pulse"), 1600);
+    }
+  }, 50);
 }
 
 function switchMode(mode) {
@@ -833,13 +867,14 @@ function bindHashNavigation() {
 }
 
 function bindPublicEvents() {
-  on("randomButton", "click", randomFilm);
-
-  on("todayChallengeButton", "click", () => {
+  on("randomButton", "click", () => {
     randomFilm();
-    switchMode("beatAiMode");
-    if ($("beat-ai")) $("beat-ai").scrollIntoView({ behavior: "smooth", block: "start" });
+    renderChallenges();
   });
+
+  on("todayChallengeButton", "click", openTodayChallenge);
+  on("randomReview", "click", openTodayChallenge);
+  on("randomMeta", "click", openTodayChallenge);
 
   on("searchInput", "input", renderReviews);
   on("statusFilter", "change", renderReviews);

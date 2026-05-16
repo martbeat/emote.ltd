@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>A Film in a Sentence</title>
+  <title>Beat the AI: A Film in a Sentence</title>
   <style>
     :root {
       --bg: #111111;
@@ -15,6 +15,7 @@
       --accent: #f0b35a;
       --accent-2: #d95f43;
       --good: #78c091;
+      --danger: #ef8f72;
       --shadow: rgba(0, 0, 0, 0.35);
       --max: 1120px;
     }
@@ -114,7 +115,9 @@
     .hero-card,
     .feature-card,
     .toolbar,
-    .admin-panel {
+    .admin-panel,
+    .challenge-panel,
+    .pairing-panel {
       background: rgba(27, 27, 27, 0.88);
       border: 1px solid var(--line);
       border-radius: 1.5rem;
@@ -330,6 +333,34 @@
       font-weight: 700;
     }
 
+    .mode-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 1.5rem 0;
+    }
+
+    .mode-tab {
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: none;
+    }
+
+    .mode-tab.active {
+      color: #17120f;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .mode-section {
+      display: none;
+    }
+
+    .mode-section.active {
+      display: block;
+    }
+
     .section-title {
       display: flex;
       justify-content: space-between;
@@ -423,6 +454,87 @@
       padding: 0.2rem 0.45rem;
     }
 
+    .edit-review-button {
+      color: var(--accent);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+      font-size: 0.82rem;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.2rem 0.45rem;
+      color: var(--muted);
+    }
+
+    .status-pill.reviewed {
+      color: var(--good);
+      border-color: rgba(120, 192, 145, 0.45);
+    }
+
+    .challenge-panel,
+    .pairing-panel {
+      padding: 1.25rem;
+      margin-top: 1rem;
+    }
+
+    .challenge-grid,
+    .pairing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .line-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 1.2rem;
+      padding: 1rem;
+      min-height: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .line-card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--accent);
+    }
+
+    .line-card blockquote {
+      margin: 0;
+      font-size: 1.25rem;
+      line-height: 1.35;
+    }
+
+    .line-meta {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .vote-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .vote-count {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.86rem;
+    }
+
     .admin-panel {
       margin-top: 2rem;
       padding: 1.25rem;
@@ -486,7 +598,9 @@
     @media (max-width: 900px) {
       .hero,
       .toolbar,
-      .admin-grid {
+      .admin-grid,
+      .challenge-grid,
+      .pairing-grid {
         grid-template-columns: 1fr;
       }
 
@@ -522,12 +636,13 @@
     <nav class="nav" aria-label="Main navigation">
       <a class="brand" href="#top">
         <span class="brand-mark">◉</span>
-        <span class="brand-title">A Film in a Sentence</span>
+        <span class="brand-title">Beat the AI: A Film in a Sentence</span>
       </a>
       <div class="nav-links">
         <a href="#reviews">Reviews</a>
-        <a href="#collections">Collections</a>
-        <a href="#admin">Add Reviews</a>
+        <a href="#beat-ai">Beat the AI</a>
+        <a href="#pairings">Pairings</a>
+        <a href="#admin">Edit</a>
       </div>
     </nav>
   </header>
@@ -536,21 +651,22 @@
     <section class="hero" aria-label="Introduction">
       <div class="hero-card">
         <div>
-          <div class="eyebrow">One-line film reviews</div>
-          <h1>Big films. Small verdicts.</h1>
+          <div class="eyebrow">One-line film reviews · AI challenges · film pairings</div>
+          <h1>The machine gets the first line.</h1>
           <p>
-            A compact archive of film reviews written in a single sentence: part notebook, part memory palace, part argument with cinema.
+            A compact film review site where AI writes the first sentence, people try to improve it and some reviews only make sense when one film is held up against another.
           </p>
         </div>
         <div class="hero-actions">
           <button type="button" id="randomHeroButton">Show me a film</button>
-          <a class="button secondary" href="#admin">Add a review</a>
+          <a class="button secondary" href="#beat-ai">Beat the AI</a>
+          <a class="button secondary" href="#pairings">Compare two films</a>
         </div>
       </div>
 
       <aside class="feature-card" aria-label="Random review">
         <div>
-          <div class="random-label">Now showing</div>
+          <div class="random-label">Champion sentence</div>
           <p class="random-review" id="randomReview">A masterpiece of faces, silence and moral injury.</p>
           <div class="random-meta" id="randomMeta">The Passion of Joan of Arc, Carl Theodor Dreyer, 1928</div>
         </div>
@@ -565,6 +681,12 @@
       </aside>
     </section>
 
+    <div class="mode-tabs" aria-label="Site modes">
+      <button type="button" class="mode-tab active" data-mode="reviewsMode">Reviews</button>
+      <button type="button" class="mode-tab" data-mode="beatAiMode">Beat the AI</button>
+      <button type="button" class="mode-tab" data-mode="pairingsMode">Pairings</button>
+    </div>
+
     <section class="toolbar" aria-label="Review controls">
       <div class="search-wrap">
         <span>⌕</span>
@@ -573,7 +695,7 @@
       <div class="tag-row" id="tagRow" aria-label="Tags"></div>
     </section>
 
-    <section id="reviews">
+    <section id="reviews" class="mode-section active" data-section="reviewsMode">
       <div class="section-title">
         <div>
           <div class="eyebrow">The archive</div>
@@ -583,6 +705,32 @@
       </div>
       <div class="review-grid" id="reviewGrid"></div>
       <div class="empty" id="emptyState">No films match that search.</div>
+    </section>
+
+    <section id="beat-ai" class="mode-section" data-section="beatAiMode">
+      <div class="section-title">
+        <div>
+          <div class="eyebrow">Challenge mode</div>
+          <h2>Beat the AI</h2>
+        </div>
+        <p>The machine writes the first line. Humans try to write the better one.</p>
+      </div>
+      <div class="challenge-panel">
+        <div class="challenge-grid" id="challengeGrid"></div>
+      </div>
+    </section>
+
+    <section id="pairings" class="mode-section" data-section="pairingsMode">
+      <div class="section-title">
+        <div>
+          <div class="eyebrow">Relational criticism</div>
+          <h2>Film against film</h2>
+        </div>
+        <p>One film reviewed in the light of another.</p>
+      </div>
+      <div class="pairing-panel">
+        <div class="pairing-grid" id="pairingGrid"></div>
+      </div>
     </section>
 
     <section id="collections">
@@ -606,10 +754,11 @@
       </div>
 
       <p class="admin-note">
-        In the live version this form would save to SQLite, JSON or CSV behind a protected admin page. For now it shows the workflow: write one sentence, add the film, then export or bulk-import later.
+        In the live version this page should load <code>/films/data/films.json</code>, plus separate <code>reviews.json</code>, <code>ai-challenges.json</code> and <code>pairings.json</code>. This prototype keeps everything in one file so you can test the concept first.
       </p>
 
       <form id="addFilmForm" class="admin-grid">
+        <input type="hidden" id="editingSlug" />
         <div class="field">
           <label for="titleInput">Title</label>
           <input id="titleInput" required placeholder="e.g. Los olvidados" />
@@ -646,10 +795,11 @@
         </div>
         <div class="field full">
           <label for="bulkInput">Bulk paste area</label>
-          <textarea id="bulkInput" placeholder="CSV later: title,year,director,country,rating,tags,review"></textarea>
+          <textarea id="bulkInput" placeholder="CSV later: title,year,director,country,rating,tags,ai_review,human_review,pairing_film,pairing_review"></textarea>
         </div>
         <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;">
-          <button type="submit">Add to page</button>
+          <button type="submit" id="saveFilmButton">Add to page</button>
+          <button type="button" class="secondary" id="cancelEditButton">Cancel edit</button>
           <button type="button" class="secondary" id="downloadJsonButton">Download JSON</button>
           <button type="button" class="secondary" id="clearLocalButton">Reset sample data</button>
         </div>
@@ -657,97 +807,161 @@
     </section>
 
     <footer>
-      <p>A small prototype for one-line cinema notes. Public pages could be static, while the protected editor writes to a simple data file or SQLite database.</p>
+      <p>A small prototype for one-line cinema notes, AI review challenges and comparative film pairings. Public pages could be static, while a protected editor writes to JSON or SQLite.</p>
     </footer>
   </main>
 
   <script>
     const sampleFilms = [
       {
+        slug: "los-olvidados-1950",
         title: "Los olvidados",
         year: 1950,
         director: "Luis Buñuel",
         country: "Mexico",
         rating: 5,
         tags: ["mexico", "surrealism", "poverty"],
-        review: "A social-realist nightmare with Buñuel’s fingerprints on the glass."
+        review: "A social-realist nightmare with Buñuel’s fingerprints on the glass.",
+        ai_review: "A powerful drama about poverty and childhood in Mexico City.",
+        status: "reviewed"
       },
       {
+        slug: "the-wild-bunch-1969",
         title: "The Wild Bunch",
         year: 1969,
         director: "Sam Peckinpah",
         country: "USA",
         rating: 5,
         tags: ["western", "violence", "memory"],
-        review: "A blood-soaked elegy for men who arrive too late to be useful."
+        review: "A blood-soaked elegy for men who arrive too late to be useful.",
+        ai_review: "A violent western about ageing outlaws facing the end of their era.",
+        status: "reviewed"
       },
       {
+        slug: "modern-times-1936",
         title: "Modern Times",
         year: 1936,
         director: "Charlie Chaplin",
         country: "USA",
         rating: 5,
         tags: ["work", "comedy", "machines"],
-        review: "The funniest possible warning that the machine has mistaken people for parts."
+        review: "The funniest possible warning that the machine has mistaken people for parts.",
+        ai_review: "A classic comedy about industrial labour and the human cost of machinery.",
+        status: "reviewed"
       },
       {
+        slug: "y-tu-mama-tambien-2001",
         title: "Y tu mamá también",
         year: 2001,
         director: "Alfonso Cuarón",
         country: "Mexico",
         rating: 5,
         tags: ["mexico", "road movie", "coming of age"],
-        review: "A road movie where desire, politics and mortality sit in the same back seat."
+        review: "A road movie where desire, politics and mortality sit in the same back seat.",
+        ai_review: "A coming-of-age road movie about friendship, sexuality and social change.",
+        status: "reviewed"
       },
       {
+        slug: "the-third-man-1949",
         title: "The Third Man",
         year: 1949,
         director: "Carol Reed",
         country: "UK",
         rating: 5,
         tags: ["noir", "postwar", "betrayal"],
-        review: "A tilted city, a smiling ghost and the moral cost of charm."
+        review: "A tilted city, a smiling ghost and the moral cost of charm.",
+        ai_review: "A stylish post-war noir about friendship, corruption and betrayal in Vienna.",
+        status: "reviewed"
       },
       {
+        slug: "do-the-right-thing-1989",
         title: "Do the Right Thing",
         year: 1989,
         director: "Spike Lee",
         country: "USA",
         rating: 5,
         tags: ["race", "city", "heat"],
-        review: "A neighbourhood argument that becomes a national weather report."
+        review: "A neighbourhood argument that becomes a national weather report.",
+        ai_review: "A vibrant film about racial tension on a hot day in Brooklyn.",
+        status: "reviewed"
       },
       {
+        slug: "the-exterminating-angel-1962",
         title: "The Exterminating Angel",
         year: 1962,
         director: "Luis Buñuel",
         country: "Mexico",
         rating: 5,
         tags: ["mexico", "surrealism", "class"],
-        review: "Polite society discovers that the locked room was inside them all along."
+        review: "Polite society discovers that the locked room was inside them all along.",
+        ai_review: "A surreal satire about upper-class guests who find themselves unable to leave a dinner party.",
+        status: "reviewed"
       },
       {
+        slug: "blade-runner-1982",
         title: "Blade Runner",
         year: 1982,
         director: "Ridley Scott",
         country: "USA",
         rating: 5,
         tags: ["science fiction", "memory", "identity"],
-        review: "A rain-soaked argument about whether memory is evidence of a soul."
+        review: "A rain-soaked argument about whether memory is evidence of a soul.",
+        ai_review: "A visually stunning science-fiction film about artificial humans and identity.",
+        status: "reviewed"
       },
       {
+        slug: "brief-encounter-1945",
         title: "Brief Encounter",
         year: 1945,
         director: "David Lean",
         country: "UK",
         rating: 5,
         tags: ["romance", "britain", "restraint"],
-        review: "A love story where the loudest sound is self-control."
+        review: "A love story where the loudest sound is self-control.",
+        ai_review: "A restrained British romance about forbidden love and emotional duty.",
+        status: "reviewed"
+      }
+    ];
+
+    const samplePairings = [
+      {
+        id: "wild-bunch-through-modern-times",
+        film_id: "the-wild-bunch-1969",
+        comparison_film_id: "modern-times-1936",
+        angle: "modernity and obsolescence",
+        text: "Chaplin turns modernity into slapstick; Peckinpah turns it into a funeral.",
+        votes: 12
+      },
+      {
+        id: "blade-runner-through-brief-encounter",
+        film_id: "blade-runner-1982",
+        comparison_film_id: "brief-encounter-1945",
+        angle: "memory and longing",
+        text: "Lean makes restraint feel human; Scott asks whether longing itself might be manufactured.",
+        votes: 8
+      },
+      {
+        id: "y-tu-mama-through-los-olvidados",
+        film_id: "y-tu-mama-tambien-2001",
+        comparison_film_id: "los-olvidados-1950",
+        angle: "Mexico, youth and social blindness",
+        text: "Buñuel shows children with no escape; Cuarón shows boys who can leave, but not understand what they pass.",
+        votes: 15
+      },
+      {
+        id: "third-man-through-exterminating-angel",
+        film_id: "the-third-man-1949",
+        comparison_film_id: "the-exterminating-angel-1962",
+        angle: "corruption and polite society",
+        text: "Reed finds corruption under the city; Buñuel finds it sitting politely in the drawing room.",
+        votes: 6
       }
     ];
 
     const storageKey = "filmSentencePrototypeData";
-    let films = loadFilms();
+    const dataUrl = "data/films.json";
+    let films = [...sampleFilms];
+    let pairings = [...samplePairings];
     let activeTag = "all";
 
     const grid = document.getElementById("reviewGrid");
@@ -756,14 +970,32 @@
     const collectionRow = document.getElementById("collectionRow");
     const resultCount = document.getElementById("resultCount");
     const emptyState = document.getElementById("emptyState");
+    const challengeGrid = document.getElementById("challengeGrid");
+    const pairingGrid = document.getElementById("pairingGrid");
 
-    function loadFilms() {
+    async function loadFilms() {
       const saved = localStorage.getItem(storageKey);
-      return saved ? JSON.parse(saved) : sampleFilms;
+      if (saved) {
+        films = JSON.parse(saved);
+        return;
+      }
+
+      try {
+        const response = await fetch(dataUrl, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Could not load ${dataUrl}`);
+        films = await response.json();
+      } catch (error) {
+        console.warn("Using inline sample films because data/films.json could not be loaded.", error);
+        films = [...sampleFilms];
+      }
     }
 
     function saveFilms() {
       localStorage.setItem(storageKey, JSON.stringify(films, null, 2));
+    }
+
+    function getFilm(slug) {
+      return films.find(film => (film.slug || slugify(`${film.title}-${film.year}`)) === slug);
     }
 
     function slugify(value) {
@@ -795,6 +1027,8 @@
         film.director,
         film.country,
         film.review,
+        film.source,
+        film.status,
         ...(film.tags || [])
       ].join(" ").toLowerCase();
 
@@ -842,26 +1076,79 @@
         .filter(film => matchesFilm(film, query))
         .sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
 
-      grid.innerHTML = visible.map(film => `
-        <article class="review-card" id="${slugify(`${film.title}-${film.year}`)}">
+      grid.innerHTML = visible.map(film => {
+        const slug = film.slug || slugify(`${film.title}-${film.year}`);
+        const reviewed = film.status === "reviewed" || (film.review && !film.review.toLowerCase().includes("review pending"));
+        return `
+        <article class="review-card" id="${slug}">
           <div>
             <h3 class="film-title">${film.title}</h3>
             <p class="film-meta">${film.director || "Unknown director"}, ${film.year} · ${film.country || "Unknown country"}</p>
-            <p class="film-review">${film.review}</p>
+            <p class="film-review">${film.review || "Review pending."}</p>
           </div>
           <div class="card-footer">
             <div class="mini-tags">
-              ${(film.tags || []).slice(0, 3).map(tag => `<span>${tag}</span>`).join("")}
+              <span class="status-pill ${reviewed ? "reviewed" : ""}">${reviewed ? "reviewed" : "pending"}</span>
+              ${(film.tags || []).slice(0, 2).map(tag => `<span>${tag}</span>`).join("")}
             </div>
-            <div class="stars" aria-label="${film.rating} out of 5 stars">${stars(film.rating)}</div>
+            <button type="button" class="edit-review-button" data-slug="${slug}">Edit review</button>
           </div>
         </article>
-      `).join("");
+      `;
+      }).join("");
+
+      grid.querySelectorAll(".edit-review-button").forEach(button => {
+        button.addEventListener("click", () => editFilm(button.dataset.slug));
+      });
 
       emptyState.style.display = visible.length ? "none" : "block";
       resultCount.textContent = visible.length === films.length
         ? `Showing all ${films.length} films`
         : `Showing ${visible.length} of ${films.length} films`;
+    }
+
+    function renderChallenges() {
+      const reviewed = films.filter(film => film.ai_review && film.review);
+      challengeGrid.innerHTML = reviewed.map(film => `
+        <article class="line-card">
+          <div>
+            <h3>${film.title} (${film.year})</h3>
+            <div class="line-meta">AI first draft</div>
+            <blockquote>${film.ai_review}</blockquote>
+          </div>
+          <div>
+            <div class="line-meta">Current human champion</div>
+            <blockquote>${film.review}</blockquote>
+          </div>
+          <div class="vote-row">
+            <button type="button" class="secondary">Vote AI</button>
+            <button type="button">Vote human</button>
+            <span class="vote-count">Prototype vote buttons</span>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderPairings() {
+      pairingGrid.innerHTML = pairings.map(pairing => {
+        const film = getFilm(pairing.film_id);
+        const comparison = getFilm(pairing.comparison_film_id);
+        if (!film || !comparison) return "";
+
+        return `
+          <article class="line-card">
+            <div>
+              <h3>${film.title} <span style="color:var(--muted);">through</span> ${comparison.title}</h3>
+              <div class="line-meta">${pairing.angle}</div>
+              <blockquote>${pairing.text}</blockquote>
+            </div>
+            <div class="vote-row">
+              <button type="button">Vote for this line</button>
+              <span class="vote-count">${pairing.votes || 0} votes</span>
+            </div>
+          </article>
+        `;
+      }).join("");
     }
 
     function randomFilm() {
@@ -876,6 +1163,8 @@
       renderCollections();
       renderStats();
       renderReviews();
+      renderChallenges();
+      renderPairings();
     }
 
     document.getElementById("randomButton").addEventListener("click", randomFilm);
@@ -886,29 +1175,78 @@
 
     searchInput.addEventListener("input", renderReviews);
 
+    document.querySelectorAll(".mode-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".mode-tab").forEach(item => item.classList.remove("active"));
+        document.querySelectorAll(".mode-section").forEach(section => section.classList.remove("active"));
+        tab.classList.add("active");
+        document.querySelector(`[data-section="${tab.dataset.mode}"]`)?.classList.add("active");
+      });
+    });
+
+    function formTags() {
+      return document.getElementById("tagsInput").value
+        .split(";")
+        .map(tag => tag.trim().toLowerCase())
+        .filter(Boolean);
+    }
+
+    function editFilm(slug) {
+      const film = films.find(item => (item.slug || slugify(`${item.title}-${item.year}`)) === slug);
+      if (!film) return;
+
+      document.getElementById("editingSlug").value = slug;
+      document.getElementById("titleInput").value = film.title || "";
+      document.getElementById("yearInput").value = film.year || "";
+      document.getElementById("directorInput").value = film.director || "";
+      document.getElementById("countryInput").value = film.country || "";
+      document.getElementById("ratingInput").value = film.rating || 5;
+      document.getElementById("tagsInput").value = (film.tags || []).join("; ");
+      document.getElementById("reviewInput").value = film.review || "";
+      document.getElementById("saveFilmButton").textContent = "Save review";
+      document.getElementById("admin").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function clearEditor() {
+      document.getElementById("addFilmForm").reset();
+      document.getElementById("editingSlug").value = "";
+      document.getElementById("saveFilmButton").textContent = "Add to page";
+    }
+
     document.getElementById("addFilmForm").addEventListener("submit", event => {
       event.preventDefault();
 
+      const existingSlug = document.getElementById("editingSlug").value;
+      const previousFilm = existingSlug ? getFilm(existingSlug) : null;
       const film = {
+        ...(previousFilm || {}),
+        slug: existingSlug || slugify(`${document.getElementById("titleInput").value.trim()}-${document.getElementById("yearInput").value}`),
         title: document.getElementById("titleInput").value.trim(),
         year: Number(document.getElementById("yearInput").value),
         director: document.getElementById("directorInput").value.trim(),
         country: document.getElementById("countryInput").value.trim(),
         rating: Number(document.getElementById("ratingInput").value),
-        tags: document.getElementById("tagsInput").value
-          .split(";")
-          .map(tag => tag.trim().toLowerCase())
-          .filter(Boolean),
-        review: document.getElementById("reviewInput").value.trim()
+        tags: formTags(),
+        review: document.getElementById("reviewInput").value.trim(),
+        ai_review: previousFilm?.ai_review || "AI draft pending.",
+        status: document.getElementById("reviewInput").value.trim() ? "reviewed" : "pending",
+        updated_at: new Date().toISOString().slice(0, 10)
       };
 
-      films = [film, ...films];
+      if (existingSlug) {
+        films = films.map(item => (item.slug || slugify(`${item.title}-${item.year}`)) === existingSlug ? { ...item, ...film } : item);
+      } else {
+        films = [film, ...films];
+      }
+
       saveFilms();
-      event.target.reset();
+      clearEditor();
       render();
       randomFilm();
-      document.getElementById(slugify(`${film.title}-${film.year}`))?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById(film.slug)?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
+
+    document.getElementById("cancelEditButton").addEventListener("click", clearEditor);
 
     document.getElementById("downloadJsonButton").addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(films, null, 2)], { type: "application/json" });
@@ -929,8 +1267,10 @@
       randomFilm();
     });
 
-    render();
-    randomFilm();
+    loadFilms().then(() => {
+      render();
+      randomFilm();
+    });
   </script>
 </body>
 </html>

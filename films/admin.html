@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin · Beat the AI: A Film in a Sentence</title>
-  <link rel="stylesheet" href="/films/assets/style.css?v=7" />
+  <link rel="stylesheet" href="/films/assets/style.css?v=9" />
 </head>
 <body data-admin="true">
 <header class="site-header">
@@ -95,9 +95,10 @@
       <div class="field"><label for="countryInput">Country</label><input id="countryInput" placeholder="Mexico" /></div>
       <div class="field"><label for="ratingInput">My score</label><select id="ratingInput"><option value="10">10 / 10</option><option value="9">9 / 10</option><option value="8">8 / 10</option><option value="7">7 / 10</option><option value="6">6 / 10</option><option value="5">5 / 10</option><option value="4">4 / 10</option><option value="3">3 / 10</option><option value="2">2 / 10</option><option value="1">1 / 10</option><option value="0">Unscored</option></select></div>
       <div class="field"><label for="tagsInput">Tags</label><input id="tagsInput" placeholder="mexico; surrealism; poverty" /></div>
-      <div class="field full"><label for="aiReviewInput">AI first draft</label><input id="aiReviewInput" maxlength="220" placeholder="A powerful drama about poverty and childhood in Mexico City." /></div>
+      <div class="field full"><label for="aiReviewInput">AI first draft</label><input id="aiReviewInput" maxlength="220" placeholder="A powerful drama about poverty and childhood in Mexico City." /><span class="admin-inline-note">This original AI line stays visible even when the human champion improves.</span></div>
+      <div class="field full"><label for="aiRematchInput">AI rematch</label><input id="aiRematchInput" maxlength="240" placeholder="Optional second AI attempt after a human champion wins." /><span class="admin-inline-note">Use this for a later AI comeback. It should not replace the original AI line.</span></div>
       <div class="field full"><label for="reviewInput">Human champion line</label><input id="reviewInput" required maxlength="220" placeholder="A social-realist nightmare with Buñuel’s fingerprints on the glass." /></div>
-      <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;"><button type="submit" id="saveFilmButton">Add to page</button><button type="button" class="secondary" id="cancelEditButton">Cancel edit</button><button type="button" class="secondary" id="clearLocalButton">Reset local data</button></div>
+      <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;"><button type="submit" id="saveFilmButton">Add to page</button><button type="button" class="secondary" id="generateRematchButton">Draft AI rematch</button><button type="button" class="secondary" id="cancelEditButton">Cancel edit</button><button type="button" class="secondary" id="clearLocalButton">Reset local data</button></div>
     </form>
   </section>
 
@@ -164,6 +165,6 @@
   <div class="public-note" id="modeNotice"></div>
   <footer><p>Admin dashboard for Beat the AI: A Film in a Sentence.</p></footer>
 </main>
-<script src="/films/assets/app.js?v=7"></script>
+<script src="/films/assets/app.js?v=9"></script>
 </body>
 </html>

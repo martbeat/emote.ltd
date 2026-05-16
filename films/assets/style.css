@@ -164,3 +164,34 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding:2rem 0 0;color:v
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Update 09: challenge lifecycle and rematch */
+.challenge-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.65rem 0;
+}
+.challenge-status span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  color: var(--muted);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.78rem;
+}
+.challenge-status .winner-human { color: var(--good); border-color: rgba(120,192,145,.45); }
+.challenge-status .winner-ai, .challenge-status .winner-rematch { color: var(--accent); border-color: rgba(240,179,90,.45); }
+.rematch-block {
+  border-top: 1px solid var(--line);
+  padding-top: 0.8rem;
+}
+.admin-inline-note {
+  display: block;
+  color: var(--muted);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+}

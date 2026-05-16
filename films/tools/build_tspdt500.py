@@ -363,6 +363,9 @@ def build_films(entries: list[dict[str, Any]], limit: int, preserve_existing: bo
             "review": previous.get("review", "Human champion pending."),
             "ai_review": previous.get("ai_review", ai_line_for(film, style)),
             "ai_style": previous.get("ai_style", style),
+            "ai_rematch": previous.get("ai_rematch", ""),
+            "winner": previous.get("winner", ""),
+            "challenge_round": previous.get("challenge_round", 1),
             "status": previous.get("status", "pending"),
             "source": "TSPDT 1,000 Greatest Films, 2026 edition",
         }

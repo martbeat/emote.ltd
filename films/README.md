@@ -231,3 +231,27 @@ python3 tools/merge_recent_crowd_pleasers.py --replace-existing
 ```
 
 If GitHub is your source of truth, copy the updated `data/films.json` back into the repo and commit it.
+
+
+## Update 09: Challenge lifecycle and AI rematch
+
+Adds a clearer game model:
+
+- The original AI line stays visible
+- A promoted human line becomes the human champion
+- Admin can add or draft an optional AI rematch
+- Votes can now track `ai`, `human` and `rematch`
+- Challenge cards show who is currently leading
+- `checkApiAvailability()` now calls `/films/api/health.py`, not `vote.py`
+- API scripts return `Content-Length` and avoid Python `cgi` deprecation warnings
+- Asset references bumped to `?v=9`
+
+New film fields:
+
+```json
+{
+  "ai_rematch": "",
+  "winner": "",
+  "challenge_round": 1
+}
+```

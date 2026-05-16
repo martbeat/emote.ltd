@@ -14,7 +14,8 @@ const dataUrls = {
 
 const apiUrls = {
   submit: "/films/api/submit-line.py",
-  vote: "/films/api/vote.py"
+  vote: "/films/api/vote.py",
+  health: "/films/api/health.py"
 };
 
 let films = [];
@@ -89,12 +90,7 @@ async function postJson(url, payload) {
 
 async function checkApiAvailability() {
   try {
-    const result = await postJson(apiUrls.vote, {
-      kind: "challenge",
-      slug: "blade-runner-1982",
-      target: "human",
-      dry_run: true
-    });
+    const result = await postJson(apiUrls.health, {});
     apiAvailable = result.ok === true;
   } catch {
     apiAvailable = false;
@@ -154,6 +150,60 @@ function genreLine(film) {
   if (!genres.length) return "";
   return `<div class="genre-line">${genres.map(tag => `<span>${tag}</span>`).join("")}</div>`;
 }
+
+
+function filmVotesFor(slug) {
+  const value = votes[slug] || {};
+  return {
+    ai: Number(value.ai || 0),
+    human: Number(value.human || 0),
+    rematch: Number(value.rematch || 0)
+  };
+}
+
+function challengeLeader(film, filmVotes) {
+  const entries = [["ai", filmVotes.ai], ["human", filmVotes.human]];
+  if (film.ai_rematch) entries.push(["rematch", filmVotes.rematch]);
+  const sorted = entries.sort((a, b) => b[1] - a[1]);
+  if (sorted[0][1] === 0) return "new";
+  if (sorted.length > 1 && sorted[0][1] === sorted[1][1]) return "tied";
+  return sorted[0][0];
+}
+
+function challengeStatusBadges(film, slug) {
+  const filmVotes = filmVotesFor(slug);
+  const leader = challengeLeader(film, filmVotes);
+  const labels = {
+    ai: "AI currently winning",
+    human: "Human currently winning",
+    rematch: "AI rematch currently winning",
+    tied: "Currently tied",
+    new: "Awaiting votes"
+  };
+  const leaderClass = leader === "human" ? "winner-human" : leader === "ai" ? "winner-ai" : leader === "rematch" ? "winner-rematch" : "";
+  return `
+    <div class="challenge-status">
+      <span class="${leaderClass}">${labels[leader]}</span>
+      <span>Original AI: ${filmVotes.ai}</span>
+      <span>Human: ${filmVotes.human}</span>
+      ${film.ai_rematch ? `<span>Rematch: ${filmVotes.rematch}</span>` : ""}
+      <span>${film.ai_rematch ? "AI rematch active" : "No AI rematch yet"}</span>
+    </div>
+  `;
+}
+
+function rematchDraftFor(film) {
+  const champion = film.review && film.review !== "Human champion pending." ? film.review : "the human champion line";
+  const templates = [
+    `${film.title} returns for a rematch: less summary, more pressure, and one eye on why the human line worked.`,
+    `The AI tries again after being beaten: ${film.title} is not only important, it is difficult to escape cleanly.`,
+    `Second attempt: ${film.title} turns ${film.director || "its director"}'s reputation into a problem the viewer has to feel, not just admire.`,
+    `AI rematch draft: the human line saw the wound; this version tries to see the scar.`,
+    `Having lost to “${champion}”, the machine comes back with more atmosphere and fewer excuses.`
+  ];
+  return templates[(film.title.length + Number(film.year || 0)) % templates.length];
+}
+
 
 function isReviewed(film) {
   return film.status === "reviewed" || (film.review && !film.review.toLowerCase().includes("review pending"));
@@ -371,12 +421,12 @@ function renderChallenges() {
 
   challengeGrid.innerHTML = visibleChallengeFilms.map(film => {
     const slug = film.slug || slugify(`${film.title}-${film.year}`);
-    const filmVotes = votes[slug] || { ai: 0, human: 0 };
+    const filmVotes = filmVotesFor(slug);
     const filmSubmissions = submissions[slug] || [];
     return `
       <article class="line-card" data-challenge-slug="${slug}">
         <div>
-          <h3>${film.title} (${film.year})</h3>
+          <h3>${film.title} (${film.year})</h3>\n          ${challengeStatusBadges(film, slug)}
           ${metadataGrid(film)}
           ${genreLine(film)}
           <div class="score-line">
@@ -390,10 +440,16 @@ function renderChallenges() {
           <div class="line-meta">Current human champion</div>
           <blockquote>${film.review}</blockquote>
         </div>
+        ${film.ai_rematch ? `
+        <div class="rematch-block">
+          <div class="line-meta">AI rematch</div>
+          <blockquote>${film.ai_rematch}</blockquote>
+        </div>` : ""}
         <div class="vote-row">
-          <button type="button" class="secondary vote-button" data-slug="${slug}" data-target="ai">Vote AI</button>
+          <button type="button" class="secondary vote-button" data-slug="${slug}" data-target="ai">Vote original AI</button>
           <button type="button" class="vote-button" data-slug="${slug}" data-target="human">Vote human</button>
-          <span class="vote-count">AI ${filmVotes.ai || 0} · Human ${filmVotes.human || 0}</span>
+          ${film.ai_rematch ? `<button type="button" class="secondary vote-button" data-slug="${slug}" data-target="rematch">Vote AI rematch</button>` : ""}
+          <span class="vote-count">AI ${filmVotes.ai || 0} · Human ${filmVotes.human || 0}${film.ai_rematch ? ` · Rematch ${filmVotes.rematch || 0}` : ""}</span>
         </div>
         <form class="submission-form" data-slug="${slug}">
           <input class="submission-input" maxlength="220" placeholder="Write a better one-line review..." />
@@ -603,6 +659,7 @@ function promoteSubmission(slug, index) {
 
   film.review = submission.text;
   film.status = "reviewed";
+  film.winner = "human";
   film.updated_at = new Date().toISOString().slice(0, 10);
   submissions[slug].splice(index, 1);
   if (!submissions[slug].length) delete submissions[slug];
@@ -689,6 +746,7 @@ function editFilm(slug) {
   $("ratingInput").value = film.rating || 5;
   $("tagsInput").value = (film.tags || []).join("; ");
   $("aiReviewInput").value = film.ai_review || "";
+  if ($("aiRematchInput")) $("aiRematchInput").value = film.ai_rematch || "";
   $("reviewInput").value = film.review || "";
   $("saveFilmButton").textContent = "Save review";
 
@@ -803,6 +861,13 @@ function bindPublicEvents() {
   });
 }
 
+function generateRematchForCurrentEdit() {
+  if (!ADMIN_ENABLED || !$("editingSlug") || !$("aiRematchInput")) return;
+  const film = getFilm($("editingSlug").value);
+  if (!film) return;
+  $("aiRematchInput").value = rematchDraftFor(film);
+}
+
 function bindAdminEvents() {
   if (!ADMIN_ENABLED) return;
 
@@ -831,6 +896,8 @@ function bindAdminEvents() {
         tags: formTags(),
         review: $("reviewInput").value.trim(),
         ai_review: $("aiReviewInput").value.trim() || previousFilm?.ai_review || "AI draft pending.",
+        ai_rematch: $("aiRematchInput") ? $("aiRematchInput").value.trim() : previousFilm?.ai_rematch || "",
+        challenge_round: previousFilm?.challenge_round || 1,
         status: $("reviewInput").value.trim() ? "reviewed" : "pending",
         updated_at: new Date().toISOString().slice(0, 10)
       };
@@ -847,6 +914,7 @@ function bindAdminEvents() {
   }
 
   on("cancelEditButton", "click", clearEditor);
+  on("generateRematchButton", "click", generateRematchForCurrentEdit);
 
   const pairingForm = $("pairingForm");
   if (pairingForm) {

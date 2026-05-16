@@ -11,14 +11,19 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 
 def respond(payload, status="200 OK"):
-    sys.stdout.write(f"Status: {status}\r\n")
-    sys.stdout.write("Content-Type: application/json\r\n")
-    sys.stdout.write("Cache-Control: no-store\r\n\r\n")
-    sys.stdout.write(json.dumps(payload, ensure_ascii=False))
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    sys.stdout.buffer.write(f"Status: {status}\r\n".encode("ascii"))
+    sys.stdout.buffer.write(b"Content-Type: application/json\r\n")
+    sys.stdout.buffer.write(b"Cache-Control: no-store\r\n")
+    sys.stdout.buffer.write(f"Content-Length: {len(body)}\r\n".encode("ascii"))
+    sys.stdout.buffer.write(b"\r\n")
+    sys.stdout.buffer.write(body)
 
 def read_json_body():
     length = int(os.environ.get("CONTENT_LENGTH") or "0")
-    if length <= 0 or length > 5000:
+    if length <= 0:
+        return {}
+    if length > 5000:
         raise ValueError("Invalid request length")
     raw = sys.stdin.read(length)
     return json.loads(raw)
@@ -41,7 +46,7 @@ def save_json(name, data):
     os.replace(tmp_name, path)
 
 def valid_slug(value):
-    return isinstance(value, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{1,120}", value)
+    return isinstance(value, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{1,160}", value)
 
 def clean_text(value, max_len):
     if not isinstance(value, str):
@@ -59,10 +64,13 @@ try:
         slug = body.get("slug")
         target = body.get("target")
         dry_run = bool(body.get("dry_run"))
-        if not valid_slug(slug) or target not in ("ai", "human"):
+        if not valid_slug(slug) or target not in ("ai", "human", "rematch"):
             raise ValueError("Invalid challenge vote")
         votes = load_json("votes.json", {})
-        votes.setdefault(slug, {"ai": 0, "human": 0})
+        votes.setdefault(slug, {"ai": 0, "human": 0, "rematch": 0})
+        votes[slug].setdefault("ai", 0)
+        votes[slug].setdefault("human", 0)
+        votes[slug].setdefault("rematch", 0)
         if not dry_run:
             votes[slug][target] = int(votes[slug].get(target, 0)) + 1
             save_json("votes.json", votes)
@@ -83,7 +91,6 @@ try:
             raise ValueError("Unknown pairing")
         save_json("pairings.json", pairings)
         respond({"ok": True, "pairings": pairings})
-
     else:
         raise ValueError("Unknown vote kind")
 except Exception as exc:

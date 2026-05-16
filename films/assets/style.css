@@ -225,3 +225,18 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding:2rem 0 0;color:v
     transform: translateY(0);
   }
 }
+
+
+/* Update 11: make filters visibly interactive */
+#tagRow .tag,
+.mode-tab,
+#todayChallengeButton,
+#randomReview,
+#randomMeta,
+#loadMoreChallengesButton {
+  cursor: pointer;
+}
+
+.search-wrap:focus-within {
+  border-color: rgba(240,179,90,.65);
+}

@@ -270,3 +270,17 @@ Changes:
 - The selected card scrolls into view and pulses briefly
 - `Another challenge` changes the selected challenge and refreshes the visible status
 - Asset references bumped to `?v=10`
+
+
+## Update 11: global filtering and robust Today’s Challenge
+
+Fixes the mismatch where search and tag filters mainly affected the Reviews view.
+
+Changes:
+
+- Search now filters both Reviews and Beat the AI cards
+- Tags now filter both Reviews and Beat the AI cards
+- Status, score and sort controls now rerender all public views
+- Today’s Challenge clears blocking filters, switches to Beat the AI, expands the list if needed, scrolls to the card and highlights it
+- Adds delegated click handling so dynamically re-rendered tags and buttons still work
+- Asset references bumped to `?v=11`

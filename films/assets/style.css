@@ -164,3 +164,96 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding:2rem 0 0;color:v
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Update 09: challenge lifecycle and rematch */
+.challenge-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.65rem 0;
+}
+.challenge-status span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  color: var(--muted);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.78rem;
+}
+.challenge-status .winner-human { color: var(--good); border-color: rgba(120,192,145,.45); }
+.challenge-status .winner-ai, .challenge-status .winner-rematch { color: var(--accent); border-color: rgba(240,179,90,.45); }
+.rematch-block {
+  border-top: 1px solid var(--line);
+  padding-top: 0.8rem;
+}
+.admin-inline-note {
+  display: block;
+  color: var(--muted);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+}
+
+
+/* Update 10: make Today's Challenge actionable */
+.random-review,
+.random-meta {
+  cursor: pointer;
+}
+
+.today-focus {
+  border-color: rgba(240,179,90,.75);
+}
+
+.today-focus-pulse {
+  animation: todayPulse 1.6s ease;
+}
+
+@keyframes todayPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(240,179,90,.55);
+    transform: translateY(0);
+  }
+  35% {
+    box-shadow: 0 0 0 8px rgba(240,179,90,.18);
+    transform: translateY(-2px);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(240,179,90,0);
+    transform: translateY(0);
+  }
+}
+
+
+/* Update 11: make filters visibly interactive */
+#tagRow .tag,
+.mode-tab,
+#todayChallengeButton,
+#randomReview,
+#randomMeta,
+#loadMoreChallengesButton {
+  cursor: pointer;
+}
+
+.search-wrap:focus-within {
+  border-color: rgba(240,179,90,.65);
+}
+
+
+/* Update 12: fully delegated app controls */
+#tagRow .tag,
+.mode-tab,
+.vote-button,
+.pairing-vote-button,
+.edit-review-button,
+.promote-submission,
+.reject-submission,
+#todayChallengeButton,
+#randomButton,
+#randomReview,
+#randomMeta,
+#loadMoreChallengesButton {
+  cursor: pointer;
+}

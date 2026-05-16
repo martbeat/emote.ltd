@@ -231,3 +231,80 @@ python3 tools/merge_recent_crowd_pleasers.py --replace-existing
 ```
 
 If GitHub is your source of truth, copy the updated `data/films.json` back into the repo and commit it.
+
+
+## Update 09: Challenge lifecycle and AI rematch
+
+Adds a clearer game model:
+
+- The original AI line stays visible
+- A promoted human line becomes the human champion
+- Admin can add or draft an optional AI rematch
+- Votes can now track `ai`, `human` and `rematch`
+- Challenge cards show who is currently leading
+- `checkApiAvailability()` now calls `/films/api/health.py`, not `vote.py`
+- API scripts return `Content-Length` and avoid Python `cgi` deprecation warnings
+- Asset references bumped to `?v=9`
+
+New film fields:
+
+```json
+{
+  "ai_rematch": "",
+  "winner": "",
+  "challenge_round": 1
+}
+```
+
+
+## Update 10: Today's challenge opens the card
+
+Fixes the top-right Today's Challenge panel.
+
+Changes:
+
+- The selected challenge is now stored as `currentChallengeSlug`
+- Clicking `Take today's challenge` opens the selected challenge card
+- Clicking the top-right AI line or its meta text also opens the selected card
+- If the selected card is beyond the first 12 public cards, the challenge list expands automatically
+- The selected card scrolls into view and pulses briefly
+- `Another challenge` changes the selected challenge and refreshes the visible status
+- Asset references bumped to `?v=10`
+
+
+## Update 11: global filtering and robust Today’s Challenge
+
+Fixes the mismatch where search and tag filters mainly affected the Reviews view.
+
+Changes:
+
+- Search now filters both Reviews and Beat the AI cards
+- Tags now filter both Reviews and Beat the AI cards
+- Status, score and sort controls now rerender all public views
+- Today’s Challenge clears blocking filters, switches to Beat the AI, expands the list if needed, scrolls to the card and highlights it
+- Adds delegated click handling so dynamically re-rendered tags and buttons still work
+- Asset references bumped to `?v=11`
+
+
+## Update 12: replaced client-side app logic
+
+This replaces the patchwork client script with a cleaner single render pipeline.
+
+Fixes:
+
+- Search input
+- Tag filters
+- Status filter
+- Score filter
+- Sort filter
+- Today's Challenge scroll/open behaviour
+- Mode switching
+- Dynamic buttons after rerender
+
+Design change:
+
+- One state object controls query, tag, status, minimum score, sort and active mode.
+- One delegated click/input/change system handles dynamic content.
+- Today’s Challenge clears blocking filters, switches to Beat the AI, expands the list and scrolls to the selected card.
+
+Assets are bumped to `?v=12`.

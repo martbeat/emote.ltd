@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A Film in a Sentence</title>
+  <style>
+    :root {
+      --bg: #111111;
+      --panel: #1b1b1b;
+      --panel-soft: #242424;
+      --text: #f5f1e8;
+      --muted: #b8ad9f;
+      --line: #38332d;
+      --accent: #f0b35a;
+      --accent-2: #d95f43;
+      --good: #78c091;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --max: 1120px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(240, 179, 90, 0.16), transparent 32rem),
+        linear-gradient(135deg, #111111 0%, #17120f 52%, #0e0e0e 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .site-header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 17, 17, 0.78);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .nav {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-mark {
+      width: 2.25rem;
+      height: 2.25rem;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-size: 1.1rem;
+      box-shadow: 0 0 0 4px rgba(240, 179, 90, 0.08);
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent);
+    }
+
+    main {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.75fr);
+      gap: 1.5rem;
+      align-items: stretch;
+      margin-top: 1rem;
+    }
+
+    .hero-card,
+    .feature-card,
+    .toolbar,
+    .admin-panel {
+      background: rgba(27, 27, 27, 0.88);
+      border: 1px solid var(--line);
+      border-radius: 1.5rem;
+      box-shadow: 0 24px 80px var(--shadow);
+    }
+
+    .hero-card {
+      padding: clamp(1.5rem, 4vw, 3rem);
+      min-height: 330px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -4rem -8rem auto;
+      width: 18rem;
+      height: 18rem;
+      border: 1px solid rgba(240, 179, 90, 0.25);
+      border-radius: 50%;
+    }
+
+    .eyebrow {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 7vw, 5.4rem);
+      line-height: 0.95;
+      margin: 0 0 1.25rem;
+      letter-spacing: -0.06em;
+      max-width: 11ch;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.7;
+      max-width: 38rem;
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 2rem;
+    }
+
+    button,
+    .button {
+      border: 0;
+      border-radius: 999px;
+      padding: 0.8rem 1.05rem;
+      cursor: pointer;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #1a1209;
+      background: var(--accent);
+      box-shadow: 0 10px 26px rgba(240, 179, 90, 0.2);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    button.secondary,
+    .button.secondary {
+      color: var(--text);
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+
+    button:hover,
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .feature-card {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .random-label {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .random-review {
+      font-size: 1.55rem;
+      line-height: 1.25;
+      margin: 0 0 1.25rem;
+    }
+
+    .random-meta {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 1rem;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.6rem;
+      color: var(--accent);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      margin-top: 0.2rem;
+    }
+
+    .toolbar {
+      padding: 1rem;
+      margin: 1.5rem 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .search-wrap {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+    }
+
+    .search-wrap span {
+      color: var(--accent);
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    textarea {
+      min-height: 7rem;
+      resize: vertical;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 0.9rem;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 0.45rem 0.7rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    .tag.active {
+      color: #17120f;
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin: 2rem 0 1rem;
+    }
+
+    .section-title h2 {
+      font-size: clamp(1.7rem, 4vw, 2.8rem);
+      letter-spacing: -0.04em;
+      margin: 0;
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .review-card {
+      background: rgba(27, 27, 27, 0.82);
+      border: 1px solid var(--line);
+      border-radius: 1.25rem;
+      padding: 1.2rem;
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .review-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(240, 179, 90, 0.55);
+      background: rgba(36, 36, 36, 0.94);
+    }
+
+    .film-title {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.2;
+    }
+
+    .film-meta {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.88rem;
+      margin: 0.4rem 0 1rem;
+      line-height: 1.45;
+    }
+
+    .film-review {
+      font-size: 1.16rem;
+      line-height: 1.38;
+      margin: 0 0 1.25rem;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.82rem;
+    }
+
+    .stars {
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .mini-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .mini-tags span {
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.2rem 0.45rem;
+    }
+
+    .admin-panel {
+      margin-top: 2rem;
+      padding: 1.25rem;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .field {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 0.85rem;
+    }
+
+    .field label {
+      display: block;
+      color: var(--accent);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.45rem;
+      font-weight: 700;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .admin-note {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      margin-bottom: 1rem;
+    }
+
+    .empty {
+      display: none;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      text-align: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      margin-top: 3rem;
+      padding: 2rem 0 0;
+      color: var(--muted);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .toolbar,
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .review-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .section-title {
+        align-items: start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .nav {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .review-grid,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav" aria-label="Main navigation">
+      <a class="brand" href="#top">
+        <span class="brand-mark">◉</span>
+        <span class="brand-title">A Film in a Sentence</span>
+      </a>
+      <div class="nav-links">
+        <a href="#reviews">Reviews</a>
+        <a href="#collections">Collections</a>
+        <a href="#admin">Add Reviews</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-label="Introduction">
+      <div class="hero-card">
+        <div>
+          <div class="eyebrow">One-line film reviews</div>
+          <h1>Big films. Small verdicts.</h1>
+          <p>
+            A compact archive of film reviews written in a single sentence: part notebook, part memory palace, part argument with cinema.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button type="button" id="randomHeroButton">Show me a film</button>
+          <a class="button secondary" href="#admin">Add a review</a>
+        </div>
+      </div>
+
+      <aside class="feature-card" aria-label="Random review">
+        <div>
+          <div class="random-label">Now showing</div>
+          <p class="random-review" id="randomReview">A masterpiece of faces, silence and moral injury.</p>
+          <div class="random-meta" id="randomMeta">The Passion of Joan of Arc, Carl Theodor Dreyer, 1928</div>
+        </div>
+        <div>
+          <div class="stats" aria-label="Site statistics">
+            <div class="stat"><strong id="statFilms">0</strong><span>Films</span></div>
+            <div class="stat"><strong id="statTags">0</strong><span>Tags</span></div>
+            <div class="stat"><strong id="statDecades">0</strong><span>Decades</span></div>
+          </div>
+          <button type="button" class="secondary" id="randomButton">Another sentence</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="toolbar" aria-label="Review controls">
+      <div class="search-wrap">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Search title, director, country, tag or sentence..." autocomplete="off" />
+      </div>
+      <div class="tag-row" id="tagRow" aria-label="Tags"></div>
+    </section>
+
+    <section id="reviews">
+      <div class="section-title">
+        <div>
+          <div class="eyebrow">The archive</div>
+          <h2>Reviews</h2>
+        </div>
+        <p id="resultCount">Showing all films</p>
+      </div>
+      <div class="review-grid" id="reviewGrid"></div>
+      <div class="empty" id="emptyState">No films match that search.</div>
+    </section>
+
+    <section id="collections">
+      <div class="section-title">
+        <div>
+          <div class="eyebrow">Ways in</div>
+          <h2>Collections</h2>
+        </div>
+        <p>These become proper generated pages later.</p>
+      </div>
+      <div class="tag-row" id="collectionRow"></div>
+    </section>
+
+    <section id="admin" class="admin-panel" aria-label="Add reviews">
+      <div class="section-title" style="margin-top:0;">
+        <div>
+          <div class="eyebrow">Editor mock-up</div>
+          <h2>Add or import</h2>
+        </div>
+        <p>This prototype stores changes in your browser only.</p>
+      </div>
+
+      <p class="admin-note">
+        In the live version this form would save to SQLite, JSON or CSV behind a protected admin page. For now it shows the workflow: write one sentence, add the film, then export or bulk-import later.
+      </p>
+
+      <form id="addFilmForm" class="admin-grid">
+        <div class="field">
+          <label for="titleInput">Title</label>
+          <input id="titleInput" required placeholder="e.g. Los olvidados" />
+        </div>
+        <div class="field">
+          <label for="yearInput">Year</label>
+          <input id="yearInput" required type="number" min="1888" max="2100" placeholder="1950" />
+        </div>
+        <div class="field">
+          <label for="directorInput">Director</label>
+          <input id="directorInput" placeholder="Luis Buñuel" />
+        </div>
+        <div class="field">
+          <label for="countryInput">Country</label>
+          <input id="countryInput" placeholder="Mexico" />
+        </div>
+        <div class="field">
+          <label for="ratingInput">Rating</label>
+          <select id="ratingInput">
+            <option value="5">5 stars</option>
+            <option value="4">4 stars</option>
+            <option value="3">3 stars</option>
+            <option value="2">2 stars</option>
+            <option value="1">1 star</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="tagsInput">Tags</label>
+          <input id="tagsInput" placeholder="mexico; surrealism; poverty" />
+        </div>
+        <div class="field full">
+          <label for="reviewInput">One-line review</label>
+          <input id="reviewInput" required maxlength="220" placeholder="A social-realist nightmare with Buñuel’s fingerprints on the glass." />
+        </div>
+        <div class="field full">
+          <label for="bulkInput">Bulk paste area</label>
+          <textarea id="bulkInput" placeholder="CSV later: title,year,director,country,rating,tags,review"></textarea>
+        </div>
+        <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;">
+          <button type="submit">Add to page</button>
+          <button type="button" class="secondary" id="downloadJsonButton">Download JSON</button>
+          <button type="button" class="secondary" id="clearLocalButton">Reset sample data</button>
+        </div>
+      </form>
+    </section>
+
+    <footer>
+      <p>A small prototype for one-line cinema notes. Public pages could be static, while the protected editor writes to a simple data file or SQLite database.</p>
+    </footer>
+  </main>
+
+  <script>
+    const sampleFilms = [
+      {
+        title: "Los olvidados",
+        year: 1950,
+        director: "Luis Buñuel",
+        country: "Mexico",
+        rating: 5,
+        tags: ["mexico", "surrealism", "poverty"],
+        review: "A social-realist nightmare with Buñuel’s fingerprints on the glass."
+      },
+      {
+        title: "The Wild Bunch",
+        year: 1969,
+        director: "Sam Peckinpah",
+        country: "USA",
+        rating: 5,
+        tags: ["western", "violence", "memory"],
+        review: "A blood-soaked elegy for men who arrive too late to be useful."
+      },
+      {
+        title: "Modern Times",
+        year: 1936,
+        director: "Charlie Chaplin",
+        country: "USA",
+        rating: 5,
+        tags: ["work", "comedy", "machines"],
+        review: "The funniest possible warning that the machine has mistaken people for parts."
+      },
+      {
+        title: "Y tu mamá también",
+        year: 2001,
+        director: "Alfonso Cuarón",
+        country: "Mexico",
+        rating: 5,
+        tags: ["mexico", "road movie", "coming of age"],
+        review: "A road movie where desire, politics and mortality sit in the same back seat."
+      },
+      {
+        title: "The Third Man",
+        year: 1949,
+        director: "Carol Reed",
+        country: "UK",
+        rating: 5,
+        tags: ["noir", "postwar", "betrayal"],
+        review: "A tilted city, a smiling ghost and the moral cost of charm."
+      },
+      {
+        title: "Do the Right Thing",
+        year: 1989,
+        director: "Spike Lee",
+        country: "USA",
+        rating: 5,
+        tags: ["race", "city", "heat"],
+        review: "A neighbourhood argument that becomes a national weather report."
+      },
+      {
+        title: "The Exterminating Angel",
+        year: 1962,
+        director: "Luis Buñuel",
+        country: "Mexico",
+        rating: 5,
+        tags: ["mexico", "surrealism", "class"],
+        review: "Polite society discovers that the locked room was inside them all along."
+      },
+      {
+        title: "Blade Runner",
+        year: 1982,
+        director: "Ridley Scott",
+        country: "USA",
+        rating: 5,
+        tags: ["science fiction", "memory", "identity"],
+        review: "A rain-soaked argument about whether memory is evidence of a soul."
+      },
+      {
+        title: "Brief Encounter",
+        year: 1945,
+        director: "David Lean",
+        country: "UK",
+        rating: 5,
+        tags: ["romance", "britain", "restraint"],
+        review: "A love story where the loudest sound is self-control."
+      }
+    ];
+
+    const storageKey = "filmSentencePrototypeData";
+    let films = loadFilms();
+    let activeTag = "all";
+
+    const grid = document.getElementById("reviewGrid");
+    const searchInput = document.getElementById("searchInput");
+    const tagRow = document.getElementById("tagRow");
+    const collectionRow = document.getElementById("collectionRow");
+    const resultCount = document.getElementById("resultCount");
+    const emptyState = document.getElementById("emptyState");
+
+    function loadFilms() {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : sampleFilms;
+    }
+
+    function saveFilms() {
+      localStorage.setItem(storageKey, JSON.stringify(films, null, 2));
+    }
+
+    function slugify(value) {
+      return String(value)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+    }
+
+    function stars(rating) {
+      const count = Number(rating) || 0;
+      return "★".repeat(count) + "☆".repeat(Math.max(0, 5 - count));
+    }
+
+    function allTags() {
+      return [...new Set(films.flatMap(film => film.tags || []))].sort();
+    }
+
+    function allDecades() {
+      return [...new Set(films.map(film => Math.floor(film.year / 10) * 10))].sort();
+    }
+
+    function matchesFilm(film, query) {
+      const haystack = [
+        film.title,
+        film.year,
+        film.director,
+        film.country,
+        film.review,
+        ...(film.tags || [])
+      ].join(" ").toLowerCase();
+
+      const searchMatch = haystack.includes(query.toLowerCase());
+      const tagMatch = activeTag === "all" || (film.tags || []).includes(activeTag);
+      return searchMatch && tagMatch;
+    }
+
+    function renderTags() {
+      const tags = ["all", ...allTags()];
+      tagRow.innerHTML = tags.map(tag => `
+        <button class="tag ${tag === activeTag ? "active" : ""}" type="button" data-tag="${tag}">
+          ${tag === "all" ? "All" : tag}
+        </button>
+      `).join("");
+
+      tagRow.querySelectorAll("button").forEach(button => {
+        button.addEventListener("click", () => {
+          activeTag = button.dataset.tag;
+          render();
+        });
+      });
+    }
+
+    function renderCollections() {
+      const collections = [
+        ...allTags().slice(0, 10),
+        ...allDecades().map(decade => `${decade}s`)
+      ];
+
+      collectionRow.innerHTML = collections.map(item => `
+        <span class="tag">${item}</span>
+      `).join("");
+    }
+
+    function renderStats() {
+      document.getElementById("statFilms").textContent = films.length;
+      document.getElementById("statTags").textContent = allTags().length;
+      document.getElementById("statDecades").textContent = allDecades().length;
+    }
+
+    function renderReviews() {
+      const query = searchInput.value.trim();
+      const visible = films
+        .filter(film => matchesFilm(film, query))
+        .sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
+
+      grid.innerHTML = visible.map(film => `
+        <article class="review-card" id="${slugify(`${film.title}-${film.year}`)}">
+          <div>
+            <h3 class="film-title">${film.title}</h3>
+            <p class="film-meta">${film.director || "Unknown director"}, ${film.year} · ${film.country || "Unknown country"}</p>
+            <p class="film-review">${film.review}</p>
+          </div>
+          <div class="card-footer">
+            <div class="mini-tags">
+              ${(film.tags || []).slice(0, 3).map(tag => `<span>${tag}</span>`).join("")}
+            </div>
+            <div class="stars" aria-label="${film.rating} out of 5 stars">${stars(film.rating)}</div>
+          </div>
+        </article>
+      `).join("");
+
+      emptyState.style.display = visible.length ? "none" : "block";
+      resultCount.textContent = visible.length === films.length
+        ? `Showing all ${films.length} films`
+        : `Showing ${visible.length} of ${films.length} films`;
+    }
+
+    function randomFilm() {
+      if (!films.length) return;
+      const film = films[Math.floor(Math.random() * films.length)];
+      document.getElementById("randomReview").textContent = film.review;
+      document.getElementById("randomMeta").textContent = `${film.title}, ${film.director || "Unknown director"}, ${film.year}`;
+    }
+
+    function render() {
+      renderTags();
+      renderCollections();
+      renderStats();
+      renderReviews();
+    }
+
+    document.getElementById("randomButton").addEventListener("click", randomFilm);
+    document.getElementById("randomHeroButton").addEventListener("click", () => {
+      randomFilm();
+      document.querySelector(".feature-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    searchInput.addEventListener("input", renderReviews);
+
+    document.getElementById("addFilmForm").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const film = {
+        title: document.getElementById("titleInput").value.trim(),
+        year: Number(document.getElementById("yearInput").value),
+        director: document.getElementById("directorInput").value.trim(),
+        country: document.getElementById("countryInput").value.trim(),
+        rating: Number(document.getElementById("ratingInput").value),
+        tags: document.getElementById("tagsInput").value
+          .split(";")
+          .map(tag => tag.trim().toLowerCase())
+          .filter(Boolean),
+        review: document.getElementById("reviewInput").value.trim()
+      };
+
+      films = [film, ...films];
+      saveFilms();
+      event.target.reset();
+      render();
+      randomFilm();
+      document.getElementById(slugify(`${film.title}-${film.year}`))?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    document.getElementById("downloadJsonButton").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(films, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "films.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("clearLocalButton").addEventListener("click", () => {
+      localStorage.removeItem(storageKey);
+      films = [...sampleFilms];
+      activeTag = "all";
+      searchInput.value = "";
+      render();
+      randomFilm();
+    });
+
+    render();
+    randomFilm();
+  </script>
+</body>
+</html>

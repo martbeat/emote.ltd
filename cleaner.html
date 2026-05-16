@@ -201,7 +201,7 @@
 <body>
   <header>
     <h1>Blogger HTML Cleaner</h1>
-    <p class="intro">Paste Blogger HTML here. This removes only <code>data-start</code>, <code>data-end</code> and <code>data-section-id</code> attributes and keeps the rest of your formatting, links, headings, paragraphs and lists intact.</p>
+    <p class="intro">Paste Blogger HTML here. This removes only <code>data-start</code>, <code>data-end</code>, <code>data-section-id</code>, <code>data-original-height</code>, <code>data-original-width</code>, <code>data-is-last-node</code> and <code>data-is-only-node</code> attributes and keeps the rest of your formatting, links, headings, paragraphs and lists intact.</p>
   </header>
 
   <main>
@@ -258,7 +258,7 @@
       </div>
       <details open>
         <summary>Exact behaviour</summary>
-        <p>This tool parses the HTML in your browser, removes only attributes named <code>data-start</code>, <code>data-end</code> and <code>data-section-id</code> from all elements, then returns the cleaned HTML. Other attributes such as <code>href</code>, <code>src</code>, <code>class</code>, <code>style</code>, <code>alt</code> and <code>title</code> are left alone.</p>
+        <p>This tool parses the HTML in your browser, removes only attributes named <code>data-start</code>, <code>data-end</code>, <code>data-section-id</code>, <code>data-original-height</code>, <code>data-original-width</code>, <code>data-is-last-node</code> and <code>data-is-only-node</code> from all elements, then returns the cleaned HTML. Other attributes such as <code>href</code>, <code>src</code>, <code>class</code>, <code>style</code>, <code>alt</code> and <code>title</code> are left alone.</p>
         <p>Everything runs locally in the page. Nothing is uploaded anywhere.</p>
       </details>
     </section>
@@ -274,7 +274,7 @@
     const dropzone = document.getElementById('dropzone');
 
     function countTargetAttributes(html) {
-      const matches = html.match(/\sdata-(?:start|end|section-id)=(['"])[^'"]*\1/gi);
+      const matches = html.match(/\sdata-(?:start|end|section-id|original-height|original-width|is-last-node|is-only-node)=(['"])[^'"]*\1/gi);
       return matches ? matches.length : 0;
     }
 
@@ -296,6 +296,22 @@
         }
         if (el.hasAttribute('data-section-id')) {
           el.removeAttribute('data-section-id');
+          removed++;
+        }
+        if (el.hasAttribute('data-original-height')) {
+          el.removeAttribute('data-original-height');
+          removed++;
+        }
+        if (el.hasAttribute('data-original-width')) {
+          el.removeAttribute('data-original-width');
+          removed++;
+        }
+        if (el.hasAttribute('data-is-last-node')) {
+          el.removeAttribute('data-is-last-node');
+          removed++;
+        }
+        if (el.hasAttribute('data-is-only-node')) {
+          el.removeAttribute('data-is-only-node');
           removed++;
         }
       });

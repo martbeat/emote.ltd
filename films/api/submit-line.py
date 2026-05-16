@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import cgi
 import json
 import os
 import re

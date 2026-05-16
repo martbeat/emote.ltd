@@ -639,8 +639,8 @@
         <span class="brand-title">Beat the AI: A Film in a Sentence</span>
       </a>
       <div class="nav-links">
-        <a href="#reviews">Reviews</a>
         <a href="#beat-ai">Beat the AI</a>
+        <a href="#reviews">Reviews</a>
         <a href="#pairings">Pairings</a>
         <a href="#admin">Edit</a>
       </div>
@@ -658,17 +658,17 @@
           </p>
         </div>
         <div class="hero-actions">
-          <button type="button" id="randomHeroButton">Show me a film</button>
-          <a class="button secondary" href="#beat-ai">Beat the AI</a>
+          <button type="button" id="todayChallengeButton">Take today’s challenge</button>
+          <a class="button secondary" href="#reviews">Browse the archive</a>
           <a class="button secondary" href="#pairings">Compare two films</a>
         </div>
       </div>
 
-      <aside class="feature-card" aria-label="Random review">
+      <aside class="feature-card" aria-label="Today’s challenge">
         <div>
-          <div class="random-label">Champion sentence</div>
-          <p class="random-review" id="randomReview">A masterpiece of faces, silence and moral injury.</p>
-          <div class="random-meta" id="randomMeta">The Passion of Joan of Arc, Carl Theodor Dreyer, 1928</div>
+          <div class="random-label">Today’s challenge</div>
+          <p class="random-review" id="randomReview">AI can summarise a film. Can you write the sentence that makes it live?</p>
+          <div class="random-meta" id="randomMeta">Choose a challenge below, then beat the machine’s first draft.</div>
         </div>
         <div>
           <div class="stats" aria-label="Site statistics">
@@ -676,14 +676,14 @@
             <div class="stat"><strong id="statTags">0</strong><span>Tags</span></div>
             <div class="stat"><strong id="statDecades">0</strong><span>Decades</span></div>
           </div>
-          <button type="button" class="secondary" id="randomButton">Another sentence</button>
+          <button type="button" class="secondary" id="randomButton">Another challenge</button>
         </div>
       </aside>
     </section>
 
     <div class="mode-tabs" aria-label="Site modes">
-      <button type="button" class="mode-tab active" data-mode="reviewsMode">Reviews</button>
-      <button type="button" class="mode-tab" data-mode="beatAiMode">Beat the AI</button>
+      <button type="button" class="mode-tab active" data-mode="beatAiMode">Beat the AI</button>
+      <button type="button" class="mode-tab" data-mode="reviewsMode">Reviews</button>
       <button type="button" class="mode-tab" data-mode="pairingsMode">Pairings</button>
     </div>
 
@@ -695,7 +695,7 @@
       <div class="tag-row" id="tagRow" aria-label="Tags"></div>
     </section>
 
-    <section id="reviews" class="mode-section active" data-section="reviewsMode">
+    <section id="reviews" class="mode-section" data-section="reviewsMode">
       <div class="section-title">
         <div>
           <div class="eyebrow">The archive</div>
@@ -707,13 +707,13 @@
       <div class="empty" id="emptyState">No films match that search.</div>
     </section>
 
-    <section id="beat-ai" class="mode-section" data-section="beatAiMode">
+    <section id="beat-ai" class="mode-section active" data-section="beatAiMode">
       <div class="section-title">
         <div>
           <div class="eyebrow">Challenge mode</div>
           <h2>Beat the AI</h2>
         </div>
-        <p>The machine writes the first line. Humans try to write the better one.</p>
+        <p>The machine writes the competent sentence. The challenge is to write the memorable one.</p>
       </div>
       <div class="challenge-panel">
         <div class="challenge-grid" id="challengeGrid"></div>
@@ -748,13 +748,13 @@
       <div class="section-title" style="margin-top:0;">
         <div>
           <div class="eyebrow">Editor mock-up</div>
-          <h2>Add or import</h2>
+          <h2>Edit the challenge data</h2>
         </div>
         <p>This prototype stores changes in your browser only.</p>
       </div>
 
       <p class="admin-note">
-        In the live version this page should load <code>/films/data/films.json</code>, plus separate <code>reviews.json</code>, <code>ai-challenges.json</code> and <code>pairings.json</code>. This prototype keeps everything in one file so you can test the concept first.
+        In the live version this should separate public archive data from challenge data: <code>films.json</code> for film metadata, <code>reviews.json</code> for the human champion lines, <code>ai-challenges.json</code> for machine first drafts and <code>pairings.json</code> for film-against-film lines. This prototype keeps the pieces together while the concept is still being shaped.
       </p>
 
       <form id="addFilmForm" class="admin-grid">
@@ -790,7 +790,7 @@
           <input id="tagsInput" placeholder="mexico; surrealism; poverty" />
         </div>
         <div class="field full">
-          <label for="reviewInput">One-line review</label>
+          <label for="reviewInput">Human champion line</label>
           <input id="reviewInput" required maxlength="220" placeholder="A social-realist nightmare with Buñuel’s fingerprints on the glass." />
         </div>
         <div class="field full">
@@ -1152,10 +1152,11 @@
     }
 
     function randomFilm() {
-      if (!films.length) return;
-      const film = films[Math.floor(Math.random() * films.length)];
-      document.getElementById("randomReview").textContent = film.review;
-      document.getElementById("randomMeta").textContent = `${film.title}, ${film.director || "Unknown director"}, ${film.year}`;
+      const challengeFilms = films.filter(film => film.ai_review && film.review);
+      if (!challengeFilms.length) return;
+      const film = challengeFilms[Math.floor(Math.random() * challengeFilms.length)];
+      document.getElementById("randomReview").textContent = film.ai_review;
+      document.getElementById("randomMeta").textContent = `${film.title}, ${film.director || "Unknown director"}, ${film.year} · Can you beat this AI line?`;
     }
 
     function render() {
@@ -1168,20 +1169,25 @@
     }
 
     document.getElementById("randomButton").addEventListener("click", randomFilm);
-    document.getElementById("randomHeroButton").addEventListener("click", () => {
+    document.getElementById("todayChallengeButton").addEventListener("click", () => {
       randomFilm();
-      document.querySelector(".feature-card").scrollIntoView({ behavior: "smooth", block: "center" });
+      switchMode("beatAiMode");
+      document.getElementById("beat-ai").scrollIntoView({ behavior: "smooth", block: "start" });
     });
 
     searchInput.addEventListener("input", renderReviews);
 
-    document.querySelectorAll(".mode-tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".mode-tab").forEach(item => item.classList.remove("active"));
-        document.querySelectorAll(".mode-section").forEach(section => section.classList.remove("active"));
-        tab.classList.add("active");
-        document.querySelector(`[data-section="${tab.dataset.mode}"]`)?.classList.add("active");
+    function switchMode(mode) {
+      document.querySelectorAll(".mode-tab").forEach(item => {
+        item.classList.toggle("active", item.dataset.mode === mode);
       });
+      document.querySelectorAll(".mode-section").forEach(section => {
+        section.classList.toggle("active", section.dataset.section === mode);
+      });
+    }
+
+    document.querySelectorAll(".mode-tab").forEach(tab => {
+      tab.addEventListener("click", () => switchMode(tab.dataset.mode));
     });
 
     function formTags() {

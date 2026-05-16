@@ -125,6 +125,36 @@ function stars(rating) {
   return "★".repeat(count) + "☆".repeat(Math.max(0, 5 - count));
 }
 
+function formatRuntime(film) {
+  return film.runtime_minutes ? `${film.runtime_minutes} min` : "Unknown";
+}
+
+function formatRank(film) {
+  return film.rank ? `#${film.rank}` : "Unranked";
+}
+
+function filmGenres(film, limit = 4) {
+  const hidden = new Set(["canon", String(film.year // 10 * 10) + "s"]);
+  return (film.tags || []).filter(tag => !hidden.has(tag)).slice(0, limit);
+}
+
+function metadataGrid(film) {
+  return `
+    <div class="meta-grid">
+      <div class="meta-chip rank-chip"><strong>Rank</strong>${formatRank(film)}</div>
+      <div class="meta-chip"><strong>Runtime</strong>${formatRuntime(film)}</div>
+      <div class="meta-chip"><strong>Director</strong>${film.director || "Unknown"}</div>
+      <div class="meta-chip"><strong>Country</strong>${film.country || "Unknown"}</div>
+    </div>
+  `;
+}
+
+function genreLine(film) {
+  const genres = filmGenres(film);
+  if (!genres.length) return "";
+  return `<div class="genre-line">${genres.map(tag => `<span>${tag}</span>`).join("")}</div>`;
+}
+
 function isReviewed(film) {
   return film.status === "reviewed" || (film.review && !film.review.toLowerCase().includes("review pending"));
 }
@@ -298,7 +328,9 @@ function renderReviews() {
       <article class="review-card" id="${slug}">
         <div>
           <h3 class="film-title">${film.title}</h3>
-          <p class="film-meta">${film.director || "Unknown director"}, ${film.year} · ${film.country || "Unknown country"}</p>
+          <p class="film-meta">${film.year} · ${film.country || "Unknown country"} · ${film.director || "Unknown director"}</p>
+          ${metadataGrid(film)}
+          ${genreLine(film)}
           <div class="score-line">
             <span class="score-badge">Martin: ${scoreText(film.rating)}</span>
             <span class="stars" aria-label="${scoreText(film.rating)}">${stars(film.rating)}</span>
@@ -345,6 +377,8 @@ function renderChallenges() {
       <article class="line-card" data-challenge-slug="${slug}">
         <div>
           <h3>${film.title} (${film.year})</h3>
+          ${metadataGrid(film)}
+          ${genreLine(film)}
           <div class="score-line">
             <span class="score-badge secondary-score">Martin: ${scoreText(film.rating)}</span>
             <span class="stars" aria-label="${scoreText(film.rating)}">${stars(film.rating)}</span>
@@ -462,6 +496,10 @@ function renderPairings() {
         <div>
           <h3>${film.title} <span style="color:var(--muted);">through</span> ${comparison.title}</h3>
           <div class="line-meta">${pairing.angle}</div>
+          <div class="meta-grid">
+            <div class="meta-chip"><strong>Reviewed film</strong>${film.director || "Unknown"} · ${film.country || "Unknown"} · ${film.year}</div>
+            <div class="meta-chip"><strong>Comparison</strong>${comparison.director || "Unknown"} · ${comparison.country || "Unknown"} · ${comparison.year}</div>
+          </div>
           <blockquote>${pairing.text}</blockquote>
         </div>
         <div class="vote-row">
@@ -707,6 +745,35 @@ function downloadJson(filename, data) {
   URL.revokeObjectURL(url);
 }
 
+
+function modeForHash(hash) {
+  const clean = (hash || "").replace("#", "").toLowerCase();
+  if (clean === "reviews") return "reviewsMode";
+  if (clean === "pairings") return "pairingsMode";
+  if (clean === "beat-ai" || clean === "challenges" || clean === "") return "beatAiMode";
+  return null;
+}
+
+function applyHashMode() {
+  const mode = modeForHash(window.location.hash);
+  if (mode) switchMode(mode);
+}
+
+function bindHashNavigation() {
+  document.querySelectorAll('a[href^="/films/#"], a[href^="#"]').forEach(link => {
+    link.addEventListener("click", () => {
+      const href = link.getAttribute("href") || "";
+      const hash = href.includes("#") ? href.slice(href.indexOf("#")) : href;
+      const mode = modeForHash(hash);
+      if (mode) {
+        setTimeout(() => switchMode(mode), 0);
+      }
+    });
+  });
+
+  window.addEventListener("hashchange", applyHashMode);
+}
+
 function bindPublicEvents() {
   on("randomButton", "click", randomFilm);
 
@@ -852,6 +919,7 @@ function bindAdminEvents() {
 }
 
 function bindEvents() {
+  bindHashNavigation();
   bindPublicEvents();
   bindAdminEvents();
 }
@@ -859,5 +927,6 @@ function bindEvents() {
 loadData().then(() => {
   bindEvents();
   render();
+  applyHashMode();
   randomFilm();
 });

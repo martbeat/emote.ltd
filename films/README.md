@@ -166,3 +166,19 @@ sensory
 ```
 
 That is intentional. The point is to give visitors something to beat.
+
+
+## Update 06
+
+This fixes public hash navigation and makes more film metadata visible.
+
+Changes:
+
+- `/films/#reviews` now activates the Reviews tab
+- `/films/#pairings` now activates the Pairings tab
+- `/films/#beat-ai` activates Beat the AI
+- Navigation links call the mode switcher rather than only scrolling
+- Review cards show rank, runtime, director and country
+- Challenge cards show rank, runtime, director, country and genre-style tags
+- Pairing cards show director, country and year for both films
+- Asset references bumped to `?v=6`

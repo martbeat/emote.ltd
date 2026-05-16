@@ -99,3 +99,68 @@ footer{border-top:1px solid var(--line);margin-top:3rem;padding:2rem 0 0;color:v
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Update 06: richer metadata and hash navigation support */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.65rem 0 1rem;
+}
+
+.meta-chip {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255,255,255,0.035);
+  color: var(--muted);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.meta-chip strong {
+  display: block;
+  color: var(--accent);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.12rem;
+}
+
+.genre-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0.9rem;
+}
+
+.genre-line span {
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.76rem;
+}
+
+.rank-chip {
+  color: #17120f;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 800;
+}
+
+.public-meta-note {
+  color: var(--muted);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media(max-width:620px) {
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+}

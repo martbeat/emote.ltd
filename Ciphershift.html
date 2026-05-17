@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>CipherShift</title>
 <style>
     :root {
@@ -24,6 +24,11 @@
 
     * {
         box-sizing: border-box;
+    }
+
+    html,
+    body {
+        min-height: 100%;
     }
 
     body {
@@ -65,6 +70,7 @@
         color: var(--muted);
         max-width: 650px;
         font-size: 1rem;
+        line-height: 1.45;
     }
 
     .top-actions {
@@ -91,7 +97,7 @@
         border: 1px solid var(--line);
     }
 
-    button:hover {
+    button:hover:not(:disabled) {
         filter: brightness(1.08);
     }
 
@@ -252,7 +258,8 @@
         gap: 14px;
     }
 
-    .side h2, .side h3 {
+    .side h2,
+    .side h3 {
         margin: 0 0 10px;
     }
 
@@ -314,6 +321,15 @@
         font-size: .9rem;
     }
 
+    .dictionary-word {
+        background: rgba(15,23,42,.7);
+        border: 1px solid rgba(148,163,184,.16);
+        padding: 8px;
+        border-radius: 12px;
+        font-weight: 900;
+        text-align: center;
+    }
+
     .pill {
         display: inline-flex;
         align-items: center;
@@ -344,6 +360,8 @@
 
     .modal {
         max-width: 650px;
+        max-height: 90vh;
+        overflow: auto;
         background: #111827;
         border: 1px solid var(--line);
         border-radius: 24px;
@@ -359,6 +377,29 @@
         margin-bottom: 10px;
         color: #dbeafe;
         line-height: 1.45;
+    }
+
+    .dictionary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+        gap: 8px;
+        max-height: 50vh;
+        overflow: auto;
+        margin: 12px 0;
+        padding-right: 4px;
+    }
+
+    .debug {
+        display: none;
+        margin-top: 12px;
+        border: 1px solid rgba(239,68,68,.5);
+        background: rgba(127,29,29,.35);
+        color: #fecaca;
+        border-radius: 16px;
+        padding: 12px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: .82rem;
     }
 
     .shake {
@@ -382,6 +423,10 @@
     }
 
     @media (max-width: 820px) {
+        body {
+            padding: 12px;
+        }
+
         header {
             grid-template-columns: 1fr;
         }
@@ -409,6 +454,27 @@
             min-width: 54px;
         }
     }
+
+    @media (max-width: 390px) {
+        body {
+            padding: 10px;
+        }
+
+        .card {
+            padding: 12px;
+            border-radius: 20px;
+        }
+
+        .board,
+        .row {
+            gap: 7px;
+        }
+
+        .key {
+            min-width: 24px;
+            padding: 0 6px;
+        }
+    }
 </style>
 </head>
 <body>
@@ -419,10 +485,10 @@
             <p>A daily Wordle-like game where letters matter, but meaning matters too. Find the hidden five-letter concept in six guesses.</p>
         </div>
         <div class="top-actions">
-            <button class="secondary" id="dictionaryBtn">Dictionary</button>
-            <button class="secondary" id="howBtn">How to play</button>
-            <button class="secondary" id="newBtn">New puzzle</button>
-            <button id="shareBtn" disabled>Share</button>
+            <button class="secondary" id="dictionaryBtn" type="button">Dictionary</button>
+            <button class="secondary" id="howBtn" type="button">How to play</button>
+            <button class="secondary" id="newBtn" type="button">New puzzle</button>
+            <button id="shareBtn" type="button" disabled>Share</button>
         </div>
     </header>
 
@@ -444,8 +510,9 @@
             </div>
 
             <div class="board" id="board" aria-label="CipherShift board"></div>
-            <div class="message" id="message"></div>
+            <div class="message" id="message" role="status" aria-live="polite"></div>
             <div class="keyboard" id="keyboard" aria-label="Keyboard"></div>
+            <div class="debug" id="debugBox"></div>
         </section>
 
         <aside class="side">
@@ -473,9 +540,9 @@
     </main>
 </div>
 
-<div class="modal-backdrop" id="modal">
-    <div class="modal">
-        <h2>How to play CipherShift</h2>
+<div class="modal-backdrop" id="modal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="howTitle">
+        <h2 id="howTitle">How to play CipherShift</h2>
         <ul>
             <li>Guess the hidden five-letter concept in six tries.</li>
             <li>Green tiles are correct letters in the correct place.</li>
@@ -485,25 +552,26 @@
             <li>The Meaning Signal tells you whether your whole guess is conceptually close, even if the letters are not perfect.</li>
             <li>Use the hint trail carefully. Hints unlock as you spend guesses or get semantically closer.</li>
         </ul>
-        <button id="closeModal">Start playing</button>
+        <button id="closeModal" type="button">Start playing</button>
     </div>
 </div>
-<div class="modal-backdrop" id="dictionaryModal">
-    <div class="modal">
-        <h2>Prototype dictionary</h2>
-        <p class="small">These are all accepted guesses, similar to Wordle's visible dictionary approach.</p>
+
+<div class="modal-backdrop" id="dictionaryModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dictionaryTitle">
+        <h2 id="dictionaryTitle">Prototype dictionary</h2>
+        <p class="small">These are all accepted guesses. If the shared wordlist module loads, the game uses that. If not, it falls back to the bundled prototype words.</p>
         <div class="small" id="dictionarySource"></div>
         <div class="small" id="dictionaryFeedback"></div>
         <div class="small" id="dictionaryCount"></div>
-        <div class="history" id="dictionaryList" style="max-height:50vh;"></div>
-        <button id="closeDictionary">Close</button>
+        <div class="dictionary-grid" id="dictionaryList"></div>
+        <button id="closeDictionary" type="button">Close</button>
     </div>
 </div>
 
 <script type="module">
 window.__cipherShiftWordlistsModule = {
     loadWordLists: async () => {
-        const mod = await import("./js/wordlists.js?v=20260411-6");
+        const mod = await import("./js/wordlists.js?v=20260411-7");
         return mod.loadWordLists();
     }
 };
@@ -511,6 +579,8 @@ window.__cipherShiftWordlistsModule = {
 
 <script>
 (() => {
+    "use strict";
+
     const puzzles = [
         {
             answer: "STATE",
@@ -526,7 +596,7 @@ window.__cipherShiftWordlistsModule = {
         {
             answer: "TRUST",
             theme: "Relationships",
-            family: ["FAITH", "BELIEF", "TRUCE", "TRUTH", "LOYAL", "HONOR", "OATHS", "BONDS", "CLOSE", "SAFEY", "CIVIC", "VALUE", "VALID", "PROOF"],
+            family: ["FAITH", "BELIEF", "TRUCE", "TRUTH", "LOYAL", "HONOR", "OATHS", "BONDS", "CLOSE", "SAFER", "CIVIC", "VALUE", "VALID", "PROOF"],
             hints: [
                 "It is hard to build and easy to lose.",
                 "It matters in teams, institutions and friendships.",
@@ -537,7 +607,7 @@ window.__cipherShiftWordlistsModule = {
         {
             answer: "SHIFT",
             theme: "Change",
-            family: ["MOVEY", "ALTER", "DRIFT", "SWING", "TURNS", "PHASE", "ADAPT", "TREND", "BREAK", "RESET", "MORPH", "LEARN"],
+            family: ["MOVED", "ALTER", "DRIFT", "SWING", "TURNS", "PHASE", "ADAPT", "TREND", "BREAK", "RESET", "MORPH", "LEARN"],
             hints: [
                 "It can be sudden or gradual.",
                 "It is a change in position, pattern or emphasis.",
@@ -548,7 +618,7 @@ window.__cipherShiftWordlistsModule = {
         {
             answer: "FRAME",
             theme: "Interpretation",
-            family: ["LENSY", "ANGLE", "STORY", "MODEL", "SCENE", "IMAGE", "FOCUS", "VIEWY", "THINK", "SHAPE", "GUIDE", "LOGIC"],
+            family: ["LENSY", "ANGLE", "STORY", "MODEL", "SCENE", "IMAGE", "FOCUS", "VIEWS", "THINK", "SHAPE", "GUIDE", "LOGIC"],
             hints: [
                 "It shapes what people notice.",
                 "It can hold a picture or define a question.",
@@ -599,17 +669,16 @@ window.__cipherShiftWordlistsModule = {
                 "It has rhythm, structure and emotion.",
                 "It may involve notes, chords or basslines."
             ]
-        }
-        ,
+        },
         {
             answer: "PROOF",
             theme: "Reliability",
             family: ["FAITH", "TRUTH", "HONOR", "BONDS", "VALID", "LOYAL", "TRUST", "CIVIC", "OATHS", "RIGHT", "SAFER", "SOLID"],
             hints: [
-                "It is slow to build and quick to lose.",
-                "It sits between promise and proof.",
-                "Teams and institutions depend on it.",
-                "Without it, cooperation collapses."
+                "It supports a claim.",
+                "It turns assertion into evidence.",
+                "It matters in science, law and trust.",
+                "Without it, people are being asked to believe rather than know."
             ]
         },
         {
@@ -656,33 +725,32 @@ window.__cipherShiftWordlistsModule = {
                 "It grounds long-term thinking."
             ]
         }
-
     ];
 
     const fallbackPrototypeWords = [
         "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADAPT","ADMIT","ADOPT","ADULT","AFTER","AGAIN","AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIEN","ALIGN","ALIKE","ALIVE","ALLOW","ALONE","ALONG","ALTER","AMONG","ANGER","ANGLE","APPLE","APPLY","ARGUE","ARISE","ARRAY","ASIDE","ASSET","AUDIO","AUDIT","AVOID","AWARD","AWARE",
         "BAKES","BASIC","BASSY","BEAMS","BEATS","BEGIN","BELIEF","BENCH","BIRTH","BLACK","BLAME","BLEND","BLIND","BLOCK","BOARD","BONDS","BRAND","BREAD","BREAK","BRIEF","BRING","BROAD","BROKE","BROWN","BUILD",
-        "CAUSE","CHAIN","CHAIR","CHANGE","CHART","CHASE","CHECK","CHILD","CHOIR","CIVIC","CLAIM","CLASS","CLEAR","CLICK","CLOSE","CLOUD","COACH","CODES","COURT","COVER","CRASH","CREAM","CROWN","CRUMB","CURVE","CYCLE",
+        "CAUSE","CHAIN","CHAIR","CHART","CHASE","CHECK","CHILD","CHOIR","CIVIC","CLAIM","CLASS","CLEAR","CLICK","CLOSE","CLOUD","COACH","CODES","COURT","COVER","CRASH","CREAM","CROWN","CRUMB","CURVE","CYCLE",
         "DAILY","DANCE","DARKS","DAWNS","DEALT","DEATH","DELAY","DEPTH","DOING","DOUBT","DOUGH","DRAFT","DREAM","DRIFT","DRIVE",
         "EARLY","EARTH","EMPTY","ENJOY","ENTER","ENTRY","ERROR","EVENT","EVERY","EXACT","EXCEL","EXTRA",
         "FAITH","FALSE","FIELD","FINAL","FIRST","FIXED","FLASH","FLOUR","FOCUS","FORCE","FRAME","FRESH","FRONT",
-        "GHOST","GIANT","GIVEN","GLASS","GLOWY","GOVERN","GOVT","GRAIN","GRANT","GREAT","GREEN","GROUP","GUIDE",
+        "GHOST","GIANT","GIVEN","GLASS","GLOWY","GRAIN","GRANT","GREAT","GREEN","GROUP","GUIDE",
         "HAPPY","HEARD","HEART","HEAVY","HONOR","HOUSE","HUMAN",
         "IMAGE","INDEX","INPUT","ISSUE",
         "JOINT","JUDGE",
         "KNEAD","KNOWN",
-        "LABEL","LARGE","LATER","LEARN","LEGAL","LEVEL","LIGHT","LIMIT","LIVED","LOCAL","LOGIC","LOAFS","LOYAL",
-        "MAJOR","MAKER","MARCH","MATCH","MAYOR","MEDIA","MEANT","METAL","MODEL","MONEY","MORPH","MOUSE","MOVEY","MUSIC",
+        "LABEL","LARGE","LATER","LEARN","LEGAL","LEVEL","LIGHT","LIMIT","LINKS","LIVED","LOCAL","LOGIC","LOAFS","LOYAL",
+        "MAJOR","MAKER","MARCH","MATCH","MAYOR","MEDIA","MEANT","METAL","MODEL","MONEY","MORPH","MOUSE","MOVED","MUSIC",
         "NEEDS","NERVE","NEVER","NOISE","NOTES",
         "OATHS","OCEAN","OFFER","ORDER","OTHER",
         "PANEL","PARTY","PAUSE","PHASE","PIECE","PLACE","PLAIN","PLANT","POINT","POWER","PRESS","PROOF",
         "QUERY","QUICK",
-        "RADIO","RAISE","RANGE","REACT","REALM","RIGHT","RISES","RHYTH","ROYAL","RULES","RESET",
-        "SAFEY","SAYSO","SCALE","SCENE","SCOPE","SHIFT","SHAPE","SHARE","SHOUT","SIGHT","SMALL","SONGS","SOUND","SPARK","SPEAK","STAGE","STATE","STILL","STORY","SWING",
-        "TABLE","TAXES","TEMPO","THEIR","THEME","THINK","THIRD","TONEE","TRACE","TRACK","TREND","TRIAL","TRUST","TRUCE","TRUTH","TUNES","TURNS","TIDES","WAVES","STORM","RIVER","SAFER","SOLID","LINKS",
+        "RADIO","RAISE","RANGE","REACT","REALM","RIGHT","RISES","RHYTH","RIVER","ROYAL","RULES","RESET",
+        "SAFER","SAYSO","SCALE","SCENE","SCOPE","SHIFT","SHAPE","SHARE","SHOUT","SIGHT","SMALL","SOLID","SONGS","SOUND","SPARK","SPEAK","STAGE","STATE","STILL","STORM","STORY","SWING",
+        "TABLE","TAXES","TEMPO","THEIR","THEME","THINK","THIRD","TIDES","TONEE","TRACE","TRACK","TREND","TRIAL","TRUST","TRUCE","TRUTH","TUNES","TURNS",
         "UNDER","UNION","USING",
-        "VALID","VALUE","VIDEO","VIEWY","VISION","VOICE","VOTER",
-        "WATER","WHEAT","WHERE","WHOLE","WORDS","WORLD","WRITE","WRONG",
+        "VALID","VALUE","VIDEO","VIEWS","VISION","VOICE","VOTER",
+        "WATER","WAVES","WHEAT","WHERE","WHOLE","WORDS","WORLD","WRITE","WRONG",
         "YEAST","YIELD"
     ];
 
@@ -694,6 +762,7 @@ window.__cipherShiftWordlistsModule = {
 
     const maxRows = 6;
     const cols = 5;
+
     let puzzleIndex = getDailyIndex();
     let puzzle = puzzles[puzzleIndex];
     let current = "";
@@ -704,6 +773,7 @@ window.__cipherShiftWordlistsModule = {
     let keyStates = {};
     let dictionarySource = "Bundled prototype words";
     let dictionaryFeedback = [];
+    let practiceMode = false;
 
     const board = document.getElementById("board");
     const keyboard = document.getElementById("keyboard");
@@ -722,6 +792,7 @@ window.__cipherShiftWordlistsModule = {
     const dictionaryCount = document.getElementById("dictionaryCount");
     const dictionarySourceEl = document.getElementById("dictionarySource");
     const dictionaryFeedbackEl = document.getElementById("dictionaryFeedback");
+    const debugBox = document.getElementById("debugBox");
 
     function getDailyIndex() {
         const start = new Date("2026-05-09T00:00:00Z");
@@ -730,24 +801,38 @@ window.__cipherShiftWordlistsModule = {
         return Math.abs(days) % puzzles.length;
     }
 
+    function addPuzzleWordsToDictionary() {
+        puzzles.forEach(p => {
+            acceptedWords.add(p.answer);
+            p.family.forEach(word => {
+                if (/^[A-Z]{5}$/.test(word)) acceptedWords.add(word);
+            });
+        });
+    }
+
     async function hydrateDictionary() {
         dictionaryFeedback = [];
         dictionarySource = "Bundled prototype words";
+
         try {
             const moduleLoader = window.__cipherShiftWordlistsModule;
-            if (moduleLoader) {
-                const { loadWordLists } = await moduleLoader;
-                const loaded = await loadWordLists();
-                const sharedWords = (loaded?.answers || loaded?.words || loaded?.allWords || loaded?.WORDS || []);
+            if (moduleLoader && typeof moduleLoader.loadWordLists === "function") {
+                const loaded = await moduleLoader.loadWordLists();
+                const sharedWords = loaded?.answers || loaded?.words || loaded?.allWords || loaded?.WORDS || [];
                 const normalized = normalizeFiveLetterWords(sharedWords);
+
                 if (normalized.length) {
                     acceptedWords.clear();
                     normalized.forEach(word => acceptedWords.add(word));
                     dictionarySource = "Shared wordlist module";
                     dictionaryFeedback.push(`Loaded ${normalized.length} words from shared module.`);
+                    addPuzzleWordsToDictionary();
                     return;
                 }
+
                 dictionaryFeedback.push("Shared wordlist module returned no valid five-letter words.");
+            } else {
+                dictionaryFeedback.push("Shared wordlist module was not available.");
             }
         } catch (error) {
             dictionaryFeedback.push("Shared wordlist module failed; falling back to local cache.");
@@ -757,6 +842,7 @@ window.__cipherShiftWordlistsModule = {
         try {
             const cached = JSON.parse(localStorage.getItem("dwl:words:v1") || "[]");
             const normalizedCache = normalizeFiveLetterWords(cached);
+
             if (normalizedCache.length) {
                 acceptedWords.clear();
                 normalizedCache.forEach(word => acceptedWords.add(word));
@@ -769,6 +855,8 @@ window.__cipherShiftWordlistsModule = {
             dictionaryFeedback.push("Local cache parse failed; using bundled prototype words.");
             console.warn("CipherShift local cached dictionary unavailable; using bundled prototype words.", error);
         }
+
+        addPuzzleWordsToDictionary();
     }
 
     async function init() {
@@ -779,13 +867,15 @@ window.__cipherShiftWordlistsModule = {
         bestSignal = 0;
         keyStates = {};
         puzzle = puzzles[puzzleIndex];
-        puzzleName.textContent = puzzleIndex === getDailyIndex() ? "Daily" : "Practice";
+
+        puzzleName.textContent = practiceMode ? "Practice" : "Daily";
         themeName.textContent = puzzle.theme;
         bestSignalEl.textContent = "0%";
         meaningText.textContent = "Make a guess to read the signal.";
         meaningFill.style.width = "0%";
         message.textContent = "";
         shareBtn.disabled = true;
+
         renderBoard();
         renderKeyboard();
         renderHints();
@@ -795,46 +885,64 @@ window.__cipherShiftWordlistsModule = {
 
     function renderDictionary() {
         const words = [...acceptedWords].sort();
+
         dictionarySourceEl.textContent = `Current source: ${dictionarySource}`;
         dictionaryFeedbackEl.innerHTML = dictionaryFeedback.length
-            ? dictionaryFeedback.map(note => `• ${note}`).join("<br>")
+            ? dictionaryFeedback.map(note => `• ${escapeHtml(note)}`).join("<br>")
             : "No dictionary fallback messages.";
         dictionaryCount.textContent = `${words.length} accepted five-letter words`;
-        dictionaryList.innerHTML = words.map(word => `<div class="history-item"><strong>${word}</strong></div>`).join("");
+
+        dictionaryList.innerHTML = words
+            .map(word => `<div class="dictionary-word">${escapeHtml(word)}</div>`)
+            .join("");
     }
 
     function renderBoard() {
         board.innerHTML = "";
+
         for (let r = 0; r < maxRows; r++) {
             const rowEl = document.createElement("div");
             rowEl.className = "row";
+
             const guess = guesses[r]?.word || (r === row ? current : "");
             const evaluated = guesses[r];
+
             for (let c = 0; c < cols; c++) {
                 const tile = document.createElement("div");
                 tile.className = "tile";
                 tile.textContent = guess[c] || "";
+
                 if (guess[c]) tile.classList.add("filled");
+
                 if (evaluated) {
                     tile.classList.remove("filled");
                     tile.classList.add(evaluated.letters[c]);
-                    if (evaluated.conceptLetters.includes(guess[c])) tile.classList.add("concept");
+
+                    if (evaluated.conceptLetters.includes(guess[c])) {
+                        tile.classList.add("concept");
+                    }
                 }
+
                 rowEl.appendChild(tile);
             }
+
             board.appendChild(rowEl);
         }
     }
 
     function renderKeyboard() {
         keyboard.innerHTML = "";
+
         const rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+
         rows.forEach((letters, i) => {
             const rowEl = document.createElement("div");
             rowEl.className = "key-row";
+
             if (i === 2) rowEl.appendChild(makeKey("ENTER", "wide"));
             [...letters].forEach(l => rowEl.appendChild(makeKey(l)));
             if (i === 2) rowEl.appendChild(makeKey("⌫", "wide"));
+
             keyboard.appendChild(rowEl);
         });
     }
@@ -843,17 +951,28 @@ window.__cipherShiftWordlistsModule = {
         const el = document.createElement("div");
         el.className = `key ${extra}`;
         el.textContent = label;
+
         const state = keyStates[label];
+
         if (state) el.classList.add(state);
+
         el.addEventListener("click", () => handleKey(label));
+
         return el;
     }
 
     function renderHints() {
         hintList.innerHTML = "";
         addHint(`Theme: ${puzzle.theme}.`);
-        const hintCount = Math.min(4, Math.floor(row / 2) + (bestSignal >= 70 ? 1 : 0) + (bestSignal >= 85 ? 1 : 0));
-        for (let i = 0; i < hintCount; i++) addHint(puzzle.hints[i]);
+
+        const hintCount = Math.min(
+            4,
+            Math.floor(row / 2) + (bestSignal >= 70 ? 1 : 0) + (bestSignal >= 85 ? 1 : 0)
+        );
+
+        for (let i = 0; i < hintCount; i++) {
+            addHint(puzzle.hints[i]);
+        }
     }
 
     function addHint(text) {
@@ -864,6 +983,7 @@ window.__cipherShiftWordlistsModule = {
 
     function renderHistory() {
         history.innerHTML = "";
+
         if (!guesses.length) {
             const empty = document.createElement("div");
             empty.className = "small";
@@ -871,26 +991,35 @@ window.__cipherShiftWordlistsModule = {
             history.appendChild(empty);
             return;
         }
+
         guesses.forEach(g => {
             const item = document.createElement("div");
             item.className = "history-item";
-            item.innerHTML = `<strong>${g.word}</strong><span>${g.signalLabel}</span><span class="pill">${g.signal}%</span>`;
+            item.innerHTML = `<strong>${escapeHtml(g.word)}</strong><span>${escapeHtml(g.signalLabel)}</span><span class="pill">${g.signal}%</span>`;
             history.appendChild(item);
         });
     }
 
     function handleKey(key) {
         if (gameOver) return;
-        if (key === "ENTER") return submitGuess();
+
+        if (key === "ENTER") {
+            submitGuess();
+            return;
+        }
+
         if (key === "⌫" || key === "BACKSPACE") {
             current = current.slice(0, -1);
             renderBoard();
             return;
         }
+
         if (/^[A-Z]$/.test(key) && current.length < cols) {
             current += key;
             renderBoard();
+
             const tiles = board.children[row]?.children;
+
             if (tiles && tiles[current.length - 1]) {
                 tiles[current.length - 1].classList.add("pop");
                 setTimeout(() => tiles[current.length - 1]?.classList.remove("pop"), 160);
@@ -899,24 +1028,34 @@ window.__cipherShiftWordlistsModule = {
     }
 
     function submitGuess() {
-        if (current.length !== cols) return notice("Enter a five-letter word.");
+        if (current.length !== cols) {
+            notice("Enter a five-letter word.");
+            return;
+        }
+
         if (!acceptedWords.has(current)) {
             const miss = `${current} not in accepted list from ${dictionarySource}.`;
             dictionaryFeedback.unshift(miss);
             dictionaryFeedback = dictionaryFeedback.slice(0, 12);
             renderDictionary();
-            return notice(`Dictionary miss: ${current} is not in the active list (${dictionarySource}).`);
+            notice(`Dictionary miss: ${current} is not in the active list (${dictionarySource}).`);
+            return;
         }
 
         const evaluation = evaluate(current);
+
         guesses.push(evaluation);
         row++;
         bestSignal = Math.max(bestSignal, evaluation.signal);
+
         bestSignalEl.textContent = `${bestSignal}%`;
-        meaningText.innerHTML = `<strong>${evaluation.word}</strong>: ${evaluation.signal}% meaning signal. ${evaluation.signalLabel}`;
+        meaningText.innerHTML = `<strong>${escapeHtml(evaluation.word)}</strong>: ${evaluation.signal}% meaning signal. ${escapeHtml(evaluation.signalLabel)}`;
         meaningFill.style.width = `${evaluation.signal}%`;
+
         updateKeys(evaluation);
+
         current = "";
+
         renderBoard();
         renderKeyboard();
         renderHints();
@@ -957,12 +1096,16 @@ window.__cipherShiftWordlistsModule = {
         const answerCounts = {};
 
         for (let i = 0; i < cols; i++) {
-            if (word[i] === answer[i]) letters[i] = "correct";
-            else answerCounts[answer[i]] = (answerCounts[answer[i]] || 0) + 1;
+            if (word[i] === answer[i]) {
+                letters[i] = "correct";
+            } else {
+                answerCounts[answer[i]] = (answerCounts[answer[i]] || 0) + 1;
+            }
         }
 
         for (let i = 0; i < cols; i++) {
             if (letters[i] === "correct") continue;
+
             if (answerCounts[word[i]] > 0) {
                 letters[i] = "present";
                 answerCounts[word[i]]--;
@@ -970,6 +1113,7 @@ window.__cipherShiftWordlistsModule = {
         }
 
         const signal = semanticScore(word, letters);
+
         return {
             word,
             letters,
@@ -1009,21 +1153,31 @@ window.__cipherShiftWordlistsModule = {
     }
 
     function updateKeys(evaluation) {
-        const rank = { absent: 1, present: 2, correct: 3 };
+        const rank = { concept: 1, absent: 2, present: 3, correct: 4 };
+
         [...evaluation.word].forEach((letter, i) => {
-            const newState = evaluation.letters[i];
+            let newState = evaluation.letters[i];
+
+            if (evaluation.conceptLetters.includes(letter) && newState === "absent") {
+                newState = "concept";
+            }
+
             const oldState = keyStates[letter];
-            if (!oldState || rank[newState] > rank[oldState]) keyStates[letter] = newState;
-            if (evaluation.conceptLetters.includes(letter) && keyStates[letter] !== "correct") {
-                keyStates[letter] = keyStates[letter] === "present" ? "present" : "concept";
+
+            if (!oldState || rank[newState] > rank[oldState]) {
+                keyStates[letter] = newState;
             }
         });
     }
 
     function saveStats(won) {
+        if (practiceMode) return;
+
         const stats = JSON.parse(localStorage.getItem("ciphershiftStats") || "{\"played\":0,\"won\":0}");
+
         stats.played++;
         if (won) stats.won++;
+
         localStorage.setItem("ciphershiftStats", JSON.stringify(stats));
     }
 
@@ -1034,13 +1188,25 @@ window.__cipherShiftWordlistsModule = {
             if (g.conceptLetters.includes(g.word[i])) return "🟦";
             return "⬛";
         }).join("")).join("\n");
+
         const scoreLine = `Best meaning signal: ${bestSignal}%`;
         const result = guesses.some(g => g.word === puzzle.answer) ? `${row}/6` : "X/6";
+
         return `CipherShift ${result}\nTheme: ${puzzle.theme}\n${icons}\n${scoreLine}`;
     }
 
     async function share() {
         const text = shareText();
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ text });
+                return;
+            } catch (error) {
+                console.warn("Native share cancelled or failed.", error);
+            }
+        }
+
         try {
             await navigator.clipboard.writeText(text);
             notice("Copied result to clipboard.");
@@ -1049,28 +1215,88 @@ window.__cipherShiftWordlistsModule = {
         }
     }
 
-    document.addEventListener("keydown", e => {
-        const key = e.key.toUpperCase();
-        if (key === "ENTER" || key === "BACKSPACE" || /^[A-Z]$/.test(key)) handleKey(key);
-    });
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "\"": "&quot;",
+            "'": "&#039;"
+        }[char]));
+    }
 
-    document.getElementById("newBtn").addEventListener("click", async () => {
-        puzzleIndex = (puzzleIndex + 1) % puzzles.length;
-        await hydrateDictionary();
-        init();
-    });
+    function showDebug(error) {
+        if (!debugBox) return;
 
-    document.getElementById("howBtn").addEventListener("click", () => modal.classList.add("show"));
-    document.getElementById("closeModal").addEventListener("click", () => modal.classList.remove("show"));
-    modal.addEventListener("click", e => { if (e.target === modal) modal.classList.remove("show"); });
-    document.getElementById("dictionaryBtn").addEventListener("click", () => dictionaryModal.classList.add("show"));
-    document.getElementById("closeDictionary").addEventListener("click", () => dictionaryModal.classList.remove("show"));
-    dictionaryModal.addEventListener("click", e => { if (e.target === dictionaryModal) dictionaryModal.classList.remove("show"); });
-    shareBtn.addEventListener("click", share);
+        debugBox.style.display = "block";
+        debugBox.textContent = "CipherShift failed to initialise:\n" + (error?.stack || String(error));
+    }
+
+    function bindEvents() {
+        document.addEventListener("keydown", e => {
+            const key = e.key.toUpperCase();
+
+            if (key === "ENTER" || key === "BACKSPACE" || /^[A-Z]$/.test(key)) {
+                e.preventDefault();
+                handleKey(key);
+            }
+        });
+
+        document.getElementById("newBtn").addEventListener("click", async () => {
+            practiceMode = true;
+            puzzleIndex = (puzzleIndex + 1) % puzzles.length;
+            await hydrateDictionary();
+            await init();
+        });
+
+        document.getElementById("howBtn").addEventListener("click", () => {
+            modal.classList.add("show");
+            modal.setAttribute("aria-hidden", "false");
+        });
+
+        document.getElementById("closeModal").addEventListener("click", () => {
+            modal.classList.remove("show");
+            modal.setAttribute("aria-hidden", "true");
+        });
+
+        modal.addEventListener("click", e => {
+            if (e.target === modal) {
+                modal.classList.remove("show");
+                modal.setAttribute("aria-hidden", "true");
+            }
+        });
+
+        document.getElementById("dictionaryBtn").addEventListener("click", () => {
+            renderDictionary();
+            dictionaryModal.classList.add("show");
+            dictionaryModal.setAttribute("aria-hidden", "false");
+        });
+
+        document.getElementById("closeDictionary").addEventListener("click", () => {
+            dictionaryModal.classList.remove("show");
+            dictionaryModal.setAttribute("aria-hidden", "true");
+        });
+
+        dictionaryModal.addEventListener("click", e => {
+            if (e.target === dictionaryModal) {
+                dictionaryModal.classList.remove("show");
+                dictionaryModal.setAttribute("aria-hidden", "true");
+            }
+        });
+
+        shareBtn.addEventListener("click", share);
+    }
 
     (async () => {
-        await hydrateDictionary();
-        init();
+        try {
+            bindEvents();
+            await hydrateDictionary();
+            addPuzzleWordsToDictionary();
+            await init();
+        } catch (error) {
+            console.error(error);
+            showDebug(error);
+        }
     })();
 })();
 </script>

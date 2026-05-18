@@ -76,8 +76,8 @@ async function postJson(url, payload) {
 }
 
 async function loadData() {
-  const savedFilms = localStorage.getItem(STORAGE.films);
-  const savedPairings = localStorage.getItem(STORAGE.pairings);
+  films = await getJson(URLS.films, []);
+  pairings = await getJson(URLS.pairings, []);
 
   films = savedFilms ? safeJsonParse(savedFilms, []) : await getJson(URLS.films, []);
   pairings = savedPairings ? safeJsonParse(savedPairings, []) : await getJson(URLS.pairings, []);

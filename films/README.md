@@ -308,3 +308,36 @@ Design change:
 - Today’s Challenge clears blocking filters, switches to Beat the AI, expands the list and scrolls to the selected card.
 
 Assets are bumped to `?v=12`.
+
+
+## Update 13: Import curated film lists
+
+Adds:
+
+```text
+tools/import_film_lists.py
+data/imports/20c-film-template.csv
+data/imports/21c-best-picture-nominations-template.csv
+```
+
+Use this for uploaded lists such as:
+
+- 20c film
+- 21c Best Picture nominations
+- festival lists
+- personal watchlists
+
+Rows are merged into `data/films.json` by title + year slug. Existing films gain extra tags and list memberships. New films are appended.
+
+Example:
+
+```bash
+cd /var/www/emote.ltd/html/films
+cp /path/to/my-20c-list.csv data/imports/20c-film.csv
+cp /path/to/my-oscar-list.csv data/imports/21c-best-picture-nominations.csv
+
+python3 tools/import_film_lists.py --all --dry-run
+python3 tools/import_film_lists.py --all
+```
+
+Then copy the rebuilt `films.json` back into the repo and commit it.

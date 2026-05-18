@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beat the AI: A Film in a Sentence</title>
+  <link rel="stylesheet" href="/films/assets/style.css?v=12" />
+</head>
+<body data-admin="false">
+
+<header class="site-header">
+  <nav class="nav" aria-label="Main navigation">
+    <a class="brand" href="/films/">
+      <span class="brand-mark">◉</span>
+      <span class="brand-title">Beat the AI: A Film in a Sentence</span>
+    </a>
+    <div class="nav-links">
+      <a href="/films/#beat-ai">Beat the AI</a>
+      <a href="/films/#reviews">Reviews</a>
+      <a href="/films/#pairings">Pairings</a>
+      <a href="/films/admin.html">Admin</a>
+    </div>
+  </nav>
+</header>
+<main id="top">
+  <section class="hero" aria-label="Introduction">
+    <div class="hero-card">
+      <div>
+        <div class="eyebrow">One-line film reviews · AI challenges · film pairings</div>
+        <h1>The machine gets the first line.</h1>
+        <p>A compact film review site where AI writes the first sentence, people try to improve it and some reviews only make sense when one film is held up against another.</p>
+      </div>
+      <div class="hero-actions">
+        <button type="button" id="todayChallengeButton">Take today’s challenge</button>
+        <a class="button secondary" href="/films/#reviews">Browse the archive</a>
+        <a class="button secondary" href="/films/#pairings">Compare two films</a>
+      </div>
+    </div>
+    <aside class="feature-card" aria-label="Today’s challenge">
+      <div>
+        <div class="random-label">Today’s challenge</div>
+        <p class="random-review" id="randomReview">AI can summarise a film. Can you write the sentence that makes it live?</p>
+        <div class="random-meta" id="randomMeta">Choose a challenge below, then beat the machine’s first draft.</div>
+      </div>
+      <div>
+        <div class="stats" aria-label="Site statistics">
+          <div class="stat"><strong id="statFilms">0</strong><span>Films</span></div>
+          <div class="stat"><strong id="statTags">0</strong><span>Tags</span></div>
+          <div class="stat"><strong id="statAverageScore">0</strong><span>Avg score</span></div>
+        </div>
+        <button type="button" class="secondary" id="randomButton">Another challenge</button>
+      </div>
+    </aside>
+  </section>
+  <div class="mode-tabs" aria-label="Site modes">
+    <button type="button" class="mode-tab active" data-mode="beatAiMode">Beat the AI</button>
+    <button type="button" class="mode-tab" data-mode="reviewsMode">Reviews</button>
+    <button type="button" class="mode-tab" data-mode="pairingsMode">Pairings</button>
+  </div>
+  <div class="system-strip" id="systemStatus"></div>
+  <section class="toolbar" aria-label="Review controls">
+    <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search title, director, country, tag or sentence..." autocomplete="off" /></div>
+    <div class="tag-row" id="tagRow" aria-label="Tags"></div>
+  </section>
+  <section class="filter-bar" aria-label="Filters and sorting">
+    <div class="filter-field"><label for="statusFilter">Status</label><select id="statusFilter"><option value="all">All</option><option value="reviewed">Reviewed</option><option value="pending">Pending</option></select></div>
+    <div class="filter-field"><label for="scoreFilter">Minimum score</label><select id="scoreFilter"><option value="0">Any score</option><option value="10">10 / 10</option><option value="9">9+</option><option value="8">8+</option><option value="7">7+</option><option value="6">6+</option></select></div>
+    <div class="filter-field"><label for="sortSelect">Sort</label><select id="sortSelect"><option value="score-desc">Score high to low</option><option value="year-desc">Newest first</option><option value="year-asc">Oldest first</option><option value="title-asc">Title A to Z</option><option value="recent-update">Recently updated</option></select></div>
+  </section>
+  <section id="reviews" class="mode-section" data-section="reviewsMode">
+    <div class="section-title"><div><div class="eyebrow">The archive</div><h2>Reviews</h2></div><p id="resultCount">Showing all films</p></div>
+    <div class="review-grid" id="reviewGrid"></div><div class="empty" id="emptyState">No films match that search.</div>
+  </section>
+  <section id="beat-ai" class="mode-section active" data-section="beatAiMode">
+    <div class="section-title"><div><div class="eyebrow">Challenge mode</div><h2>Beat the AI</h2></div><p>The machine writes the competent sentence. The challenge is to write the memorable one.</p></div>
+    <div class="challenge-panel"><div class="challenge-grid" id="challengeGrid"></div><div class="load-more-wrap" id="loadMoreChallenges"><button type="button" class="secondary" id="loadMoreChallengesButton">Load more challenges</button></div></div>
+  </section>
+  <section id="pairings" class="mode-section" data-section="pairingsMode">
+    <div class="section-title"><div><div class="eyebrow">Relational criticism</div><h2>Film against film</h2></div><p>One film reviewed in the light of another.</p></div>
+    <div class="pairing-panel"><div class="pairing-grid" id="pairingGrid"></div></div>
+  </section>
+  <section id="collections">
+    <div class="section-title"><div><div class="eyebrow">Ways in</div><h2>Collections</h2></div><p>These become proper generated pages later.</p></div>
+    <div class="tag-row" id="collectionRow"></div>
+  </section>
+
+  <div class="public-note" id="modeNotice"></div>
+  <footer><p>A prototype for one-line cinema notes, AI review challenges and comparative film pairings.</p></footer>
+</main>
+<script src="/films/assets/app.js?v=12"></script>
+
+</body>
+</html>

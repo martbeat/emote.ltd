@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · Beat the AI: A Film in a Sentence</title>
+  <link rel="stylesheet" href="/films/assets/style.css?v=12" />
+</head>
+<body data-admin="true">
+<header class="site-header">
+  <nav class="nav" aria-label="Main navigation">
+    <a class="brand" href="/films/admin.html">
+      <span class="brand-mark">◉</span>
+      <span class="brand-title">Film admin</span>
+    </a>
+    <div class="nav-links">
+      <a href="/films/">Public site</a>
+      <a href="#moderation">Moderation</a>
+      <a href="#filmEditor">Edit films</a>
+      <a href="#pairingEditor">Pairings</a>
+      <a href="#exportData">Export</a>
+    </div>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero admin-hero" aria-label="Admin dashboard">
+    <div class="hero-card admin-hero">
+      <div>
+        <div class="eyebrow">Protected admin</div>
+        <h1>Moderate first. Publish deliberately.</h1>
+        <p>Review submitted lines, edit champion reviews, manage film pairings and export clean JSON back into the static site.</p>
+      </div>
+      <div class="hero-actions">
+        <a class="button" href="#moderation">Review submissions</a>
+        <a class="button secondary" href="/films/">Preview public site</a>
+      </div>
+    </div>
+
+    <aside class="feature-card" aria-label="Admin status">
+      <div>
+        <div class="random-label">System status</div>
+        <p class="random-review" id="randomReview">Loading admin status...</p>
+        <div class="random-meta" id="randomMeta">Checking server JSON, API state and pending submissions.</div>
+      </div>
+      <div class="stats" aria-label="Admin statistics">
+        <div class="stat"><strong id="adminPendingCount">0</strong><span>Pending</span></div>
+        <div class="stat"><strong id="adminFilmCount">0</strong><span>Films</span></div>
+        <div class="stat"><strong id="adminPairingCount">0</strong><span>Pairings</span></div>
+      </div>
+    </aside>
+  </section>
+
+  <div class="system-strip" id="systemStatus"></div>
+
+  <section class="admin-dashboard" aria-label="Admin shortcuts">
+    <a class="admin-jump" href="#moderation"><strong>Moderation</strong>Approve or reject submitted human lines.</a>
+    <a class="admin-jump" href="#filmEditor"><strong>Edit films</strong>Update score, AI draft and champion line.</a>
+    <a class="admin-jump" href="#pairingEditor"><strong>Pairings</strong>Add film-against-film reviews.</a>
+    <a class="admin-jump" href="#exportData"><strong>Export</strong>Download JSON files for publishing.</a>
+  </section>
+
+  <section id="moderation" class="admin-panel">
+    <div class="section-title" style="margin-top:0;">
+      <div>
+        <div class="eyebrow">Moderation</div>
+        <h2>Review submitted lines</h2>
+      </div>
+      <p>Promote good lines to champion status or remove weak submissions.</p>
+    </div>
+    <div class="moderation-grid" id="moderationGrid"></div>
+  </section>
+
+  <section id="filmEditor" class="admin-panel">
+    <div class="section-title" style="margin-top:0;">
+      <div>
+        <div class="eyebrow">Film editor</div>
+        <h2>Edit the challenge data</h2>
+      </div>
+      <p>These edits are local until you export and deploy the JSON.</p>
+    </div>
+
+    <div class="admin-split-note" aria-label="Data model preview">
+      <div class="data-card"><strong>films.json</strong>Stable film metadata, score, AI line and champion line.</div>
+      <div class="data-card"><strong>submissions.json</strong>Pending human lines submitted by visitors.</div>
+      <div class="data-card"><strong>votes.json</strong>AI, human and pairing votes.</div>
+      <div class="data-card"><strong>pairings.json</strong>Film-against-film lines.</div>
+    </div>
+
+    <form id="addFilmForm" class="admin-grid">
+      <input type="hidden" id="editingSlug" />
+      <div class="field"><label for="titleInput">Title</label><input id="titleInput" required placeholder="e.g. Los olvidados" /></div>
+      <div class="field"><label for="yearInput">Year</label><input id="yearInput" required type="number" min="1888" max="2100" placeholder="1950" /></div>
+      <div class="field"><label for="directorInput">Director</label><input id="directorInput" placeholder="Luis Buñuel" /></div>
+      <div class="field"><label for="countryInput">Country</label><input id="countryInput" placeholder="Mexico" /></div>
+      <div class="field"><label for="ratingInput">My score</label><select id="ratingInput"><option value="10">10 / 10</option><option value="9">9 / 10</option><option value="8">8 / 10</option><option value="7">7 / 10</option><option value="6">6 / 10</option><option value="5">5 / 10</option><option value="4">4 / 10</option><option value="3">3 / 10</option><option value="2">2 / 10</option><option value="1">1 / 10</option><option value="0">Unscored</option></select></div>
+      <div class="field"><label for="tagsInput">Tags</label><input id="tagsInput" placeholder="mexico; surrealism; poverty" /></div>
+      <div class="field full"><label for="aiReviewInput">AI first draft</label><input id="aiReviewInput" maxlength="220" placeholder="A powerful drama about poverty and childhood in Mexico City." /><span class="admin-inline-note">This original AI line stays visible even when the human champion improves.</span></div>
+      <div class="field full"><label for="aiRematchInput">AI rematch</label><input id="aiRematchInput" maxlength="240" placeholder="Optional second AI attempt after a human champion wins." /><span class="admin-inline-note">Use this for a later AI comeback. It should not replace the original AI line.</span></div>
+      <div class="field full"><label for="reviewInput">Human champion line</label><input id="reviewInput" required maxlength="220" placeholder="A social-realist nightmare with Buñuel’s fingerprints on the glass." /></div>
+      <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;"><button type="submit" id="saveFilmButton">Add to page</button><button type="button" class="secondary" id="generateRematchButton">Draft AI rematch</button><button type="button" class="secondary" id="cancelEditButton">Cancel edit</button><button type="button" class="secondary" id="clearLocalButton">Reset local data</button></div>
+    </form>
+  </section>
+
+  <section class="toolbar" aria-label="Admin search controls">
+    <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search films before editing..." autocomplete="off" /></div>
+    <div class="tag-row" id="tagRow" aria-label="Tags"></div>
+  </section>
+
+  <section class="filter-bar" aria-label="Filters and sorting">
+    <div class="filter-field"><label for="statusFilter">Status</label><select id="statusFilter"><option value="all">All</option><option value="reviewed">Reviewed</option><option value="pending">Pending</option></select></div>
+    <div class="filter-field"><label for="scoreFilter">Minimum score</label><select id="scoreFilter"><option value="0">Any score</option><option value="10">10 / 10</option><option value="9">9+</option><option value="8">8+</option><option value="7">7+</option><option value="6">6+</option></select></div>
+    <div class="filter-field"><label for="sortSelect">Sort</label><select id="sortSelect"><option value="score-desc">Score high to low</option><option value="year-desc">Newest first</option><option value="year-asc">Oldest first</option><option value="title-asc">Title A to Z</option><option value="recent-update">Recently updated</option></select></div>
+  </section>
+
+  <section id="reviews" class="mode-section active" data-section="reviewsMode">
+    <div class="section-title"><div><div class="eyebrow">Editable archive</div><h2>Films</h2></div><p id="resultCount">Showing all films</p></div>
+    <div class="review-grid" id="reviewGrid"></div>
+    <div class="empty" id="emptyState">No films match that search.</div>
+  </section>
+
+  <section id="pairingEditor" class="admin-panel">
+    <div class="section-title" style="margin-top:0;">
+      <div>
+        <div class="eyebrow">Pairing editor</div>
+        <h2>Add film-against-film line</h2>
+      </div>
+      <p>The second dropdown now avoids choosing the same film by default.</p>
+    </div>
+    <form id="pairingForm" class="pairing-editor-grid">
+      <div class="field"><label for="pairingFilmSelect">Film being reviewed</label><select id="pairingFilmSelect" required></select></div>
+      <div class="field"><label for="comparisonFilmSelect">Seen through</label><select id="comparisonFilmSelect" required></select></div>
+      <div class="field full"><label for="pairingAngleInput">Angle</label><input id="pairingAngleInput" placeholder="modernity and obsolescence" /></div>
+      <div class="field full"><label for="pairingTextInput">Pairing line</label><input id="pairingTextInput" required maxlength="240" placeholder="Chaplin turns modernity into slapstick; Peckinpah turns it into a funeral." /></div>
+      <div class="field full" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center;"><button type="submit">Add pairing</button><span class="vote-count">Saved locally and included in the data bundle.</span></div>
+    </form>
+  </section>
+
+  <section id="pairings" class="mode-section active" data-section="pairingsMode">
+    <div class="section-title"><div><div class="eyebrow">Existing pairings</div><h2>Film against film</h2></div><p>Current comparative one-line reviews.</p></div>
+    <div class="pairing-panel"><div class="pairing-grid" id="pairingGrid"></div></div>
+  </section>
+
+  <section id="exportData" class="admin-panel">
+    <div class="section-title" style="margin-top:0;">
+      <div>
+        <div class="eyebrow">Import and export</div>
+        <h2>Move data in and out</h2>
+      </div>
+      <p>Use these files to publish or restore the static data.</p>
+    </div>
+    <div class="export-grid"><button type="button" class="secondary" id="downloadJsonButton">films.json</button><button type="button" class="secondary" id="downloadReviewsButton">reviews.json</button><button type="button" class="secondary" id="downloadChallengesButton">ai-challenges.json</button><button type="button" class="secondary" id="downloadPairingsButton">pairings.json</button><button type="button" id="downloadBundleButton">bundle.json</button></div>
+    <div class="field full" style="margin-top:1rem;"><label for="importBundleInput">Import bundle JSON</label><textarea id="importBundleInput" placeholder="Paste film-review-data-bundle.json here to restore films, pairings, votes and submissions."></textarea></div>
+    <div style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; margin-top:.75rem;"><button type="button" class="secondary" id="importBundleButton">Import bundle</button><span class="import-status" id="importStatus">Nothing imported yet.</span></div>
+  </section>
+
+  <section id="beat-ai" class="mode-section" data-section="beatAiMode" style="display:none;">
+    <div class="challenge-panel"><div class="challenge-grid" id="challengeGrid"></div><div class="load-more-wrap" id="loadMoreChallenges"><button type="button" class="secondary" id="loadMoreChallengesButton">Load more challenges</button></div></div>
+  </section>
+
+  <section id="collections" style="display:none;">
+    <div class="tag-row" id="collectionRow"></div>
+  </section>
+
+  <div class="public-note" id="modeNotice"></div>
+  <footer><p>Admin dashboard for Beat the AI: A Film in a Sentence.</p></footer>
+</main>
+<script src="/films/assets/app.js?v=12"></script>
+</body>
+</html>

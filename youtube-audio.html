@@ -1,0 +1,47 @@
+sudo tee /var/www/html/youtube-audio.html >/dev/null <<'HTML'
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Audio Downloader</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 760px;
+      margin: 2rem auto;
+      line-height: 1.45;
+    }
+    input {
+      width: 100%;
+      padding: .7rem;
+      font-size: 1rem;
+    }
+    button {
+      margin-top: 1rem;
+      padding: .7rem 1rem;
+      font-size: 1rem;
+    }
+    .note {
+      background: #f5f5f5;
+      padding: 1rem;
+      border-radius: .5rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Audio Downloader</h1>
+
+  <form method="post" action="/cgi-bin/ytaudio-start.py">
+    <label for="url">YouTube URL</label>
+    <input id="url" name="url" type="url" required placeholder="https://www.youtube.com/watch?v=...">
+    <button type="submit">Download audio</button>
+  </form>
+
+  <div class="note">
+    Use this only for content you own, have permission to download or are otherwise allowed to use.
+    The result will be saved as an m4a audio file.
+  </div>
+</body>
+</html>
+HTML

@@ -1,0 +1,10 @@
+
+# Runtime film backups
+films/data/backups/*.json
+
+# Generated knowledgebase output
+knowledge/
+
+# Runtime film backups
+films/data/backups/*.json
+

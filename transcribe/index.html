@@ -189,10 +189,15 @@ function renderRecentJobs() {
     jobs.forEach(job => {
         const li = document.createElement("li");
 
-        const button = document.createElement("button");
-        button.textContent = "Open";
-        button.className = "small";
-        button.onclick = () => startPolling(job.id);
+        const openButton = document.createElement("button");
+        openButton.textContent = "Open";
+        openButton.className = "small";
+        openButton.onclick = () => startPolling(job.id);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete link";
+        deleteButton.className = "small";
+        deleteButton.onclick = () => deleteRecentJob(job.id);
 
         const span = document.createElement("span");
 
@@ -204,12 +209,12 @@ function renderRecentJobs() {
             " — " + started +
             " — " + job.id;
 
-        li.appendChild(button);
+        li.appendChild(openButton);
+        li.appendChild(deleteButton);
         li.appendChild(span);
         list.appendChild(li);
     });
 }
-
 function parseStatusResponse(text) {
     const lines = text.split(/\r?\n/);
 
@@ -421,6 +426,30 @@ jobInfo.innerText = filename
     pollTimer = setInterval(poll, 3000);
 }
 
+function deleteRecentJob(jobId) {
+    let jobs = getRecentJobs();
+
+    jobs = jobs.filter(j => j.id !== jobId);
+    saveRecentJobs(jobs);
+
+    if (getActiveJob() === jobId) {
+        clearActiveJob();
+        localStorage.removeItem("transcribe.activeFilename");
+
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+
+        document.getElementById("status").innerText = "Deleted saved job link.";
+        document.getElementById("job-info").innerText = "";
+        document.getElementById("result").innerText = "";
+        document.getElementById("progress-wrap").style.display = "none";
+    }
+
+    renderRecentJobs();
+}
+    
 window.addEventListener("load", () => {
     renderRecentJobs();
 

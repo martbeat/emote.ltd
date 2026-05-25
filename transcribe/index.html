@@ -122,9 +122,14 @@ let pollTimer = null;
 const STORAGE_ACTIVE_JOB = "transcribe.activeJobId";
 const STORAGE_RECENT_JOBS = "transcribe.recentJobs";
 
-function saveActiveJob(jobId) {
+function saveActiveJob(jobId, filename = "") {
     localStorage.setItem(STORAGE_ACTIVE_JOB, jobId);
-    addRecentJob(jobId);
+
+    if (filename) {
+        localStorage.setItem("transcribe.activeFilename", filename);
+    }
+
+    addRecentJob(jobId, filename);
 }
 
 function getActiveJob() {
@@ -147,14 +152,21 @@ function saveRecentJobs(jobs) {
     localStorage.setItem(STORAGE_RECENT_JOBS, JSON.stringify(jobs.slice(0, 10)));
 }
 
-function addRecentJob(jobId) {
+function addRecentJob(jobId, filename = "") {
     let jobs = getRecentJobs();
+
+    const existing = jobs.find(j => j.id === jobId);
+
+    if (!filename && existing && existing.filename) {
+        filename = existing.filename;
+    }
 
     jobs = jobs.filter(j => j.id !== jobId);
 
     jobs.unshift({
         id: jobId,
-        started: new Date().toLocaleString()
+        filename: filename || "(unknown file)",
+        started: existing?.started || new Date().toLocaleString()
     });
 
     saveRecentJobs(jobs);
@@ -183,7 +195,14 @@ function renderRecentJobs() {
         button.onclick = () => startPolling(job.id);
 
         const span = document.createElement("span");
-        span.textContent = " " + job.id + " (" + job.started + ")";
+
+        const filename = job.filename || "(unknown file)";
+        const started = job.started || "unknown time";
+
+        span.textContent =
+            " " + filename +
+            " — " + started +
+            " — " + job.id;
 
         li.appendChild(button);
         li.appendChild(span);
@@ -293,8 +312,8 @@ async function go() {
         return;
     }
 
-    saveActiveJob(jobId);
-    startPolling(jobId);
+saveActiveJob(jobId, file.name);
+startPolling(jobId);
 }
 
 function resumeLatestJob() {
@@ -335,7 +354,12 @@ function startPolling(jobId) {
     saveActiveJob(jobId);
 
     statusBox.innerText = "Resuming job...";
-    jobInfo.innerText = "Job ID: " + jobId;
+const recent = getRecentJobs().find(j => j.id === jobId);
+const filename = recent?.filename || localStorage.getItem("transcribe.activeFilename") || "";
+
+jobInfo.innerText = filename
+    ? "File: " + filename + " | Job ID: " + jobId
+    : "Job ID: " + jobId;
 
     async function poll() {
         try {

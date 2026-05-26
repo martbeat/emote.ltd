@@ -13,6 +13,11 @@
     code, pre { background: #f5f5f5; padding: .2rem .4rem; border-radius: 6px; }
     pre { overflow:auto; padding: 1rem; }
     button { padding: .7rem 1rem; border-radius: 8px; border: 1px solid #333; cursor: pointer; }
+    table { border-collapse: collapse; width: 100%; margin-top: .5rem; }
+th, td { border: 1px solid #ddd; padding: .5rem; text-align: left; vertical-align: top; }
+th { background: #f5f5f5; }
+td code { word-break: break-word; }
+details summary { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -27,7 +32,73 @@
   <p>In Chrome or Edge, click the icon next to the address bar, then Connection is secure, then Certificate is valid.</p>
   <p>If the issuer says your employer, council, Zscaler, Forcepoint, Netskope, Sophos, Fortinet, Palo Alto or similar, SSL inspection is likely.</p>
   </div>
+<div class="card">
+  <h2>Expected certificate baseline for emote.ltd</h2>
+  <p>
+    Use this as the simple comparison point when checking from a work laptop, work VPN or work Wi-Fi.
+    These details are public certificate details, not secrets.
+  </p>
 
+  <table>
+    <tr><th>Field</th><th>Expected value</th></tr>
+    <tr><td>Issued to</td><td><code>emote.ltd</code></td></tr>
+    <tr><td>Issued by</td><td><code>Google Trust Services</code></td></tr>
+    <tr><td>Issuer common name</td><td><code>WE1</code></td></tr>
+    <tr><td>Valid hostnames</td><td><code>emote.ltd</code>, <code>*.emote.ltd</code></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>What would suggest SSL inspection?</h2>
+  <p>
+    The strongest sign is that the certificate issuer changes when you move from mobile data to a work device,
+    work VPN or work Wi-Fi.
+  </p>
+
+  <table>
+    <tr><th>What you see</th><th>What it means</th></tr>
+    <tr>
+      <td><code>Google Trust Services</code> / <code>WE1</code></td>
+      <td>Likely normal for this site.</td>
+    </tr>
+    <tr>
+      <td>Your employer, council, Zscaler, Forcepoint, Netskope, Sophos, Fortinet, Palo Alto, Cisco Umbrella or another internal certificate authority</td>
+      <td>Strong evidence of SSL inspection.</td>
+    </tr>
+    <tr>
+      <td>A different certificate fingerprint but the same public issuer</td>
+      <td>May be normal certificate rotation. Check the issuer first.</td>
+    </tr>
+  </table>
+</div>
+
+<details class="card">
+  <summary><strong>Advanced public certificate details</strong></summary>
+  <p>
+    These are not secret, but they are usually only needed if you are doing a precise comparison.
+  </p>
+
+  <table>
+    <tr><th>Field</th><th>Mobile-data baseline observed</th></tr>
+    <tr>
+      <td>Certificate SHA-256</td>
+      <td><code>8F 73 71 28 EB 42 00 C6 E3 6F 28 2B 7E 4F C1 E5 01 95 EC AE 3C BF 8D 7C B1 B7 D0 3B 6A BF EB 5D</code></td>
+    </tr>
+    <tr>
+      <td>Public key SHA-256</td>
+      <td><code>62 DA 44 25 15 9B 8F 74 58 B1 DF 47 15 21 15 A8 AE BA 64 8E F9 F4 CD E1 5A 7B 24 3F 5C 45 16 1D</code></td>
+    </tr>
+    <tr>
+      <td>Observed validity</td>
+      <td><code>29 Mar 2026</code> to <code>27 Jun 2026</code></td>
+    </tr>
+  </table>
+
+  <p>
+    A changed fingerprint alone does not prove inspection, because public certificates can rotate.
+    A changed issuer, especially to an employer or security vendor, is the more important signal.
+  </p>
+</details>
   <button onclick="runTests()">Run tests</button>
 
   <div id="results"></div>

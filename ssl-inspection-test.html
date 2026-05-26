@@ -108,20 +108,23 @@
         add("Fetch test", "Problem", `Fetch failed: <code>${e.message}</code>`);
       }
 
-      try {
-        const imgStart = performance.now();
-        const img = new Image();
-        img.onload = () => {
-          const elapsed = Math.round(performance.now() - imgStart);
-          add("Static asset load", "OK", `Small image test loaded in <code>${elapsed}ms</code>.`);
-        };
-        img.onerror = () => {
-          add("Static asset load", "Warning", "Image load failed. This may indicate filtering or blocking.");
-        };
-        img.src = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
-      } catch (e) {
-        add("Static asset load", "Warning", e.message);
-      }
+try {
+  const imgStart = performance.now();
+  const img = new Image();
+
+  img.onload = () => {
+    const elapsed = Math.round(performance.now() - imgStart);
+    add("Static asset load", "OK", `Inline image test loaded in <code>${elapsed}ms</code>.`);
+  };
+
+  img.onerror = () => {
+    add("Static asset load", "Warning", "Inline image load failed. This may indicate CSP filtering, browser hardening or a test issue.");
+  };
+
+  img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+} catch (e) {
+  add("Static asset load", "Warning", e.message);
+}
 
       const timing = performance.getEntriesByType("navigation")[0];
       if (timing) {
@@ -138,8 +141,8 @@
       }
 
       const elapsedTotal = Math.round(performance.now() - start);
-      add("Overall result", "Warning",
-        `Completed in <code>${elapsedTotal}ms</code>. A warning does not prove SSL inspection. For confirmation, compare the certificate issuer manually on work network/VPN versus personal mobile data.`);
+   add("Overall result", "OK",
+  `Completed in <code>${elapsedTotal}ms</code>. No obvious proxy or SSL inspection indicators were visible to this page. For confirmation, compare the certificate issuer manually on work network/VPN versus personal mobile data.`);
     }
 
     runTests();

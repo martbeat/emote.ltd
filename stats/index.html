@@ -82,14 +82,43 @@
   .list li {
     margin: 4px 0;
   }
+
+  .section-intro {
+    margin: 6px 0 18px;
+    color: #555;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e7e7e7;
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .story-list {
+    margin: 10px 0 0;
+    padding-left: 20px;
+  }
+
+  .story-list li {
+    margin: 8px 0;
+  }
 </style>
 </head>
 <body>
 
 <h1>emote analytics</h1>
+<p class="section-intro">A weekly story of traffic quality, content engagement, and what people actually did on the site.</p>
+
+<div id="story">
+  <h2>At a glance</h2>
+  <div class="card">
+    <ul class="story-list" id="weekly-story"></ul>
+  </div>
+</div>
 
 <div id="weekly">
-  <h2>Weekly Overview</h2>
+  <h2>Traffic health</h2>
   <div class="range" id="weekly-range"></div>
   <div class="grid">
     <div class="metric">
@@ -97,7 +126,7 @@
       <div class="value" id="weekly-requests">–</div>
     </div>
     <div class="metric">
-      <div class="label label-muted">Unique Visitors (raw)</div>
+      <div class="label label-muted">Unique Visitors</div>
       <div class="value" id="weekly-visitors">–</div>
     </div>
     <div class="metric">
@@ -107,7 +136,7 @@
     <div class="metric">
       <div class="label">Likely Engaged Visitors</div>
       <div class="value" id="weekly-engaged-visitors">–</div>
-      <div class="hint">Visitors with >1 and <10 requests</div>
+      <div class="hint">Visitors with between 2 and 9 requests</div>
     </div>
     <div class="metric">
       <div class="label">PDF Downloads This Week</div>
@@ -116,7 +145,7 @@
 
   </div>
 
-  <h3>PDF files downloaded</h3>
+  <h3>PDF engagement</h3>
   <div class="hint">Only successful HTTP 200 downloads are counted.</div>
   <ul class="list" id="weekly-pdf-files"></ul>
 
@@ -126,13 +155,13 @@
   <h3>PDF download referrer URLs</h3>
   <ul class="list" id="weekly-pdf-referrers"></ul>
 
-  <h3>Where visitors come from</h3>
+  <h3>Acquisition sources</h3>
   <ul class="list" id="weekly-referrers"></ul>
 
-  <h3>Where engaged visitors browse from</h3>
+  <h3>Engaged visitor locations</h3>
   <ul class="list" id="weekly-locations"></ul>
 
-  <h3>Bot signals</h3>
+  <h3>Traffic quality signals</h3>
   <div class="grid">
     <div class="metric">
       <div class="label">Direct / Unknown Referrer Share</div>
@@ -159,7 +188,7 @@
 </div>
 
 <div id="games">
-  <h2>Games</h2>
+  <h2>Game engagement</h2>
   <div class="range" id="games-range"></div>
   <div class="grid">
     <div class="metric">
@@ -187,7 +216,7 @@
 </div>
 
 <div id="reading">
-  <h2>Reading</h2>
+  <h2>Reading engagement</h2>
   <div class="range" id="reading-range"></div>
   <div class="grid">
     <div class="metric">
@@ -216,7 +245,7 @@
 </div>
 
 <div id="humans">
-  <h2>Humans</h2>
+  <h2>Likely human traffic</h2>
   <div class="range" id="humans-range"></div>
   <div class="grid">
     <div class="metric">
@@ -343,6 +372,17 @@ function isSuccessful200(row) {
 function setText(id, value) {
   const node = document.getElementById(id);
   if (node) node.innerText = value;
+}
+
+function renderStory(listId, items) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  const rows = (items || []).filter(Boolean);
+  if (!rows.length) {
+    list.innerHTML = "<li>No summary available.</li>";
+    return;
+  }
+  list.innerHTML = rows.map((item) => `<li>${item}</li>`).join("");
 }
 
 function setRange(prefix, general) {
@@ -740,6 +780,20 @@ async function init() {
       .filter((row) => isLikelyDataCentre(row))
       .reduce((sum, row) => sum + getHits(row), 0);
     setText("weekly-datacentre-share", percent(dataCentreRequests, weeklyRequests));
+
+    const directShare = percent(directRequests, weeklyRequests);
+    const invalidShare = percent(invalidRequests, debugTotalRequests);
+    const dataCentreShare = percent(dataCentreRequests, weeklyRequests);
+    const engagedShare = percent(engagedVisitors, weeklyVisitors);
+    const readingShare = percent(readingRequests, weeklyRequests);
+    const gameShare = percent(gamesRequests, weeklyRequests);
+
+    renderStory("weekly-story", [
+      `<strong>Traffic volume:</strong> ${weeklyRequests.toLocaleString()} valid requests from ${weeklyVisitors.toLocaleString()} visitors (${requestsPerVisitor} requests per visitor).`,
+      `<strong>Visitor quality:</strong> ${engagedVisitors.toLocaleString()} likely engaged visitors (${engagedShare}); direct/unknown traffic is ${directShare}, invalid/error traffic is ${invalidShare}, and likely data-centre traffic is ${dataCentreShare}.`,
+      `<strong>What people engaged with:</strong> games drove ${gameShare} of weekly requests, while reading content drove ${readingShare}.`,
+      `<strong>Downloads:</strong> ${pdfDownloads.toLocaleString()} successful PDF downloads this week.`
+    ]);
   } catch (err) {
     console.error("Error loading analytics", err);
     ["weekly", "games", "humans", "debug", "reading"].forEach((prefix) => {

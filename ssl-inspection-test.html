@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SSL Inspection Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin: 1rem 0; }
+    .ok { color: #0a7a2f; font-weight: 700; }
+    .warn { color: #a05a00; font-weight: 700; }
+    .bad { color: #a00000; font-weight: 700; }
+    code, pre { background: #f5f5f5; padding: .2rem .4rem; border-radius: 6px; }
+    pre { overflow:auto; padding: 1rem; }
+    button { padding: .7rem 1rem; border-radius: 8px; border: 1px solid #333; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>SSL Inspection Test</h1>
+
+  <p>
+    This page cannot directly read your certificate chain because browsers block that.
+    It checks for practical signs of enterprise proxying, SSL inspection or browser management.
+  </p>
+
+  <button onclick="runTests()">Run tests</button>
+
+  <div id="results"></div>
+
+  <script>
+    async function runTests() {
+      const results = [];
+      const start = performance.now();
+
+      function add(name, status, detail) {
+        results.push({ name, status, detail });
+        render();
+      }
+
+      function statusClass(status) {
+        if (status === "OK") return "ok";
+        if (status === "Warning") return "warn";
+        return "bad";
+      }
+
+      function render() {
+        document.getElementById("results").innerHTML = results.map(r => `
+          <div class="card">
+            <div class="${statusClass(r.status)}">${r.status}: ${r.name}</div>
+            <div>${r.detail}</div>
+          </div>
+        `).join("");
+      }
+
+      add("Page protocol", location.protocol === "https:" ? "OK" : "Problem",
+        `Current page protocol is <code>${location.protocol}</code>.`);
+
+      add("Secure context", window.isSecureContext ? "OK" : "Problem",
+        `Browser reports secure context: <code>${window.isSecureContext}</code>.`);
+
+      add("Browser management clue",
+        navigator.webdriver ? "Warning" : "OK",
+        `navigator.webdriver is <code>${navigator.webdriver}</code>. This is usually false unless automated or controlled.`);
+
+      add("User agent", "OK", `<pre>${navigator.userAgent}</pre>`);
+
+      if ("connection" in navigator) {
+        add("Network information", "OK",
+          `<pre>${JSON.stringify({
+            effectiveType: navigator.connection.effectiveType,
+            downlink: navigator.connection.downlink,
+            rtt: navigator.connection.rtt,
+            saveData: navigator.connection.saveData
+          }, null, 2)}</pre>`);
+      } else {
+        add("Network information", "Warning", "Network Information API is not available in this browser.");
+      }
+
+      try {
+        const res = await fetch(location.href + "?cachebuster=" + Date.now(), {
+          cache: "no-store",
+          credentials: "same-origin"
+        });
+
+        const headerNames = [];
+        for (const [key, value] of res.headers.entries()) {
+          headerNames.push(`${key}: ${value}`);
+        }
+
+        const suspiciousHeaders = headerNames.filter(h =>
+          /bluecoat|zscaler|forcepoint|netskope|fortinet|sophos|paloalto|umbrella|proxy|via|x-cache|x-forwarded|x-bluecoat/i.test(h)
+        );
+
+        add("Fetch test", res.ok ? "OK" : "Warning",
+          `Fetch status: <code>${res.status}</code>.`);
+
+        add("Visible response headers",
+          suspiciousHeaders.length ? "Warning" : "OK",
+          suspiciousHeaders.length
+            ? `<p>Possible proxy/security headers visible:</p><pre>${suspiciousHeaders.join("\n")}</pre>`
+            : `<pre>${headerNames.join("\n")}</pre>`);
+      } catch (e) {
+        add("Fetch test", "Problem", `Fetch failed: <code>${e.message}</code>`);
+      }
+
+      try {
+        const imgStart = performance.now();
+        const img = new Image();
+        img.onload = () => {
+          const elapsed = Math.round(performance.now() - imgStart);
+          add("Static asset load", "OK", `Small image test loaded in <code>${elapsed}ms</code>.`);
+        };
+        img.onerror = () => {
+          add("Static asset load", "Warning", "Image load failed. This may indicate filtering or blocking.");
+        };
+        img.src = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+      } catch (e) {
+        add("Static asset load", "Warning", e.message);
+      }
+
+      const timing = performance.getEntriesByType("navigation")[0];
+      if (timing) {
+        add("Navigation timing", "OK",
+          `<pre>${JSON.stringify({
+            type: timing.type,
+            redirectCount: timing.redirectCount,
+            transferSize: timing.transferSize,
+            encodedBodySize: timing.encodedBodySize,
+            decodedBodySize: timing.decodedBodySize,
+            duration_ms: Math.round(timing.duration),
+            domContentLoaded_ms: Math.round(timing.domContentLoadedEventEnd)
+          }, null, 2)}</pre>`);
+      }
+
+      const elapsedTotal = Math.round(performance.now() - start);
+      add("Overall result", "Warning",
+        `Completed in <code>${elapsedTotal}ms</code>. A warning does not prove SSL inspection. For confirmation, compare the certificate issuer manually on work network/VPN versus personal mobile data.`);
+    }
+
+    runTests();
+  </script>
+</body>
+</html>

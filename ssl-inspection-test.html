@@ -32,6 +32,66 @@ details summary { cursor: pointer; }
   <p>In Chrome or Edge, click the icon next to the address bar, then Connection is secure, then Certificate is valid.</p>
   <p>If the issuer says your employer, council, Zscaler, Forcepoint, Netskope, Sophos, Fortinet, Palo Alto or similar, SSL inspection is likely.</p>
   </div>
+  <div class="card">
+  <h2>Multi-site certificate comparison</h2>
+  <p>
+    For a stronger check, compare the certificate issuer for several unrelated websites.
+    They should normally have different public certificate authorities.
+  </p>
+
+  <table>
+    <tr><th>Website</th><th>Normal issuer examples</th></tr>
+    <tr><td><code>emote.ltd</code></td><td>Google Trust Services / WE1</td></tr>
+    <tr><td><code>www.bbc.co.uk</code></td><td>DigiCert, GlobalSign or other public CA</td></tr>
+    <tr><td><code>www.gov.uk</code></td><td>Public certificate authority</td></tr>
+    <tr><td><code>www.google.com</code></td><td>Google Trust Services</td></tr>
+    <tr><td><code>www.microsoft.com</code></td><td>Microsoft, DigiCert or other public CA</td></tr>
+  </table>
+
+  <p>
+    <strong>Strong sign of inspection:</strong> several unrelated sites all show the same employer,
+    council or security-vendor issuer.
+  </p>
+</div>
+  <div class="card">
+  <h2>External site load test</h2>
+  <button onclick="runExternalLoadTests()">Run external load tests</button>
+  <div id="external-results"></div>
+</div>
+
+<script>
+async function runExternalLoadTests() {
+  const sites = [
+    "https://www.bbc.co.uk/favicon.ico",
+    "https://www.gov.uk/favicon.ico",
+    "https://www.google.com/favicon.ico",
+    "https://www.microsoft.com/favicon.ico"
+  ];
+
+  const box = document.getElementById("external-results");
+  box.innerHTML = "";
+
+  sites.forEach(url => {
+    const start = performance.now();
+    const img = new Image();
+
+    const row = document.createElement("div");
+    row.className = "card";
+    row.innerHTML = `Testing <code>${url}</code>...`;
+    box.appendChild(row);
+
+    img.onload = () => {
+      row.innerHTML = `OK: <code>${url}</code> loaded in <code>${Math.round(performance.now() - start)}ms</code>.`;
+    };
+
+    img.onerror = () => {
+      row.innerHTML = `Warning: <code>${url}</code> failed to load. This may be blocking, CSP, site behaviour or proxy filtering.`;
+    };
+
+    img.src = url + "?cb=" + Date.now();
+  });
+}
+</script>
 <div class="card">
   <h2>Expected certificate baseline for emote.ltd</h2>
   <p>

@@ -56,12 +56,33 @@
             transition: width 0.3s ease;
         }
 
+        .transcript-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0 6px 0;
+        }
+
+        .transcript-tools span {
+            color: #555;
+            font-size: 0.9em;
+        }
+
         #result {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 320px;
+            padding: 14px;
             background: #f5f5f5;
             border: 1px solid #ddd;
-            padding: 14px;
+            border-radius: 6px;
+            font: 16px/1.5 Arial, sans-serif;
+            resize: vertical;
             white-space: pre-wrap;
-            min-height: 220px;
+        }
+
+        #copy-feedback {
+            min-height: 1em;
         }
 
         .hint {
@@ -106,7 +127,13 @@
     <div id="progress-bar">0%</div>
 </div>
 
-<pre id="result"></pre>
+<div class="transcript-tools">
+    <button onclick="copyTranscript()">Copy transcript</button>
+    <button onclick="selectTranscript()">Select all text</button>
+    <span id="copy-feedback" aria-live="polite"></span>
+</div>
+
+<textarea id="result" readonly spellcheck="false" placeholder="Transcript text will appear here. Use the buttons above, or click in this box and press Ctrl/Cmd+A to select all."></textarea>
 
 <div class="hint">
     Longer files may take several minutes on the Raspberry Pi. If you refresh this page, the latest job should resume automatically.
@@ -122,6 +149,37 @@ let pollTimer = null;
 
 const STORAGE_ACTIVE_JOB = "transcribe.activeJobId";
 const STORAGE_RECENT_JOBS = "transcribe.recentJobs";
+
+function setResultText(text) {
+    document.getElementById("result").value = text;
+    document.getElementById("copy-feedback").innerText = "";
+}
+
+function selectTranscript() {
+    const result = document.getElementById("result");
+
+    result.focus();
+    result.select();
+}
+
+async function copyTranscript() {
+    const result = document.getElementById("result");
+    const feedback = document.getElementById("copy-feedback");
+    const text = result.value;
+
+    if (!text) {
+        feedback.innerText = "Nothing to copy yet.";
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(text);
+        feedback.innerText = "Copied.";
+    } catch (err) {
+        selectTranscript();
+        feedback.innerText = "Copy failed. Text selected so you can press Ctrl/Cmd+C.";
+    }
+}
 
 function saveActiveJob(jobId, filename = "") {
     localStorage.setItem(STORAGE_ACTIVE_JOB, jobId);
@@ -275,7 +333,6 @@ function updateProgress(current, total, status) {
 
 async function go() {
     const fileInput = document.getElementById("file");
-    const result = document.getElementById("result");
     const statusBox = document.getElementById("status");
 
     if (pollTimer) {
@@ -291,7 +348,7 @@ async function go() {
     const file = fileInput.files[0];
 
     statusBox.innerText = "Uploading...";
-    result.innerText = "";
+    setResultText("");
     document.getElementById("job-info").innerText = "";
 
     updateProgress(0, 0, "PROCESSING");
@@ -308,18 +365,18 @@ async function go() {
 
         if (!jobId || jobId.length < 10 || jobId.includes("<")) {
             statusBox.innerText = "Upload failed: invalid job ID returned.";
-            result.innerText = jobId;
+            setResultText(jobId);
             return;
         }
 
     } catch (err) {
         statusBox.innerText = "Upload failed.";
-        result.innerText = String(err);
+        setResultText(String(err));
         return;
     }
 
-saveActiveJob(jobId, file.name);
-startPolling(jobId);
+    saveActiveJob(jobId, file.name);
+    startPolling(jobId);
 }
 
 function resumeLatestJob() {
@@ -343,12 +400,11 @@ function clearCurrentJob() {
 
     document.getElementById("status").innerText = "Current job cleared.";
     document.getElementById("job-info").innerText = "";
-    document.getElementById("result").innerText = "";
+    setResultText("");
     document.getElementById("progress-wrap").style.display = "none";
 }
 
 function startPolling(jobId) {
-    const result = document.getElementById("result");
     const statusBox = document.getElementById("status");
     const jobInfo = document.getElementById("job-info");
 
@@ -360,12 +416,13 @@ function startPolling(jobId) {
     saveActiveJob(jobId);
 
     statusBox.innerText = "Resuming job...";
-const recent = getRecentJobs().find(j => j.id === jobId);
-const filename = recent?.filename || localStorage.getItem("transcribe.activeFilename") || "";
 
-jobInfo.innerText = filename
-    ? "File: " + filename + " | Job ID: " + jobId
-    : "Job ID: " + jobId;
+    const recent = getRecentJobs().find(j => j.id === jobId);
+    const filename = recent?.filename || localStorage.getItem("transcribe.activeFilename") || "";
+
+    jobInfo.innerText = filename
+        ? "File: " + filename + " | Job ID: " + jobId
+        : "Job ID: " + jobId;
 
     async function poll() {
         try {
@@ -387,14 +444,14 @@ jobInfo.innerText = filename
                     statusBox.innerText = "Preparing audio...";
                 }
 
-                result.innerText = parsed.body || "Preparing audio and looking for pauses...";
+                setResultText(parsed.body || "Preparing audio and looking for pauses...");
                 return;
             }
 
             if (parsed.status === "DONE") {
                 statusBox.innerText = "Complete";
                 updateProgress(parsed.total || 1, parsed.total || 1, "DONE");
-                result.innerText = parsed.body || "(completed but no transcript was produced)";
+                setResultText(parsed.body || "(completed but no transcript was produced)");
 
                 clearInterval(pollTimer);
                 pollTimer = null;
@@ -407,7 +464,7 @@ jobInfo.innerText = filename
 
             if (parsed.status === "ERROR") {
                 statusBox.innerText = "Error";
-                result.innerText = parsed.body || raw;
+                setResultText(parsed.body || raw);
 
                 clearInterval(pollTimer);
                 pollTimer = null;
@@ -415,7 +472,7 @@ jobInfo.innerText = filename
             }
 
             statusBox.innerText = "Unknown response";
-            result.innerText = raw;
+            setResultText(raw);
 
         } catch (err) {
             statusBox.innerText = "Polling error, retrying...";
@@ -444,7 +501,7 @@ function deleteRecentJob(jobId) {
 
         document.getElementById("status").innerText = "Deleted saved job link.";
         document.getElementById("job-info").innerText = "";
-        document.getElementById("result").innerText = "";
+        setResultText("");
         document.getElementById("progress-wrap").style.display = "none";
     }
 

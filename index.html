@@ -308,6 +308,18 @@
       object-fit: cover;
       position: absolute;
       inset: 0;
+      z-index: 0;
+    }
+
+    .hero-network {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.28;
+      mix-blend-mode: screen;
     }
 
     .hero-caption {
@@ -321,6 +333,7 @@
       color: rgba(255,255,255,0.92);
       backdrop-filter: blur(8px);
       font-size: 0.9rem;
+      z-index: 2;
     }
 
     .section-head {
@@ -462,6 +475,150 @@
       color: var(--accent);
     }
 
+
+    .try-grid {
+      display: grid;
+      grid-template-columns: minmax(0,0.9fr) minmax(0,1.1fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .try-card {
+      padding: 1.5rem;
+    }
+
+    .try-intro {
+      color: var(--text-soft);
+      margin: 0 0 1.2rem;
+    }
+
+    .effort-scale {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin: 0.5rem 0 0.35rem;
+      color: var(--text-soft);
+      font-size: 0.76rem;
+    }
+
+    .effort-slider {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .effort-output {
+      margin-top: 1rem;
+      padding: 1.2rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--accent-soft);
+    }
+
+    .effort-level {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+      background: var(--surface-strong);
+    }
+
+    .effort-output dl {
+      margin: 0;
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    .effort-output dt {
+      font-weight: 700;
+      color: var(--heading);
+      font-size: 0.86rem;
+    }
+
+    .effort-output dd {
+      margin: 0.15rem 0 0;
+      color: var(--text-soft);
+      font-size: 0.92rem;
+    }
+
+    .prompt-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 0.8rem;
+    }
+
+    .prompt-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .prompt-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .prompt-field label {
+      color: var(--heading);
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    .prompt-field input,
+    .prompt-field textarea,
+    .prompt-field select {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.72rem 0.8rem;
+    }
+
+    .prompt-field textarea {
+      resize: vertical;
+      min-height: 76px;
+    }
+
+    .prompt-field input:focus,
+    .prompt-field textarea:focus,
+    .prompt-field select:focus,
+    .effort-slider:focus-visible {
+      outline: 2px solid color-mix(in oklab, var(--accent) 65%, transparent);
+      outline-offset: 2px;
+    }
+
+    .prompt-actions {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .prompt-output {
+      margin: 1rem 0 0;
+      padding: 1rem;
+      max-height: 360px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 0.82rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--text);
+      background: color-mix(in oklab, var(--surface-strong) 88%, var(--bg));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .privacy-note {
+      margin-top: 0.75rem;
+      color: var(--text-soft);
+      font-size: 0.78rem;
+    }
+
     .resource-callout {
       margin-top: 1rem;
       padding: 1.3rem 1.45rem;
@@ -499,6 +656,7 @@
     @media (max-width: 980px) {
       .hero { grid-template-columns: 1fr; }
       .hero-visual { min-height: 400px; }
+      .try-grid { grid-template-columns: 1fr; }
       .essay-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .model-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .tool-grid,
@@ -518,8 +676,13 @@
 
       .essay-grid,
       .model-grid,
-      .principle-grid {
+      .principle-grid,
+      .prompt-form {
         grid-template-columns: 1fr;
+      }
+
+      .prompt-field.full {
+        grid-column: auto;
       }
 
       .hero-copy { padding: 1.5rem; }
@@ -548,6 +711,7 @@
         <a href="/knowledge/">Knowledge</a>
         <a href="#essays">Essays</a>
         <a href="#models">Models</a>
+        <a href="#try-it">Try it</a>
         <a href="/tools.html">Tools</a>
         <a href="/reading.html">Reading</a>
         <a href="/about.html">About</a>
@@ -578,6 +742,7 @@
         <img src="/assets/images/hero-bridge-compass.webp"
              alt="Illustration of a bridge and compass representing navigation through complex organisational change"
              width="1200" height="900" decoding="async" />
+        <canvas id="heroNetwork" class="hero-network" aria-hidden="true"></canvas>
         <div class="hero-caption">
           eMote connects change practice, governance, systems thinking and AI without pretending uncertainty can be removed.
         </div>
@@ -690,6 +855,113 @@
           <p>A practical paper on governance rhythms that stay connected to what is actually happening in delivery.</p>
         </div>
         <a class="button button-secondary" href="/downloads/Governance%20With%20a%20Heartbeat.pdf" target="_blank" rel="noopener noreferrer">Open the PDF</a>
+      </div>
+    </section>
+
+    <section id="try-it">
+      <div class="section-head">
+        <span class="eyebrow">Try the thinking</span>
+        <h2>Make the problem a little clearer</h2>
+        <p>
+          Two small tools for framing change before adding process. They run entirely in your browser and make no AI or server calls.
+        </p>
+      </div>
+
+      <div class="try-grid">
+        <article class="card try-card">
+          <h3>Change Effort Explorer</h3>
+          <p class="try-intro">
+            Move the slider to test how the change approach should shift as impact, novelty and consequence increase.
+          </p>
+
+          <div class="effort-scale" aria-hidden="true">
+            <span>Light</span>
+            <span>Structured</span>
+            <span>Intensive</span>
+          </div>
+
+          <input
+            id="effortSlider"
+            class="effort-slider"
+            type="range"
+            min="0"
+            max="100"
+            value="45"
+            aria-label="Change effort level"
+          />
+
+          <div class="effort-output" aria-live="polite">
+            <div id="effortLevel" class="effort-level">Structured change</div>
+            <dl>
+              <div>
+                <dt>Likely approach</dt>
+                <dd id="effortApproach"></dd>
+              </div>
+              <div>
+                <dt>Focus on</dt>
+                <dd id="effortFocus"></dd>
+              </div>
+              <div>
+                <dt>Watch for</dt>
+                <dd id="effortRisk"></dd>
+              </div>
+              <div>
+                <dt>Do next</dt>
+                <dd id="effortNext"></dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+
+        <article class="card try-card">
+          <h3>Change Prompt Builder</h3>
+          <p class="try-intro">
+            Add a little structured context first, then copy a prompt into your preferred AI tool for a more useful change diagnosis.
+          </p>
+
+          <div class="prompt-form">
+            <div class="prompt-field">
+              <label for="promptOrg">Organisation or context</label>
+              <input id="promptOrg" type="text" placeholder="e.g. local authority, SME, programme" />
+            </div>
+
+            <div class="prompt-field">
+              <label for="promptDate">Go-live or decision date</label>
+              <input id="promptDate" type="text" placeholder="e.g. April 2027" />
+            </div>
+
+            <div class="prompt-field full">
+              <label for="promptChange">What is changing?</label>
+              <textarea id="promptChange" placeholder="System, process, policy, service, operating model…"></textarea>
+            </div>
+
+            <div class="prompt-field full">
+              <label for="promptPeople">Who is affected?</label>
+              <textarea id="promptPeople" placeholder="Teams, roles, customers, partners, public…"></textarea>
+            </div>
+
+            <div class="prompt-field full">
+              <label for="promptConcern">Biggest concern</label>
+              <textarea id="promptConcern" placeholder="What are you most worried could go wrong?"></textarea>
+            </div>
+
+            <div class="prompt-field">
+              <label for="promptDepth">Prompt depth</label>
+              <select id="promptDepth">
+                <option value="short">Short diagnosis</option>
+                <option value="full" selected>Full change view</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="prompt-actions">
+            <button class="button button-primary" id="buildPrompt" type="button">Build prompt</button>
+            <button class="button button-secondary" id="copyPrompt" type="button">Copy prompt</button>
+          </div>
+
+          <pre id="promptOutput" class="prompt-output" aria-live="polite">Add some context above, then build the prompt.</pre>
+          <p class="privacy-note">Nothing entered here is sent to eMote. The prompt is assembled locally in your browser.</p>
+        </article>
       </div>
     </section>
 
@@ -911,7 +1183,219 @@
       }
     }
 
+    const effortBands = [
+      {
+        max: 30,
+        level: "Light change",
+        approach: "Keep the intervention small and close to the work. Use clear ownership, simple guidance and quick feedback rather than a separate change programme.",
+        focus: "Clarity, local support and whether day-to-day work actually changes.",
+        risk: "Assuming a technically small change is automatically low impact for the people using it.",
+        next: "Identify the people whose routine changes and ask what could make the new way harder than the old one."
+      },
+      {
+        max: 70,
+        level: "Structured change",
+        approach: "Use a proportionate change plan tied to delivery milestones, with explicit readiness, stakeholder and adoption activity.",
+        focus: "Stakeholder alignment, readiness, role impacts, learning and reinforcement.",
+        risk: "Doing communications and training while unresolved process, ownership or service issues continue to undermine adoption.",
+        next: "Name the three biggest adoption risks and give each one an owner, evidence source and action."
+      },
+      {
+        max: 100,
+        level: "Intensive change",
+        approach: "Treat adoption as a workstream with formal governance, measurable outcomes and sustained reinforcement after go-live.",
+        focus: "Leadership alignment, operating model consequences, service readiness, benefits and behavioural reinforcement.",
+        risk: "Mistaking implementation activity for organisational readiness, particularly where failure has statutory, financial or reputational consequences.",
+        next: "Agree what successful adoption will look like, how it will be measured and which governance forum can act when readiness is off track."
+      }
+    ];
+
+    function updateEffortExplorer() {
+      const slider = document.getElementById("effortSlider");
+      if (!slider) return;
+      const value = Number(slider.value);
+      const band = effortBands.find(item => value <= item.max) || effortBands[effortBands.length - 1];
+
+      document.getElementById("effortLevel").textContent = band.level;
+      document.getElementById("effortApproach").textContent = band.approach;
+      document.getElementById("effortFocus").textContent = band.focus;
+      document.getElementById("effortRisk").textContent = band.risk;
+      document.getElementById("effortNext").textContent = band.next;
+    }
+
+    function buildChangePrompt() {
+      const org = document.getElementById("promptOrg")?.value.trim() || "[organisation or context]";
+      const date = document.getElementById("promptDate")?.value.trim() || "[go-live or decision date]";
+      const change = document.getElementById("promptChange")?.value.trim() || "[what is changing]";
+      const people = document.getElementById("promptPeople")?.value.trim() || "[who is affected]";
+      const concern = document.getElementById("promptConcern")?.value.trim() || "[biggest concern]";
+      const depth = document.getElementById("promptDepth")?.value || "full";
+
+      const common = `You are my change and governance co-pilot.
+
+Context:
+- Organisation or setting: ${org}
+- What is changing: ${change}
+- Who is affected: ${people}
+- Go-live or decision date: ${date}
+- Biggest concern: ${concern}
+
+Work from the information provided. Where evidence is missing, identify the assumption rather than inventing facts.`;
+
+      const shortTasks = `
+
+Give me a rapid change diagnosis:
+1. State the change in plain English.
+2. Identify the five most important adoption or readiness risks.
+3. Suggest the proportionate level of change effort: light, structured or intensive.
+4. Give me the three actions that would reduce uncertainty fastest.
+5. Identify any decision that should be escalated now.
+
+Use concise headings and plain British English.`;
+
+      const fullTasks = `
+
+Produce a practical change view covering:
+1. Change impact across people, process, technology, roles and ways of working.
+2. The eight most important adoption, readiness and governance risks, with practical mitigations.
+3. Key stakeholder groups, what each needs from the change and where resistance or dependency may arise.
+4. Readiness needs before go-live, including process, service, learning, support and ownership.
+5. Communications and learning activity that is proportionate to the actual impacts.
+6. Measures that would show whether adoption is happening, not merely whether implementation completed.
+7. Governance decisions, assumptions or dependencies that need explicit ownership.
+8. A prioritised action plan for the next two weeks.
+
+Finish with:
+- the three things most likely to derail adoption
+- the three decisions leaders need to make
+- any information I should gather before relying on the analysis
+
+Use clear headings, concise bullets and plain British English. Avoid generic change-management jargon.`;
+
+      const output = common + (depth === "short" ? shortTasks : fullTasks);
+      document.getElementById("promptOutput").textContent = output;
+      return output;
+    }
+
+    async function copyBuiltPrompt() {
+      const output = document.getElementById("promptOutput");
+      if (!output) return;
+
+      if (output.textContent.startsWith("Add some context")) {
+        buildChangePrompt();
+      }
+
+      try {
+        await navigator.clipboard.writeText(output.textContent);
+        const button = document.getElementById("copyPrompt");
+        if (button) {
+          const original = button.textContent;
+          button.textContent = "Copied";
+          setTimeout(() => button.textContent = original, 1200);
+        }
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(output);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
+    function initialiseHeroNetwork() {
+      const canvas = document.getElementById("heroNetwork");
+      if (!canvas) return;
+
+      const reduced = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const small = window.matchMedia &&
+        window.matchMedia("(max-width: 720px)").matches;
+
+      if (reduced || small) {
+        canvas.style.display = "none";
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      let width = 0;
+      let height = 0;
+      let points = [];
+      let frame;
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = rect.width;
+        height = rect.height;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const count = Math.max(12, Math.min(20, Math.floor(width / 32)));
+        points = Array.from({length: count}, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.12,
+          vy: (Math.random() - 0.5) * 0.12,
+          r: 0.8 + Math.random() * 1.3
+        }));
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+
+        for (const point of points) {
+          point.x += point.vx;
+          point.y += point.vy;
+
+          if (point.x < 0 || point.x > width) point.vx *= -1;
+          if (point.y < 0 || point.y > height) point.vy *= -1;
+
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, point.r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255,255,255,0.78)";
+          ctx.fill();
+        }
+
+        for (let i = 0; i < points.length; i++) {
+          for (let j = i + 1; j < points.length; j++) {
+            const dx = points[i].x - points[j].x;
+            const dy = points[i].y - points[j].y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 115) {
+              ctx.strokeStyle = `rgba(255,255,255,${(1 - dist / 115) * 0.18})`;
+              ctx.lineWidth = 0.7;
+              ctx.beginPath();
+              ctx.moveTo(points[i].x, points[i].y);
+              ctx.lineTo(points[j].x, points[j].y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        frame = requestAnimationFrame(draw);
+      }
+
+      resize();
+      draw();
+
+      const observer = new ResizeObserver(resize);
+      observer.observe(canvas);
+
+      window.addEventListener("pagehide", () => {
+        cancelAnimationFrame(frame);
+        observer.disconnect();
+      }, {once: true});
+    }
+
     initialiseTheme();
+
+    document.getElementById("effortSlider")?.addEventListener("input", updateEffortExplorer);
+    document.getElementById("buildPrompt")?.addEventListener("click", buildChangePrompt);
+    document.getElementById("copyPrompt")?.addEventListener("click", copyBuiltPrompt);
+
+    updateEffortExplorer();
+    initialiseHeroNetwork();
 
     document.getElementById("themeToggle")?.addEventListener("click", () => {
       const current = document.documentElement.getAttribute("data-theme") || "light";

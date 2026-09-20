@@ -1,1863 +1,926 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-<link rel="canonical" href="https://emote.ltd/" />
-<meta property="og:title" content="eMote | Models for Change and Governance">
-<meta property="og:description" content="Structured models, essays and tools for calm, evidence-led change governance.">
-<meta property="og:image" content="https://emote.ltd/assets/images/card-clarity-governance.webp">
-<meta property="og:url" content="https://emote.ltd/">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="eMote">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="eMote | Models for Change and Governance">
-<meta name="twitter:description" content="Structured models, essays and tools for calm, evidence-led change governance.">
-<meta name="twitter:image" content="https://emote.ltd/assets/images/card-clarity-governance.webp">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="eMote provides structured models, essays and practical tools for change and governance in complex delivery environments." />
-  <title>eMote | Models for Change and Governance</title>
-  <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
-<link rel="manifest" href="/assets/icons/site.webmanifest">
-<meta name="theme-color" content="#0b1020">
 
+  <title>eMote | Models for Change and Governance</title>
+  <meta name="description" content="Practical models, essays and tools for organisations making consequential decisions under uncertainty, especially where technology, governance and human behaviour interact." />
+  <meta name="author" content="Martin Fry" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="canonical" href="https://emote.ltd/" />
+
+  <link rel="icon" href="/assets/icons/favicon.ico" sizes="any" />
+  <link rel="manifest" href="/assets/icons/site.webmanifest" />
+  <meta name="theme-color" content="#f6f3ee" />
+  <meta name="color-scheme" content="light dark" />
+
+  <meta property="og:title" content="eMote | Models for Change and Governance" />
+  <meta property="og:description" content="Practical thinking for change, governance and organisational decision-making under uncertainty." />
+  <meta property="og:image" content="https://emote.ltd/assets/images/hero-bridge-compass.webp" />
+  <meta property="og:url" content="https://emote.ltd/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="eMote Ltd" />
+  <meta property="og:locale" content="en_GB" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="eMote | Models for Change and Governance" />
+  <meta name="twitter:description" content="Practical thinking for change, governance and organisational decision-making under uncertainty." />
+  <meta name="twitter:image" content="https://emote.ltd/assets/images/hero-bridge-compass.webp" />
 
   <style>
-    :root{
-      --bg: #0b1020;
-      --panel: rgba(255,255,255,0.02);
-      --panel2: rgba(255,255,255,0.04);
-      --text: rgba(255,255,255,0.92);
-      --muted: rgba(255,255,255,0.70);
-      --muted2: rgba(255,255,255,0.55);
-      --line: rgba(255,255,255,0.14);
-      --shadow: 0 6px 18px rgba(0,0,0,0.16);
-      --danger:#ff7d7d;
-      --radius: 18px;
-      --radius2: 26px;
-      --focus: 0 0 0 3px rgba(125,249,255,0.35);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-
-  --bg: #0b1020;          /* safety */
-  --accent: #33c7ff;      /* freedom (sky) */
-  --accent2:#7cffb2;      /* inspiration (fresh green) */
-  --warn:#ffd68a;         /* warmth */
-
-
+    :root {
+      --bg: #f6f3ee;
+      --bg-soft: #fbf9f5;
+      --surface: rgba(255,255,255,0.78);
+      --surface-strong: #ffffff;
+      --text: #1f2328;
+      --text-soft: #55606d;
+      --heading: #15202b;
+      --border: rgba(21,32,43,0.12);
+      --accent: #6d4c41;
+      --accent-2: #2b6470;
+      --accent-soft: rgba(109,76,65,0.09);
+      --shadow: 0 14px 34px rgba(21,32,43,0.08);
+      --radius: 20px;
+      --radius-sm: 14px;
+      --max: 1160px;
+      --reading: 72ch;
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
     }
 
-    [data-theme="light"]{
-      --bg: #f7f8fb;
-      --panel: rgba(0,0,0,0.05);
-      --panel2: rgba(0,0,0,0.07);
-      --text: rgba(0,0,0,0.88);
-      --muted: rgba(0,0,0,0.64);
-      --muted2: rgba(0,0,0,0.50);
-      --line: rgba(0,0,0,0.14);
-      --shadow: 0 10px 28px rgba(0,0,0,0.08);
-      --accent: #0aa6b4;
-      --accent2:#2f8f2f;
-      --warn:#a06d00;
-      --danger:#b21e1e;
-      --focus: 0 0 0 3px rgba(10,166,180,0.28);
+    [data-theme="dark"] {
+      --bg: #11161b;
+      --bg-soft: #161c22;
+      --surface: rgba(27,34,41,0.82);
+      --surface-strong: #1f272f;
+      --text: #eef2f5;
+      --text-soft: #b7c0c9;
+      --heading: #ffffff;
+      --border: rgba(255,255,255,0.12);
+      --accent: #d5aa8c;
+      --accent-2: #7fc4cf;
+      --accent-soft: rgba(213,170,140,0.11);
+      --shadow: 0 18px 40px rgba(0,0,0,0.28);
     }
 
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
       font-family: var(--sans);
       color: var(--text);
-      background: var(--bg);
-      overflow-x:hidden;
+      background:
+        radial-gradient(circle at top left, color-mix(in oklab, var(--accent) 9%, transparent), transparent 32rem),
+        linear-gradient(180deg, var(--bg-soft), var(--bg));
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
-    a{ color:inherit; text-decoration:none; }
-    a:hover{ text-decoration:underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+    img { max-width: 100%; display: block; }
 
-    /* Background canvas */
-    #bg{
-      position: fixed;
-      inset: 0;
-      z-index:-1;
+    a {
+      color: inherit;
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.16em;
     }
 
-    .wrap{
-      width:min(1040px, 90vw);
-      margin: 0 auto;
-      padding: 42px 0 116px;
+    a:hover { color: var(--accent); }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: auto;
     }
 
-section{
-  scroll-margin-top: 80px;
-}
+    .skip-link:focus {
+      left: 1rem;
+      top: 1rem;
+      z-index: 1000;
+      background: var(--surface-strong);
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
 
-/* Optional divider image between sections */
-.section-divider{
-  height: 84px;
-  margin: 30px 0 12px;
-  border-radius: 18px;
-  background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 12%, transparent), transparent 48%, color-mix(in oklab, var(--accent2) 10%, transparent));
-  border: 1px solid var(--line);
-}
-
-
-    /* Top bar */
-    .topbar{
+    .site-header {
       position: sticky;
       top: 0;
-      z-index: 20;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--line);
-      background: color-mix(in oklab, var(--bg) 70%, transparent);
+      z-index: 50;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--bg) 84%, transparent);
     }
 
-    .topbar-inner{
-      width:min(1120px, 92vw);
-      margin:0 auto;
-      padding: 12px 0;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 12px;
+    .nav {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
     }
 
-    .brand{
-      display:flex;
-      align-items:center;
-      gap: 12px;
-      min-width: 240px;
+    .brand {
+      display: inline-flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: var(--heading);
+      line-height: 1.1;
     }
 
-    .logo{
-      width:40px;
-      height:40px;
-      border-radius: 12px;
-      background:
-        radial-gradient(circle at 30% 30%, var(--accent), transparent 55%),
-        radial-gradient(circle at 70% 70%, var(--accent2), transparent 60%),
-        color-mix(in oklab, var(--panel2) 65%, transparent);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
+    .brand strong {
+      font-family: var(--serif);
+      font-size: 1.2rem;
+      letter-spacing: 0.01em;
     }
 
-    .brand h1{
-      margin:0;
-      font-size: 16px;
-      letter-spacing: 0.2px;
-      line-height: 1.2;
-    }
-    .brand .tag{
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
+    .brand span {
+      margin-top: 0.25rem;
+      color: var(--text-soft);
+      font-size: 0.78rem;
     }
 
-    nav{
-      display:flex;
-      align-items:center;
-      gap: 14px;
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
-    .navlink{
-      font-size: 13px;
-      color: var(--muted);
-      padding: 8px 10px;
-      border-radius: 12px;
-    }
-    .navlink:hover{
-      background: var(--panel);
-      color: var(--text);
-      text-decoration:none;
-    }
 
-/* Desktop: show links inline, hide Menu button */
-.nav{ position: relative; }
-.navToggle{ display:none; }
-.navLinks{
-  display:flex;
-  align-items:center;
-  gap: 14px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-/* Mobile: collapse */
-@media (max-width: 700px){
-  .topbar-inner{
-    align-items: center;
-  }
-
-  .brand{
-    min-width: 0;
-    gap: 10px;
-  }
-
-  .logo{
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-  }
-
-  .brand .tag{ display:none; }          /* stops the brand block getting tall */
-  .brand h1{ font-size: 15px; }
-
-  .navToggle{ display:inline-flex; }
-  .navLinks{
-    display:none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 10px);
-    width: min(260px, 86vw);
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 16px;
-    border: 1px solid var(--line);
-    background: color-mix(in oklab, var(--bg) 82%, transparent);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  .navLinks.open{ display:flex; }
-
-  .navLinks .navlink{
-    display:block;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: color-mix(in oklab, var(--panel) 80%, transparent);
-    color: var(--text);
-  }
-
-  .navLinks .navlink:hover{
-    background: color-mix(in oklab, var(--panel2) 85%, transparent);
-    text-decoration: none;
-  }
-
-  .navLinks .btn{
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-#structure a.chip[href="/reading.html"]{
-  background: color-mix(in oklab, var(--panel2) 90%, transparent);
-  color: var(--text);
-}
-
-    
-    .btn{
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 14px;
-      cursor:pointer;
-      font-size: 13px;
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-      box-shadow: 0 0 0 rgba(0,0,0,0);
-      transition: transform 0.08s ease, box-shadow 0.18s ease;
-      user-select:none;
-    }
-    .btn:hover{ background: var(--panel2); text-decoration:none; }
-    .btn:active{ transform: translateY(1px); }
-    .btn:focus{ outline: none; box-shadow: var(--focus); }
-
-    .btn-primary{
-      background: linear-gradient(135deg,
-        color-mix(in oklab, var(--accent) 55%, transparent),
-        color-mix(in oklab, var(--accent2) 45%, transparent)
-      );
-      border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+    .nav-links a,
+    .theme-toggle {
+      font: inherit;
+      font-size: 0.88rem;
+      color: var(--text-soft);
+      text-decoration: none;
+      background: transparent;
+      border: 0;
+      padding: 0.55rem 0.7rem;
+      border-radius: 999px;
+      cursor: pointer;
     }
 
-    /* Hero */
-    .hero{
-      padding: 58px 0 34px;
-      display:grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 18px;
+    .nav-links a:hover,
+    .nav-links a:focus-visible,
+    .theme-toggle:hover,
+    .theme-toggle:focus-visible {
+      color: var(--heading);
+      background: var(--accent-soft);
+      outline: none;
+    }
+
+    main {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+    }
+
+    section {
+      scroll-margin-top: 90px;
+      margin: 5rem 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0,1.12fr) minmax(320px,0.88fr);
+      gap: 1.4rem;
       align-items: stretch;
-    }
-    @media (max-width: 920px){
-      .hero{ grid-template-columns: 1fr; }
+      margin-top: 2rem;
     }
 
-    .card{
-      border: 1px solid var(--line);
-      background: color-mix(in oklab, var(--panel) 80%, transparent);
-      border-radius: var(--radius2);
+    .hero-copy,
+    .hero-visual,
+    .panel,
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       box-shadow: var(--shadow);
+      background: var(--surface);
     }
 
-/* HERO: one definition only */
-.hero-main{
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius2);
-  padding: 22px;
-}
-
-.hero-main::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius: inherit;
-
-  /* scrim for legibility */
-  background:
-    linear-gradient(90deg,
-      rgba(6,10,26,0.86) 0%,
-      rgba(6,10,26,0.62) 42%,
-      rgba(6,10,26,0.26) 72%,
-      rgba(6,10,26,0.08) 100%
-    ),
-    linear-gradient(180deg,
-      rgba(6,10,26,0.35) 0%,
-      rgba(6,10,26,0.70) 100%
-    ),
-    url("/assets/images/hero-bridge-compass.webp");
-
-  background-size: cover;
-  background-position: center;
-  z-index: 0;
-}
-
-.hero-main > *{
-  position: relative;
-  z-index: 1;
-}
-
-/* Hero typography */
-.kicker{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.78);
-  margin-bottom: 10px;
-}
-.hero-main .btn{
-  color: #fff;
-}
-
-.hero-main .btn-primary{
-  color: #fff;
-}
-.hero-main .btn{
-  text-shadow: 0 1px 6px rgba(0,0,0,0.45);
-}
-.hero-main .btn{
-  background: rgba(255,255,255,0.18);
-}
-
-.hero-main .btn:hover{
-  background: rgba(255,255,255,0.26);
-}
-.hero-main .btn{
-  backdrop-filter: blur(4px);
-}
-.kdot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, var(--accent), var(--accent2));
-  box-shadow: 0 0 0 4px rgba(51,199,255,0.12);
-}
-
-.hero-title{
-  margin: 0 0 10px;
-  font-size: clamp(30px, 3.2vw, 46px);
-  line-height: 1.05;
-  letter-spacing: -0.2px;
-  color: rgba(255,255,255,0.94);
-  text-shadow: 0 4px 20px rgba(0,0,0,0.55);
-}
-
-.hero-sub{
-  margin: 0 0 14px;
-  max-width: 72ch;
-  font-size: 14px;
-  line-height: 1.6;
-  color: rgba(255,255,255,0.82);
-  text-shadow: 0 2px 12px rgba(0,0,0,0.45);
-}
-
-.hero-actions{
-  display:flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.hero-main .btn{
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.18);
-}
-
-.hero-main .btn:hover{
-  background: rgba(255,255,255,0.18);
-}
-
-.hero-main .btn-primary{
-  background: linear-gradient(135deg,
-    rgba(51,199,255,0.28),
-    rgba(124,255,178,0.22)
-  );
-  border-color: rgba(51,199,255,0.30);
-}
-
-@media (max-width: 700px){
-  .hero-main .btn{
-    background: rgba(255,255,255,0.22);
-    border-color: rgba(255,255,255,0.28);
-  }
-
-  .hero-main .btn:hover{
-    background: rgba(255,255,255,0.30);
-  }
-
-  .hero-main .btn-primary{
-    background: linear-gradient(135deg,
-      rgba(51,199,255,0.42),
-      rgba(124,255,178,0.32)
-    );
-    border-color: rgba(51,199,255,0.45);
-  }
-}
-
-/* Default mini text should follow the theme */
-.mini{
-  margin-top: 14px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-/* Only make it light when it is inside the hero */
-.hero-main .mini{
-  color: rgba(255,255,255,0.70);
-}
-
-
-.grid4{
-  display:grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
-  gap: 14px;
-}
-
-@media (max-width: 980px){
-  .grid4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
-
-@media (max-width: 560px){
-  .grid4{ grid-template-columns: 1fr; }
-}
-
-.pill{
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 12px;
-  background: rgba(255,255,255,0.03);
-}
-
-.pillImg{
-  width: 100%;
-  height: 170px;
-  object-fit: cover;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
-  margin-bottom: 10px;
-}
-
-/* Right panel layout */
-.hero-side{
-  padding: 18px;
-  display:flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.side-block h3{
-  margin: 0 0 10px;
-  font-size: 14px;
-}
-
-/* Metric pills: compact */
-.metric{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 10px;
-}
-
-.hero-side .pill{
-  padding: 10px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--panel) 82%, transparent);
-}
-
-.hero-side .pill .label{
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.hero-side .pill .value{
-  font-size: 13px;
-  margin-top: 4px;
-}
-
-/* Big image cards: only in the #approach grid */
-#approach .pill{
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.03);
-}
-
-
-    /* Sections */
-    section{ margin-top: 18px; }
-    .section-head{
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap: 12px;
-      margin: 26px 0 10px;
-    }
-    .section-head h2{
-      margin:0;
-      font-size: 18px;
-      letter-spacing: 0.1px;
-    }
-    .section-head p{
-      margin:0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 12px;
-    }
-
-    .col-8{ grid-column: span 8; }
-    .col-4{ grid-column: span 4; }
-    .col-6{ grid-column: span 6; }
-    .col-12{ grid-column: span 12; }
-
-    @media (max-width: 920px){
-      .col-8,.col-4,.col-6{ grid-column: span 12; }
-    }
-
-    .pad{ padding: 18px; }
-    .muted{ color: var(--muted); }
-    .small{ font-size: 13px; line-height: 1.5; }
-    .mono{ font-family: var(--mono); }
-
-    .list{
-      display:flex;
+    .hero-copy {
+      padding: clamp(2rem, 4vw, 4rem);
+      display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .item{
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 12px 12px;
-      background: color-mix(in oklab, var(--panel) 82%, transparent);
-      display:flex;
-      gap: 12px;
-      align-items:flex-start;
-      justify-content:space-between;
-    }
-    .item strong{
-      display:block;
-      font-size: 13px;
-      margin-bottom: 3px;
-    }
-    .item .desc{
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.45;
-      max-width: 72ch;
-    }
-/* Latest posts with thumbnails */
-.item.post{
-  align-items: stretch;
-}
-
-.postRow{
-  display:flex;
-  gap: 12px;
-  align-items:flex-start;
-}
-
-.postThumb{
-  width: 84px;
-  height: 84px;
-  flex: 0 0 auto;
-  border-radius: 16px;
-  object-fit: cover;
-  border: 1px solid var(--line);
-  background: color-mix(in oklab, var(--panel2) 75%, transparent);
-}
-
-.postMain{
-  min-width: 0; /* enables ellipsis / wrapping nicely */
-}
-
-.postMeta{
-  display:flex;
-  gap: 10px;
-  flex-wrap:wrap;
-  margin-top: 6px;
-  color: var(--muted2);
-  font-size: 12px;
-}
-
-
-/* Articles: make layout stable on mobile */
-.item.post{
-  display: grid;                 /* override the base flex */
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: start;
-}
-
-.item.post .postRow{
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  min-width: 0;                  /* critical for wrapping */
-}
-
-.item.post .postMain{
-  min-width: 0;
-}
-
-.item.post .chip{
-  justify-self: end;
-  align-self: start;
-  display: inline-flex;
-  align-items: center;
-  height: fit-content;
-  white-space: nowrap;
-}
-
-/* Phone: put the Read button on its own row */
-@media (max-width: 520px){
-  .item.post{
-    grid-template-columns: 1fr;
-  }
-
-  .item.post .chip{
-    justify-self: end;
-    margin-top: 2px;
-  }
-}
-
-
-    
-    .chip{
-      font-size: 11px;
-      padding: 6px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: color-mix(in oklab, var(--panel2) 80%, transparent);
-      color: var(--muted);
-      white-space: nowrap;
+      justify-content: center;
     }
 
-    /* Interactive: Change Effort dial */
-    .dial{
-      margin-top: 10px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 14px;
-      background: color-mix(in oklab, var(--panel2) 75%, transparent);
-    }
-    .dial-row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 12px;
-      flex-wrap:wrap;
-    }
-    input[type="range"]{
-      width: 100%;
-      accent-color: var(--accent);
-    }
-    .dial-meter{
-      margin-top: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: color-mix(in oklab, var(--panel) 75%, transparent);
-      border: 1px solid var(--line);
-      overflow:hidden;
-    }
-    .dial-fill{
-      height: 100%;
-      width: 40%;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-    }
-    .dial-text{
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
+    .eyebrow {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 1rem;
     }
 
-    /* Quiz */
-    .quiz{
-      display:flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 10px;
+    h1, h2, h3 {
+      color: var(--heading);
+      margin-top: 0;
+      line-height: 1.12;
     }
-    .q{
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 12px;
-      background: color-mix(in oklab, var(--panel) 82%, transparent);
-    }
-    .q label{
-      display:block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .q select{
-      width: 100%;
-      padding: 10px 10px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      background: color-mix(in oklab, var(--panel2) 80%, transparent);
-      color: var(--text);
-      font-size: 13px;
-    }
-    .q select:focus{ outline:none; box-shadow: var(--focus); }
 
-    .result{
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 12px;
-      background: color-mix(in oklab, var(--panel2) 80%, transparent);
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.5rem, 5.7vw, 5.3rem);
+      letter-spacing: -0.035em;
+      max-width: 12ch;
+      margin-bottom: 1.3rem;
     }
-    .result .title{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      flex-wrap:wrap;
-      margin-bottom: 8px;
+
+    h2 {
+      font-family: var(--serif);
+      font-size: clamp(2rem, 3.2vw, 3.2rem);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.7rem;
     }
-    .badge{
-      font-size: 11px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: color-mix(in oklab, var(--panel) 80%, transparent);
-      color: var(--muted);
+
+    h3 {
+      font-size: 1.08rem;
+      margin-bottom: 0.55rem;
     }
-    .result p{
+
+    .lede {
+      color: var(--text-soft);
+      font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+      max-width: 52ch;
       margin: 0;
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
     }
 
-    /* Footer */
-    footer{
-      margin-top: 28px;
-      border-top: 1px solid var(--line);
-      padding-top: 18px;
-      color: var(--muted);
-      font-size: 12px;
-      display:flex;
-      flex-wrap:wrap;
-      gap: 10px;
-      align-items:center;
-      justify-content:space-between;
+    .hero-actions,
+    .section-actions {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
     }
 
-    .toast{
-      position: fixed;
-      left: 50%;
-      bottom: 20px;
-      transform: translateX(-50%);
-      background: color-mix(in oklab, var(--bg) 75%, transparent);
-      border: 1px solid var(--line);
+    .button {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0.78rem 1.08rem;
       border-radius: 999px;
-      padding: 10px 12px;
-      box-shadow: var(--shadow);
-      color: var(--text);
-      font-size: 13px;
-      opacity: 0;
-      pointer-events:none;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      z-index: 100;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      max-width: 92vw;
-      white-space: nowrap;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      transform: translateY(-1px);
+    }
+
+    .button-primary {
+      color: #fff;
+      background: var(--heading);
+      border-color: transparent;
+    }
+
+    [data-theme="dark"] .button-primary {
+      color: #11161b;
+      background: #f4f6f7;
+    }
+
+    .button-secondary {
+      background: transparent;
+    }
+
+    .hero-visual {
       overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .toast.show{
-      opacity: 1;
-      transform: translateX(-50%) translateY(-2px);
+      min-height: 520px;
+      position: relative;
     }
 
-
-    @media (max-width: 900px){
-      #bg{ display:none; }
+    .hero-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      inset: 0;
     }
 
-    /* Reduced motion */
-    @media (prefers-reduced-motion: reduce){
-      *{ scroll-behavior: auto !important; transition: none !important; }
+    .hero-caption {
+      position: absolute;
+      left: 1rem;
+      right: 1rem;
+      bottom: 1rem;
+      padding: 0.9rem 1rem;
+      border-radius: 16px;
+      background: rgba(12,18,24,0.66);
+      color: rgba(255,255,255,0.92);
+      backdrop-filter: blur(8px);
+      font-size: 0.9rem;
+    }
+
+    .section-head {
+      max-width: 760px;
+      margin-bottom: 1.7rem;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 1.02rem;
+    }
+
+    .essay-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 1rem;
+    }
+
+    .essay-card {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+
+    .essay-image {
+      aspect-ratio: 16/9;
+      overflow: hidden;
+      background: var(--bg-soft);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .essay-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.25s ease;
+    }
+
+    .essay-card:hover .essay-image img { transform: scale(1.015); }
+
+    .essay-body {
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .essay-title {
+      font-family: var(--serif);
+      font-size: 1.22rem;
+      line-height: 1.22;
+      margin: 0 0 0.65rem;
+    }
+
+    .essay-title a { text-decoration: none; }
+
+    .essay-excerpt {
+      color: var(--text-soft);
+      font-size: 0.92rem;
+      margin: 0;
+    }
+
+    .essay-meta {
+      margin-top: auto;
+      padding-top: 1rem;
+      color: var(--text-soft);
+      font-size: 0.78rem;
+    }
+
+    .model-grid,
+    .principle-grid,
+    .tool-grid,
+    .closing-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .model-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .principle-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .tool-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .closing-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+
+    .model-card {
+      overflow: hidden;
+    }
+
+    .model-card img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-body { padding: 1.25rem; }
+
+    .card-body p {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.94rem;
+    }
+
+    .principle-card {
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .principle-card::before {
+      content: "";
+      width: 2.4rem;
+      height: 3px;
+      display: block;
+      border-radius: 999px;
+      background: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .tool-card,
+    .closing-card {
+      padding: 1.4rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 210px;
+    }
+
+    .tool-card p,
+    .closing-card p {
+      color: var(--text-soft);
+      margin: 0;
+    }
+
+    .tool-card a,
+    .closing-card a {
+      margin-top: auto;
+      padding-top: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--accent);
+    }
+
+    .resource-callout {
+      margin-top: 1rem;
+      padding: 1.3rem 1.45rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .resource-callout p {
+      margin: 0.25rem 0 0;
+      color: var(--text-soft);
+    }
+
+    .muted { color: var(--text-soft); }
+
+    footer {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+      padding: 2.5rem 0 4rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-soft);
+      font-size: 0.86rem;
+      display: flex;
+      gap: 1rem;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .loading-card {
+      padding: 1.3rem;
+      color: var(--text-soft);
+    }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-visual { min-height: 400px; }
+      .essay-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .model-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .tool-grid,
+      .closing-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .nav {
+        align-items: flex-start;
+        padding: 0.9rem 0;
+        flex-direction: column;
+      }
+
+      .nav-links { justify-content: flex-start; }
+
+      section { margin: 3.6rem 0; }
+
+      .essay-grid,
+      .model-grid,
+      .principle-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-copy { padding: 1.5rem; }
+      .hero-visual { min-height: 320px; }
+      .resource-callout { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
     }
   </style>
 </head>
 
 <body>
-  <canvas id="bg" aria-hidden="true"></canvas>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand" role="banner">
-        <div class="logo" aria-hidden="true"></div>
-        <div>
-          <h1>eMote – Models for Change and Governance</h1>
-          <div class="tag">Making Change Effortless</div>
-        </div>
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary">
+      <a class="brand" href="/">
+        <strong>eMote Ltd</strong>
+        <span>Models for Change and Governance</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/knowledge/">Knowledge</a>
+        <a href="#essays">Essays</a>
+        <a href="#models">Models</a>
+        <a href="/tools.html">Tools</a>
+        <a href="/reading.html">Reading</a>
+        <a href="/about.html">About</a>
+        <a href="#contact">Contact</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme">Theme</button>
       </div>
-
-<nav class="nav" aria-label="Primary">
-  <button class="btn navToggle" id="navToggle" type="button" aria-expanded="false" aria-controls="navLinks">
-    Menu
-  </button>
-
-  <div class="navLinks" id="navLinks">
-    <a class="navlink" href="#models">Models</a>
-    <a class="navlink" href="/knowledge/">Knowledge</a>
-    <a class="navlink" href="#essays">Essays</a>
-    <a class="navlink" href="#tools">Tools</a>
-    <a class="navlink" href="/tools.html">Tools Hub</a>
-    <a class="navlink" href="/reading.html">Reading</a>
-    <a class="navlink" href="/about.html">About</a>
-    <a class="navlink" href="#contact">Contact</a>
-    <button class="btn" id="themeBtn" type="button" aria-label="Toggle site theme">Switch theme</button>
-  </div>
-</nav>
-
-    </div>
+    </nav>
   </header>
 
-  <main class="wrap">
-    <div class="hero">
-      <div class="card hero-main">
-        <div class="kicker">
-          <span class="kdot" aria-hidden="true"></span>
-          Governance and change architecture
-        </div>
-
-        <h2 class="hero-title">Calm models for governing change in complex systems</h2>
-
-        <p class="hero-sub">
-          eMote sets out working models, essays and practical tools for leaders responsible for delivery.
-          The approach is deliberate: structured reasoning, clear governance paths and proportionate use of AI where it reduces avoidable effort.
+  <main id="main-content">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <span class="eyebrow">Models for change and governance</span>
+        <h1 id="hero-title">Better decisions when the system is not simple</h1>
+        <p class="lede">
+          Practical thinking for organisations making consequential decisions under uncertainty,
+          especially where technology, governance, power and human behaviour interact.
         </p>
 
         <div class="hero-actions">
-          <a class="btn btn-primary" href="/knowledge/">
-            Read essays
-          </a>
-          <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">
-            Review Martin on LinkedIn
-          </a>
-          <button class="btn" id="copyEmailBtn" type="button">Copy email</button>
-          <a class="btn" href="#models">Open the change governance models</a>
-        </div>
-
-        <div class="mini">
-          Focus: adoption, stakeholder alignment, proportionate governance and measurable outcomes.
+          <a class="button button-primary" href="/knowledge/">Explore the Knowledge Base</a>
+          <a class="button button-secondary" href="#models">See the models</a>
+          <a class="button button-secondary" href="/tools.html">Use the tools</a>
         </div>
       </div>
 
-      <aside class="card hero-side" aria-label="At a glance">
-        <div class="side-block">
-          <h3>What you get</h3>
-          <div class="metric">
-            <div class="pill">
-              <div class="label">Delivery style</div>
-              <div class="value">Pragmatic</div>
-            </div>
-            <div class="pill">
-              <div class="label">AI role</div>
-              <div class="value">Co-pilot</div>
-            </div>
-            <div class="pill">
-              <div class="label">Method</div>
-              <div class="value">Evidence-led</div>
-            </div>
-            <div class="pill">
-              <div class="label">Output</div>
-              <div class="value">Adoption</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="side-block">
-          <h3>Quick links</h3>
-          <div class="list" style="margin-top:0">
-            <div class="item">
-              <div>
-                <strong>Articles</strong>
-                <div class="desc">Long-form writing on AI, change, leadership and delivery.</div>
-              </div>
-              <a class="chip" href="/knowledge/">Browse the knowledge library</a>
-            </div>
-            <div class="item">
-              <div>
-                <strong>Email</strong>
-                <div class="desc mono">martin@emote.ltd</div>
-              </div>
-              <button class="chip btn" style="padding:6px 10px" id="copyEmailBtn2" type="button">Copy email</button>
-            </div>
-            <div class="item">
-              <div>
-                <strong>LinkedIn</strong>
-                <div class="desc">Connect for collaboration, delivery and ideas.</div>
-              </div>
-              <a class="chip" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">View Martin on LinkedIn</a>
-            </div>
-          </div>
+      <aside class="hero-visual" aria-label="eMote visual">
+        <img src="/assets/images/hero-bridge-compass.webp"
+             alt="Illustration of a bridge and compass representing navigation through complex organisational change"
+             width="1200" height="900" decoding="async" />
+        <div class="hero-caption">
+          eMote connects change practice, governance, systems thinking and AI without pretending uncertainty can be removed.
         </div>
       </aside>
-    </div>
-
-<section id="models" class="section">
-  <h2>Models</h2>
-  <div class="grid4">
-    <article class="pill">
-<img class="pillImg" src="/assets/images/card-clarity-governance.webp" width="960" height="640" decoding="async" alt="Illustration: clarity and governance" loading="lazy">
-      <h3>Clarity and governance</h3>
-      <p>Decision points, risks, outcomes, and next actions written so people actually act on them.</p>
-    </article>
-
-    <article class="pill">
-<img class="pillImg" src="/assets/images/card-stakeholders-together.webp" width="960" height="640" decoding="async" alt="Illustration: stakeholders moving together" loading="lazy">
-      <h3>Stakeholders moving together</h3>
-      <p>One shared story across sponsor, delivery, BA and service teams, without extra bureaucracy.</p>
-    </article>
-
-    <article class="pill">
-<img class="pillImg" src="/assets/images/card-safety-change.webp" width="960" height="640" decoding="async" alt="Illustration: safety to change" loading="lazy">
-      <h3>Safety to change</h3>
-      <p>Confidence, reinforcement, and practical support so adoption is steady not fragile.</p>
-    </article>
-
-    <article class="pill">
-<img class="pillImg" src="/assets/images/card-momentum-freedom.webp" width="960" height="640" decoding="async" alt="Illustration: momentum and freedom" loading="lazy">
-      <h3>Momentum and freedom</h3>
-      <p>AI-assisted drafting, analysis, and comms that reduce effort while keeping rigour.</p>
-    </article>
-  </div>
-</section>
-
-
-
-
-        <section id="tools">
-      <div class="section-head">
-        <h2>Tools</h2>
-        <p>Interactive checks that expose system structure and decision pressure.</p>
-        <p><a class="chip" href="/tools.html">Open the full business tools hub</a></p>
-      </div>
-
-      <div class="grid">
-        <div class="card pad col-8">
-          <div class="list" style="margin-top:0">
-            <div class="item">
-              <div>
-                <strong>Start with the real risk: non-adoption</strong>
-                <div class="desc">We treat adoption as an outcome, not a hope. Change activity is targeted at the few things that actually block uptake.</div>
-              </div>
-              <span class="chip">Outcome-led</span>
-            </div>
-            <div class="item">
-              <div>
-                <strong>Right-size the change work</strong>
-                <div class="desc">Light, medium, heavy approaches. Enough structure to be safe, lean enough to move fast.</div>
-              </div>
-              <span class="chip">Proportionate</span>
-            </div>
-            <div class="item">
-              <div>
-                <strong>Use AI to remove the grind</strong>
-                <div class="desc">Drafting, analysis and consistency checks done quickly so humans can focus on decisions, relationships and leadership.</div>
-              </div>
-              <span class="chip">AI-enabled</span>
-            </div>
-            <div class="item">
-              <div>
-                <strong>Make governance useful</strong>
-                <div class="desc">Evidence, risks and actions that a board can actually use, without theatre or overload.</div>
-              </div>
-              <span class="chip">Board-ready</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card pad col-4">
-          <h3 style="margin:0 0 6px; font-size:14px;">Change effort dial</h3>
-          <div class="small muted">
-            Move the slider. The page will show what “effortless” looks like at different levels.
-          </div>
-
-          <div class="dial" role="group" aria-label="Change effort dial">
-            <div class="dial-row">
-            <div class="chip">Human-led drafting</div>
-              <div class="chip">AI-assisted synthesis</div>
-            </div>
-
-            <div style="margin-top:10px">
-              <input id="effort" type="range" min="0" max="100" value="55" />
-              <div class="dial-meter" aria-hidden="true"><div class="dial-fill" id="effortFill"></div></div>
-              <div class="dial-text" id="effortText"></div>
-            </div>
-          </div>
-        </div>
-      </div>
     </section>
 
-    <section id="structure">
-      <div class="section-head">
-        <h2>System structure</h2>
-        <p>Interactivity is used to make assumptions, dependencies and governance thresholds explicit.</p>
-      </div>
-
-      <div class="grid">
-        <div class="card pad col-6">
-          <h3 style="margin:0 0 6px; font-size:14px;">Change sizing mini-check</h3>
-          <div class="small muted">
-            This is not a formal assessment. It is a fast way to decide what level of change activity is worth doing.
-          </div>
-
-          <div class="quiz" aria-label="Change sizing mini-check">
-            <div class="q">
-              <label for="qPeople">How many people will feel the change?</label>
-              <select id="qPeople">
-                <option value="0">A small team</option>
-                <option value="1">Multiple teams</option>
-                <option value="2">A whole service or the public</option>
-              </select>
-            </div>
-
-            <div class="q">
-              <label for="qRisk">What is the risk if adoption is slow?</label>
-              <select id="qRisk">
-                <option value="0">Low: inconvenience and rework</option>
-                <option value="1">Medium: performance or financial impact</option>
-                <option value="2">High: statutory, safety or reputational impact</option>
-              </select>
-            </div>
-
-            <div class="q">
-              <label for="qNovelty">How new is the process or technology?</label>
-              <select id="qNovelty">
-                <option value="0">Minor change to what people already do</option>
-                <option value="1">Noticeable shift in roles or process</option>
-                <option value="2">New ways of working</option>
-              </select>
-            </div>
-
-            <div class="result" id="quizResult" aria-live="polite"></div>
-
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;">
-              <button class="btn btn-primary" id="emailSizingBtn" type="button">Email this sizing result</button>
-              <button class="btn" id="copySizingBtn" type="button">Copy summary</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card pad col-6">
-          <h3 style="margin:0 0 6px; font-size:14px;">AI prompt starter for project change</h3>
-          <div class="small muted">
-            Paste this into your AI tool with a project brief to quickly get a useful change view. Edit the brackets.
-          </div>
-
-          <div class="dial" style="margin-top:10px">
-            <pre id="promptBox" class="mono" style="margin:0; white-space:pre-wrap; font-size:12px; line-height:1.5;">You are my change management co-pilot for a project.
-
-Context:
-- Organisation: [local authority / company]
-- Project: [name]
-- What is changing: [system, process, policy]
-- Who is affected: [roles, teams, external users]
-- Go-live date: [date]
-- Constraints: [time, budget, governance]
-
-Tasks:
-1) Produce a short Change Impact summary (people, process, technology, ways of working)
-2) Identify the top 8 adoption risks and write mitigation actions that fit normal project artefacts (RAID, comms, training, service readiness)
-3) Suggest a proportionate change approach (light, medium or heavy) and explain why
-4) Draft a board-ready update in plain language with decisions needed and next actions
-
-Style:
-- Use headings, bullet points and avoid fluff.</pre>
-          </div>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-            <button class="btn btn-primary" id="copyPromptBtn" type="button">Copy prompt</button>
-            <button class="btn" id="randomisePromptBtn" type="button">Insert examples</button>
-          </div>
-
-          <div class="mini">
-            If you want, I can tailor this to your PMO templates, governance rhythm and reporting style.
-          </div>
-        </div>
-      </div>
-
-<div class="card pad col-6">
-  <h3 style="margin:0 0 6px; font-size:14px;">Reading list</h3>
-  <div class="small muted">
-    Models, sources, and references that sit behind the writing and the delivery approach.
-  </div>
-
-  <div class="list" style="margin-top:12px;">
-    <div class="item">
-      <div>
-        <strong>Reading map by domain</strong>
-        <div class="desc">Curated links for change, AI, leadership, evidence and public sector delivery.</div>
-      </div>
-      <a class="chip" href="/reading.html">View the structured reading map</a>
-    </div>
-
-    <div class="item">
-      <div>
-        <strong>Use it as a toolkit</strong>
-        <div class="desc">When a project feels stuck, pick one lens and reframe the problem.</div>
-      </div>
-      <span class="chip">Practical</span>
-    </div>
-
-    <div class="item">
-      <div>
-        <strong>Not endorsements</strong>
-        <div class="desc">A working set of sources I find useful, updated over time.</div>
-      </div>
-      <span class="chip">Transparent</span>
-    </div>
-  </div>
-</div>
-
-
-      
-    </section>
-
-    
     <section id="essays">
       <div class="section-head">
-        <h2>Essays</h2>
-        <p>Writing on change, governance and applied systems thinking.</p>
+        <span class="eyebrow">Latest thinking</span>
+        <h2>Essays, arguments and working ideas</h2>
+        <p>
+          Recent writing from Marty McFry. The images lead straight to the original essays;
+          the Knowledge Base organises the wider body of work by theme and series.
+        </p>
       </div>
 
-      <div class="grid">
-        <div class="card pad col-8">
-          <div class="item" style="align-items:center; margin-bottom:12px;">
-            <div>
-              <strong>Governance with a Heartbeat (PDF)</strong>
-              <div class="desc">A downloadable paper on practical governance rhythms for real delivery environments.</div>
-            </div>
-            <a class="btn" href="/downloads/Governance%20With%20a%20Heartbeat.pdf" target="_blank" rel="noopener noreferrer">Open the Governance with a Heartbeat PDF</a>
+      <div id="latestPosts" class="essay-grid" aria-live="polite">
+        <div class="card loading-card">Loading recent essays…</div>
+      </div>
+
+      <div class="section-actions">
+        <a class="button button-primary" href="/knowledge/">Browse all writing by theme and series</a>
+        <a class="button button-secondary" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open the original essay archive</a>
+      </div>
+    </section>
+
+    <section id="models">
+      <div class="section-head">
+        <span class="eyebrow">Working models</span>
+        <h2>Four lenses for governing change</h2>
+        <p>
+          The models are not a methodology to follow mechanically. They are practical lenses for noticing what matters,
+          making decisions visible and keeping effort proportionate.
+        </p>
+      </div>
+
+      <div class="model-grid">
+        <article class="card model-card">
+          <img src="/assets/images/card-clarity-governance.webp"
+               alt="Illustration representing clarity and governance" loading="lazy" decoding="async" />
+          <div class="card-body">
+            <h3>Clarity and governance</h3>
+            <p>Make the decision, evidence, risk and next action visible enough for people to act rather than merely approve.</p>
           </div>
+        </article>
 
-          <div class="item" style="align-items:center;">
-            <div>
-              <strong>Browse the knowledge library</strong>
-              <div class="desc">Explore essays by theme and series, then open the original writing.</div>
-            </div>
-            <a class="btn btn-primary" href="/knowledge/">Browse all writing by theme and series</a>
+        <article class="card model-card">
+          <img src="/assets/images/card-stakeholders-together.webp"
+               alt="Illustration representing stakeholders moving together" loading="lazy" decoding="async" />
+          <div class="card-body">
+            <h3>Stakeholders moving together</h3>
+            <p>Treat alignment as part of delivery, not a communications exercise added after the important decisions are made.</p>
           </div>
+        </article>
 
-          <div class="dial" style="margin-top:12px;">
-            <div class="dial-row">
-              <div class="chip">Spotlight</div>
-              <div class="chip" id="spotlightMeta">Click for another</div>
-            </div>
-            <div id="spotlight" style="margin-top:10px; font-size:14px; line-height:1.55;"></div>
-
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-              <button class="btn" id="nextSpotlightBtn" type="button">New spotlight</button>
-              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Open recent governance essays</a>
-            </div>
-
-            <div class="list" id="latestPosts"></div>
+        <article class="card model-card">
+          <img src="/assets/images/card-safety-change.webp"
+               alt="Illustration representing safety to change" loading="lazy" decoding="async" />
+          <div class="card-body">
+            <h3>Safety to change</h3>
+            <p>People adopt when the consequences of trying, questioning and correcting are survivable, not simply because they were trained.</p>
           </div>
+        </article>
+
+        <article class="card model-card">
+          <img src="/assets/images/card-momentum-freedom.webp"
+               alt="Illustration representing momentum and freedom" loading="lazy" decoding="async" />
+          <div class="card-body">
+            <h3>Momentum and freedom</h3>
+            <p>Use structure and automation to remove avoidable effort while preserving judgement, accountability and room to adapt.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="approach">
+      <div class="section-head">
+        <span class="eyebrow">The eMote approach</span>
+        <h2>Change capability, not change theatre</h2>
+        <p>
+          Four propositions recur across the models, essays and tools.
+        </p>
+      </div>
+
+      <div class="principle-grid">
+        <article class="card principle-card">
+          <h3>Adoption is an outcome, not a hope</h3>
+          <p class="muted">Change activity should concentrate on the real barriers to people using, trusting and sustaining the new way of working.</p>
+        </article>
+
+        <article class="card principle-card">
+          <h3>Governance should improve decisions</h3>
+          <p class="muted">Boards and controls are useful when they expose assumptions, accountability and choices rather than create paperwork that simulates certainty.</p>
+        </article>
+
+        <article class="card principle-card">
+          <h3>Change work should be proportionate</h3>
+          <p class="muted">Not every change needs a programme around it. The amount of change activity should follow impact, novelty, risk and capacity.</p>
+        </article>
+
+        <article class="card principle-card">
+          <h3>AI should remove avoidable effort</h3>
+          <p class="muted">Use AI for drafting, synthesis and consistency where it helps, while keeping human judgement where consequences, context and accountability matter.</p>
+        </article>
+      </div>
+
+      <div class="card resource-callout">
+        <div>
+          <strong>Governance with a Heartbeat</strong>
+          <p>A practical paper on governance rhythms that stay connected to what is actually happening in delivery.</p>
         </div>
+        <a class="button button-secondary" href="/downloads/Governance%20With%20a%20Heartbeat.pdf" target="_blank" rel="noopener noreferrer">Open the PDF</a>
+      </div>
+    </section>
 
-        <div class="card pad col-4">
-          <h3 style="margin:0 0 6px; font-size:14px;">What I write about</h3>
-          <div class="list" style="margin-top:10px;">
-            <div class="item">
-              <div>
-                <strong>Making AI useful</strong>
-                <div class="desc">Prompts, patterns and practical guardrails.</div>
-              </div>
-              <span class="chip">Practice</span>
-            </div>
-            <div class="item">
-              <div>
-                <strong>Change that sticks</strong>
-                <div class="desc">Adoption, reinforcement and outcomes.</div>
-              </div>
-              <span class="chip">Delivery</span>
-            </div>
-            <div class="item">
-              <div>
-                <strong>Academic thinking</strong>
-                <div class="desc">Theory used as a tool, not a shrine.</div>
-              </div>
-              <span class="chip">Evidence</span>
-            </div>
-          </div>
-        </div>
+    <section id="tools">
+      <div class="section-head">
+        <span class="eyebrow">Put the thinking to work</span>
+        <h2>Practical tools</h2>
+        <p>
+          Small utilities that reduce friction in delivery, analysis and communication.
+        </p>
+      </div>
+
+      <div class="tool-grid">
+        <article class="card tool-card">
+          <h3>Business tools</h3>
+          <p>QR generation, recording, transcription, redaction, diagrams and other lightweight delivery utilities.</p>
+          <a href="/tools.html">Open the Tools Hub →</a>
+        </article>
+
+        <article class="card tool-card">
+          <h3>Transcription</h3>
+          <p>Turn recordings into working transcripts for meetings, notes and analysis without adding another workflow.</p>
+          <a href="/transcribe/">Open transcription →</a>
+        </article>
+
+        <article class="card tool-card">
+          <h3>Mermaid Builder</h3>
+          <p>Turn system structures, processes and dependencies into diagrams that are easier to discuss and challenge.</p>
+          <a href="/mermaid.html">Open Mermaid Builder →</a>
+        </article>
       </div>
     </section>
 
     <section id="contact">
       <div class="section-head">
-        <h2>Contact</h2>
-        <p>For delivery support, governance design and speaking enquiries.</p>
+        <span class="eyebrow">Go further</span>
+        <h2>About, influences and contact</h2>
+        <p>
+          eMote is part working library, part set of practical tools and part continuing inquiry into how organisations change.
+        </p>
       </div>
 
-      <div class="grid">
-        <div class="card pad col-12">
-          <div class="item" style="align-items:center;">
-            <div>
-              <strong>Email</strong>
-              <div class="desc mono">martin@emote.ltd</div>
-            </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <a class="btn btn-primary" href="mailto:martin@emote.ltd?subject=eMote%20-%20Change%20support&body=Hi%20Martin%2C%0A%0AI%27d%20like%20to%20talk%20about%20project%20change%20management.%20Context%3A%20%5Bbrief%5D%0A%0AThanks%2C%0A%5Bname%5D">Email Martin about a change programme</a>
-              <button class="btn" id="copyEmailBtn3" type="button">Copy email</button>
-              <a class="btn" href="https://www.linkedin.com/in/martinfry/" target="_blank" rel="noopener noreferrer">View governance background on LinkedIn</a>
-              <a class="btn" href="https://martymcfry.blogspot.com/" target="_blank" rel="noopener noreferrer">Read the governance and change essay archive</a>
-            </div>
-          </div>
+      <div class="closing-grid">
+        <article class="card closing-card">
+          <h3>About eMote</h3>
+          <p>Why the site exists, how the work is framed and the experience behind the models.</p>
+          <a href="/about.html">About eMote →</a>
+        </article>
 
-          <div class="mini">
-            If you are exploring a specific project, include: what is changing, who is affected, your go-live date and the one thing you are most worried about.
-          </div>
-        </div>
+        <article class="card closing-card">
+          <h3>Reading & influences</h3>
+          <p>A deliberately non-linear map of books, essays and sources that shape the thinking behind the site.</p>
+          <a href="/reading.html">Open the reading map →</a>
+        </article>
+
+        <article class="card closing-card">
+          <h3>Contact Martin</h3>
+          <p>For discussion about change, governance, project delivery, AI or the ideas developed across the site.</p>
+          <a href="mailto:martin@emote.ltd">martin@emote.ltd →</a>
+        </article>
       </div>
     </section>
-
-    <footer>
-      <div>© <span id="year"></span> eMote. Models for change and governance.</div>
-      <div class="muted">Company number: 14127916</div>
-      <div class="muted">Designed as a calm, low-friction static site.</div>
-    </footer>
   </main>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <footer>
+    <div>© <span id="year"></span> eMote Ltd · Company number 14127916</div>
+    <div>Models for Change and Governance</div>
+  </footer>
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Person",
-      "@id": "https://emote.ltd/#person",
-      "name": "Martin",
-      "url": "https://emote.ltd/",
-      "email": "martin@emote.ltd",
-      "sameAs": ["https://www.linkedin.com/in/martinfry/"],
-      "jobTitle": "Change and governance consultant"
-    },
-    {
-      "@type": "ConsultingBusiness",
-      "@id": "https://emote.ltd/#business",
-      "name": "eMote",
-      "url": "https://emote.ltd/",
-      "email": "martin@emote.ltd",
-      "description": "Structured advisory for change, governance and adoption in complex project delivery.",
-      "founder": {"@id": "https://emote.ltd/#person"},
-      "areaServed": "United Kingdom"
-    },
-    {
-      "@type": "Article",
-      "@id": "https://emote.ltd/#article-home",
-      "headline": "Models for Change and Governance",
-      "description": "A structured overview of governance models, essays and practical tools for change delivery.",
-      "author": {"@id": "https://emote.ltd/#person"},
-      "publisher": {"@id": "https://emote.ltd/#business"},
-      "mainEntityOfPage": "https://emote.ltd/"
-    }
-  ]
-}
-</script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": "https://emote.ltd/#person",
+        "name": "Martin Fry",
+        "url": "https://emote.ltd/",
+        "email": "martin@emote.ltd",
+        "sameAs": ["https://www.linkedin.com/in/martinfry/"],
+        "jobTitle": "Change and governance consultant"
+      },
+      {
+        "@type": "ConsultingBusiness",
+        "@id": "https://emote.ltd/#business",
+        "name": "eMote Ltd",
+        "url": "https://emote.ltd/",
+        "email": "martin@emote.ltd",
+        "description": "Practical models, essays and tools for change, governance and organisational decision-making under uncertainty.",
+        "founder": {"@id": "https://emote.ltd/#person"},
+        "areaServed": "United Kingdom"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://emote.ltd/#website",
+        "url": "https://emote.ltd/",
+        "name": "eMote Ltd",
+        "publisher": {"@id": "https://emote.ltd/#business"}
+      }
+    ]
+  }
+  </script>
 
   <script>
-    // ---------- Helpers ----------
-    const $ = (sel) => document.querySelector(sel);
-    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-
-    function toast(msg){
-      const el = $("#toast");
-      el.textContent = msg;
-      el.classList.add("show");
-      clearTimeout(toast._t);
-      toast._t = setTimeout(() => el.classList.remove("show"), 1800);
-    }
-
-    async function copyText(text){
-      try{
-        await navigator.clipboard.writeText(text);
-        toast("Copied to clipboard");
-        return true;
-      }catch(e){
-        // Fallback
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        toast(ok ? "Copied to clipboard" : "Copy failed");
-        return ok;
-      }
-    }
-
-
-function stripHtml(html){
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html || "";
-  return (tmp.textContent || tmp.innerText || "").trim();
-}
-
-function formatDate(iso){
-  try{
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-GB", { year:"numeric", month:"short", day:"2-digit" });
-  }catch(e){
-    return "";
-  }
-}
-function escapeHtml(str){
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function firstImageFromHtml(html){
-  const m = String(html ?? "").match(/<img[^>]+src="([^"]+)"/i);
-  return m ? m[1] : "";
-}
-
-// Blogger/Google thumbs often support size hints. This tries to standardise.
-function normaliseThumb(url, size=160){
-  if(!url) return "";
-  // Patterns seen in Blogger images:
-  //  - ...=s72-c
-  //  - .../s72-c/...
-  //  - .../w72-h72-p-k-no-nu/...
-  let out = url;
-
-  out = out.replace(/=s\d+-c/i, `=s${size}-c`);
-  out = out.replace(/\/s\d+-c\//i, `/s${size}-c/`);
-  out = out.replace(/\/w\d+-h\d+[^/]*\//i, `/w${size}-h${size}/`);
-
-  return out;
-}
-
-async function fetchLatestPosts(){
-  const target = document.querySelector("#latestPosts");
-  if(!target) return;
-
-  target.innerHTML = `
-    <div class="item">
-      <div>
-        <strong>Latest posts</strong>
-        <div class="desc">Loading…</div>
-      </div>
-      <span class="chip">Blogger</span>
-    </div>`;
-
-  try{
-    const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "no-store" });
-    if(!res.ok) throw new Error("Feed request failed: " + res.status);
-
-    const data = await res.json();
-    const entries = data?.feed?.entry || [];
-
-    if(!entries.length){
-      target.innerHTML = `
-        <div class="item">
-          <div>
-            <strong>No posts found</strong>
-            <div class="desc">Open the full library on Blogger.</div>
-          </div>
-          <a class="chip" href="/knowledge/">Browse the knowledge library</a>
-        </div>`;
-      return;
-    }
-
-    target.innerHTML = entries.map(e => {
-      const rawTitle = e?.title?.$t || "Untitled";
-      const title = escapeHtml(rawTitle);
-
-      const href =
-        (e?.link || []).find(l => l.rel === "alternate")?.href
-        || "https://martymcfry.blogspot.com/";
-
-      const published = e?.published?.$t || "";
-
-      const html = e?.content?.$t || e?.summary?.$t || "";
-      const text = stripHtml(html);
-      const excerptRaw = text.slice(0, 170) + (text.length > 170 ? "…" : "");
-      const excerpt = escapeHtml(excerptRaw);
-
-      // 1) Prefer Blogger-provided thumbnail
-      let thumb = e?.["media$thumbnail"]?.url || "";
-
-      // 2) Fallback: first image in the post body
-      if(!thumb) thumb = firstImageFromHtml(html);
-
-      thumb = normaliseThumb(thumb, 200);
-
-      const thumbHtml = thumb
-        ? `<img class="postThumb" src="${thumb}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
-        : "";
-
-      return `
-        <div class="item post">
-          <div class="postRow">
-            ${thumbHtml}
-            <div class="postMain">
-              <strong>${title}</strong>
-              <div class="desc">${excerpt}</div>
-              <div class="postMeta">${escapeHtml(formatDate(published))}</div>
-            </div>
-          </div>
-          <a class="chip" href="${href}" target="_blank" rel="noopener noreferrer">Open this essay on governance and change</a>
-        </div>`;
-    }).join("");
-
-  }catch(err){
-    target.innerHTML = `
-      <div class="item">
-        <div>
-          <strong>Latest posts unavailable</strong>
-          <div class="desc">The site can not reach the feed endpoint right now.</div>
-        </div>
-        <a class="chip" href="/knowledge/">Browse the knowledge library</a>
-      </div>`;
-  }
-}
-
-    fetchLatestPosts();
-
-
-    // ---------- Theme ----------
     const THEME_KEY = "emote_theme";
-    function applyTheme(theme){
+
+    function applyTheme(theme) {
       document.documentElement.setAttribute("data-theme", theme);
       localStorage.setItem(THEME_KEY, theme);
-      toast(theme === "light" ? "Light theme" : "Dark theme");
-    }
-    async function getApproxCoordsByIp(){
-      const ipapi = await fetch("https://ipapi.co/json/", { cache: "no-store" });
-      if(ipapi.ok){
-        const data = await ipapi.json();
-        if(Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
-          return {
-            latitude: Number(data.latitude),
-            longitude: Number(data.longitude)
-          };
-        }
-      }
-
-      const ipwhois = await fetch("https://ipwho.is/", { cache: "no-store" });
-      if(ipwhois.ok){
-        const data = await ipwhois.json();
-        if(data.success && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))){
-          return {
-            latitude: Number(data.latitude),
-            longitude: Number(data.longitude)
-          };
-        }
-      }
-
-      throw new Error("ip lookup failed");
     }
 
-    async function getWeatherBasedTheme(){
-      try{
-        const coords = await getApproxCoordsByIp();
-        const latitude = coords.latitude.toFixed(4);
-        const longitude = coords.longitude.toFixed(4);
-        const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=is_day&timezone=auto`;
-        const response = await fetch(endpoint, { cache: "no-store" });
-        if(!response.ok) throw new Error("weather request failed");
-
-        const data = await response.json();
-        const isDay = Number(data?.current?.is_day) === 1;
-        return isDay ? "light" : "dark";
-      }catch{
-        return null;
-      }
-    }
-
-    async function initTheme(){
+    function initialiseTheme() {
       const saved = localStorage.getItem(THEME_KEY);
-      if(saved){
-        document.documentElement.setAttribute("data-theme", saved);
-      }else{
-        const weatherTheme = await getWeatherBasedTheme();
-        if(weatherTheme){
-          document.documentElement.setAttribute("data-theme", weatherTheme);
-        }else{
-          const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-          document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
-        }
-      }
-    }
-
-    // ---------- Background animation (soft particles) ----------
-    function initBackground(){
-      const c = $("#bg");
-      const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const isMobileViewport = window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
-      if(prefersReduced || isMobileViewport){
-        c.style.display = "none";
+      if (saved === "light" || saved === "dark") {
+        applyTheme(saved);
         return;
       }
-      const ctx = c.getContext("2d", { alpha: true });
 
-      const state = {
-        w: 0, h: 0, dpr: Math.min(window.devicePixelRatio || 1, 2),
-        dots: [],
-        t: 0
-      };
+      const prefersDark = window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-      function resize(){
-        state.w = Math.floor(window.innerWidth);
-        state.h = Math.floor(window.innerHeight);
-        c.width = Math.floor(state.w * state.dpr);
-        c.height = Math.floor(state.h * state.dpr);
-        c.style.width = state.w + "px";
-        c.style.height = state.h + "px";
-        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-      }
-
-      function makeDots(){
-        const count = clamp(Math.floor((state.w * state.h) / 45000), 18, 52);
-        state.dots = Array.from({length: count}, () => ({
-          x: Math.random() * state.w,
-          y: Math.random() * state.h,
-          r: 1.2 + Math.random() * 2.2,
-          vx: (-0.25 + Math.random() * 0.5) * (prefersReduced ? 0 : 1),
-          vy: (-0.25 + Math.random() * 0.5) * (prefersReduced ? 0 : 1),
-          a: 0.18 + Math.random() * 0.25
-        }));
-      }
-
-      function draw(){
-        ctx.clearRect(0, 0, state.w, state.h);
-
-        // A subtle vignette for depth
-        const g = ctx.createRadialGradient(state.w * 0.35, state.h * 0.25, 0, state.w * 0.45, state.h * 0.4, Math.max(state.w, state.h));
-        g.addColorStop(0, "rgba(125,249,255,0.10)");
-        g.addColorStop(0.35, "rgba(182,255,125,0.06)");
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, state.w, state.h);
-
-        // Dots
-        for(const d of state.dots){
-          d.x += d.vx;
-          d.y += d.vy;
-
-          if(d.x < -20) d.x = state.w + 20;
-          if(d.x > state.w + 20) d.x = -20;
-          if(d.y < -20) d.y = state.h + 20;
-          if(d.y > state.h + 20) d.y = -20;
-
-          ctx.beginPath();
-          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${d.a})`;
-          ctx.fill();
-        }
-
-        // Lines between nearby dots
-        for(let i=0; i<state.dots.length; i++){
-          for(let j=i+1; j<state.dots.length; j++){
-            const a = state.dots[i];
-            const b = state.dots[j];
-            const dx = a.x - b.x;
-            const dy = a.y - b.y;
-            const dist = Math.hypot(dx, dy);
-            if(dist < 140){
-              const alpha = (1 - dist / 140) * 0.10;
-              ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(a.x, a.y);
-              ctx.lineTo(b.x, b.y);
-              ctx.stroke();
-            }
-          }
-        }
-      }
-
-      function loop(){
-        draw();
-        if(!prefersReduced) requestAnimationFrame(loop);
-      }
-
-      resize();
-      makeDots();
-      window.addEventListener("resize", () => { resize(); makeDots(); }, { passive: true });
-      loop();
+      document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
     }
 
-    // ---------- Effort dial ----------
-    const effortCopy = [
-      {
-        max: 20,
-        fill: 18,
-        text: "Mostly manual: good people doing good work, but time gets eaten by drafting, formatting and chasing updates. AI can remove admin friction fast."
-      },
-      {
-        max: 45,
-        fill: 40,
-        text: "Balanced: AI helps with first drafts and consistency checks, humans lead the room and make decisions. A solid default for many projects."
-      },
-      {
-        max: 70,
-        fill: 63,
-        text: "AI-enabled delivery: rapid synthesis of feedback, scenario analysis and board updates. More time for stakeholder work and leadership moves."
-      },
-      {
-        max: 100,
-        fill: 85,
-        text: "High leverage: repeatable prompts and templates, fast iteration, strong governance narrative. Effort moves from documents to outcomes."
+    function stripHtml(html) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html || "";
+      return (tmp.textContent || tmp.innerText || "").trim();
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function firstImageFromHtml(html) {
+      const m = String(html || "").match(/<img[^>]+src=["']([^"']+)["']/i);
+      return m ? m[1] : "";
+    }
+
+    function normaliseThumb(url, size = 900) {
+      if (!url) return "";
+      let out = url;
+      out = out.replace(/=s\d+-c/i, `=s${size}-c`);
+      out = out.replace(/\/s\d+-c\//i, `/s${size}-c/`);
+      out = out.replace(/\/w\d+-h\d+[^/]*\//i, `/w${size}-h${Math.round(size * 0.56)}/`);
+      return out;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "";
+      try {
+        return new Date(iso).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
+      } catch {
+        return "";
       }
-    ];
-
-    function updateEffort(){
-      const v = Number($("#effort").value);
-      const band = effortCopy.find(b => v <= b.max) || effortCopy[effortCopy.length - 1];
-      $("#effortFill").style.width = v + "%";
-      $("#effortText").textContent = band.text;
     }
 
-    // ---------- Quiz ----------
-    function scoreToLevel(score){
-      if(score <= 1) return { level: "Light", badge: "Light change", colour: "var(--accent)" };
-      if(score <= 3) return { level: "Medium", badge: "Medium change", colour: "var(--warn)" };
-      return { level: "Heavy", badge: "Heavy change", colour: "var(--danger)" };
+    function teaser(text, limit = 180) {
+      text = String(text || "").trim();
+      if (text.length <= limit) return text;
+      return text.slice(0, limit).replace(/\s+\S*$/, "").replace(/[ ,;:.-]+$/, "") + "…";
     }
 
-    function buildRecommendation(level){
-      if(level === "Light"){
-        return "Keep it lean: clarify the change, name the adoption risks, align the sponsor and PM, do short comms and just-enough guidance for users.";
+    async function fetchLatestPosts() {
+      const target = document.getElementById("latestPosts");
+      if (!target) return;
+
+      try {
+        const res = await fetch("/blog-feed?alt=json&max-results=6", { cache: "no-store" });
+        if (!res.ok) throw new Error("Feed request failed");
+
+        const data = await res.json();
+        const entries = data?.feed?.entry || [];
+
+        if (!entries.length) throw new Error("No feed entries");
+
+        target.innerHTML = entries.map(entry => {
+          const title = escapeHtml(entry?.title?.$t || "Untitled");
+          const href = (entry?.link || []).find(link => link.rel === "alternate")?.href
+            || "https://martymcfry.blogspot.com/";
+          const published = formatDate(entry?.published?.$t || "");
+          const content = entry?.content?.$t || entry?.summary?.$t || "";
+          const excerpt = escapeHtml(teaser(stripHtml(content), 175));
+
+          let image = entry?.["media$thumbnail"]?.url || firstImageFromHtml(content);
+          image = normaliseThumb(image, 900);
+
+          const imageHtml = image
+            ? `<div class="essay-image"><img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>`
+            : `<div class="essay-image"></div>`;
+
+          return `
+            <article class="card essay-card">
+              ${imageHtml}
+              <div class="essay-body">
+                <h3 class="essay-title">
+                  <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${title}</a>
+                </h3>
+                <p class="essay-excerpt">${excerpt}</p>
+                <div class="essay-meta">${escapeHtml(published)}</div>
+              </div>
+            </article>`;
+        }).join("");
+      } catch {
+        target.innerHTML = `
+          <div class="card loading-card">
+            Recent essays could not be loaded. 
+            <a href="/knowledge/">Browse the Knowledge Base instead.</a>
+          </div>`;
       }
-      if(level === "Medium"){
-        return "Structured and proportionate: targeted stakeholder plan, role-based readiness, training and comms aligned to milestones, adoption risks tracked in RAID.";
-      }
-      return "Treat adoption as a programme within the project: formal governance narrative, benefits and outcome measures, deep stakeholder engagement, service readiness and reinforcement after go-live.";
     }
 
-    function updateQuiz(){
-      const people = Number($("#qPeople").value);
-      const risk = Number($("#qRisk").value);
-      const novelty = Number($("#qNovelty").value);
-      const score = people + risk + novelty;
+    initialiseTheme();
 
-      const { level, badge } = scoreToLevel(score);
-      const rec = buildRecommendation(level);
-
-      const summary = [
-        `Sizing: ${level}`,
-        `Signals: people=${people}, risk=${risk}, novelty=${novelty}`,
-        `Recommendation: ${rec}`
-      ].join("\n");
-
-      $("#quizResult").innerHTML = `
-        <div class="title">
-          <strong>Suggested approach: ${level}</strong>
-          <span class="badge">${badge}</span>
-        </div>
-        <p>${rec}</p>
-        <p style="margin-top:8px;" class="mono">${summary.replaceAll("\n"," | ")}</p>
-      `;
-
-      updateQuiz._summary = summary;
-      updateQuiz._level = level;
-    }
-
-    // ---------- Spotlight ----------
-    const spotlights = [
-      { text: "Effortless change is not easy change. It is change where effort is spent where it matters, not where it looks impressive.", meta: "Delivery mindset" },
-      { text: "Governance should answer three questions: what is changing, what could stop adoption and what decisions do leaders need to make this week.", meta: "Board-ready" },
-      { text: "AI is most useful when it removes the grind: drafting, rewording, synthesis and consistency checks, so humans can lead people through change.", meta: "AI as co-pilot" },
-      { text: "Theory is a tool. Use it to sharpen your diagnosis, not to create paperwork that no one reads.", meta: "Academic thinking" },
-      { text: "If you cannot describe the change in plain language, you cannot manage it.", meta: "Clarity" }
-    ];
-
-    function nextSpotlight(){
-      const idx = (nextSpotlight._idx == null) ? Math.floor(Math.random() * spotlights.length) : (nextSpotlight._idx + 1) % spotlights.length;
-      nextSpotlight._idx = idx;
-      $("#spotlight").textContent = spotlights[idx].text;
-      $("#spotlightMeta").textContent = spotlights[idx].meta;
-    }
-
-    // ---------- Prompt examples ----------
-    function insertExamples(){
-      const examples = [
-        {
-          org: "Local authority",
-          proj: "Case management upgrade",
-          change: "New workflow screens, revised approval steps, new reporting pack",
-          who: "Social workers, team managers, finance approvers, reporting analysts",
-          date: "Q2 go-live"
-        },
-        {
-          org: "Public service organisation",
-          proj: "Permit scheme implementation",
-          change: "New charging model, new processes, new digital service front door",
-          who: "Operational teams, legal, finance, contractors and the public",
-          date: "1 October go-live"
-        }
-      ];
-      const pick = examples[Math.floor(Math.random() * examples.length)];
-      const base = `You are my change management co-pilot for a project.
-
-Context:
-- Organisation: ${pick.org}
-- Project: ${pick.proj}
-- What is changing: ${pick.change}
-- Who is affected: ${pick.who}
-- Go-live date: ${pick.date}
-- Constraints: time, governance, limited capacity
-
-Tasks:
-1) Produce a short Change Impact summary (people, process, technology, ways of working)
-2) Identify the top 8 adoption risks and write mitigation actions that fit normal project artefacts (RAID, comms, training, service readiness)
-3) Suggest a proportionate change approach (light, medium or heavy) and explain why
-4) Draft a board-ready update in plain language with decisions needed and next actions
-
-Style:
-- Use headings, bullet points and avoid fluff.`;
-      $("#promptBox").textContent = base;
-      toast("Examples inserted");
-    }
-
-    // ---------- Init ----------
-    initTheme();
-    initBackground();
-
-    $("#year").textContent = new Date().getFullYear();
-
-    // Theme toggle
-    $("#themeBtn").addEventListener("click", () => {
-      const current = document.documentElement.getAttribute("data-theme") || "dark";
-      applyTheme(current === "light" ? "dark" : "light");
+    document.getElementById("themeToggle")?.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      applyTheme(current === "dark" ? "light" : "dark");
     });
 
-    // Copy email buttons
-    const email = "martin@emote.ltd";
-    ["#copyEmailBtn", "#copyEmailBtn2", "#copyEmailBtn3"].forEach(sel => {
-      const btn = $(sel);
-      if(btn) btn.addEventListener("click", () => copyText(email));
-    });
+    document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Effort dial
-    $("#effort").addEventListener("input", updateEffort);
-    updateEffort();
-
-    // Quiz
-    ["#qPeople","#qRisk","#qNovelty"].forEach(sel => $(sel).addEventListener("change", updateQuiz));
-    updateQuiz();
-
-    $("#copySizingBtn").addEventListener("click", () => copyText(updateQuiz._summary || ""));
-    $("#emailSizingBtn").addEventListener("click", () => {
-      const body = encodeURIComponent((updateQuiz._summary || "") + "\n\nIf you want, tell me the project context and your go-live date.");
-      const subject = encodeURIComponent(`eMote sizing result: ${updateQuiz._level || "Change"}`);
-      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-    });
-
-    // Prompt actions
-    $("#copyPromptBtn").addEventListener("click", () => copyText($("#promptBox").textContent));
-    $("#randomisePromptBtn").addEventListener("click", insertExamples);
-
-    // Spotlight
-    $("#nextSpotlightBtn").addEventListener("click", nextSpotlight);
-    nextSpotlight();
-
-    // Smooth scroll for nav links (with reduced motion respect)
-    document.querySelectorAll('a[href^="#"]').forEach(a => {
-      a.addEventListener("click", (e) => {
-        const id = a.getAttribute("href");
-        const target = document.querySelector(id);
-        if(!target) return;
-        e.preventDefault();
-        const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        target.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
-        history.replaceState(null, "", id);
-      });
-    });
-
-  // Mobile nav toggle
-const navToggle = document.getElementById("navToggle");
-const navLinks = document.getElementById("navLinks");
-
-if(navToggle && navLinks){
-  navToggle.addEventListener("click", () => {
-    const isOpen = navLinks.classList.toggle("open");
-    navToggle.setAttribute("aria-expanded", String(isOpen));
-  });
-
-  // Close menu when a link is tapped
-  navLinks.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener("click", () => {
-      navLinks.classList.remove("open");
-      navToggle.setAttribute("aria-expanded", "false");
-    });
-  });
-
-  // Close menu when tapping outside
-  document.addEventListener("click", (e) => {
-    if(!navLinks.classList.contains("open")) return;
-    const within = navLinks.contains(e.target) || navToggle.contains(e.target);
-    if(!within){
-      navLinks.classList.remove("open");
-      navToggle.setAttribute("aria-expanded", "false");
-    }
-  });
-}
-
-  
-  
+    fetchLatestPosts();
   </script>
-  <div class="emote-copyright" style="position:fixed;bottom:8px;right:10px;font-size:11px;font-family:system-ui, -apple-system, Segoe UI, sans-serif;color:rgba(255,255,255,0.7);mix-blend-mode:difference;pointer-events:none;z-index:9999;">© eMote Systems</div>
 </body>
 </html>

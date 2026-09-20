@@ -28,7 +28,7 @@
           "tags": [
             "public",
             "change",
-            "delivery"
+            "governance"
           ],
           "annotation": "Useful when discussion becomes too abstract. It brings the focus back to users, service outcomes and the practical discipline of delivery."
         },
@@ -50,7 +50,7 @@
           "tags": [
             "evidence",
             "change",
-            "behaviour"
+            "leadership"
           ],
           "annotation": "A useful counterweight to intuition. It keeps pulling change questions back towards observable behaviour, evidence and what actually shifts outcomes."
         },
@@ -90,7 +90,7 @@
           "tags": [
             "ai",
             "governance",
-            "risk"
+            "evidence"
           ],
           "annotation": "I return to NIST when AI discussion becomes too abstract. It forces the conversation back towards responsibility, risk and organisational controls."
         },
@@ -100,8 +100,8 @@
           "type": "Essays",
           "tags": [
             "leadership",
-            "technology",
-            "thinking"
+            "power",
+            "culture"
           ],
           "annotation": "Useful less as doctrine than as provocation. The essays often expose assumptions about scale, power, ambition and the way people build things."
         },
@@ -123,7 +123,7 @@
           "tags": [
             "leadership",
             "change",
-            "behaviour"
+            "culture"
           ],
           "annotation": "I return to psychological safety when a change problem is being described as resistance, capability or communication but the deeper issue may be whether people feel safe to speak and learn."
         },
@@ -133,8 +133,8 @@
           "type": "Book",
           "tags": [
             "leadership",
-            "change",
-            "systems"
+            "systems",
+            "change"
           ],
           "annotation": "Useful when organisations are trying to act before the situation is fully understood. Weick helps explain how people construct enough meaning to move."
         }
@@ -152,7 +152,7 @@
           "tags": [
             "evidence",
             "systems",
-            "management"
+            "leadership"
           ],
           "annotation": "A useful check against treating complexity as a fashionable metaphor. It asks whether the ideas survive contact with serious management practice."
         },
@@ -174,7 +174,7 @@
           "tags": [
             "leadership",
             "systems",
-            "risk"
+            "culture"
           ],
           "annotation": "A useful antidote to short-term organisational thinking. It widens the time horizon and makes consequences, stewardship and resilience harder to ignore."
         },
@@ -184,8 +184,8 @@
           "type": "Essays",
           "tags": [
             "change",
-            "technology",
-            "power"
+            "power",
+            "culture"
           ],
           "annotation": "I return to Doctorow when I want the incentive structure made explicit. The writing is sharp on power, lock-in, platform behaviour and institutional failure."
         }
@@ -201,9 +201,9 @@
           "url": "https://www.bbc.co.uk/programmes/p02nrss1",
           "type": "Documentary",
           "tags": [
-            "leadership",
             "power",
-            "narrative"
+            "culture",
+            "leadership"
           ],
           "annotation": "The attraction is not that every argument is right. It is the way Curtis uses narrative, archives and juxtaposition to make systems of power visible."
         },
@@ -214,7 +214,7 @@
           "tags": [
             "evidence",
             "culture",
-            "narrative"
+            "power"
           ],
           "annotation": "I value the willingness to stay with complexity for longer than a normal news cycle allows, and to let argument develop without forcing a neat conclusion."
         },
@@ -225,7 +225,7 @@
           "tags": [
             "change",
             "culture",
-            "thinking"
+            "systems"
           ],
           "annotation": "Useful for reframing familiar questions. The best pieces shift the angle enough that an organisational problem stops looking inevitable."
         },
@@ -235,8 +235,8 @@
           "type": "Journalism",
           "tags": [
             "ai",
-            "technology",
-            "culture"
+            "culture",
+            "power"
           ],
           "annotation": "I read selectively for long-form attempts to connect technology with institutions, society and behaviour rather than treating products as the whole story."
         }

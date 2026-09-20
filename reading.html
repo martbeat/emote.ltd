@@ -32,6 +32,7 @@
 </head>
 
 <body>
+  <canvas id="readingNetwork" class="page-network" aria-hidden="true"></canvas>
   <a class="skip-link" href="#main-content">Skip to content</a>
 
   <header class="site-header">
@@ -69,13 +70,10 @@
         </p>
       </div>
 
-      <aside class="hero-note" aria-label="How to use this page">
-        <div>
-          <strong>Start anywhere</strong>
-          <p>
-            The four sections are different ways in, not levels to complete.
-            Use the filters if you are following a particular thread.
-          </p>
+      <aside class="hero-note" aria-label="Today's influence">
+        <span class="eyebrow">Today’s influence</span>
+        <div id="dailyInfluence" class="daily-influence">
+          <strong>Loading today’s influence…</strong>
         </div>
         <div class="daily-note">
           <strong>The order changes each day.</strong>
@@ -89,11 +87,14 @@
       <div class="filters" role="group" aria-label="Filter reading influences">
         <button class="filter-button" type="button" data-filter="all" aria-pressed="true">All</button>
         <button class="filter-button" type="button" data-filter="change" aria-pressed="false">Change</button>
+        <button class="filter-button" type="button" data-filter="systems" aria-pressed="false">Systems</button>
+        <button class="filter-button" type="button" data-filter="governance" aria-pressed="false">Governance</button>
         <button class="filter-button" type="button" data-filter="evidence" aria-pressed="false">Evidence</button>
         <button class="filter-button" type="button" data-filter="ai" aria-pressed="false">AI</button>
         <button class="filter-button" type="button" data-filter="leadership" aria-pressed="false">Leadership</button>
+        <button class="filter-button" type="button" data-filter="power" aria-pressed="false">Power</button>
+        <button class="filter-button" type="button" data-filter="culture" aria-pressed="false">Culture</button>
         <button class="filter-button" type="button" data-filter="public" aria-pressed="false">Public systems</button>
-        <button class="filter-button" type="button" data-filter="systems" aria-pressed="false">Systems</button>
       </div>
       <div id="filterSummary" class="filter-summary" aria-live="polite">Loading influences…</div>
     </section>
@@ -104,8 +105,7 @@
 
     <div class="reading-footer">
       <p>
-        The list will keep changing. Some sources are here because I agree with them.
-        Others are here because they make a familiar problem look different.
+        Some of these sources reinforce my thinking. Others are here precisely because they disturb it.
       </p>
     </div>
   </main>
@@ -148,6 +148,19 @@
     const THEME_KEY = "emote_theme";
     let readingData = null;
     let activeFilter = "all";
+
+    const THREAD_LABELS = {
+      all: "All",
+      change: "Change",
+      systems: "Systems",
+      governance: "Governance",
+      evidence: "Evidence",
+      ai: "AI",
+      leadership: "Leadership",
+      power: "Power",
+      culture: "Culture",
+      public: "Public systems"
+    };
 
     function initialiseTheme() {
       const saved = localStorage.getItem(THEME_KEY);
@@ -235,8 +248,12 @@
           <p class="annotation">${escapeHtml(item.annotation)}</p>
 
           <div class="tag-row" aria-label="Topics">
-            ${tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+            ${tags.map(tag => `<span class="tag">${escapeHtml(THREAD_LABELS[tag] || tag)}</span>`).join("")}
           </div>
+
+          <a class="source-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">
+            Open source ↗
+          </a>
         </li>`;
     }
 
@@ -260,36 +277,45 @@
         const visible = shuffled.filter(item => matchesFilter(item, activeFilter));
         visibleCount += visible.length;
 
-        const itemsHtml = visible.length
-          ? visible.map(renderCard).join("")
-          : '<li class="empty-state">No sources in this section match this thread.</li>';
+        if (!visible.length) return "";
 
         return `
           <section class="reading-section" data-tier="${escapeHtml(tier.id)}">
             <div class="section-head">
-              <div>
-                <span class="eyebrow">${escapeHtml(tier.label)}</span>
-                <h2>${escapeHtml(tier.label)}</h2>
-              </div>
+              <h2>${escapeHtml(tier.label)}</h2>
               <p>${escapeHtml(tier.microCopy)}</p>
             </div>
             <ul class="reading-list">
-              ${itemsHtml}
+              ${visible.map(renderCard).join("")}
             </ul>
           </section>`;
       }).join("");
 
       container.innerHTML = sections;
 
-      const label = activeFilter === "all"
-        ? "all influences"
-        : activeFilter === "public"
-          ? "public systems"
-          : activeFilter;
+      const label = THREAD_LABELS[activeFilter] || activeFilter;
 
       summary.textContent = activeFilter === "all"
         ? `Showing all ${totalCount} influences. Order refreshed for today.`
-        : `Showing ${visibleCount} of ${totalCount} influences tagged ${label}.`;
+        : `Showing ${visibleCount} of ${totalCount} influences in ${label}.`;
+    }
+
+    function renderDailyInfluence() {
+      const target = document.getElementById("dailyInfluence");
+      if (!readingData || !target) return;
+
+      const allItems = readingData.tiers.flatMap(tier => tier.items);
+      if (!allItems.length) return;
+
+      const seed = hashString(getDailySeed() + "-daily-influence");
+      const item = allItems[seed % allItems.length];
+
+      target.innerHTML = `
+        <div class="daily-type">${escapeHtml(item.type || "Source")}</div>
+        <h2><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.name)}</a></h2>
+        <p>${escapeHtml(item.annotation)}</p>
+        <a class="source-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Open source ↗</a>
+      `;
     }
 
     async function loadReading() {
@@ -299,6 +325,7 @@
         const response = await fetch("/reading-data.json", {cache: "no-store"});
         if (!response.ok) throw new Error("Could not load reading-data.json");
         readingData = await response.json();
+        renderDailyInfluence();
         renderReading();
       } catch (error) {
         container.innerHTML = `
@@ -309,7 +336,96 @@
       }
     }
 
+    function initialiseReadingNetwork() {
+      const canvas = document.getElementById("readingNetwork");
+      if (!canvas) return;
+
+      const reduced = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const small = window.matchMedia &&
+        window.matchMedia("(max-width: 720px)").matches;
+
+      if (reduced || small) {
+        canvas.style.display = "none";
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      let width = 0;
+      let height = 0;
+      let points = [];
+      let frame;
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const count = Math.max(14, Math.min(26, Math.floor((width * height) / 52000)));
+        points = Array.from({length: count}, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.12,
+          vy: (Math.random() - 0.5) * 0.12,
+          r: 0.7 + Math.random() * 1
+        }));
+      }
+
+      function draw() {
+        const dark = document.documentElement.getAttribute("data-theme") === "dark";
+        ctx.clearRect(0, 0, width, height);
+
+        for (const point of points) {
+          point.x += point.vx;
+          point.y += point.vy;
+
+          if (point.x < -10) point.x = width + 10;
+          if (point.x > width + 10) point.x = -10;
+          if (point.y < -10) point.y = height + 10;
+          if (point.y > height + 10) point.y = -10;
+
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, point.r, 0, Math.PI * 2);
+          ctx.fillStyle = dark ? "rgba(255,255,255,0.18)" : "rgba(43,100,112,0.12)";
+          ctx.fill();
+        }
+
+        for (let i = 0; i < points.length; i++) {
+          for (let j = i + 1; j < points.length; j++) {
+            const dx = points[i].x - points[j].x;
+            const dy = points[i].y - points[j].y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 145) {
+              const alpha = (1 - dist / 145) * (dark ? 0.045 : 0.035);
+              ctx.strokeStyle = dark
+                ? `rgba(255,255,255,${alpha})`
+                : `rgba(43,100,112,${alpha})`;
+              ctx.lineWidth = 0.6;
+              ctx.beginPath();
+              ctx.moveTo(points[i].x, points[i].y);
+              ctx.lineTo(points[j].x, points[j].y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        frame = requestAnimationFrame(draw);
+      }
+
+      resize();
+      draw();
+      window.addEventListener("resize", resize, {passive: true});
+      window.addEventListener("pagehide", () => cancelAnimationFrame(frame), {once: true});
+    }
+
     initialiseTheme();
+    initialiseReadingNetwork();
 
     document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 

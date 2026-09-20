@@ -1,1303 +1,1199 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>CipherShift</title>
-<style>
-    :root {
-        --bg: #0f172a;
-        --panel: #111827;
-        --panel-2: #1f2937;
-        --panel-3: #273244;
-        --text: #f8fafc;
-        --muted: #94a3b8;
-        --line: #334155;
-        --green: #22c55e;
-        --yellow: #eab308;
-        --blue: #38bdf8;
-        --purple: #a78bfa;
-        --red: #ef4444;
-        --key: #475569;
-        --shadow: rgba(0,0,0,.35);
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PII Redactor (DOCX + PDF) – Client-side, Format-Preserving</title>
+  <style>
+    :root{
+      --bg:#0b0f1a;
+      --panel:#121a2b;
+      --panel2:#0f1626;
+      --text:#e7edf7;
+      --muted:#a7b4c7;
+      --line:#24314d;
+      --accent:#6aa9ff;
+      --good:#44d18f;
+      --warn:#ffcc66;
+      --bad:#ff6b6b;
+      --chip:#1a2640;
     }
-
-    * {
-        box-sizing: border-box;
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,var(--panel),rgba(18,26,43,.85));border-bottom:1px solid var(--line)}
+    .wrap{max-width:1280px;margin:0 auto;padding:14px 16px}
+    .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .title{display:flex;gap:10px;align-items:center}
+    .badge{font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:rgba(255,255,255,.02)}
+    h1{font-size:16px;margin:0}
+    .grid{display:grid;grid-template-columns:380px 1fr;gap:14px}
+    @media (max-width:1020px){ .grid{grid-template-columns:1fr} }
+    .card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .card .hd{padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02);font-weight:700;display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .card .bd{padding:12px}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input[type="file"]{width:100%}
+    input[type="text"], textarea, select{
+      width:100%;padding:10px 10px;border-radius:10px;border:1px solid var(--line);
+      background:var(--panel2);color:var(--text);outline:none
     }
-
-    html,
-    body {
-        min-height: 100%;
+    textarea{min-height:88px;resize:vertical}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row > *{flex:1}
+    .btns{display:flex;gap:10px;flex-wrap:wrap}
+    button{
+      appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);
+      padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:650
     }
-
-    body {
-        margin: 0;
-        min-height: 100vh;
-        background:
-            radial-gradient(circle at top left, rgba(56,189,248,.16), transparent 38%),
-            radial-gradient(circle at bottom right, rgba(167,139,250,.16), transparent 42%),
-            var(--bg);
-        color: var(--text);
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        display: flex;
-        justify-content: center;
-        padding: 18px;
+    button.primary{border-color:rgba(106,169,255,.55);background:rgba(106,169,255,.12)}
+    button.good{border-color:rgba(68,209,143,.55);background:rgba(68,209,143,.10)}
+    button.warn{border-color:rgba(255,204,102,.55);background:rgba(255,204,102,.10)}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .hint{font-size:12px;color:var(--muted);line-height:1.35}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .chip{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);color:var(--muted)}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .stat{padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+    .stat .k{font-size:12px;color:var(--muted)}
+    .stat .v{font-size:18px;font-weight:800;margin-top:2px}
+    .viewer{padding:0}
+    .viewerTop{
+      display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+      padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)
     }
-
-    .app {
-        width: 100%;
-        max-width: 980px;
+    .viewerTop .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .viewerTop .right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:var(--muted);background:rgba(255,255,255,.02)}
+    .pages{padding:12px;display:flex;flex-direction:column;gap:14px}
+    .page{
+      border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)
     }
-
-    header {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        align-items: center;
-        gap: 16px;
-        margin: 10px 0 16px;
+    .pageHd{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
+    .pageHd b{font-size:13px}
+    .canvasWrap{position:relative;overflow:auto;max-height:70vh}
+    canvas{display:block;max-width:100%;height:auto}
+    .overlay{
+      position:absolute;left:0;top:0;pointer-events:none;
     }
-
-    .title-block h1 {
-        margin: 0;
-        font-size: clamp(2.2rem, 6vw, 4.8rem);
-        letter-spacing: -0.07em;
-        line-height: .95;
+    .rect{
+      position:absolute;border:1px solid rgba(255,255,255,.0);
+      background:#000;opacity:1;
     }
-
-    .title-block p {
-        margin: 8px 0 0;
-        color: var(--muted);
-        max-width: 650px;
-        font-size: 1rem;
-        line-height: 1.45;
+    .rect.preview{
+      background:#000;opacity:.55;border:1px dashed rgba(255,255,255,.35)
     }
-
-    .top-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+    .rect.off{display:none}
+    .small{font-size:12px;color:var(--muted)}
+    .log{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:12px;background:rgba(0,0,0,.25);border:1px solid var(--line);
+      padding:10px;border-radius:12px;white-space:pre-wrap;max-height:220px;overflow:auto
     }
-
-    button {
-        border: 0;
-        color: white;
-        background: #2563eb;
-        padding: 11px 14px;
-        border-radius: 14px;
-        font-weight: 800;
-        cursor: pointer;
-        box-shadow: 0 10px 25px var(--shadow);
+    .toggleRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .toggle{
+      display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)
     }
-
-    button.secondary {
-        background: var(--panel-2);
-        color: var(--text);
-        border: 1px solid var(--line);
+    .toggle input{transform:scale(1.1)}
+    .warnBox{
+      border:1px solid rgba(255,204,102,.4);background:rgba(255,204,102,.08);
+      padding:10px;border-radius:12px;color:var(--muted);font-size:12px;line-height:1.35
     }
-
-    button:hover:not(:disabled) {
-        filter: brightness(1.08);
-    }
-
-    button:disabled {
-        opacity: .5;
-        cursor: not-allowed;
-    }
-
-    .layout {
-        display: grid;
-        grid-template-columns: minmax(320px, 1fr) 330px;
-        gap: 18px;
-        align-items: start;
-    }
-
-    .card {
-        background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)), var(--panel);
-        border: 1px solid rgba(148,163,184,.18);
-        border-radius: 24px;
-        padding: 18px;
-        box-shadow: 0 18px 40px var(--shadow);
-    }
-
-    .game-card {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    .status-strip {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-    }
-
-    .status-box {
-        background: rgba(15,23,42,.72);
-        border: 1px solid rgba(148,163,184,.18);
-        padding: 10px;
-        border-radius: 16px;
-        min-height: 62px;
-    }
-
-    .status-box .label {
-        font-size: .74rem;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        font-weight: 900;
-    }
-
-    .status-box .value {
-        margin-top: 5px;
-        font-size: 1.05rem;
-        font-weight: 900;
-    }
-
-    .board {
-        display: grid;
-        gap: 10px;
-        margin: 6px auto 0;
-        width: min(100%, 420px);
-    }
-
-    .row {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 10px;
-    }
-
-    .tile {
-        aspect-ratio: 1;
-        border-radius: 16px;
-        background: rgba(30,41,59,.88);
-        border: 2px solid rgba(148,163,184,.25);
-        display: grid;
-        place-items: center;
-        font-size: clamp(1.6rem, 7vw, 2.3rem);
-        font-weight: 950;
-        text-transform: uppercase;
-        transform-style: preserve-3d;
-        transition: transform .25s, background .25s, border .25s;
-    }
-
-    .tile.filled {
-        border-color: rgba(226,232,240,.7);
-        transform: scale(1.03);
-    }
-
-    .tile.correct {
-        background: var(--green);
-        border-color: var(--green);
-        color: #052e16;
-    }
-
-    .tile.present {
-        background: var(--yellow);
-        border-color: var(--yellow);
-        color: #422006;
-    }
-
-    .tile.absent {
-        background: #334155;
-        border-color: #334155;
-        color: #cbd5e1;
-    }
-
-    .tile.concept {
-        box-shadow: 0 0 0 3px rgba(56,189,248,.55) inset;
-    }
-
-    .message {
-        min-height: 28px;
-        text-align: center;
-        color: #e2e8f0;
-        font-weight: 800;
-    }
-
-    .keyboard {
-        display: grid;
-        gap: 8px;
-        margin-top: 4px;
-        user-select: none;
-    }
-
-    .key-row {
-        display: flex;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .key {
-        min-width: 32px;
-        height: 46px;
-        padding: 0 10px;
-        border-radius: 10px;
-        background: var(--key);
-        color: #f8fafc;
-        display: grid;
-        place-items: center;
-        font-weight: 950;
-        cursor: pointer;
-        border: 1px solid rgba(255,255,255,.08);
-    }
-
-    .key.wide {
-        min-width: 66px;
-        font-size: .78rem;
-    }
-
-    .key.correct { background: var(--green); color: #052e16; }
-    .key.present { background: var(--yellow); color: #422006; }
-    .key.absent { background: #1f2937; color: #94a3b8; }
-    .key.concept { outline: 3px solid rgba(56,189,248,.7); }
-
-    .side {
-        display: grid;
-        gap: 14px;
-    }
-
-    .side h2,
-    .side h3 {
-        margin: 0 0 10px;
-    }
-
-    .meaning-meter {
-        height: 16px;
-        background: #334155;
-        border-radius: 99px;
-        overflow: hidden;
-        margin: 10px 0 8px;
-    }
-
-    .meaning-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, var(--red), var(--yellow), var(--green));
-        transition: width .4s ease;
-    }
-
-    .small {
-        color: var(--muted);
-        font-size: .93rem;
-        line-height: 1.45;
-    }
-
-    .hint-list {
-        display: grid;
-        gap: 8px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-    }
-
-    .hint-list li {
-        background: rgba(15,23,42,.7);
-        border: 1px solid rgba(148,163,184,.18);
-        border-radius: 14px;
-        padding: 10px;
-        color: #dbeafe;
-        line-height: 1.35;
-    }
-
-    .history {
-        display: grid;
-        gap: 8px;
-        max-height: 240px;
-        overflow: auto;
-        padding-right: 4px;
-    }
-
-    .history-item {
-        display: grid;
-        grid-template-columns: 62px 1fr auto;
-        gap: 8px;
-        align-items: center;
-        background: rgba(15,23,42,.7);
-        border: 1px solid rgba(148,163,184,.16);
-        padding: 8px;
-        border-radius: 14px;
-        font-size: .9rem;
-    }
-
-    .dictionary-word {
-        background: rgba(15,23,42,.7);
-        border: 1px solid rgba(148,163,184,.16);
-        padding: 8px;
-        border-radius: 12px;
-        font-weight: 900;
-        text-align: center;
-    }
-
-    .pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 52px;
-        padding: 4px 8px;
-        border-radius: 99px;
-        font-size: .78rem;
-        font-weight: 950;
-        background: var(--panel-3);
-        color: #dbeafe;
-    }
-
-    .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(2,6,23,.72);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 18px;
-        z-index: 20;
-    }
-
-    .modal-backdrop.show {
-        display: flex;
-    }
-
-    .modal {
-        max-width: 650px;
-        max-height: 90vh;
-        overflow: auto;
-        background: #111827;
-        border: 1px solid var(--line);
-        border-radius: 24px;
-        padding: 20px;
-        box-shadow: 0 30px 80px rgba(0,0,0,.55);
-    }
-
-    .modal h2 {
-        margin-top: 0;
-    }
-
-    .modal li {
-        margin-bottom: 10px;
-        color: #dbeafe;
-        line-height: 1.45;
-    }
-
-    .dictionary-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
-        gap: 8px;
-        max-height: 50vh;
-        overflow: auto;
-        margin: 12px 0;
-        padding-right: 4px;
-    }
-
-    .debug {
-        display: none;
-        margin-top: 12px;
-        border: 1px solid rgba(239,68,68,.5);
-        background: rgba(127,29,29,.35);
-        color: #fecaca;
-        border-radius: 16px;
-        padding: 12px;
-        white-space: pre-wrap;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: .82rem;
-    }
-
-    .shake {
-        animation: shake .28s linear;
-    }
-
-    .pop {
-        animation: pop .16s ease;
-    }
-
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-6px); }
-        50% { transform: translateX(6px); }
-        75% { transform: translateX(-4px); }
-    }
-
-    @keyframes pop {
-        0% { transform: scale(.96); }
-        100% { transform: scale(1.03); }
-    }
-
-    @media (max-width: 820px) {
-        body {
-            padding: 12px;
-        }
-
-        header {
-            grid-template-columns: 1fr;
-        }
-
-        .top-actions {
-            justify-content: flex-start;
-        }
-
-        .layout {
-            grid-template-columns: 1fr;
-        }
-
-        .status-strip {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .key {
-            min-width: 26px;
-            height: 43px;
-            padding: 0 7px;
-            font-size: .92rem;
-        }
-
-        .key.wide {
-            min-width: 54px;
-        }
-    }
-
-    @media (max-width: 390px) {
-        body {
-            padding: 10px;
-        }
-
-        .card {
-            padding: 12px;
-            border-radius: 20px;
-        }
-
-        .board,
-        .row {
-            gap: 7px;
-        }
-
-        .key {
-            min-width: 24px;
-            padding: 0 6px;
-        }
-    }
-</style>
+  </style>
 </head>
 <body>
-<div class="app">
-    <header>
-        <div class="title-block">
-            <h1>CipherShift</h1>
-            <p>A daily Wordle-like game where letters matter, but meaning matters too. Find the hidden five-letter concept in six guesses.</p>
-        </div>
-        <div class="top-actions">
-            <button class="secondary" id="dictionaryBtn" type="button">Dictionary</button>
-            <button class="secondary" id="howBtn" type="button">How to play</button>
-            <button class="secondary" id="newBtn" type="button">New puzzle</button>
-            <button id="shareBtn" type="button" disabled>Share</button>
-        </div>
-    </header>
-
-    <main class="layout">
-        <section class="card game-card">
-            <div class="status-strip">
-                <div class="status-box">
-                    <div class="label">Puzzle</div>
-                    <div class="value" id="puzzleName">Daily</div>
-                </div>
-                <div class="status-box">
-                    <div class="label">Theme</div>
-                    <div class="value" id="themeName">Institution</div>
-                </div>
-                <div class="status-box">
-                    <div class="label">Best signal</div>
-                    <div class="value" id="bestSignal">0%</div>
-                </div>
-            </div>
-
-            <div class="board" id="board" aria-label="CipherShift board"></div>
-            <div class="message" id="message" role="status" aria-live="polite"></div>
-            <div class="keyboard" id="keyboard" aria-label="Keyboard"></div>
-            <div class="debug" id="debugBox"></div>
-        </section>
-
-        <aside class="side">
-            <section class="card">
-                <h2>Meaning Signal</h2>
-                <div class="small" id="meaningText">Make a guess to read the signal.</div>
-                <div class="meaning-meter"><div class="meaning-fill" id="meaningFill"></div></div>
-                <div class="small">Blue outline means a letter is not only in the answer, but also belongs to the same meaning family.</div>
-            </section>
-
-            <section class="card">
-                <h3>Unlocked hints</h3>
-                <ul class="hint-list" id="hintList">
-                    <li>First hint: every answer belongs to a theme. Today’s theme is shown above.</li>
-                </ul>
-            </section>
-
-            <section class="card">
-                <h3>Guess trail</h3>
-                <div class="history" id="history">
-                    <div class="small">Your reasoning trail will appear here.</div>
-                </div>
-            </section>
-        </aside>
-    </main>
-</div>
-
-<div class="modal-backdrop" id="modal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="howTitle">
-        <h2 id="howTitle">How to play CipherShift</h2>
-        <ul>
-            <li>Guess the hidden five-letter concept in six tries.</li>
-            <li>Green tiles are correct letters in the correct place.</li>
-            <li>Yellow tiles are letters in the word, but in the wrong place.</li>
-            <li>Grey tiles are not in the answer.</li>
-            <li>A blue inner outline means your guess also carries conceptual weight. It may share a theme, root, association or institutional meaning with the answer.</li>
-            <li>The Meaning Signal tells you whether your whole guess is conceptually close, even if the letters are not perfect.</li>
-            <li>Use the hint trail carefully. Hints unlock as you spend guesses or get semantically closer.</li>
-        </ul>
-        <button id="closeModal" type="button">Start playing</button>
+<header>
+  <div class="wrap top">
+    <div class="title">
+      <h1>PII Redactor</h1>
+      <span class="badge">Client-side only</span>
+      <span class="badge">PDF + DOCX</span>
+      <span class="badge">Format-preserving output</span>
     </div>
-</div>
-
-<div class="modal-backdrop" id="dictionaryModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dictionaryTitle">
-        <h2 id="dictionaryTitle">Prototype dictionary</h2>
-        <p class="small">These are all accepted guesses. If the shared wordlist module loads, the game uses that. If not, it falls back to the bundled prototype words.</p>
-        <div class="small" id="dictionarySource"></div>
-        <div class="small" id="dictionaryFeedback"></div>
-        <div class="small" id="dictionaryCount"></div>
-        <div class="dictionary-grid" id="dictionaryList"></div>
-        <button id="closeDictionary" type="button">Close</button>
+    <div class="row" style="max-width:520px">
+      <div class="pill" id="filePill">No file loaded</div>
+      <div class="pill" id="modePill">Idle</div>
     </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <section class="card">
+      <div class="hd">
+        <span>Controls</span>
+        <span class="small" id="libStatus">Loading libraries…</span>
+      </div>
+      <div class="bd">
+        <label>Input (PDF or DOCX)</label>
+        <input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+
+        <div class="warnBox" style="margin-top:10px">
+          PDF output is a true visual redaction (burned into page images). It reliably removes readable content but it drops the PDF text layer.
+          DOCX output preserves the original formatting by replacing redacted characters inside the Word XML.
+        </div>
+
+        <label>Detection profile</label>
+        <div class="toggleRow">
+          <label class="toggle"><input type="checkbox" id="detEmails" checked> Emails</label>
+          <label class="toggle"><input type="checkbox" id="detPhones" checked> Phone numbers</label>
+          <label class="toggle"><input type="checkbox" id="detPostcodes" checked> UK postcodes</label>
+          <label class="toggle"><input type="checkbox" id="detNINo" checked> UK NI numbers</label>
+          <label class="toggle"><input type="checkbox" id="detUrls" checked> URLs</label>
+          <label class="toggle"><input type="checkbox" id="detDates"> Dates (basic)</label>
+        </div>
+
+        <label>Custom terms (one per line, exact match, case-insensitive)</label>
+        <textarea id="customTerms" placeholder="e.g. Martin Fry&#10;Reading Borough Council&#10;RG6 7DX"></textarea>
+
+        <label>Replacement style</label>
+        <div class="row">
+          <select id="replacementMode">
+            <option value="blocks">Solid blocks (█) in DOCX</option>
+            <option value="tag">[REDACTED] tags in DOCX</option>
+          </select>
+          <select id="pdfRedactionStyle">
+            <option value="black">PDF black boxes</option>
+            <option value="blur">PDF blur (weaker)</option>
+          </select>
+        </div>
+
+        <label>Actions</label>
+        <div class="btns">
+          <button id="scan" class="primary" disabled>Scan for PII</button>
+          <button id="apply" class="warn" disabled>Apply redactions</button>
+          <button id="export" class="good" disabled>Export redacted file</button>
+          <button id="reset" disabled>Reset</button>
+        </div>
+
+        <div class="chips">
+          <span class="chip" id="chipType">Type: —</span>
+          <span class="chip" id="chipPages">Pages: —</span>
+          <span class="chip" id="chipFinds">Finds: —</span>
+        </div>
+
+        <label>Quick stats</label>
+        <div class="stats">
+          <div class="stat">
+            <div class="k">Detected items</div>
+            <div class="v" id="statDetected">0</div>
+          </div>
+          <div class="stat">
+            <div class="k">Redactions selected</div>
+            <div class="v" id="statSelected">0</div>
+          </div>
+        </div>
+
+        <label>Log</label>
+        <div class="log" id="log">Ready.</div>
+
+        <div class="hint" style="margin-top:10px">
+          PDF: click a highlighted item to toggle, or drag to add a manual redaction rectangle.<br/>
+          DOCX: redactions are applied to the document XML in paragraphs, headers, and footers.
+        </div>
+      </div>
+    </section>
+
+    <section class="card viewer">
+      <div class="viewerTop">
+        <div class="left">
+          <b id="viewerTitle">Preview</b>
+          <span class="pill" id="viewerHint">Load a PDF or DOCX</span>
+        </div>
+        <div class="right">
+          <label class="toggle" title="Show or hide overlays in preview">
+            <input type="checkbox" id="showOverlays" checked> Show overlays
+          </label>
+          <label class="toggle" title="When enabled, scanning will also select all detected items">
+            <input type="checkbox" id="autoSelect" checked> Auto-select detected
+          </label>
+        </div>
+      </div>
+      <div class="pages" id="pages"></div>
+    </section>
+  </div>
 </div>
 
-<script type="module">
-window.__cipherShiftWordlistsModule = {
-    loadWordLists: async () => {
-        const mod = await import("./js/wordlists.js?v=20260411-7");
-        return mod.loadWordLists();
-    }
-};
+<!-- Libraries (client-side). If you need fully offline, inline these minified bundles into this single file. -->
+<!-- PDF.js (stable classic build) -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 </script>
 
+<!-- PDF-LIB -->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<!-- JSZip -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 (() => {
-    "use strict";
+  "use strict";
 
-    const puzzles = [
-        {
-            answer: "STATE",
-            theme: "Institution",
-            family: ["POWER", "CROWN", "ORDER", "RULES", "COURT", "CIVIC", "LOCAL", "MAYOR", "VOTER", "LEGAL", "TAXES", "HOUSE", "PARTY", "TRUST", "BOARD", "UNION", "ROYAL", "REALM"],
-            hints: [
-                "It can be a political body, but also a condition.",
-                "It is linked to rules, territory, power and administration.",
-                "You might say something is in a particular one.",
-                "It appears in phrases about governance and public authority."
-            ]
-        },
-        {
-            answer: "TRUST",
-            theme: "Relationships",
-            family: ["FAITH", "BELIEF", "TRUCE", "TRUTH", "LOYAL", "HONOR", "OATHS", "BONDS", "CLOSE", "SAFER", "CIVIC", "VALUE", "VALID", "PROOF"],
-            hints: [
-                "It is hard to build and easy to lose.",
-                "It matters in teams, institutions and friendships.",
-                "It is not the same as agreement, but they often travel together.",
-                "It can also describe a legal or financial arrangement."
-            ]
-        },
-        {
-            answer: "SHIFT",
-            theme: "Change",
-            family: ["MOVED", "ALTER", "DRIFT", "SWING", "TURNS", "PHASE", "ADAPT", "TREND", "BREAK", "RESET", "MORPH", "LEARN"],
-            hints: [
-                "It can be sudden or gradual.",
-                "It is a change in position, pattern or emphasis.",
-                "Workers may have one. Culture may need one.",
-                "It appears when something moves from one state to another."
-            ]
-        },
-        {
-            answer: "FRAME",
-            theme: "Interpretation",
-            family: ["LENSY", "ANGLE", "STORY", "MODEL", "SCENE", "IMAGE", "FOCUS", "VIEWS", "THINK", "SHAPE", "GUIDE", "LOGIC"],
-            hints: [
-                "It shapes what people notice.",
-                "It can hold a picture or define a question.",
-                "Change work often depends on choosing the right one.",
-                "It is both physical and conceptual."
-            ]
-        },
-        {
-            answer: "VOICE",
-            theme: "Expression",
-            family: ["SOUND", "SPEAK", "WORDS", "TONEE", "CHOIR", "SAYSO", "SHOUT", "HEARD", "STORY", "CLAIM", "RIGHT", "POWER"],
-            hints: [
-                "It can be literal, political or personal.",
-                "People may find it, lose it or be denied it.",
-                "It has tone, character and presence.",
-                "It is central to participation."
-            ]
-        },
-        {
-            answer: "LIGHT",
-            theme: "Revelation",
-            family: ["TRUTH", "CLEAR", "GLOWY", "BRITE", "DARKS", "SPARK", "DAWNS", "VISION", "FLASH", "BEAMS", "GUIDE", "SIGHT"],
-            hints: [
-                "It can reveal, guide or mislead.",
-                "It is physical, metaphorical and cinematic.",
-                "You need it to see the scene.",
-                "It is often opposed to darkness."
-            ]
-        },
-        {
-            answer: "BREAD",
-            theme: "Making",
-            family: ["YEAST", "FLOUR", "DOUGH", "BAKES", "LOAFS", "CRUMB", "GRAIN", "WHEAT", "KNEAD", "RISES", "TABLE", "DAILY"],
-            hints: [
-                "It is made, shared and broken.",
-                "It depends on time, heat and transformation.",
-                "It appears in kitchens and metaphors about livelihood.",
-                "It often starts with flour."
-            ]
-        },
-        {
-            answer: "MUSIC",
-            theme: "Pattern",
-            family: ["RHYTH", "SONGS", "SOUND", "NOTES", "BASSY", "CHORD", "TEMPO", "DANCE", "VOICE", "TUNES", "BEATS", "SCALE"],
-            hints: [
-                "It organises sound in time.",
-                "It can be felt before it is understood.",
-                "It has rhythm, structure and emotion.",
-                "It may involve notes, chords or basslines."
-            ]
-        },
-        {
-            answer: "PROOF",
-            theme: "Reliability",
-            family: ["FAITH", "TRUTH", "HONOR", "BONDS", "VALID", "LOYAL", "TRUST", "CIVIC", "OATHS", "RIGHT", "SAFER", "SOLID"],
-            hints: [
-                "It supports a claim.",
-                "It turns assertion into evidence.",
-                "It matters in science, law and trust.",
-                "Without it, people are being asked to believe rather than know."
-            ]
-        },
-        {
-            answer: "COURT",
-            theme: "Justice",
-            family: ["JUDGE", "TRIAL", "LEGAL", "CLAIM", "RULES", "RIGHT", "ORDER", "PROOF", "CIVIC", "OATHS", "CODES", "PANEL"],
-            hints: [
-                "It can be a place, a process, or an audience.",
-                "Evidence and argument appear there.",
-                "Decisions made there can shape public life.",
-                "It is central to legal systems."
-            ]
-        },
-        {
-            answer: "OCEAN",
-            theme: "Systems",
-            family: ["WATER", "TIDES", "DEPTH", "WAVES", "EARTH", "CLOUD", "STORM", "RIVER", "DRIFT", "WORLD", "SCALE", "RANGE"],
-            hints: [
-                "It moves in currents and cycles.",
-                "It regulates climate and carries life.",
-                "Its surface is visible, its depths mostly hidden.",
-                "It connects coasts across the globe."
-            ]
-        },
-        {
-            answer: "CHAIN",
-            theme: "Interdependence",
-            family: ["LINKS", "BONDS", "CYCLE", "ORDER", "TRACE", "TRACK", "BUILD", "INPUT", "VALUE", "GROUP", "STAGE", "TREND"],
-            hints: [
-                "It is only as strong as its weakest part.",
-                "It can bind things together or constrain movement.",
-                "Many production systems rely on one.",
-                "Break one link and the whole pattern changes."
-            ]
-        },
-        {
-            answer: "EARTH",
-            theme: "Grounding",
-            family: ["WORLD", "OCEAN", "WATER", "FIELD", "GRAIN", "WHEAT", "HOUSE", "HUMAN", "GREEN", "VALUE", "CIVIC", "LOCAL"],
-            hints: [
-                "It is home, resource, and responsibility.",
-                "It can mean soil, planet, or foundation.",
-                "Everything built must eventually answer to it.",
-                "It grounds long-term thinking."
-            ]
-        }
-    ];
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log");
 
-    const fallbackPrototypeWords = [
-        "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADAPT","ADMIT","ADOPT","ADULT","AFTER","AGAIN","AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIEN","ALIGN","ALIKE","ALIVE","ALLOW","ALONE","ALONG","ALTER","AMONG","ANGER","ANGLE","APPLE","APPLY","ARGUE","ARISE","ARRAY","ASIDE","ASSET","AUDIO","AUDIT","AVOID","AWARD","AWARE",
-        "BAKES","BASIC","BASSY","BEAMS","BEATS","BEGIN","BELIEF","BENCH","BIRTH","BLACK","BLAME","BLEND","BLIND","BLOCK","BOARD","BONDS","BRAND","BREAD","BREAK","BRIEF","BRING","BROAD","BROKE","BROWN","BUILD",
-        "CAUSE","CHAIN","CHAIR","CHART","CHASE","CHECK","CHILD","CHOIR","CIVIC","CLAIM","CLASS","CLEAR","CLICK","CLOSE","CLOUD","COACH","CODES","COURT","COVER","CRASH","CREAM","CROWN","CRUMB","CURVE","CYCLE",
-        "DAILY","DANCE","DARKS","DAWNS","DEALT","DEATH","DELAY","DEPTH","DOING","DOUBT","DOUGH","DRAFT","DREAM","DRIFT","DRIVE",
-        "EARLY","EARTH","EMPTY","ENJOY","ENTER","ENTRY","ERROR","EVENT","EVERY","EXACT","EXCEL","EXTRA",
-        "FAITH","FALSE","FIELD","FINAL","FIRST","FIXED","FLASH","FLOUR","FOCUS","FORCE","FRAME","FRESH","FRONT",
-        "GHOST","GIANT","GIVEN","GLASS","GLOWY","GRAIN","GRANT","GREAT","GREEN","GROUP","GUIDE",
-        "HAPPY","HEARD","HEART","HEAVY","HONOR","HOUSE","HUMAN",
-        "IMAGE","INDEX","INPUT","ISSUE",
-        "JOINT","JUDGE",
-        "KNEAD","KNOWN",
-        "LABEL","LARGE","LATER","LEARN","LEGAL","LEVEL","LIGHT","LIMIT","LINKS","LIVED","LOCAL","LOGIC","LOAFS","LOYAL",
-        "MAJOR","MAKER","MARCH","MATCH","MAYOR","MEDIA","MEANT","METAL","MODEL","MONEY","MORPH","MOUSE","MOVED","MUSIC",
-        "NEEDS","NERVE","NEVER","NOISE","NOTES",
-        "OATHS","OCEAN","OFFER","ORDER","OTHER",
-        "PANEL","PARTY","PAUSE","PHASE","PIECE","PLACE","PLAIN","PLANT","POINT","POWER","PRESS","PROOF",
-        "QUERY","QUICK",
-        "RADIO","RAISE","RANGE","REACT","REALM","RIGHT","RISES","RHYTH","RIVER","ROYAL","RULES","RESET",
-        "SAFER","SAYSO","SCALE","SCENE","SCOPE","SHIFT","SHAPE","SHARE","SHOUT","SIGHT","SMALL","SOLID","SONGS","SOUND","SPARK","SPEAK","STAGE","STATE","STILL","STORM","STORY","SWING",
-        "TABLE","TAXES","TEMPO","THEIR","THEME","THINK","THIRD","TIDES","TONEE","TRACE","TRACK","TREND","TRIAL","TRUST","TRUCE","TRUTH","TUNES","TURNS",
-        "UNDER","UNION","USING",
-        "VALID","VALUE","VIDEO","VIEWS","VISION","VOICE","VOTER",
-        "WATER","WAVES","WHEAT","WHERE","WHOLE","WORDS","WORLD","WRITE","WRONG",
-        "YEAST","YIELD"
-    ];
+  function log(msg){
+    const t = new Date().toISOString().replace("T"," ").replace("Z","");
+    logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent;
+  }
 
-    const normalizeFiveLetterWords = (words) => words
-        .map(word => String(word).trim().toUpperCase())
-        .filter(word => /^[A-Z]{5}$/.test(word));
+  function setMode(text){ $("modePill").textContent = text; }
+  function setFilePill(text){ $("filePill").textContent = text; }
+  function setStat(){
+    $("statDetected").textContent = String(state.detectedCount);
+    $("statSelected").textContent = String(state.selectedCount);
+    $("chipType").textContent = `Type: ${state.type ?? "—"}`;
+    $("chipPages").textContent = `Pages: ${state.pageCount ?? "—"}`;
+    $("chipFinds").textContent = `Finds: ${state.detectedCount ?? "—"}`;
+  }
 
-    const acceptedWords = new Set(normalizeFiveLetterWords(fallbackPrototypeWords));
+  const state = {
+    type: null,          // 'pdf' | 'docx'
+    file: null,
+    fileName: null,
+    arrayBuffer: null,
 
-    const maxRows = 6;
-    const cols = 5;
+    // PDF specific
+    pdfDoc: null,
+    pdfPages: [],        // [{pageNo, viewport, canvas, ctx, overlayEl, items:[{id, x,y,w,h, text, selected, kind, manual, blur}] }]
+    pdfScale: 1.35,
 
-    let puzzleIndex = getDailyIndex();
-    let puzzle = puzzles[puzzleIndex];
-    let current = "";
-    let row = 0;
-    let guesses = [];
-    let gameOver = false;
-    let bestSignal = 0;
-    let keyStates = {};
-    let dictionarySource = "Bundled prototype words";
-    let dictionaryFeedback = [];
-    let practiceMode = false;
+    // DOCX specific
+    docxZip: null,
+    docxXml: new Map(),  // partPath -> xmlString
+    docxFinds: [],       // [{partPath, paragraphIndex, matchText, kind}]
+    docxRedactedZipBlob: null,
 
-    const board = document.getElementById("board");
-    const keyboard = document.getElementById("keyboard");
-    const message = document.getElementById("message");
-    const meaningText = document.getElementById("meaningText");
-    const meaningFill = document.getElementById("meaningFill");
-    const hintList = document.getElementById("hintList");
-    const history = document.getElementById("history");
-    const bestSignalEl = document.getElementById("bestSignal");
-    const themeName = document.getElementById("themeName");
-    const puzzleName = document.getElementById("puzzleName");
-    const shareBtn = document.getElementById("shareBtn");
-    const modal = document.getElementById("modal");
-    const dictionaryModal = document.getElementById("dictionaryModal");
-    const dictionaryList = document.getElementById("dictionaryList");
-    const dictionaryCount = document.getElementById("dictionaryCount");
-    const dictionarySourceEl = document.getElementById("dictionarySource");
-    const dictionaryFeedbackEl = document.getElementById("dictionaryFeedback");
-    const debugBox = document.getElementById("debugBox");
+    detectedCount: 0,
+    selectedCount: 0,
 
-    function getDailyIndex() {
-        const start = new Date("2026-05-09T00:00:00Z");
-        const now = new Date();
-        const days = Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - start.getTime()) / 86400000);
-        return Math.abs(days) % puzzles.length;
+    ready: false,
+    scanned: false,
+    applied: false
+  };
+
+  // ---------- Regex profiles ----------
+  function buildPatterns(){
+    const enabled = {
+      emails: $("detEmails").checked,
+      phones: $("detPhones").checked,
+      postcodes: $("detPostcodes").checked,
+      nino: $("detNINo").checked,
+      urls: $("detUrls").checked,
+      dates: $("detDates").checked
+    };
+
+    const patterns = [];
+
+    if (enabled.emails){
+      patterns.push({ kind:"email", re:/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/ig });
+    }
+    if (enabled.urls){
+      patterns.push({ kind:"url", re:/\bhttps?:\/\/[^\s<>"']+|\bwww\.[^\s<>"']+\b/ig });
+    }
+    if (enabled.phones){
+      // Broad UK-friendly phone matcher (supports spaces, hyphens, parentheses)
+      patterns.push({ kind:"phone", re:/\b(?:\+?44\s?7\d{3}|\(?0(?:7\d{3}|1\d{3}|2\d{3}|3\d{3}|8\d{3})\)?)\s?\d{3}\s?\d{3,4}\b/ig });
+    }
+    if (enabled.postcodes){
+      // UK postcode (approx)
+      patterns.push({ kind:"postcode", re:/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/ig });
+    }
+    if (enabled.nino){
+      // NI number: 2 letters, 6 digits, 1 letter (allow spaces)
+      patterns.push({ kind:"nino", re:/\b(?!BG)(?!GB)(?!NK)(?!KN)(?!TN)(?!NT)(?!ZZ)[A-CEGHJ-PR-TW-Z]{2}\s*\d{2}\s*\d{2}\s*\d{2}\s*[A-D]\b/ig });
+    }
+    if (enabled.dates){
+      patterns.push({ kind:"date", re:/\b(?:\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\b/g });
     }
 
-    function addPuzzleWordsToDictionary() {
-        puzzles.forEach(p => {
-            acceptedWords.add(p.answer);
-            p.family.forEach(word => {
-                if (/^[A-Z]{5}$/.test(word)) acceptedWords.add(word);
+    // Custom terms (exact, case-insensitive)
+    const terms = $("customTerms").value.split("\n").map(s => s.trim()).filter(Boolean);
+    for (const term of terms){
+      // Escape regex metacharacters
+      const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      patterns.push({ kind:"custom", re:new RegExp(`\\b${esc}\\b`, "ig"), label: term });
+    }
+
+    return patterns;
+  }
+
+  // ---------- Init / library readiness ----------
+  function libsReady(){
+    const ok = !!(window.pdfjsLib && window.PDFLib && window.JSZip);
+    $("libStatus").textContent = ok ? "Libraries loaded" : "Libraries not loaded";
+    return ok;
+  }
+
+  // pdf.js worker
+  function configurePdfJs(){
+    try{
+      // pdfjs-dist@4 ships worker separately; pdfjsLib.GlobalWorkerOptions may exist.
+      if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions){
+        // If worker is loaded via <script>, pdfjsLib should be able to locate it.
+        // This line is safe but optional.
+        pdfjsLib.GlobalWorkerOptions.workerSrc = undefined;
+      }
+    }catch(_){}
+  }
+
+  // ---------- Reset ----------
+  function hardReset(){
+    state.type = null;
+    state.file = null;
+    state.fileName = null;
+    state.arrayBuffer = null;
+
+    state.pdfDoc = null;
+    state.pdfPages = [];
+
+    state.docxZip = null;
+    state.docxXml.clear();
+    state.docxFinds = [];
+    state.docxRedactedZipBlob = null;
+
+    state.detectedCount = 0;
+    state.selectedCount = 0;
+    state.ready = false;
+    state.scanned = false;
+    state.applied = false;
+
+    $("pages").innerHTML = "";
+    $("viewerTitle").textContent = "Preview";
+    $("viewerHint").textContent = "Load a PDF or DOCX";
+
+    $("scan").disabled = true;
+    $("apply").disabled = true;
+    $("export").disabled = true;
+    $("reset").disabled = true;
+
+    setMode("Idle");
+    setFilePill("No file loaded");
+    setStat();
+    log("Reset complete.");
+  }
+
+  // ---------- File load ----------
+  async function onFileSelected(file){
+    if (!libsReady()){
+      log("Libraries not loaded. If your network blocks CDNs, inline the libraries into this file for offline use.");
+      return;
+    }
+
+    hardReset();
+
+    state.file = file;
+    state.fileName = file.name;
+    setFilePill(file.name);
+    $("reset").disabled = false;
+
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const isPdf = ext === "pdf" || file.type === "application/pdf";
+    const isDocx = ext === "docx" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    if (!isPdf && !isDocx){
+      log("Unsupported file type. Please provide a PDF or DOCX.");
+      return;
+    }
+
+    state.type = isPdf ? "pdf" : "docx";
+    $("chipType").textContent = `Type: ${state.type.toUpperCase()}`;
+    setMode("Loading…");
+
+    state.arrayBuffer = await file.arrayBuffer();
+
+    if (state.type === "pdf"){
+      await loadPdf(state.arrayBuffer);
+    } else {
+      await loadDocx(state.arrayBuffer);
+    }
+
+    state.ready = true;
+    $("scan").disabled = false;
+    setMode("Ready");
+    setStat();
+    log(`Loaded ${state.type.toUpperCase()} successfully.`);
+  }
+
+  // ---------- PDF pipeline ----------
+  async function loadPdf(buf){
+    configurePdfJs();
+
+    // pdf.js getDocument accepts Uint8Array
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buf) });
+    const pdf = await loadingTask.promise;
+    state.pdfDoc = pdf;
+    state.pageCount = pdf.numPages;
+
+    $("viewerTitle").textContent = "PDF preview";
+    $("viewerHint").textContent = "Scan for PII then toggle items or draw manual redactions";
+    $("pages").innerHTML = "";
+
+    state.pdfPages = [];
+
+    for (let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: state.pdfScale });
+
+      const pageEl = document.createElement("div");
+      pageEl.className = "page";
+
+      const pageHd = document.createElement("div");
+      pageHd.className = "pageHd";
+      pageHd.innerHTML = `<b>Page ${i}</b><span class="small">Drag to add manual redactions</span>`;
+
+      const canvasWrap = document.createElement("div");
+      canvasWrap.className = "canvasWrap";
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { alpha: false });
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      overlay.style.width = canvas.width + "px";
+      overlay.style.height = canvas.height + "px";
+      overlay.style.pointerEvents = "auto"; // to capture clicks/drag
+      overlay.style.position = "absolute";
+      overlay.style.left = "0";
+      overlay.style.top = "0";
+
+      // Wrap canvas in a positioned container so overlay can sit on top
+      const inner = document.createElement("div");
+      inner.style.position = "relative";
+      inner.style.width = canvas.width + "px";
+      inner.style.height = canvas.height + "px";
+
+      inner.appendChild(canvas);
+      inner.appendChild(overlay);
+      canvasWrap.appendChild(inner);
+
+      pageEl.appendChild(pageHd);
+      pageEl.appendChild(canvasWrap);
+      $("pages").appendChild(pageEl);
+
+      // render
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      const pageState = {
+        pageNo: i,
+        page,
+        viewport,
+        canvas,
+        ctx,
+        overlayEl: overlay,
+        items: [],
+        manualDraft: null
+      };
+
+      attachPdfOverlayHandlers(pageState);
+      state.pdfPages.push(pageState);
+    }
+
+    state.pageCount = state.pdfPages.length;
+  }
+
+  function attachPdfOverlayHandlers(pageState){
+    const overlay = pageState.overlayEl;
+
+    let dragging = false;
+    let start = null;
+    let draftEl = null;
+
+    function ptFromEvent(ev){
+      const r = overlay.getBoundingClientRect();
+      const x = ev.clientX - r.left;
+      const y = ev.clientY - r.top;
+      return { x: Math.max(0, Math.min(x, overlay.clientWidth)), y: Math.max(0, Math.min(y, overlay.clientHeight)) };
+    }
+
+    overlay.addEventListener("mousedown", (ev) => {
+      // If clicked on a rect, toggle instead of drawing
+      if (ev.target && ev.target.classList && ev.target.classList.contains("rect")){
+        const id = ev.target.dataset.id;
+        const item = pageState.items.find(it => it.id === id);
+        if (item){
+          item.selected = !item.selected;
+          ev.target.classList.toggle("off", !item.selected);
+          recomputeSelectedCount();
+        }
+        return;
+      }
+
+      dragging = true;
+      start = ptFromEvent(ev);
+
+      draftEl = document.createElement("div");
+      draftEl.className = "rect preview";
+      draftEl.style.left = start.x + "px";
+      draftEl.style.top = start.y + "px";
+      draftEl.style.width = "1px";
+      draftEl.style.height = "1px";
+      overlay.appendChild(draftEl);
+    });
+
+    overlay.addEventListener("mousemove", (ev) => {
+      if (!dragging || !draftEl) return;
+      const cur = ptFromEvent(ev);
+      const x = Math.min(start.x, cur.x);
+      const y = Math.min(start.y, cur.y);
+      const w = Math.abs(cur.x - start.x);
+      const h = Math.abs(cur.y - start.y);
+      draftEl.style.left = x + "px";
+      draftEl.style.top = y + "px";
+      draftEl.style.width = w + "px";
+      draftEl.style.height = h + "px";
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!dragging) return;
+      dragging = false;
+
+      if (!draftEl){
+        start = null;
+        return;
+      }
+
+      const x = parseFloat(draftEl.style.left);
+      const y = parseFloat(draftEl.style.top);
+      const w = parseFloat(draftEl.style.width);
+      const h = parseFloat(draftEl.style.height);
+
+      overlay.removeChild(draftEl);
+      draftEl = null;
+
+      // Ignore tiny drags
+      if (w < 6 || h < 6){
+        start = null;
+        return;
+      }
+
+      const id = crypto.randomUUID();
+      const item = { id, x, y, w, h, text:"(manual)", selected:true, kind:"manual", manual:true };
+      pageState.items.push(item);
+
+      const rectEl = document.createElement("div");
+      rectEl.className = "rect";
+      rectEl.dataset.id = id;
+      rectEl.style.left = x + "px";
+      rectEl.style.top = y + "px";
+      rectEl.style.width = w + "px";
+      rectEl.style.height = h + "px";
+      rectEl.title = "Manual redaction (click to toggle)";
+      pageState.overlayEl.appendChild(rectEl);
+
+      state.detectedCount += 1;
+      recomputeSelectedCount();
+      setStat();
+      log(`Added manual redaction on page ${pageState.pageNo}.`);
+      start = null;
+    }, { passive:true });
+  }
+
+  async function scanPdf(){
+    setMode("Scanning PDF…");
+    log("Scanning PDF text for PII…");
+
+    const patterns = buildPatterns();
+    let totalFinds = 0;
+
+    // Clear existing detected items except manual ones
+    for (const p of state.pdfPages){
+      const manual = p.items.filter(it => it.manual);
+      p.items = manual;
+      // Clear overlay children (rebuild)
+      p.overlayEl.querySelectorAll(".rect").forEach(el => el.remove());
+      // Re-add manual rects
+      for (const it of manual){
+        const rectEl = document.createElement("div");
+        rectEl.className = "rect";
+        rectEl.dataset.id = it.id;
+        rectEl.style.left = it.x + "px";
+        rectEl.style.top = it.y + "px";
+        rectEl.style.width = it.w + "px";
+        rectEl.style.height = it.h + "px";
+        rectEl.title = "Manual redaction (click to toggle)";
+        p.overlayEl.appendChild(rectEl);
+      }
+    }
+
+    // Extract text items from each page
+    for (const p of state.pdfPages){
+      const textContent = await p.page.getTextContent();
+      const items = textContent.items || [];
+
+      // pdf.js text item transform -> approximate bounding box
+      // We'll scan each item string independently. This avoids complex multi-item matching,
+      // but is stable and maps cleanly to coordinates.
+      for (const t of items){
+        const s = (t.str || "").trim();
+        if (!s) continue;
+
+        for (const pat of patterns){
+          pat.re.lastIndex = 0;
+          let m;
+          while ((m = pat.re.exec(s)) !== null){
+            const matchText = m[0];
+            const box = estimatePdfTextBox(p, t, s, m.index, matchText.length);
+            if (!box) continue;
+
+            const id = crypto.randomUUID();
+            const selected = $("autoSelect").checked;
+            const item = { id, ...box, text: matchText, selected, kind: pat.kind, manual:false };
+            p.items.push(item);
+
+            const rectEl = document.createElement("div");
+            rectEl.className = "rect";
+            rectEl.dataset.id = id;
+            rectEl.style.left = box.x + "px";
+            rectEl.style.top = box.y + "px";
+            rectEl.style.width = box.w + "px";
+            rectEl.style.height = box.h + "px";
+            rectEl.title = `${pat.kind.toUpperCase()}: ${matchText}\nClick to toggle`;
+            if (!selected) rectEl.classList.add("off");
+            rectEl.style.display = $("showOverlays").checked ? "block" : "none";
+            p.overlayEl.appendChild(rectEl);
+
+            totalFinds++;
+          }
+        }
+      }
+    }
+
+    state.detectedCount = totalFinds;
+    state.scanned = true;
+    recomputeSelectedCount();
+    setStat();
+    setMode("Scan complete");
+    log(`PDF scan complete: ${totalFinds} item(s) detected.`);
+  }
+
+  function estimatePdfTextBox(pageState, textItem, fullStr, startIdx, matchLen){
+    // pdf.js gives a transform matrix for the whole item.
+    // We approximate per-substring by proportional width allocation.
+    // This keeps coordinates stable enough for redaction boxes.
+
+    const { viewport } = pageState;
+
+    const transform = pdfjsLib.Util.transform(viewport.transform, textItem.transform);
+    const x = transform[4];
+    const y = transform[5];
+
+    // textItem.width/height are in text space; viewport scales them.
+    const itemW = Math.abs(textItem.width * viewport.scale);
+    const itemH = Math.abs(textItem.height * viewport.scale);
+
+    // Proportional substring mapping
+    const len = fullStr.length || 1;
+    const sx = (startIdx / len) * itemW;
+    const sw = (matchLen / len) * itemW;
+
+    // PDF y is baseline-ish; adjust upward by height
+    const boxX = x + sx;
+    const boxY = (y - itemH); // rough
+    const boxW = Math.max(6, sw);
+    const boxH = Math.max(10, itemH || 12);
+
+    // Clamp
+    const clamped = {
+      x: Math.max(0, Math.min(boxX, viewport.width - 1)),
+      y: Math.max(0, Math.min(boxY, viewport.height - 1)),
+      w: Math.max(2, Math.min(boxW, viewport.width - boxX)),
+      h: Math.max(2, Math.min(boxH, viewport.height - boxY))
+    };
+    return clamped;
+  }
+
+  async function applyPdfRedactions(){
+    setMode("Applying (PDF)…");
+    log("Applying PDF redactions…");
+
+    // Burn redactions into canvas pixels (and keep overlays for UX)
+    const style = $("pdfRedactionStyle").value;
+
+    for (const p of state.pdfPages){
+      const ctx = p.ctx;
+      for (const it of p.items){
+        if (!it.selected) continue;
+
+        if (style === "black"){
+          ctx.save();
+          ctx.fillStyle = "#000";
+          ctx.fillRect(it.x, it.y, it.w, it.h);
+          ctx.restore();
+        } else {
+          // blur: draw a scaled sample of the region back onto itself (simple mosaic-ish blur)
+          const sx = Math.max(0, Math.floor(it.x));
+          const sy = Math.max(0, Math.floor(it.y));
+          const sw = Math.max(1, Math.floor(it.w));
+          const sh = Math.max(1, Math.floor(it.h));
+          try{
+            const img = ctx.getImageData(sx, sy, sw, sh);
+
+            // simple pixelation: sample blocks
+            const block = Math.max(6, Math.floor(Math.min(sw, sh) / 10));
+            for (let y = 0; y < sh; y += block){
+              for (let x = 0; x < sw; x += block){
+                const px = x + Math.floor(block/2);
+                const py = y + Math.floor(block/2);
+                const idx = ((Math.min(py, sh-1) * sw) + Math.min(px, sw-1)) * 4;
+                const r = img.data[idx], g = img.data[idx+1], b = img.data[idx+2];
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(sx + x, sy + y, block, block);
+              }
+            }
+          }catch(_){
+            // fallback to black if tainted (should not happen here)
+            ctx.save(); ctx.fillStyle = "#000"; ctx.fillRect(it.x, it.y, it.w, it.h); ctx.restore();
+          }
+        }
+      }
+    }
+
+    state.applied = true;
+    $("export").disabled = false;
+    setMode("Applied");
+    log("PDF redactions applied to preview canvases.");
+  }
+
+  async function exportPdf(){
+    setMode("Exporting (PDF)…");
+    log("Exporting redacted PDF…");
+
+    const { PDFDocument } = window.PDFLib;
+    const out = await PDFDocument.create();
+
+    for (const p of state.pdfPages){
+      // Convert canvas to PNG, embed, then create a page of same size
+      const dataUrl = p.canvas.toDataURL("image/png");
+      const pngBytes = dataURLToBytes(dataUrl);
+      const img = await out.embedPng(pngBytes);
+      const page = out.addPage([p.canvas.width, p.canvas.height]);
+      page.drawImage(img, { x:0, y:0, width:p.canvas.width, height:p.canvas.height });
+    }
+
+    out.setTitle((state.fileName || "redacted") + " (redacted)");
+    out.setProducer("Client-side PII Redactor");
+    const bytes = await out.save();
+
+    downloadBytes(bytes, safeOutName(state.fileName, "redacted.pdf"), "application/pdf");
+    setMode("Exported");
+    log("PDF exported.");
+  }
+
+  // ---------- DOCX pipeline ----------
+  async function loadDocx(buf){
+    $("viewerTitle").textContent = "DOCX (format-preserving redaction)";
+    $("viewerHint").textContent = "Scan then export a redacted DOCX";
+
+    $("pages").innerHTML = `
+      <div class="page">
+        <div class="pageHd"><b>DOCX preview</b><span class="small">This tool preserves formatting in the exported DOCX</span></div>
+        <div class="bd" style="padding:12px">
+          <div class="hint">
+            For DOCX, previewing the exact layout requires a full Word rendering engine.
+            This tool instead performs a professional-grade, format-preserving redaction by rewriting Word XML
+            (document.xml plus headers and footers), keeping styles intact.
+          </div>
+        </div>
+      </div>
+    `;
+
+    const zip = await JSZip.loadAsync(buf);
+    state.docxZip = zip;
+
+    // Parts we redact
+    const partPaths = [];
+    if (zip.file("word/document.xml")) partPaths.push("word/document.xml");
+
+    // headers/footers (variable count)
+    for (const name of Object.keys(zip.files)){
+      if (/^word\/header\d+\.xml$/.test(name)) partPaths.push(name);
+      if (/^word\/footer\d+\.xml$/.test(name)) partPaths.push(name);
+    }
+
+    if (!partPaths.length){
+      throw new Error("DOCX missing word/document.xml");
+    }
+
+    // Load XML
+    state.docxXml.clear();
+    for (const p of partPaths){
+      const xml = await zip.file(p).async("string");
+      state.docxXml.set(p, xml);
+    }
+
+    state.pageCount = partPaths.length; // not real pages, but parts
+  }
+
+  async function scanDocx(){
+    setMode("Scanning DOCX…");
+    log("Scanning DOCX XML for PII…");
+
+    const patterns = buildPatterns();
+    const finds = [];
+
+    // We scan paragraph-by-paragraph so we can apply replacements while preserving run styles.
+    for (const [partPath, xml] of state.docxXml.entries()){
+      const doc = parseXml(xml);
+      const paragraphs = Array.from(doc.getElementsByTagName("w:p"));
+
+      for (let pi = 0; pi < paragraphs.length; pi++){
+        const p = paragraphs[pi];
+
+        const tNodes = getWTNodes(p);
+        if (!tNodes.length) continue;
+
+        const parts = tNodes.map(n => n.textContent || "");
+        const full = parts.join("");
+        if (!full.trim()) continue;
+
+        for (const pat of patterns){
+          pat.re.lastIndex = 0;
+          let m;
+          while ((m = pat.re.exec(full)) !== null){
+            finds.push({
+              partPath,
+              paragraphIndex: pi,
+              start: m.index,
+              length: m[0].length,
+              matchText: m[0],
+              kind: pat.kind
             });
-        });
+          }
+        }
+      }
     }
 
-    async function hydrateDictionary() {
-        dictionaryFeedback = [];
-        dictionarySource = "Bundled prototype words";
+    state.docxFinds = finds;
+    state.detectedCount = finds.length;
+    state.scanned = true;
 
-        try {
-            const moduleLoader = window.__cipherShiftWordlistsModule;
-            if (moduleLoader && typeof moduleLoader.loadWordLists === "function") {
-                const loaded = await moduleLoader.loadWordLists();
-                const sharedWords = loaded?.answers || loaded?.words || loaded?.allWords || loaded?.WORDS || [];
-                const normalized = normalizeFiveLetterWords(sharedWords);
+    // DOCX selection model: all detected are selected (consistent with "apply" action)
+    state.selectedCount = finds.length;
+    $("apply").disabled = finds.length === 0;
+    $("export").disabled = true;
 
-                if (normalized.length) {
-                    acceptedWords.clear();
-                    normalized.forEach(word => acceptedWords.add(word));
-                    dictionarySource = "Shared wordlist module";
-                    dictionaryFeedback.push(`Loaded ${normalized.length} words from shared module.`);
-                    addPuzzleWordsToDictionary();
-                    return;
-                }
+    setStat();
+    setMode("Scan complete");
+    log(`DOCX scan complete: ${finds.length} match(es) detected across document parts.`);
+  }
 
-                dictionaryFeedback.push("Shared wordlist module returned no valid five-letter words.");
-            } else {
-                dictionaryFeedback.push("Shared wordlist module was not available.");
-            }
-        } catch (error) {
-            dictionaryFeedback.push("Shared wordlist module failed; falling back to local cache.");
-            console.warn("CipherShift shared wordlist unavailable, trying local cache.", error);
+  async function applyDocxRedactions(){
+    setMode("Applying (DOCX)…");
+    log("Applying DOCX redactions (format-preserving)…");
+
+    const repMode = $("replacementMode").value;
+
+    // Group matches by (partPath, paragraphIndex)
+    const grouped = new Map();
+    for (const f of state.docxFinds){
+      const key = `${f.partPath}::${f.paragraphIndex}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(f);
+    }
+
+    // Rewrite XML parts
+    for (const [partPath, xml] of state.docxXml.entries()){
+      const doc = parseXml(xml);
+      const paragraphs = Array.from(doc.getElementsByTagName("w:p"));
+
+      // Build paragraph rewrite map
+      const pRewrites = new Map();
+      for (const [key, list] of grouped.entries()){
+        const [pp, idxStr] = key.split("::");
+        if (pp !== partPath) continue;
+        const idx = Number(idxStr);
+        if (!Number.isFinite(idx)) continue;
+        pRewrites.set(idx, list);
+      }
+
+      for (const [pi, matches] of pRewrites.entries()){
+        const p = paragraphs[pi];
+        if (!p) continue;
+
+        const tNodes = getWTNodes(p);
+        if (!tNodes.length) continue;
+
+        const textParts = tNodes.map(n => n.textContent || "");
+        const full = textParts.join("");
+        if (!full.length) continue;
+
+        // Create mask array
+        const mask = new Array(full.length).fill(false);
+
+        // Mark matches (ensure deterministic: sort by start asc, then longer first)
+        matches.sort((a,b) => (a.start - b.start) || (b.length - a.length));
+        for (const m of matches){
+          const s = Math.max(0, Math.min(m.start, full.length));
+          const e = Math.max(s, Math.min(m.start + m.length, full.length));
+          for (let i = s; i < e; i++) mask[i] = true;
         }
 
-        try {
-            const cached = JSON.parse(localStorage.getItem("dwl:words:v1") || "[]");
-            const normalizedCache = normalizeFiveLetterWords(cached);
-
-            if (normalizedCache.length) {
-                acceptedWords.clear();
-                normalizedCache.forEach(word => acceptedWords.add(word));
-                dictionarySource = "Local cached dictionary (dwl:words:v1)";
-                dictionaryFeedback.push(`Loaded ${normalizedCache.length} words from local cache.`);
-            } else {
-                dictionaryFeedback.push("Local cache had no valid five-letter words; using bundled prototype words.");
-            }
-        } catch (error) {
-            dictionaryFeedback.push("Local cache parse failed; using bundled prototype words.");
-            console.warn("CipherShift local cached dictionary unavailable; using bundled prototype words.", error);
+        let redacted;
+        if (repMode === "tag"){
+          // Replace each contiguous region with [REDACTED]
+          redacted = applyTagReplacement(full, mask, "[REDACTED]");
+        } else {
+          // Replace each redacted char with a solid block to preserve spacing/formatting
+          const chars = Array.from(full);
+          for (let i = 0; i < chars.length; i++){
+            if (mask[i]) chars[i] = "█";
+          }
+          redacted = chars.join("");
         }
 
-        addPuzzleWordsToDictionary();
-    }
-
-    async function init() {
-        current = "";
-        row = 0;
-        guesses = [];
-        gameOver = false;
-        bestSignal = 0;
-        keyStates = {};
-        puzzle = puzzles[puzzleIndex];
-
-        puzzleName.textContent = practiceMode ? "Practice" : "Daily";
-        themeName.textContent = puzzle.theme;
-        bestSignalEl.textContent = "0%";
-        meaningText.textContent = "Make a guess to read the signal.";
-        meaningFill.style.width = "0%";
-        message.textContent = "";
-        shareBtn.disabled = true;
-
-        renderBoard();
-        renderKeyboard();
-        renderHints();
-        renderHistory();
-        renderDictionary();
-    }
-
-    function renderDictionary() {
-        const words = [...acceptedWords].sort();
-
-        dictionarySourceEl.textContent = `Current source: ${dictionarySource}`;
-        dictionaryFeedbackEl.innerHTML = dictionaryFeedback.length
-            ? dictionaryFeedback.map(note => `• ${escapeHtml(note)}`).join("<br>")
-            : "No dictionary fallback messages.";
-        dictionaryCount.textContent = `${words.length} accepted five-letter words`;
-
-        dictionaryList.innerHTML = words
-            .map(word => `<div class="dictionary-word">${escapeHtml(word)}</div>`)
-            .join("");
-    }
-
-    function renderBoard() {
-        board.innerHTML = "";
-
-        for (let r = 0; r < maxRows; r++) {
-            const rowEl = document.createElement("div");
-            rowEl.className = "row";
-
-            const guess = guesses[r]?.word || (r === row ? current : "");
-            const evaluated = guesses[r];
-
-            for (let c = 0; c < cols; c++) {
-                const tile = document.createElement("div");
-                tile.className = "tile";
-                tile.textContent = guess[c] || "";
-
-                if (guess[c]) tile.classList.add("filled");
-
-                if (evaluated) {
-                    tile.classList.remove("filled");
-                    tile.classList.add(evaluated.letters[c]);
-
-                    if (evaluated.conceptLetters.includes(guess[c])) {
-                        tile.classList.add("concept");
-                    }
-                }
-
-                rowEl.appendChild(tile);
-            }
-
-            board.appendChild(rowEl);
-        }
-    }
-
-    function renderKeyboard() {
-        keyboard.innerHTML = "";
-
-        const rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
-
-        rows.forEach((letters, i) => {
-            const rowEl = document.createElement("div");
-            rowEl.className = "key-row";
-
-            if (i === 2) rowEl.appendChild(makeKey("ENTER", "wide"));
-            [...letters].forEach(l => rowEl.appendChild(makeKey(l)));
-            if (i === 2) rowEl.appendChild(makeKey("⌫", "wide"));
-
-            keyboard.appendChild(rowEl);
-        });
-    }
-
-    function makeKey(label, extra = "") {
-        const el = document.createElement("div");
-        el.className = `key ${extra}`;
-        el.textContent = label;
-
-        const state = keyStates[label];
-
-        if (state) el.classList.add(state);
-
-        el.addEventListener("click", () => handleKey(label));
-
-        return el;
-    }
-
-    function renderHints() {
-        hintList.innerHTML = "";
-        addHint(`Theme: ${puzzle.theme}.`);
-
-        const hintCount = Math.min(
-            4,
-            Math.floor(row / 2) + (bestSignal >= 70 ? 1 : 0) + (bestSignal >= 85 ? 1 : 0)
-        );
-
-        for (let i = 0; i < hintCount; i++) {
-            addHint(puzzle.hints[i]);
-        }
-    }
-
-    function addHint(text) {
-        const li = document.createElement("li");
-        li.textContent = text;
-        hintList.appendChild(li);
-    }
-
-    function renderHistory() {
-        history.innerHTML = "";
-
-        if (!guesses.length) {
-            const empty = document.createElement("div");
-            empty.className = "small";
-            empty.textContent = "Your reasoning trail will appear here.";
-            history.appendChild(empty);
-            return;
+        // Distribute redacted text back into original nodes preserving node boundaries
+        let cursor = 0;
+        for (let i = 0; i < tNodes.length; i++){
+          const origLen = (tNodes[i].textContent || "").length;
+          const slice = redacted.slice(cursor, cursor + origLen);
+          tNodes[i].textContent = slice;
+          cursor += origLen;
         }
 
-        guesses.forEach(g => {
-            const item = document.createElement("div");
-            item.className = "history-item";
-            item.innerHTML = `<strong>${escapeHtml(g.word)}</strong><span>${escapeHtml(g.signalLabel)}</span><span class="pill">${g.signal}%</span>`;
-            history.appendChild(item);
-        });
-    }
-
-    function handleKey(key) {
-        if (gameOver) return;
-
-        if (key === "ENTER") {
-            submitGuess();
-            return;
+        // If tag replacement grew/shrank, we may have leftover chars
+        // Append leftover into the last node (still preserves formatting of the last run)
+        if (cursor < redacted.length && tNodes.length){
+          tNodes[tNodes.length - 1].textContent += redacted.slice(cursor);
         }
 
-        if (key === "⌫" || key === "BACKSPACE") {
-            current = current.slice(0, -1);
-            renderBoard();
-            return;
+        // If tag replacement is shorter, clear remaining nodes
+        if (cursor > redacted.length){
+          // Nothing needed, slicing already truncated content
         }
+      }
 
-        if (/^[A-Z]$/.test(key) && current.length < cols) {
-            current += key;
-            renderBoard();
-
-            const tiles = board.children[row]?.children;
-
-            if (tiles && tiles[current.length - 1]) {
-                tiles[current.length - 1].classList.add("pop");
-                setTimeout(() => tiles[current.length - 1]?.classList.remove("pop"), 160);
-            }
-        }
+      // Serialize and store
+      const updated = new XMLSerializer().serializeToString(doc);
+      state.docxXml.set(partPath, updated);
     }
 
-    function submitGuess() {
-        if (current.length !== cols) {
-            notice("Enter a five-letter word.");
-            return;
-        }
-
-        if (!acceptedWords.has(current)) {
-            const miss = `${current} not in accepted list from ${dictionarySource}.`;
-            dictionaryFeedback.unshift(miss);
-            dictionaryFeedback = dictionaryFeedback.slice(0, 12);
-            renderDictionary();
-            notice(`Dictionary miss: ${current} is not in the active list (${dictionarySource}).`);
-            return;
-        }
-
-        const evaluation = evaluate(current);
-
-        guesses.push(evaluation);
-        row++;
-        bestSignal = Math.max(bestSignal, evaluation.signal);
-
-        bestSignalEl.textContent = `${bestSignal}%`;
-        meaningText.innerHTML = `<strong>${escapeHtml(evaluation.word)}</strong>: ${evaluation.signal}% meaning signal. ${escapeHtml(evaluation.signalLabel)}`;
-        meaningFill.style.width = `${evaluation.signal}%`;
-
-        updateKeys(evaluation);
-
-        current = "";
-
-        renderBoard();
-        renderKeyboard();
-        renderHints();
-        renderHistory();
-
-        if (evaluation.word === puzzle.answer) {
-            gameOver = true;
-            shareBtn.disabled = false;
-            notice(`Solved in ${row} ${row === 1 ? "guess" : "guesses"}.`);
-            saveStats(true);
-            return;
-        }
-
-        if (row >= maxRows) {
-            gameOver = true;
-            shareBtn.disabled = false;
-            notice(`Game over. The answer was ${puzzle.answer}.`);
-            saveStats(false);
-            return;
-        }
-
-        if (evaluation.signal >= 85) notice("Strong signal. You are very close conceptually.");
-        else if (evaluation.signal >= 70) notice("Good signal. Your thinking is in the right territory.");
-        else if (evaluation.signal >= 45) notice("Some overlap. Keep testing the theme.");
-        else notice("Low signal. Try a different conceptual direction.");
+    // Build new zip with updated parts
+    const outZip = new JSZip();
+    // Copy all original files first
+    for (const name of Object.keys(state.docxZip.files)){
+      const f = state.docxZip.files[name];
+      if (f.dir){
+        outZip.folder(name);
+      } else {
+        const content = await f.async("uint8array");
+        outZip.file(name, content);
+      }
+    }
+    // Overwrite parts
+    for (const [partPath, updatedXml] of state.docxXml.entries()){
+      outZip.file(partPath, updatedXml);
     }
 
-    function notice(text) {
-        message.textContent = text;
-        message.classList.remove("shake");
-        void message.offsetWidth;
-        message.classList.add("shake");
+    const blob = await outZip.generateAsync({ type:"blob" });
+    state.docxRedactedZipBlob = blob;
+
+    state.applied = true;
+    $("export").disabled = false;
+    setMode("Applied");
+    log("DOCX redactions applied. Ready to export.");
+  }
+
+  async function exportDocx(){
+    if (!state.docxRedactedZipBlob){
+      log("No redacted DOCX available.");
+      return;
     }
+    downloadBlob(state.docxRedactedZipBlob, safeOutName(state.fileName, "redacted.docx"));
+    setMode("Exported");
+    log("DOCX exported.");
+  }
 
-    function evaluate(word) {
-        const answer = puzzle.answer;
-        const letters = Array(cols).fill("absent");
-        const answerCounts = {};
-
-        for (let i = 0; i < cols; i++) {
-            if (word[i] === answer[i]) {
-                letters[i] = "correct";
-            } else {
-                answerCounts[answer[i]] = (answerCounts[answer[i]] || 0) + 1;
-            }
-        }
-
-        for (let i = 0; i < cols; i++) {
-            if (letters[i] === "correct") continue;
-
-            if (answerCounts[word[i]] > 0) {
-                letters[i] = "present";
-                answerCounts[word[i]]--;
-            }
-        }
-
-        const signal = semanticScore(word, letters);
-
-        return {
-            word,
-            letters,
-            conceptLetters: getConceptLetters(word),
-            signal,
-            signalLabel: labelSignal(signal)
-        };
+  // ---------- Helpers ----------
+  function recomputeSelectedCount(){
+    let selected = 0;
+    if (state.type === "pdf"){
+      for (const p of state.pdfPages) selected += p.items.filter(it => it.selected).length;
+      state.selectedCount = selected;
+      $("apply").disabled = selected === 0;
+      $("export").disabled = !state.applied;
+    } else if (state.type === "docx"){
+      state.selectedCount = state.docxFinds.length;
+      $("apply").disabled = state.docxFinds.length === 0;
+      $("export").disabled = !state.applied;
     }
+    setStat();
+  }
 
-    function getConceptLetters(word) {
-        const familyLetters = new Set(puzzle.family.join("").split(""));
-        return [...new Set([...word].filter(l => familyLetters.has(l)))];
+  function parseXml(xmlStr){
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlStr, "application/xml");
+    const perr = doc.getElementsByTagName("parsererror")[0];
+    if (perr){
+      throw new Error("XML parse error");
     }
+    return doc;
+  }
 
-    function semanticScore(word, letters) {
-        if (word === puzzle.answer) return 100;
-
-        const exactFamily = puzzle.family.includes(word) ? 42 : 0;
-        const letterScore = letters.reduce((sum, state) => sum + (state === "correct" ? 10 : state === "present" ? 5 : 0), 0);
-        const answerLetters = new Set(puzzle.answer.split(""));
-        const wordLetters = new Set(word.split(""));
-        const overlap = [...wordLetters].filter(l => answerLetters.has(l)).length * 4;
-        const conceptLetters = getConceptLetters(word).length * 3;
-        const prefixBonus = word[0] === puzzle.answer[0] ? 5 : 0;
-        const endingBonus = word[4] === puzzle.answer[4] ? 5 : 0;
-
-        return Math.min(99, exactFamily + letterScore + overlap + conceptLetters + prefixBonus + endingBonus);
+  function getWTNodes(paragraphEl){
+    // WordprocessingML uses w namespace, but DOMParser keeps prefixes in tagName
+    // We match by local name to be safer.
+    const all = paragraphEl.getElementsByTagName("*");
+    const nodes = [];
+    for (const n of all){
+      if (n.nodeType === 1 && (n.localName === "t" || n.tagName === "w:t")){
+        nodes.push(n);
+      }
     }
+    return nodes;
+  }
 
-    function labelSignal(score) {
-        if (score >= 90) return "Almost complete alignment.";
-        if (score >= 80) return "Very close in concept and structure.";
-        if (score >= 70) return "Strong conceptual connection.";
-        if (score >= 55) return "Useful overlap, but not yet centred.";
-        if (score >= 35) return "A weak signal with some shared features.";
-        return "Little conceptual connection.";
+  function applyTagReplacement(full, mask, tag){
+    let out = "";
+    let i = 0;
+    while (i < full.length){
+      if (!mask[i]){
+        out += full[i];
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < full.length && mask[j]) j++;
+      out += tag;
+      i = j;
     }
+    return out;
+  }
 
-    function updateKeys(evaluation) {
-        const rank = { concept: 1, absent: 2, present: 3, correct: 4 };
+  function safeOutName(inName, suffix){
+    const base = (inName || "file").replace(/\.(pdf|docx)$/i, "");
+    return `${base}.${suffix}`;
+  }
 
-        [...evaluation.word].forEach((letter, i) => {
-            let newState = evaluation.letters[i];
+  function downloadBytes(bytes, name, mime){
+    const blob = new Blob([bytes], { type: mime });
+    downloadBlob(blob, name);
+  }
 
-            if (evaluation.conceptLetters.includes(letter) && newState === "absent") {
-                newState = "concept";
-            }
+  function downloadBlob(blob, name){
+    const a = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
 
-            const oldState = keyStates[letter];
+  function dataURLToBytes(dataUrl){
+    const [meta, b64] = dataUrl.split(",");
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
 
-            if (!oldState || rank[newState] > rank[oldState]) {
-                keyStates[letter] = newState;
-            }
-        });
+  // ---------- UI wiring ----------
+  $("file").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try{
+      await onFileSelected(f);
+      $("apply").disabled = true;
+      $("export").disabled = true;
+      $("reset").disabled = false;
+    }catch(err){
+      log(`Load failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
     }
+  });
 
-    function saveStats(won) {
-        if (practiceMode) return;
+  $("scan").addEventListener("click", async () => {
+    if (!state.ready) return;
+    try{
+      state.applied = false;
+      $("export").disabled = true;
+      $("apply").disabled = true;
 
-        const stats = JSON.parse(localStorage.getItem("ciphershiftStats") || "{\"played\":0,\"won\":0}");
-
-        stats.played++;
-        if (won) stats.won++;
-
-        localStorage.setItem("ciphershiftStats", JSON.stringify(stats));
+      if (state.type === "pdf"){
+        await scanPdf();
+        // Enable apply if anything selected
+        recomputeSelectedCount();
+      } else {
+        await scanDocx();
+      }
+    }catch(err){
+      log(`Scan failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
     }
+  });
 
-    function shareText() {
-        const icons = guesses.map(g => g.letters.map((s, i) => {
-            if (s === "correct") return "🟩";
-            if (s === "present") return "🟨";
-            if (g.conceptLetters.includes(g.word[i])) return "🟦";
-            return "⬛";
-        }).join("")).join("\n");
-
-        const scoreLine = `Best meaning signal: ${bestSignal}%`;
-        const result = guesses.some(g => g.word === puzzle.answer) ? `${row}/6` : "X/6";
-
-        return `CipherShift ${result}\nTheme: ${puzzle.theme}\n${icons}\n${scoreLine}`;
+  $("apply").addEventListener("click", async () => {
+    if (!state.scanned) return;
+    try{
+      if (state.type === "pdf"){
+        await applyPdfRedactions();
+      } else {
+        await applyDocxRedactions();
+      }
+      state.applied = true;
+      $("export").disabled = false;
+    }catch(err){
+      log(`Apply failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
     }
+  });
 
-    async function share() {
-        const text = shareText();
-
-        if (navigator.share) {
-            try {
-                await navigator.share({ text });
-                return;
-            } catch (error) {
-                console.warn("Native share cancelled or failed.", error);
-            }
-        }
-
-        try {
-            await navigator.clipboard.writeText(text);
-            notice("Copied result to clipboard.");
-        } catch {
-            prompt("Copy your result:", text);
-        }
+  $("export").addEventListener("click", async () => {
+    if (!state.applied) return;
+    try{
+      if (state.type === "pdf"){
+        await exportPdf();
+      } else {
+        await exportDocx();
+      }
+    }catch(err){
+      log(`Export failed: ${err && err.message ? err.message : String(err)}`);
+      setMode("Error");
     }
+  });
 
-    function escapeHtml(value) {
-        return String(value).replace(/[&<>"']/g, char => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            "\"": "&quot;",
-            "'": "&#039;"
-        }[char]));
+  $("reset").addEventListener("click", () => hardReset());
+
+  $("showOverlays").addEventListener("change", () => {
+    if (state.type !== "pdf") return;
+    const on = $("showOverlays").checked;
+    for (const p of state.pdfPages){
+      p.overlayEl.querySelectorAll(".rect").forEach(el => {
+        el.style.display = on ? "block" : "none";
+      });
     }
+  });
 
-    function showDebug(error) {
-        if (!debugBox) return;
+  // When changing detection toggles, require rescan
+  for (const id of ["detEmails","detPhones","detPostcodes","detNINo","detUrls","detDates","customTerms","replacementMode","pdfRedactionStyle","autoSelect"]){
+    const el = $(id);
+    if (!el) continue;
+    el.addEventListener("change", () => {
+      if (!state.ready) return;
+      state.scanned = false;
+      state.applied = false;
+      $("apply").disabled = true;
+      $("export").disabled = true;
+      log("Settings changed. Please rescan.");
+      setMode("Ready");
+    });
+  }
 
-        debugBox.style.display = "block";
-        debugBox.textContent = "CipherShift failed to initialise:\n" + (error?.stack || String(error));
-    }
-
-    function bindEvents() {
-        document.addEventListener("keydown", e => {
-            const key = e.key.toUpperCase();
-
-            if (key === "ENTER" || key === "BACKSPACE" || /^[A-Z]$/.test(key)) {
-                e.preventDefault();
-                handleKey(key);
-            }
-        });
-
-        document.getElementById("newBtn").addEventListener("click", async () => {
-            practiceMode = true;
-            puzzleIndex = (puzzleIndex + 1) % puzzles.length;
-            await hydrateDictionary();
-            await init();
-        });
-
-        document.getElementById("howBtn").addEventListener("click", () => {
-            modal.classList.add("show");
-            modal.setAttribute("aria-hidden", "false");
-        });
-
-        document.getElementById("closeModal").addEventListener("click", () => {
-            modal.classList.remove("show");
-            modal.setAttribute("aria-hidden", "true");
-        });
-
-        modal.addEventListener("click", e => {
-            if (e.target === modal) {
-                modal.classList.remove("show");
-                modal.setAttribute("aria-hidden", "true");
-            }
-        });
-
-        document.getElementById("dictionaryBtn").addEventListener("click", () => {
-            renderDictionary();
-            dictionaryModal.classList.add("show");
-            dictionaryModal.setAttribute("aria-hidden", "false");
-        });
-
-        document.getElementById("closeDictionary").addEventListener("click", () => {
-            dictionaryModal.classList.remove("show");
-            dictionaryModal.setAttribute("aria-hidden", "true");
-        });
-
-        dictionaryModal.addEventListener("click", e => {
-            if (e.target === dictionaryModal) {
-                dictionaryModal.classList.remove("show");
-                dictionaryModal.setAttribute("aria-hidden", "true");
-            }
-        });
-
-        shareBtn.addEventListener("click", share);
-    }
-
-    (async () => {
-        try {
-            bindEvents();
-            await hydrateDictionary();
-            addPuzzleWordsToDictionary();
-            await init();
-        } catch (error) {
-            console.error(error);
-            showDebug(error);
-        }
-    })();
+  // Final init
+  hardReset();
+  const ok = libsReady();
+  if (ok){
+    setMode("Idle");
+    log("Ready. Load a PDF or DOCX.");
+  } else {
+    setMode("Libraries missing");
+    log("If libraries do not load, your environment may block CDNs. Inline the minified bundles into this HTML for full offline use.");
+  }
 })();
 </script>
 </body>

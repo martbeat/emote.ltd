@@ -360,7 +360,7 @@
         <div class="category-grid">
           <label class="toggle-row"><input id="redactFullNameVariants" type="checkbox" checked /><span>Infer full names (strict mode)</span></label>
           <label class="toggle-row"><input id="redactFirstNameGlobal" type="checkbox" /><span>First names</span></label>
-          <label class="toggle-row"><input id="redactSurnameGlobal" type="checkbox" /><span>Last names</span></label>
+          <label class="toggle-row"><input id="redactSurnameGlobal" type="checkbox" /><span>Last names, including references</span></label>
           <label class="toggle-row"><input id="redactCompanies" type="checkbox" checked /><span>Companies</span></label>
           <label class="toggle-row"><input id="redactEmails" type="checkbox" checked /><span>Emails</span></label>
           <label class="toggle-row"><input id="redactPhoneNumbers" type="checkbox" checked /><span>Phone numbers</span></label>
@@ -1124,6 +1124,39 @@
     return token;
   }
 
+  function extractBibliographySurnames(text){
+    const found = new Set();
+    const lines = String(text || '').split(/\r?\n/);
+
+    // Conservative author-reference pattern:
+    // Surname, Given... (2020) / Surname, A. B. (2020)
+    // We require a year on the same line to avoid treating ordinary prose as a citation.
+    const authorLeadRe = /^\s*([\p{Lu}][\p{L}'’\-]{2,}),\s+(?=[\p{Lu}])(.{1,180})$/u;
+
+    for (const rawLine of lines){
+      const line = rawLine.trim();
+      if (!line || line.length > 500) continue;
+
+      const m = line.match(authorLeadRe);
+      if (!m) continue;
+
+      const surname = normalizeLexiconToken(m[1]);
+      const remainder = m[2] || '';
+
+      if (!surname || surname.length < 3) continue;
+      if (!/(?:\(|\b)(?:18|19|20)\d{2}(?:\)|\b)/.test(remainder)) continue;
+      if (NAME_STOPWORDS.has(surname) ||
+          NAME_CONTEXT_STOPWORDS.has(surname) ||
+          ORGISH_TERMS.has(surname) ||
+          PERSON_CONTEXT_WORDS.has(surname) ||
+          NON_PERSON_PROFESSIONAL_TERMS.has(surname)) continue;
+
+      found.add(surname);
+    }
+
+    return [...found];
+  }
+
   function buildNameDetections(candidates, text, opts){
     const matches = [];
     if (!candidates) return matches;
@@ -1161,6 +1194,12 @@
       if (trustedSource && t.confidence >= 0.9) trustedSurnameTokens.add(t.token);
     }
 
+    if (opts.redactSurnameGlobal){
+      for (const bibliographySurname of extractBibliographySurnames(text)){
+        trustedSurnameTokens.add(bibliographySurname);
+      }
+    }
+
     if (opts.redactFullNameVariants){
       for (const phrase of collectCandidateNamePhrases(text, candidates)){
         addRegexMatches(new RegExp(`\\b${escapeRegExp(phrase)}\\b`, 'igu'), 'FULL_NAME', 0.94);
@@ -1194,8 +1233,14 @@
       for (const surnameToken of trustedSurnameTokens){
         if (!surnameToken || surnameToken.length < 3) continue;
         if (NAME_STOPWORDS.has(surnameToken) || NAME_CONTEXT_STOPWORDS.has(surnameToken) || ORGISH_TERMS.has(surnameToken) || PERSON_CONTEXT_WORDS.has(surnameToken) || NON_PERSON_PROFESSIONAL_TERMS.has(surnameToken)) continue;
-        const score = tokens.find(t => t.token===surnameToken)?.confidence || 0.9;
-        if (score >= 0.9) addRegexMatches(new RegExp(`\\b${escapeRegExp(surnameToken)}\\b`, 'igu'), 'NAME_TOKEN', score);
+        const tokenCandidate = tokens.find(t => t.token===surnameToken);
+        const bibliographyBacked = extractBibliographySurnames(text).includes(surnameToken);
+        const score = tokenCandidate?.confidence || (bibliographyBacked ? 0.96 : 0.9);
+        if (score >= 0.9) addRegexMatches(
+          new RegExp(`\\b${escapeRegExp(surnameToken)}\\b`, 'igu'),
+          'NAME_TOKEN',
+          score
+        );
       }
     }
 
@@ -1987,6 +2032,15 @@ ZZ1 1ZZ` });
     state.matchLog = [];
 
     const sampleInput = 'Sample FAMILY and Demo PERSON MBA https://example.com +44 70 000 00000 sample.person@example.org';
+
+    const bibliographyInput = `Gainsford, Peter (2003), “Formal analysis of recognition scenes in the Odyssey”
+Minchin, Elizabeth (2001), Homer and the Resources of Memory
+Scodel, Ruth (1998), “Bardic Performance and Oral Tradition in Homer”`;
+    const bibliographySurnames = extractBibliographySurnames(bibliographyInput);
+    assert(
+      'bibliography-style surnames are recognised when surname redaction is requested',
+      ['gainsford','minchin','scodel'].every(name => bibliographySurnames.includes(name))
+    );
 
     const scholarlyIdentifierInput = 'DOI 10.1093/oso/9781139225649.001.0001 and ISBN 9781139225649';
     const phoneBoundaryMatches = [

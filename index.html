@@ -318,7 +318,7 @@
       height: 100vh;
       z-index: 0;
       pointer-events: none;
-      opacity: 0.24;
+      opacity: 1;
     }
 
     .site-header,
@@ -1331,8 +1331,8 @@ Use clear headings, concise bullets and plain British English. Avoid generic cha
       function colours() {
         const dark = document.documentElement.getAttribute("data-theme") === "dark";
         return dark
-          ? { dot: "rgba(255,255,255,0.30)", line: 0.065 }
-          : { dot: "rgba(43,100,112,0.20)", line: 0.055 };
+          ? { dot: "rgba(255,255,255,0.42)", line: 0.11 }
+          : { dot: "rgba(43,100,112,0.30)", line: 0.095 };
       }
 
       function resize() {
@@ -1346,13 +1346,13 @@ Use clear headings, concise bullets and plain British English. Avoid generic cha
         canvas.style.height = height + "px";
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        const count = Math.max(18, Math.min(34, Math.floor((width * height) / 42000)));
+        const count = Math.max(24, Math.min(44, Math.floor((width * height) / 32000)));
 
         points = Array.from({length: count}, () => ({
           x: Math.random() * width,
           y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.09,
-          vy: (Math.random() - 0.5) * 0.09,
+          vx: (Math.random() - 0.5) * 0.11,
+          vy: (Math.random() - 0.5) * 0.11,
           r: 0.7 + Math.random() * 1.2
         }));
       }
@@ -1382,8 +1382,8 @@ Use clear headings, concise bullets and plain British English. Avoid generic cha
             const dy = points[i].y - points[j].y;
             const dist = Math.hypot(dx, dy);
 
-            if (dist < 150) {
-              const alpha = (1 - dist / 150) * palette.line;
+            if (dist < 165) {
+              const alpha = (1 - dist / 165) * palette.line;
               ctx.strokeStyle = document.documentElement.getAttribute("data-theme") === "dark"
                 ? `rgba(255,255,255,${alpha})`
                 : `rgba(43,100,112,${alpha})`;

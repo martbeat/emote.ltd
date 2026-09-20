@@ -57,6 +57,22 @@ a {
 
 a:hover { color: var(--accent); }
 
+.page-network {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.site-header,
+.reading-page,
+.site-footer {
+  position: relative;
+  z-index: 1;
+}
+
 .skip-link {
   position: absolute;
   left: -9999px;
@@ -218,6 +234,9 @@ h2 {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--accent-soft) 70%, transparent), transparent 60%),
+    var(--surface);
 }
 
 .hero-note strong {
@@ -231,6 +250,33 @@ h2 {
 .hero-note p {
   margin: 0;
   color: var(--text-soft);
+}
+
+.daily-influence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.daily-influence h2 {
+  margin: 0;
+  font-size: clamp(1.55rem,2.2vw,2.2rem);
+}
+
+.daily-influence h2 a {
+  text-decoration: none;
+}
+
+.daily-influence p {
+  max-width: 38ch;
+}
+
+.daily-type {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .daily-note {
@@ -303,6 +349,10 @@ h2 {
   border-bottom: 1px solid var(--border);
 }
 
+.section-head h2 {
+  margin: 0;
+}
+
 .section-head p {
   margin: 0;
   max-width: 42ch;
@@ -350,7 +400,10 @@ h2 {
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--text-soft);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -381,7 +434,22 @@ h2 {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--text-soft);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+}
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1rem;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.source-link:hover,
+.source-link:focus-visible {
+  text-decoration: underline;
 }
 
 .empty-state {

@@ -525,8 +525,10 @@
 
   const REDACTION_PATTERNS = {
     email: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,
-    mobileUk: /(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})\b/g,
-    landlineUk: /(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}\b/g,
+    // Phone matches must not begin or end inside a longer numeric identifier
+    // (for example an ISBN or the numeric component of a DOI).
+    mobileUk: /(?<!\d)(?:\+44\s?7\d(?:[\s-]?\d){8,9}|0?7\d(?:[\s-]?\d){8,9})(?!\d)/g,
+    landlineUk: /(?<!\d)(?:\+44\s?\d{2,4}|\(?0\d{2,4}\)?)\s?\d{3,4}\s?\d{3,4}(?!\d)/g,
     postcodeUk: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/ig,
     urlHttp: /\bhttps?:\/\/[^\s<>"']+/ig,
     urlWww: /\bwww\.[^\s<>"']+/ig,
@@ -1985,6 +1987,20 @@ ZZ1 1ZZ` });
     state.matchLog = [];
 
     const sampleInput = 'Sample FAMILY and Demo PERSON MBA https://example.com +44 70 000 00000 sample.person@example.org';
+
+    const scholarlyIdentifierInput = 'DOI 10.1093/oso/9781139225649.001.0001 and ISBN 9781139225649';
+    const phoneBoundaryMatches = [
+      ...scholarlyIdentifierInput.matchAll(REDACTION_PATTERNS.mobileUk),
+      ...scholarlyIdentifierInput.matchAll(REDACTION_PATTERNS.landlineUk)
+    ];
+    assert('DOI and ISBN digit strings are not mistaken for UK phone numbers', phoneBoundaryMatches.length === 0);
+
+    const genuinePhoneInput = 'Contact +44 7700 900123 or 020 7123 4567.';
+    const genuinePhoneMatches = [
+      ...genuinePhoneInput.matchAll(REDACTION_PATTERNS.mobileUk),
+      ...genuinePhoneInput.matchAll(REDACTION_PATTERNS.landlineUk)
+    ];
+    assert('genuine UK mobile and landline numbers still match', genuinePhoneMatches.length === 2);
 
     $('redactFirstNameGlobal').checked = false;
     $('redactSurnameGlobal').checked = false;

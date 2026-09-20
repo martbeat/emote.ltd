@@ -28,7 +28,7 @@
   <meta name="twitter:description" content="A map of the books, essays, institutions and voices that shape eMote thinking." />
   <meta name="twitter:image" content="https://emote.ltd/assets/images/card-bridge-collaboration.png" />
 
-  <link rel="stylesheet" href="/reading.css" />
+  <link rel="stylesheet" href="/reading.css?v=20260920-1" />
 </head>
 
 <body>
@@ -322,7 +322,7 @@
       const container = document.getElementById("readingContent");
 
       try {
-        const response = await fetch("/reading-data.json", {cache: "no-store"});
+        const response = await fetch("/reading-data.json?v=20260920-1", {cache: "no-store"});
         if (!response.ok) throw new Error("Could not load reading-data.json");
         readingData = await response.json();
         renderDailyInfluence();

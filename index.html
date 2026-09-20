@@ -1351,10 +1351,42 @@ Use clear headings, concise bullets and plain British English. Avoid generic cha
         points = Array.from({length: count}, () => ({
           x: Math.random() * width,
           y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.11,
-          vy: (Math.random() - 0.5) * 0.11,
+          vx: (Math.random() - 0.5) * 0.22,
+          vy: (Math.random() - 0.5) * 0.22,
           r: 0.7 + Math.random() * 1.2
         }));
+      }
+
+      function exchangeMomentum(a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distance = Math.hypot(dx, dy);
+        const minDistance = 18;
+
+        if (!distance || distance >= minDistance) return;
+
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        // Only react when the particles are moving towards one another.
+        const relativeVelocity =
+          (b.vx - a.vx) * nx +
+          (b.vy - a.vy) * ny;
+
+        if (relativeVelocity >= 0) return;
+
+        // Equal-mass elastic collision: exchange momentum along the collision normal.
+        a.vx += relativeVelocity * nx;
+        a.vy += relativeVelocity * ny;
+        b.vx -= relativeVelocity * nx;
+        b.vy -= relativeVelocity * ny;
+
+        // Separate slightly so the same pair does not repeatedly collide.
+        const overlap = (minDistance - distance) / 2;
+        a.x -= nx * overlap;
+        a.y -= ny * overlap;
+        b.x += nx * overlap;
+        b.y += ny * overlap;
       }
 
       function draw() {
@@ -1378,6 +1410,8 @@ Use clear headings, concise bullets and plain British English. Avoid generic cha
 
         for (let i = 0; i < points.length; i++) {
           for (let j = i + 1; j < points.length; j++) {
+            exchangeMomentum(points[i], points[j]);
+
             const dx = points[i].x - points[j].x;
             const dy = points[i].y - points[j].y;
             const dist = Math.hypot(dx, dy);

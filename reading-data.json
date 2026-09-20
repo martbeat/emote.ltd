@@ -1,7 +1,8 @@
 {
   "meta": {
     "title": "Reading and influences",
-    "note": "The order of these links changes from time to time. Learning is rarely linear, and neither is change."
+    "note": "The order changes each day. Influence is not a syllabus, and learning is rarely linear.",
+    "intro": "A map of books, essays, institutions and voices I return to when the simple explanations stop working."
   },
   "tiers": [
     {
@@ -12,26 +13,57 @@
         {
           "name": "Institute for Government",
           "url": "https://www.instituteforgovernment.org.uk",
-          "tag": "public",
-          "annotation": "Clear, practical analysis of how government actually works, including constraints, incentives, and trade-offs."
+          "type": "Institution",
+          "tags": [
+            "public",
+            "governance",
+            "evidence"
+          ],
+          "annotation": "I return to it when I want to understand how government actually behaves under constraint, rather than how structures say it should behave."
         },
         {
           "name": "Government Digital Service – Service Manual",
           "url": "https://www.gov.uk/service-manual",
-          "tag": "public",
-          "annotation": "Plain-language guidance grounded in real delivery, showing what good looks like inside complex public systems."
+          "type": "Practice guide",
+          "tags": [
+            "public",
+            "change",
+            "delivery"
+          ],
+          "annotation": "Useful when discussion becomes too abstract. It brings the focus back to users, service outcomes and the practical discipline of delivery."
         },
         {
           "name": "Nesta",
           "url": "https://www.nesta.org.uk",
-          "tag": "change",
-          "annotation": "UK-focused work on innovation, systems change, and public value, often willing to question its own assumptions."
+          "type": "Institution",
+          "tags": [
+            "change",
+            "public",
+            "systems"
+          ],
+          "annotation": "I use Nesta when I want examples of innovation and systems change that sit somewhere between policy ambition and practical intervention."
         },
         {
           "name": "Behavioural Insights Team",
           "url": "https://www.bi.team/publications/",
-          "tag": "evidence",
-          "annotation": "Applied behavioural science with real-world trials, not just theory or slogans."
+          "type": "Research",
+          "tags": [
+            "evidence",
+            "change",
+            "behaviour"
+          ],
+          "annotation": "A useful counterweight to intuition. It keeps pulling change questions back towards observable behaviour, evidence and what actually shifts outcomes."
+        },
+        {
+          "name": "Thinking in Systems — Donella Meadows",
+          "url": "https://www.penguinrandomhouse.com/books/801035/thinking-in-systems-by-donella-meadows/",
+          "type": "Book",
+          "tags": [
+            "systems",
+            "change",
+            "evidence"
+          ],
+          "annotation": "I return to Meadows whenever an apparently simple intervention starts producing unexpected consequences elsewhere in the system."
         }
       ]
     },
@@ -43,26 +75,68 @@
         {
           "name": "Oxford Review (open articles)",
           "url": "https://oxford-review.com/analysis/",
-          "tag": "evidence",
-          "annotation": "Evidence-based management writing that explicitly challenges intuition-led and fad-driven thinking."
+          "type": "Evidence source",
+          "tags": [
+            "evidence",
+            "leadership",
+            "change"
+          ],
+          "annotation": "Useful when management language starts sounding too certain. It forces claims back towards evidence, quality of reasoning and what we actually know."
         },
         {
           "name": "NIST AI Risk Management Framework",
           "url": "https://www.nist.gov/itl/ai-risk-management-framework",
-          "tag": "ai",
-          "annotation": "A rare example of serious, non-hyped thinking about AI, risk, governance, and organisational responsibility."
+          "type": "Framework",
+          "tags": [
+            "ai",
+            "governance",
+            "risk"
+          ],
+          "annotation": "I return to NIST when AI discussion becomes too abstract. It forces the conversation back towards responsibility, risk and organisational controls."
         },
         {
           "name": "Paul Graham – Essays",
           "url": "https://paulgraham.com/articles.html",
-          "tag": "leadership",
-          "annotation": "Long-form essays on thinking, power, and systems that reward slow reading and scepticism."
+          "type": "Essays",
+          "tags": [
+            "leadership",
+            "technology",
+            "thinking"
+          ],
+          "annotation": "Useful less as doctrine than as provocation. The essays often expose assumptions about scale, power, ambition and the way people build things."
         },
         {
           "name": "OECD – Digital Government and AI",
           "url": "https://www.oecd.org/gov/digital-government/",
-          "tag": "public",
-          "annotation": "International, comparative analysis of digital government and AI, useful for escaping local echo chambers."
+          "type": "Policy research",
+          "tags": [
+            "public",
+            "ai",
+            "governance"
+          ],
+          "annotation": "A way to step outside local practice and compare how different systems approach digital government, capability and institutional responsibility."
+        },
+        {
+          "name": "The Fearless Organization — Amy Edmondson",
+          "url": "https://amycedmondson.com/books/",
+          "type": "Book",
+          "tags": [
+            "leadership",
+            "change",
+            "behaviour"
+          ],
+          "annotation": "I return to psychological safety when a change problem is being described as resistance, capability or communication but the deeper issue may be whether people feel safe to speak and learn."
+        },
+        {
+          "name": "Sensemaking in Organizations — Karl Weick",
+          "url": "https://www.sagepub.com/shop/buy-a-book/sensemaking-in-organizations-1-4988",
+          "type": "Book",
+          "tags": [
+            "leadership",
+            "change",
+            "systems"
+          ],
+          "annotation": "Useful when organisations are trying to act before the situation is fully understood. Weick helps explain how people construct enough meaning to move."
         }
       ]
     },
@@ -71,30 +145,49 @@
       "label": "Challenge your assumptions",
       "microCopy": "This may change how you see the problem.",
       "items": [
-{
-  "name": "Complexity and Management (Emergence Journal)",
-  "url": "https://journal.emergentpublications.com/Article/d1e0f606-a3e4-4064-a047-182db09089ac/academic",
-  "tag": "evidence",
-  "annotation": "Critical review of how complexity theory has been applied to management practice, assessing its robustness beyond superficial metaphor."
-},
-
+        {
+          "name": "Complexity and Management (Emergence Journal)",
+          "url": "https://journal.emergentpublications.com/Article/d1e0f606-a3e4-4064-a047-182db09089ac/academic",
+          "type": "Academic article",
+          "tags": [
+            "evidence",
+            "systems",
+            "management"
+          ],
+          "annotation": "A useful check against treating complexity as a fashionable metaphor. It asks whether the ideas survive contact with serious management practice."
+        },
         {
           "name": "AI Now Institute – Research",
           "url": "https://ainowinstitute.org/research",
-          "tag": "ai",
-          "annotation": "Critical work on AI, power, labour, and governance that resists the idea that technology is neutral or inevitable."
+          "type": "Research",
+          "tags": [
+            "ai",
+            "power",
+            "governance"
+          ],
+          "annotation": "I return to AI Now for the questions technology discussions often skip: who has power, who bears the cost and who gets to define what progress means."
         },
         {
-          "name": "The Long Now Foundation – Essays",
+          "name": "The Long Now Foundation – Ideas",
           "url": "https://longnow.org/ideas/",
-          "tag": "leadership",
-          "annotation": "Long-term thinking about systems, responsibility, and unintended consequences."
+          "type": "Essays",
+          "tags": [
+            "leadership",
+            "systems",
+            "risk"
+          ],
+          "annotation": "A useful antidote to short-term organisational thinking. It widens the time horizon and makes consequences, stewardship and resilience harder to ignore."
         },
         {
-          "name": "Cory Doctorow – Pluralistic Ignorance & Tech Essays",
+          "name": "Cory Doctorow – Pluralistic",
           "url": "https://pluralistic.net",
-          "tag": "change",
-          "annotation": "Sharp, sometimes uncomfortable writing on technology, power, enshittification, and institutional failure."
+          "type": "Essays",
+          "tags": [
+            "change",
+            "technology",
+            "power"
+          ],
+          "annotation": "I return to Doctorow when I want the incentive structure made explicit. The writing is sharp on power, lock-in, platform behaviour and institutional failure."
         }
       ]
     },
@@ -106,26 +199,46 @@
         {
           "name": "Adam Curtis – Documentary essays",
           "url": "https://www.bbc.co.uk/programmes/p02nrss1",
-          "tag": "leadership",
-          "annotation": "Narrative explorations of power, ideology, and unintended consequences in modern systems."
+          "type": "Documentary",
+          "tags": [
+            "leadership",
+            "power",
+            "narrative"
+          ],
+          "annotation": "The attraction is not that every argument is right. It is the way Curtis uses narrative, archives and juxtaposition to make systems of power visible."
         },
         {
           "name": "London Review of Books – Essays",
-          "url": "https://www.lrb.co.uk/the-paper/v45",
-          "tag": "evidence",
-          "annotation": "Long-form cultural and political essays that reward patience and resist simplification."
+          "url": "https://www.lrb.co.uk",
+          "type": "Essays",
+          "tags": [
+            "evidence",
+            "culture",
+            "narrative"
+          ],
+          "annotation": "I value the willingness to stay with complexity for longer than a normal news cycle allows, and to let argument develop without forcing a neat conclusion."
         },
         {
           "name": "Aeon Essays",
           "url": "https://aeon.co/essays",
-          "tag": "change",
-          "annotation": "Philosophical and cultural writing that often reframes familiar questions in unexpected ways."
+          "type": "Essays",
+          "tags": [
+            "change",
+            "culture",
+            "thinking"
+          ],
+          "annotation": "Useful for reframing familiar questions. The best pieces shift the angle enough that an organisational problem stops looking inevitable."
         },
         {
           "name": "The Atlantic – Technology & Ideas",
           "url": "https://www.theatlantic.com/technology/",
-          "tag": "ai",
-          "annotation": "Selective, long-form journalism on technology and society. Worth reading critically, not passively."
+          "type": "Journalism",
+          "tags": [
+            "ai",
+            "technology",
+            "culture"
+          ],
+          "annotation": "I read selectively for long-form attempts to connect technology with institutions, society and behaviour rather than treating products as the whole story."
         }
       ]
     }

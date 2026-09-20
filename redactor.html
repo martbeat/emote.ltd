@@ -1,136 +1,499 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>AI Upload Redaction Assistant</title>
+<title>Document Redactor | eMote</title>
+<meta name="description" content="Client-side DOCX and text redaction for preparing documents before AI upload or sharing. Review every result before use." />
 <style>
-  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1220;color:#e9ecf6;margin:0}
-  header{padding:14px 18px;border-bottom:1px solid #2a3352;background:#141a30;position:sticky;top:0}
-  main{padding:16px;display:grid;grid-template-columns:360px 1fr;gap:14px}
-  @media (max-width:1000px){main{grid-template-columns:1fr}}
-  .card{background:#171d34;border:1px solid #2a3352;border-radius:12px;overflow:hidden}
-  .hd{padding:10px 12px;border-bottom:1px solid #2a3352;font-weight:700}
-  .bd{padding:12px}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  label{display:block;font-size:12px;color:#aeb8da;margin:8px 0 4px}
-  input[type=file],textarea,input,select{width:100%;background:#0e1324;color:#e9ecf6;border:1px solid #33406b;border-radius:8px;padding:8px;box-sizing:border-box}
-  textarea{min-height:72px}
-  button{background:#243159;color:#ecf1ff;border:1px solid #3c4f87;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
-  button:hover{background:#2c3b6f}
-  .btn-danger{background:#7a1f2a;border-color:#aa3042}
-  .btn-danger:hover{background:#922838}
-  .warn{background:#3c2e10;border:1px solid #7b6330;color:#ffe8ac;padding:10px;border-radius:8px;font-size:12px;line-height:1.4}
-  pre,.pane{background:#0c1020;border:1px solid #2c3964;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th,td{border-bottom:1px solid #2a3352;padding:6px;text-align:left}
-  .ok{color:#90f7b6}.bad{color:#ff9f9f}.muted{color:#aeb8da;font-size:12px}
-  .pill{padding:3px 8px;background:#0d1328;border:1px solid #34426e;border-radius:999px;font-size:12px}
-  .toggle-list{display:grid;gap:6px;margin-top:6px}
-  .toggle-row{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:#e9ecf6}
+  :root{
+    --bg:#0d111b;
+    --panel:#141b2d;
+    --panel-2:#0f1627;
+    --panel-3:#19233a;
+    --text:#eef3ff;
+    --muted:#aeb9d5;
+    --line:#2b3a60;
+    --accent:#89a8ff;
+    --accent-soft:rgba(137,168,255,.12);
+    --good:#8ce6ad;
+    --warn:#ffd98a;
+    --bad:#ff9da8;
+    --radius:16px;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:
+      radial-gradient(circle at 15% 0%,rgba(87,117,210,.12),transparent 32rem),
+      var(--bg);
+    color:var(--text);
+    line-height:1.5;
+  }
+
+  a{color:inherit}
+  button,input,textarea,select{font:inherit}
+
+  .site-header{
+    position:sticky;
+    top:0;
+    z-index:20;
+    border-bottom:1px solid var(--line);
+    background:rgba(13,17,27,.92);
+    backdrop-filter:blur(14px);
+  }
+
+  .header-inner{
+    max-width:1380px;
+    margin:0 auto;
+    padding:14px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+
+  .brandline{display:flex;align-items:center;gap:12px;min-width:0}
+  .back-link{
+    color:var(--muted);
+    text-decoration:none;
+    font-size:.9rem;
+    white-space:nowrap;
+  }
+  .back-link:hover{color:var(--text)}
+  .title-block h1{font-size:1.05rem;margin:0}
+  .title-block p{margin:.18rem 0 0;color:var(--muted);font-size:.82rem}
+
+  .privacy-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:7px 10px;
+    border:1px solid rgba(140,230,173,.34);
+    border-radius:999px;
+    background:rgba(140,230,173,.08);
+    color:#c8f6d7;
+    font-size:.78rem;
+    white-space:nowrap;
+  }
+
+  main{
+    max-width:1380px;
+    margin:0 auto;
+    padding:18px;
+    display:grid;
+    grid-template-columns:minmax(340px,430px) minmax(0,1fr);
+    gap:16px;
+    align-items:start;
+  }
+
+  @media (max-width:1040px){main{grid-template-columns:1fr}}
+  @media (max-width:640px){
+    main{padding:10px}
+    .header-inner{padding:11px 12px}
+    .grid{grid-template-columns:1fr!important}
+    .category-grid{grid-template-columns:1fr!important}
+    .action-row>*{width:100%}
+  }
+
+  .card{
+    background:rgba(20,27,45,.96);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+
+  .card-hd{
+    padding:14px 16px;
+    border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.015);
+  }
+
+  .card-hd h2{font-size:1rem;margin:0}
+  .card-hd p{margin:.25rem 0 0;color:var(--muted);font-size:.82rem}
+
+  .bd{padding:16px}
+  .step{padding:0 0 18px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+  .step-title{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .step-num{
+    display:grid;
+    place-items:center;
+    width:26px;height:26px;
+    border-radius:50%;
+    background:var(--accent-soft);
+    color:#cbd7ff;
+    border:1px solid rgba(137,168,255,.28);
+    font-weight:800;
+    font-size:.78rem;
+    flex:0 0 auto;
+  }
+  .step-title h3{font-size:.95rem;margin:0}
+
+  label.field-label{
+    display:block;
+    font-size:.78rem;
+    color:var(--muted);
+    margin:10px 0 5px;
+    font-weight:650;
+  }
+
+  input[type=file],textarea,input[type=text],input[type=search],select{
+    width:100%;
+    background:var(--panel-2);
+    color:var(--text);
+    border:1px solid #33446f;
+    border-radius:10px;
+    padding:9px 10px;
+  }
+
+  input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  textarea{min-height:82px;resize:vertical}
+  #beforePane{min-height:300px;max-height:520px}
+  #afterPane{min-height:300px}
+
+  .file-note,.help,.muted{color:var(--muted);font-size:.78rem}
+  .file-note{margin-top:6px}
+  .policy{
+    margin-top:8px;
+    padding:8px 10px;
+    border-radius:10px;
+    background:rgba(255,255,255,.025);
+    color:var(--muted);
+    font-size:.76rem;
+  }
+
+  .category-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+    margin-top:8px;
+  }
+
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:0;
+    padding:8px 9px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:rgba(255,255,255,.018);
+    color:var(--text);
+    font-size:.82rem;
+  }
   .toggle-row input{width:auto;flex:0 0 auto}
-  #beforePane{min-height:320px;max-height:320px;resize:vertical;background:#0c1020;border:1px solid #2c3964;padding:10px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,monospace;font-size:12px;line-height:1.4;overflow:auto}
-  #afterPane{min-height:320px}
+
+  details{
+    margin-top:10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:rgba(255,255,255,.012);
+  }
+  summary{
+    cursor:pointer;
+    padding:10px 12px;
+    color:#d8e1fb;
+    font-weight:700;
+    font-size:.82rem;
+  }
+  .details-body{padding:0 12px 12px}
+
+  .row,.action-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .action-row{margin-top:10px}
+
+  button{
+    border:1px solid #40558d;
+    background:#24345e;
+    color:#f2f5ff;
+    border-radius:10px;
+    padding:9px 11px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  button:hover:not(:disabled){background:#2d4173}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{
+    background:#4665b7;
+    border-color:#617fd0;
+  }
+  button.primary:hover:not(:disabled){background:#5574c8}
+  button.secondary{background:transparent}
+  button.danger{background:#702332;border-color:#9d394b}
+
+  .status{
+    min-height:1.5em;
+    margin-top:9px;
+    color:#d9e3ff;
+    font-size:.8rem;
+  }
+
+  .notice{
+    margin-top:12px;
+    padding:10px 11px;
+    border-radius:11px;
+    font-size:.78rem;
+    line-height:1.45;
+  }
+  .notice.info{
+    background:rgba(137,168,255,.08);
+    border:1px solid rgba(137,168,255,.24);
+    color:#dbe4ff;
+  }
+  .notice.warn{
+    background:rgba(255,217,138,.07);
+    border:1px solid rgba(255,217,138,.28);
+    color:#ffe9ba;
+  }
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  pre,.pane{
+    margin:0;
+    background:#0b1120;
+    border:1px solid #2b3a62;
+    border-radius:10px;
+    padding:10px;
+    white-space:pre-wrap;
+    word-break:break-word;
+    max-height:340px;
+    overflow:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:.75rem;
+  }
+
+  .review-strip{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;
+    margin-bottom:12px;
+  }
+  @media (max-width:700px){.review-strip{grid-template-columns:1fr}}
+
+  .review-tip{
+    border:1px solid var(--line);
+    border-radius:11px;
+    padding:9px 10px;
+    background:rgba(255,255,255,.016);
+  }
+  .review-tip strong{display:block;font-size:.78rem}
+  .review-tip span{display:block;color:var(--muted);font-size:.72rem;margin-top:2px}
+
+  .pill{
+    display:inline-flex;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#10182d;
+    border:1px solid #34466f;
+    color:var(--muted);
+    font-size:.72rem;
+  }
+
+  table{width:100%;border-collapse:collapse;font-size:.75rem}
+  th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left}
+  .ok{color:var(--good)} .bad{color:var(--bad)}
+
+  .footer-note{
+    max-width:1380px;
+    margin:0 auto;
+    padding:0 18px 28px;
+    color:var(--muted);
+    font-size:.72rem;
+  }
 </style>
 </head>
 <body>
-<header>
-  <strong>AI Upload Redaction Assistant (.docx + text)</strong>
-  <div class="muted">No network calls. Replaces underlying content (not visual hiding) before AI upload. Scrubs high-risk metadata surfaces; always manually review output.</div>
-  <div class="muted">
-    Build ID: <span id="buildId">calculating…</span>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brandline">
+      <a class="back-link" href="/tools.html">← Tools</a>
+      <div class="title-block">
+        <h1>Document Redactor</h1>
+        <p>Prepare DOCX files or pasted text for safer AI upload or sharing.</p>
+      </div>
+    </div>
+    <div class="privacy-badge">● Document content stays in this browser</div>
   </div>
 </header>
+
 <main>
-  <section class="card">
-    <div class="hd">Controls</div>
+  <section class="card" aria-labelledby="controls-title">
+    <div class="card-hd">
+      <h2 id="controls-title">Redact a document</h2>
+      <p>Choose the source, protection level and categories, then review before downloading.</p>
+    </div>
+
     <div class="bd">
-      <label>Upload DOCX</label>
-      <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-      <label>Paste plain text (optional)</label>
-      <textarea id="plainInput" placeholder="Paste document text here..."></textarea>
+      <div class="step">
+        <div class="step-title"><span class="step-num">1</span><h3>Add content</h3></div>
 
-      <label>Redaction mode</label>
-      <select id="modeSel">
-        <option value="identity" selected>A) AI upload safe (emails/phones/URLs + optional names)</option>
-        <option value="aggressive">B) AI upload strict (aggressive person-name inference)</option>
-        <option value="custom">C) Custom regex workflow</option>
-      </select>
-      <div class="row" style="margin-top:8px">
-        <label style="margin:0"><input id="useBlock" type="checkbox" /> use block chars (custom mode only)</label>
-        <span class="pill">mask: <span id="maskPreview">████████</span></span>
-      </div>
-      <div id="modeHelp" class="muted" style="margin-top:8px">Mode help: Use AI upload safe for standard PII, AI upload strict for CV-style name inference, or Custom for explicit regex rules.</div>
-      <div id="policyLine" class="muted" style="margin-top:6px">Policy: Identity removal (no inference), First-name redaction: Off, Last-name redaction: Off, Org anonymisation: Off, Client anonymisation: Off</div>
-      <label>Redaction categories</label>
-      <div class="toggle-list">
-        <label class="toggle-row"><input id="redactFullNameVariants" type="checkbox" checked /><span>Full name</span></label>
-        <label class="toggle-row"><input id="redactFirstNameGlobal" type="checkbox" /><span>First Name</span></label>
-        <label class="toggle-row"><input id="redactSurnameGlobal" type="checkbox" /><span>Last Name</span></label>
-        <label class="toggle-row"><input id="redactCompanies" type="checkbox" checked /><span>Companies</span></label>
-        <label class="toggle-row"><input id="redactEmails" type="checkbox" checked /><span>Emails</span></label>
-        <label class="toggle-row"><input id="redactPhoneNumbers" type="checkbox" checked /><span>Phone Numbers</span></label>
-        <label class="toggle-row"><input id="redactAddresses" type="checkbox" checked /><span>Addresses</span></label>
-        <label class="toggle-row"><input id="redactPostcodes" type="checkbox" checked /><span>Postcodes</span></label>
-        <label class="toggle-row"><input id="redactDates" type="checkbox" checked /><span>Dates</span></label>
-        <label class="toggle-row"><input id="redactMetrics" type="checkbox" checked /><span>Other metrics</span></label>
-      </div>
-      <div class="row">
-        <label style="margin:0"><input id="debugDetections" type="checkbox" /> Debug detections (start/end/type)</label>
-      </div>
-      <label>Whitelist terms (one per line)</label>
-      <textarea id="whitelist" placeholder="Terms that should not be redacted"></textarea>
-      <label>Organisation terms for deterministic pseudonyms (one per line)</label>
-      <textarea id="orgDict" placeholder="Example Borough Council"></textarea>
-      <label>Client terms for deterministic pseudonyms (one per line)</label>
-      <textarea id="clientDict" placeholder="Example Care Trust"></textarea>
-      <label>Custom regex rules (one per line: /pattern/flags => replacement)</label>
-      <textarea id="customRules" placeholder="/foo\\s+bar/gi => [REDACTED]"></textarea>
+        <label class="field-label" for="docxInput">Upload DOCX</label>
+        <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <div id="fileInfo" class="file-note">No file selected. DOCX processing happens locally in your browser.</div>
 
-      <div class="row">
-        <button id="runBtn">Redact for AI upload</button>
-        <button id="testsBtn">Run tests</button>
-        <button id="dlDocxBtn" disabled>Download redacted.docx</button>
-        <button id="dlTxtBtn" disabled>Download redacted.txt</button>
-        <button id="dlReportBtn" disabled>Download report.json</button>
-        <button id="dlLexiconBtn" class="btn-danger" disabled>Load latest lexicon from assets</button>
+        <label class="field-label" for="plainInput">Or paste plain text</label>
+        <textarea id="plainInput" placeholder="Paste text here if you are not using a DOCX file."></textarea>
       </div>
-      <div id="lexiconInfo" class="muted" style="margin-top:8px">Lexicon: loading…</div>
-      <div id="status" class="muted" style="margin-top:8px"></div>
-      <div class="warn" style="margin-top:10px">⚠️ True anonymisation is hard. This tool reduces risk across common DOCX surfaces (body, headers/footers, comments, notes, rels URLs, properties, revision flags), but no tool guarantees zero re-identification risk.</div>
+
+      <div class="step">
+        <div class="step-title"><span class="step-num">2</span><h3>Choose protection</h3></div>
+
+        <label class="field-label" for="modeSel">Redaction mode</label>
+        <select id="modeSel">
+          <option value="identity" selected>Standard — recommended for most documents</option>
+          <option value="aggressive">Strict — infer more person names</option>
+          <option value="custom">Custom — regex rules only</option>
+        </select>
+
+        <div id="modeHelp" class="help" style="margin-top:7px">Standard mode removes deterministic identifiers while keeping name inference conservative.</div>
+        <div id="policyLine" class="policy">Policy details will appear here.</div>
+
+        <label class="field-label">Redaction categories</label>
+        <div class="category-grid">
+          <label class="toggle-row"><input id="redactFullNameVariants" type="checkbox" checked /><span>Infer full names (strict mode)</span></label>
+          <label class="toggle-row"><input id="redactFirstNameGlobal" type="checkbox" /><span>First names</span></label>
+          <label class="toggle-row"><input id="redactSurnameGlobal" type="checkbox" /><span>Last names</span></label>
+          <label class="toggle-row"><input id="redactCompanies" type="checkbox" checked /><span>Companies</span></label>
+          <label class="toggle-row"><input id="redactEmails" type="checkbox" checked /><span>Emails</span></label>
+          <label class="toggle-row"><input id="redactPhoneNumbers" type="checkbox" checked /><span>Phone numbers</span></label>
+          <label class="toggle-row"><input id="redactAddresses" type="checkbox" checked /><span>Addresses</span></label>
+          <label class="toggle-row"><input id="redactPostcodes" type="checkbox" checked /><span>Postcodes</span></label>
+          <label class="toggle-row"><input id="redactDates" type="checkbox" checked /><span>Dates</span></label>
+          <label class="toggle-row"><input id="redactMetrics" type="checkbox" checked /><span>Metrics</span></label>
+        </div>
+
+        <details>
+          <summary>Advanced options</summary>
+          <div class="details-body">
+            <label class="field-label" for="whitelist">Whitelist terms</label>
+            <textarea id="whitelist" placeholder="One term per line. These terms will not be redacted."></textarea>
+
+            <label class="field-label" for="orgDict">Organisation terms for deterministic pseudonyms</label>
+            <textarea id="orgDict" placeholder="Example Borough Council"></textarea>
+
+            <label class="field-label" for="clientDict">Client terms for deterministic pseudonyms</label>
+            <textarea id="clientDict" placeholder="Example Care Trust"></textarea>
+
+            <label class="field-label" for="customRules">Custom regex rules</label>
+            <textarea id="customRules" placeholder="/foo\s+bar/gi => [REDACTED]"></textarea>
+
+            <div class="row" style="margin-top:9px">
+              <label class="toggle-row"><input id="useBlock" type="checkbox" /><span>Use block characters in custom mode</span></label>
+              <span class="pill">mask: <span id="maskPreview">████████</span></span>
+            </div>
+
+            <label class="toggle-row" style="margin-top:8px"><input id="debugDetections" type="checkbox" /><span>Show detection start/end/type debugging</span></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>Name lexicon</summary>
+          <div class="details-body">
+            <div id="lexiconInfo" class="help">Lexicon: loading…</div>
+            <div class="action-row">
+              <button id="dlLexiconBtn" class="secondary" disabled>Refresh lexicon from site assets</button>
+            </div>
+            <p class="help">The lexicon may be loaded from eMote's static site assets. Document content is not sent with that request.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="step">
+        <div class="step-title"><span class="step-num">3</span><h3>Run and export</h3></div>
+
+        <div class="action-row">
+          <button id="runBtn" class="primary">Run redaction</button>
+          <button id="dlDocxBtn" disabled>Download DOCX</button>
+          <button id="dlTxtBtn" disabled>Download text</button>
+          <button id="dlReportBtn" disabled>Download report</button>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+
+        <details>
+          <summary>Developer checks</summary>
+          <div class="details-body">
+            <button id="testsBtn" class="secondary">Run built-in tests</button>
+            <div id="testsPane" class="pane" style="margin-top:8px">Not run.</div>
+          </div>
+        </details>
+
+        <div class="notice info">
+          Files are processed in your browser. The page may fetch the static name lexicon used for detection, but it does not upload your document content for processing.
+        </div>
+        <div class="notice warn">
+          Redaction reduces risk; it does not prove anonymity. Manually review names, headers, tables, images, unusual identifiers and anything whose meaning could identify a person indirectly.
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="card">
-    <div class="hd">Preview, leaks check, and document inspection</div>
+  <section class="card" aria-labelledby="review-title">
+    <div class="card-hd">
+      <h2 id="review-title">Review before downloading</h2>
+      <p>Use the leak check and side-by-side preview before treating the output as safe to share.</p>
+    </div>
+
     <div class="bd">
-      <div class="grid">
+      <div class="review-strip">
+        <div class="review-tip"><strong>1. Check leaks</strong><span>Zero residual emails, phones and postcodes is the minimum.</span></div>
+        <div class="review-tip"><strong>2. Compare meaning</strong><span>Confirm useful context survived the redaction.</span></div>
+        <div class="review-tip"><strong>3. Spot-check DOCX</strong><span>Review headers, tables, images and unusual formatting manually.</span></div>
+      </div>
+
+      <label class="field-label">Leaks check</label>
+      <div id="leaksPane" class="pane">No run yet.</div>
+
+      <label class="field-label">Run summary</label>
+      <div id="summaryPane" class="pane">No run yet.</div>
+
+      <div class="grid" style="margin-top:10px">
         <div>
-          <label>Before (redaction source text)</label>
+          <label class="field-label" for="beforePane">Before</label>
           <textarea id="beforePane" placeholder="Source text used for redaction."></textarea>
         </div>
         <div>
-          <label>After (redacted plain text)</label>
+          <label class="field-label">After</label>
           <pre id="afterPane">—</pre>
         </div>
       </div>
-      <label>Leaks check report</label>
-      <div id="leaksPane" class="pane">No run yet.</div>
-      <label>Run summary</label>
-      <div id="summaryPane" class="pane">No run yet.</div>
-      <label>PII candidates</label>
-      <div id="candidatesPane" class="pane">No run yet.</div>
-      <label>Match log</label>
-      <div id="matchLogPane" class="pane">No run yet.</div>
-      <label>Search in DOCX redaction surfaces</label>
-      <div class="row"><input id="searchTerm" placeholder="Search term" /><button id="searchBtn">Search</button></div>
-      <div id="searchPane" class="pane">Load a DOCX and run redaction to inspect parts.</div>
-      <label>Mini test harness output</label>
-      <div id="testsPane" class="pane">Not run.</div>
+
+      <details>
+        <summary>Inspection details</summary>
+        <div class="details-body">
+          <label class="field-label">PII candidates</label>
+          <div id="candidatesPane" class="pane">No run yet.</div>
+
+          <label class="field-label">Match log</label>
+          <div id="matchLogPane" class="pane">No run yet.</div>
+
+          <label class="field-label" for="searchTerm">Search redacted DOCX surfaces</label>
+          <div class="row">
+            <input id="searchTerm" type="search" placeholder="Search term" />
+            <button id="searchBtn" class="secondary">Search</button>
+          </div>
+          <div id="searchPane" class="pane" style="margin-top:8px">Load a DOCX and run redaction to inspect parts.</div>
+        </div>
+      </details>
+
+      <div class="footer-note" style="padding:12px 0 0">
+        Build ID: <span id="buildId">calculating…</span>
+      </div>
     </div>
   </section>
 </main>
+
+<footer class="footer-note">
+  eMote Document Redactor · client-side processing · manual review required
+</footer>
 
 <script>
 (() => {
@@ -202,6 +565,7 @@
     originalText: '',
     redactedText: '',
     inputDocxBytes: null,
+    inputFileName: '',
     redactedDocxBytes: null,
     extractedPartText: new Map(),
     redactedPartText: new Map(),
@@ -298,7 +662,7 @@
     if (!state.nameLexicon.loaded){
       node.textContent = 'Lexicon: unavailable (using heuristic-only name detection).';
       btn.disabled = true;
-      btn.textContent = 'Load latest lexicon from assets';
+      btn.textContent = 'Refresh lexicon from site assets';
       return;
     }
 
@@ -308,7 +672,7 @@
     const updated = state.nameLexicon.payload?.metadata?.updated || 'unknown';
     node.textContent = `Lexicon loaded: ${given.toLocaleString()} given + ${surnames.toLocaleString()} surnames (${total.toLocaleString()} total), updated ${updated}.`;
     btn.disabled = false;
-    btn.textContent = `Load latest lexicon from assets (${total.toLocaleString()} names)`;
+    btn.textContent = `Refresh lexicon from site assets (${total.toLocaleString()} names)`;
   }
 
   async function refreshNameLexiconFromAssets(){
@@ -343,7 +707,7 @@
       const json = await resp.json();
       applyLexiconJson(json);
       if (!state.nameLexicon.loaded) throw new Error('Invalid local lexicon payload');
-      await checkOnlineNameLexiconUpdate(json);
+      // Deliberately do not contact the optional third-party lexicon source automatically.
     } catch (_err){
       state.nameLexicon.loaded = false;
       state.nameLexicon.payload = null;
@@ -414,6 +778,30 @@
       : 'Mode help: AI upload safe active. Deterministic identifiers are redacted, and DOCX content always gets full-name detection across split runs.');
   }
   const setStatus = msg => { $('status').textContent = msg; };
+
+  function outputFileName(kind){
+    const raw = state.inputFileName || '';
+    const base = raw.replace(/\.docx$/i, '').trim() || 'redacted';
+    if (kind === 'docx') return `${base}-redacted.docx`;
+    if (kind === 'txt') return `${base}-redacted.txt`;
+    return `${base}-redaction-report.json`;
+  }
+
+  function invalidatePreviousOutput(message = ''){
+    state.redactedDocxBytes = null;
+    state.redactedText = '';
+    state.report = null;
+    $('dlDocxBtn').disabled = true;
+    $('dlTxtBtn').disabled = true;
+    $('dlReportBtn').disabled = true;
+    $('afterPane').textContent = '—';
+    $('leaksPane').textContent = 'Run redaction to check for residual identifiers.';
+    $('summaryPane').textContent = 'No current result.';
+    $('candidatesPane').textContent = 'No current result.';
+    $('matchLogPane').textContent = 'No current result.';
+    if (message) setStatus(message);
+  }
+
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
 
@@ -1430,6 +1818,17 @@
   }
 
   async function runRedaction(){
+    const runBtn = $('runBtn');
+    const hasPlain = !!(($('beforePane').value || $('plainInput').value || '').trim());
+    if (!state.inputDocxBytes && !hasPlain){
+      setStatus('Add a DOCX file or paste some text before running redaction.');
+      return;
+    }
+
+    const originalButtonText = runBtn.textContent;
+    runBtn.disabled = true;
+    runBtn.textContent = 'Redacting…';
+
     try{
       state.matchLog = [];
       resetAuditState();
@@ -1472,23 +1871,45 @@
       $('dlTxtBtn').disabled = !state.redactedText;
       $('dlDocxBtn').disabled = !state.redactedDocxBytes;
       $('dlReportBtn').disabled = !(state.report && state.report.manifest.length);
-      setStatus('Redaction complete. Review leaks check, candidates, and match log.');
+      const leakText = findLeaks(state.redactedText || '');
+      const leakPass = !/(email|phone|postcode):\s*[1-9]/.test(leakText);
+      setStatus(leakPass
+        ? 'Redaction complete. Leak check passed for email, phone and postcode patterns. Review the document before downloading.'
+        : 'Redaction complete, but the leak check found residual identifiers. Review before downloading.'
+      );
     } catch (err){
       setStatus(`Error: ${err.message}`);
+    } finally {
+      runBtn.disabled = false;
+      runBtn.textContent = originalButtonText;
     }
   }
 
   $('docxInput').addEventListener('change', async (e)=>{
     const f = e.target.files[0];
-    if (!f) return;
+    if (!f) {
+      state.inputDocxBytes = null;
+      state.inputFileName = '';
+      $('fileInfo').textContent = 'No file selected. DOCX processing happens locally in your browser.';
+      invalidatePreviousOutput('');
+      return;
+    }
+
     state.inputDocxBytes = new Uint8Array(await f.arrayBuffer());
+    state.inputFileName = f.name;
     state.piiCandidates = null;
-    setStatus(`Loaded DOCX: ${f.name} (${Math.round(f.size/1024)} KB)`);
+    $('fileInfo').textContent = `${f.name} · ${Math.max(1, Math.round(f.size/1024)).toLocaleString()} KB · ready`;
+    invalidatePreviousOutput(`Loaded ${f.name}. Choose the protection level, then run redaction.`);
   });
 
   $('runBtn').addEventListener('click', runRedaction);
   $('plainInput').addEventListener('input', ()=>{
-    if (!$('beforePane').value.trim()) $('beforePane').value = $('plainInput').value;
+    if (!$('beforePane').value.trim() || $('beforePane').value === state.lastAutoBeforeText) {
+      $('beforePane').value = $('plainInput').value;
+    }
+    if (state.report || state.redactedText || state.redactedDocxBytes) {
+      invalidatePreviousOutput('Source text changed. Run redaction again before downloading.');
+    }
   });
   $('modeSel').addEventListener('change', () => { updateInferenceControls(); updatePolicyLine(); updateModeUi(); });
   $('orgDict').addEventListener('input', updatePolicyLine);
@@ -1502,7 +1923,7 @@
     const blob = new Blob([state.redactedText], {type:'text/plain;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'redacted.txt';
+    a.download = outputFileName('txt');
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1511,7 +1932,7 @@
     const blob = new Blob([state.redactedDocxBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'redacted.docx';
+    a.download = outputFileName('docx');
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1521,7 +1942,7 @@
     const blob = new Blob([JSON.stringify(state.report, null, 2)], {type:'application/json;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'report.json';
+    a.download = outputFileName('report');
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1529,12 +1950,12 @@
   $('dlLexiconBtn').addEventListener('click', async ()=>{
     const btn = $('dlLexiconBtn');
     btn.disabled = true;
-    btn.textContent = 'Refreshing lexicon from assets…';
+    btn.textContent = 'Refreshing lexicon…';
     try {
       await refreshNameLexiconFromAssets();
       updateLexiconUi();
     } catch (_err){
-      btn.textContent = 'Unable to refresh lexicon from assets';
+      btn.textContent = 'Unable to refresh lexicon';
       setTimeout(updateLexiconUi, 1500);
     }
   });

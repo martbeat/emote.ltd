@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b5e50"/><stop offset="1" stop-color="#072e26"/>
+    </linearGradient>
+    <linearGradient id="box" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#d6a160"/><stop offset="1" stop-color="#b77f40"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="800" height="800" rx="36" fill="url(#bg)"/>
+  <g opacity="0.15" fill="#ffd45e"><circle cx="130" cy="120" r="16"/><circle cx="672" cy="128" r="20"/><circle cx="650" cy="690" r="13"/><circle cx="118" cy="688" r="15"/></g>
+  <g fill="#146b58"><path d="M40 570c110-88 193-62 269 5C253 494 166 468 85 530Z"/><path d="M760 575c-102-74-183-73-261 3 49-73 131-109 229-58Z"/></g>
+  <g filter="url(#shadow)">
+    <rect x="190" y="174" width="420" height="360" rx="22" fill="url(#box)" stroke="#8e5f2d" stroke-width="10"/>
+    <rect x="172" y="156" width="456" height="42" rx="10" fill="#cca16a" stroke="#8e5f2d" stroke-width="8"/>
+    <rect x="218" y="198" width="364" height="18" fill="#c39458" opacity="0.65"/>
+    <g fill="#7d5830" opacity="0.95"><rect x="206" y="190" width="28" height="58" rx="4"/><rect x="566" y="190" width="28" height="58" rx="4"/><rect x="206" y="462" width="28" height="58" rx="4"/><rect x="566" y="462" width="28" height="58" rx="4"/></g>
+    <text x="400" y="292" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="54" font-weight="800" fill="#111">KICK BASS</text>
+    <text x="400" y="358" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="62" font-weight="900" fill="#111">100%</text>
+    <text x="400" y="423" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="54" font-weight="800" fill="#111">CARDBOARD</text>
+    <circle cx="400" cy="468" r="54" fill="#171717"/><circle cx="400" cy="468" r="45" fill="#28190f" opacity="0.65"/>
+    <path d="M290 520c80 44 143 46 221 0" fill="none" stroke="#8e5f2d" stroke-width="5" opacity="0.35"/>
+    <g fill="#111" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" transform="translate(535 300) rotate(-9)"><text x="0" y="0">MUSIC</text><text x="0" y="28">TRAVELS</text><text x="0" y="56">LIGHTER</text></g>
+  </g>
+  <path d="M164 628c147 33 326 34 473 0" fill="#efe2c0" stroke="#a02922" stroke-width="8"/>
+  <text x="400" y="648" text-anchor="middle" font-family="Georgia,serif" font-size="44" font-weight="700" fill="#b12f25">ACCEPT NO IMITATIONS</text>
+</svg>

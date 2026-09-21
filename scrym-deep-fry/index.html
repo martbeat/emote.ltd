@@ -162,6 +162,17 @@
     .craft-note{font-size:.82rem!important;color:#aaa187!important;margin-top:14px}
     @media(max-width:900px){.merch-real-grid,.crafts-grid{grid-template-columns:1fr}}
 
+
+    .member-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    .member-card{border-radius:24px;overflow:hidden;background:#0d2b23;border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 50px rgba(0,0,0,.18)}
+    .member-image{margin:0;aspect-ratio:1/1;background:linear-gradient(180deg,#0e4e40,#09291f);padding:14px;display:grid;place-items:center}
+    .member-image img{width:100%;height:100%;object-fit:cover;border-radius:18px;box-shadow:0 18px 35px rgba(0,0,0,.2)}
+    .member-card.box .member-image img{object-fit:contain;background:transparent}
+    .member-copy{padding:22px}
+    .member-copy .member-tag{text-transform:uppercase;letter-spacing:.14em;font-size:.74rem;font-weight:900;color:var(--yellow);margin:0 0 6px}
+    .member-copy h3{margin:0 0 8px;font-family:Georgia,serif;font-size:1.55rem;text-transform:uppercase}
+    .member-copy p:last-child{margin:0;color:#cbc2a8}
+
     .xmas{padding-top:40px}
     .xmas-card{
       border-radius:30px;padding:42px;background:
@@ -180,13 +191,13 @@
     [hidden]{display:none!important}
     @media(max-width:900px){
       .hero-grid,.merch-grid{grid-template-columns:1fr}.hero{padding-top:34px}.poster{max-width:650px;margin:auto;transform:none}
-      .dates{grid-template-columns:1fr}.date.special{grid-column:auto}.band-grid{grid-template-columns:1fr 1fr}.box-card{grid-column:1/-1}
+      .dates{grid-template-columns:1fr}.date.special{grid-column:auto}.band-grid{grid-template-columns:1fr 1fr}.box-card{grid-column:1/-1}.member-grid{grid-template-columns:1fr 1fr}.member-card.box{grid-column:1/-1}
       .xmas-card{grid-template-columns:1fr}.xmas .big-date{text-align:left}.section-head{display:block}.section-head p{margin-top:14px}
     }
     @media(max-width:620px){
       nav ul{display:none}.wrap{width:min(100% - 24px,var(--max))}.hero h1{font-size:clamp(3rem,17vw,5rem)}
       section{padding:56px 0}.dates{gap:9px}.date{grid-template-columns:74px 1fr auto;padding:15px 14px;gap:12px}
-      .date .place{font-size:.96rem}.date .d{font-size:1.05rem}.band-grid{grid-template-columns:1fr}.box-card{grid-column:auto}
+      .date .place{font-size:.96rem}.date .d{font-size:1.05rem}.band-grid{grid-template-columns:1fr}.box-card{grid-column:auto}.member-grid{grid-template-columns:1fr}.member-card.box{grid-column:auto}
       .tees{gap:10px}.xmas-card{padding:28px 22px}.foot{display:block}.foot>*+*{margin-top:12px}
     }
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.ticker-track{animation:none}}
@@ -350,20 +361,32 @@
       <div class="wrap">
         <div class="section-head">
           <div><div class="eyebrow">The power trio</div><h2>Two players. One box.</h2></div>
-          <p>Latin standards, danceable rearrangements and a rhythm section whose most expensive percussion instrument may once have contained a household appliance.</p>
+          <p>No more placeholder people: the website now uses the uploaded Scrym and Deep Fry portraits, plus a proper illustrated version of the cardboard percussion department.</p>
         </div>
-        <div class="band-grid">
-          <article class="band-card scrym-card">
-            <div class="portrait" aria-hidden="true"><span class="head"></span><span class="shades"></span><span class="body"></span><span class="instrument"></span></div>
-            <div class="band-copy"><h3>Scrym</h3><p>Standard acoustic guitar. Hat, beard and shades retained at all times where local regulations permit.</p></div>
+        <div class="member-grid">
+          <article class="member-card">
+            <figure class="member-image"><img src="assets/scrym.webp" alt="Scrym portrait"></figure>
+            <div class="member-copy">
+              <p class="member-tag">01 · Scrym</p>
+              <h3>Acoustic guitar</h3>
+              <p>Hat, beard and shades on stage. Responsible for chords, rhythm and maintaining the appearance that somebody has planned this.</p>
+            </div>
           </article>
-          <article class="band-card deep-card">
-            <div class="portrait" aria-hidden="true"><span class="head"></span><span class="shades"></span><span class="body"></span><span class="instrument"></span></div>
-            <div class="band-copy"><h3>Deep Fry</h3><p>Electro-acoustic bass guitar. Responsible for the low end, the tour economics and any suspiciously detailed spreadsheets.</p></div>
+          <article class="member-card">
+            <figure class="member-image"><img src="assets/deep-fry.webp" alt="Deep Fry portrait"></figure>
+            <div class="member-copy">
+              <p class="member-tag">02 · Deep Fry</p>
+              <h3>Electro-acoustic bass</h3>
+              <p>Responsible for the low end, low-frequency diplomacy and any suspiciously detailed spreadsheets associated with the tour.</p>
+            </div>
           </article>
-          <article class="band-card box-card">
-            <div class="portrait" aria-hidden="true"><span class="body"></span></div>
-            <div class="band-copy"><h3>The Box</h3><p>Kick bass. 100% cardboard. Zero endorsement deals. Still somehow the member most likely to survive baggage handling.</p></div>
+          <article class="member-card box">
+            <figure class="member-image"><img src="assets/kick-bass-box.svg" alt="Illustration of the Kick Bass 100% Cardboard box"></figure>
+            <div class="member-copy">
+              <p class="member-tag">03 · The Box</p>
+              <h3>Kick Bass · 100% cardboard</h3>
+              <p>No rider. No passport. No endorsement deal. Still the member most likely to survive baggage handling with minimal complaint.</p>
+            </div>
           </article>
         </div>
       </div>

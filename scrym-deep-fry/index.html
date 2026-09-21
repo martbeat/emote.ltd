@@ -6,6 +6,7 @@
   <title>Scrym &amp; Deep Fry's | Latin Danceable World Tour 26</title>
   <meta name="description" content="Scrym & Deep Fry's Latin Danceable World Tour 26. Acoustic guitar, electro-acoustic bass and 100% cardboard kick bass. Accept no imitations.">
   <meta name="theme-color" content="#071e1b">
+  <meta property="og:image" content="https://emote.ltd/scrym-deep-fry/assets/full-tour-art.webp">
   <meta name="robots" content="noindex,follow">
   <link rel="canonical" href="https://emote.ltd/scrym-deep-fry/">
   <style>
@@ -44,6 +45,12 @@
     nav a:hover{color:var(--yellow)}
     .hero{padding:54px 0 42px;position:relative}
     .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+
+    .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+    .brand-logo{height:48px;width:auto;max-width:190px;object-fit:contain}
+    .hero-logo{width:min(100%,560px);height:auto;margin:.15rem 0 1.2rem;filter:drop-shadow(0 14px 28px rgba(0,0,0,.25))}
+    .poster img{width:100%;height:auto;border-radius:18px}
+
     .hero h1{
       margin:.35rem 0 1rem;font-family:Georgia,"Times New Roman",serif;font-size:clamp(3.5rem,8vw,7.4rem);
       line-height:.83;letter-spacing:-.055em;text-transform:uppercase
@@ -206,7 +213,7 @@
 <body>
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="#top">SCRYM <span>&amp;</span> DEEP FRY'S</a>
+      <a class="brand" href="#top" aria-label="Scrym and Deep Fry's home"><img class="brand-logo" src="assets/tour-logo.webp" alt=""></a>
       <nav aria-label="Tour navigation">
         <ul>
           <li><a href="#dates">Dates</a></li>
@@ -224,7 +231,8 @@
       <div class="wrap hero-grid">
         <div>
           <div class="eyebrow">Latin Danceable World Tour 26</div>
-          <h1><span class="scrym">Scrym &amp;</span><span class="deep">Deep Fry's</span><span class="tour">Good music travels further</span></h1>
+          <h1 class="sr-only">Scrym &amp; Deep Fry's Latin Danceable World Tour 26</h1>
+          <img class="hero-logo" src="assets/tour-logo.webp" alt="Scrym &amp; Deep Fry's Latin Danceable World Tour 26 - Accept No Imitations">
           <p class="lede">One standard acoustic guitar. One electro-acoustic bass. One kick bass made from 100% cardboard. A frankly ambitious itinerary.</p>
           <div class="actions">
             <a class="btn" href="#dates">See the tour dates</a>
@@ -233,80 +241,9 @@
           <div class="microcopy">Accept no imitations. Dates remain subject to geography, reality and neighbour tolerance.</div>
         </div>
 
-        <div class="poster" aria-label="Illustrated Scrym and Deep Fry tour poster">
-          <svg viewBox="0 0 760 920" role="img" aria-labelledby="posterTitle posterDesc">
-            <title id="posterTitle">Scrym and Deep Fry's Latin Danceable World Tour 26</title>
-            <desc id="posterDesc">A retro tropical poster showing Scrym with an acoustic guitar, Deep Fry with an electro-acoustic bass and a cardboard box kick bass.</desc>
-            <defs>
-              <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d8161"/><stop offset="1" stop-color="#083d32"/></linearGradient>
-              <radialGradient id="sun"><stop offset="0" stop-color="#ffd761"/><stop offset="1" stop-color="#ef9a20"/></radialGradient>
-              <pattern id="grain" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="7" cy="12" r="1" fill="#fff" opacity=".13"/><circle cx="24" cy="30" r="1" fill="#000" opacity=".18"/></pattern>
-            </defs>
-            <rect width="760" height="920" rx="28" fill="url(#sky)"/>
-            <rect width="760" height="920" rx="28" fill="url(#grain)"/>
-            <circle cx="380" cy="400" r="164" fill="url(#sun)"/>
-            <path d="M0 490 Q100 420 180 478 T360 460 T540 480 T760 450 V920 H0Z" fill="#0a5a3c"/>
-            <path d="M0 550 Q110 460 205 540 T410 515 T610 540 T760 505 V920 H0Z" fill="#073c2d"/>
-
-            <g fill="#0d6c45" stroke="#062c23" stroke-width="5">
-              <path d="M75 500Q15 420 45 250Q105 305 120 385Q115 270 190 180Q210 300 164 420Q220 300 285 260Q275 410 165 525Z"/>
-              <path d="M685 500Q745 420 715 250Q655 305 640 385Q645 270 570 180Q550 300 596 420Q540 300 475 260Q485 410 595 525Z"/>
-            </g>
-
-            <g font-family="Georgia,serif" text-anchor="middle" font-weight="900">
-              <text x="380" y="92" fill="#fff2d0" stroke="#063a32" stroke-width="8" paint-order="stroke" font-size="80">SCRYM &amp;</text>
-              <text x="380" y="176" fill="#fff2d0" stroke="#a92820" stroke-width="8" paint-order="stroke" font-size="86">DEEP FRY'S</text>
-              <text x="380" y="227" fill="#f5b91f" stroke="#063a32" stroke-width="6" paint-order="stroke" font-size="39">LATIN DANCEABLE</text>
-              <text x="380" y="270" fill="#1bc6ca" stroke="#063a32" stroke-width="6" paint-order="stroke" font-size="37">WORLD TOUR 26</text>
-            </g>
-
-            <!-- Scrym -->
-            <g transform="translate(130 445)">
-              <ellipse cx="132" cy="292" rx="115" ry="28" fill="#021a16" opacity=".7"/>
-              <path d="M80 158Q130 128 185 160L202 310H60Z" fill="#d74131"/>
-              <circle cx="130" cy="108" r="53" fill="#d4a06c"/>
-              <path d="M81 112Q130 160 180 112Q178 170 130 176Q83 170 81 112Z" fill="#e8e1d0"/>
-              <path d="M76 72Q130 40 190 70L176 92H86Z" fill="#ead8a4"/>
-              <ellipse cx="132" cy="63" rx="70" ry="17" fill="#ead8a4"/>
-              <rect x="95" y="98" width="72" height="14" rx="7" fill="#101010"/>
-              <ellipse cx="112" cy="105" rx="20" ry="14" fill="#101010"/><ellipse cx="154" cy="105" rx="20" ry="14" fill="#101010"/>
-              <g transform="translate(-13 203) rotate(-7)">
-                <ellipse cx="118" cy="42" rx="92" ry="58" fill="#d9a049" stroke="#4d2b11" stroke-width="7"/>
-                <circle cx="118" cy="42" r="19" fill="#332012"/>
-                <rect x="180" y="35" width="145" height="14" rx="6" fill="#4d2b11"/>
-              </g>
-            </g>
-
-            <!-- Deep Fry -->
-            <g transform="translate(425 450)">
-              <ellipse cx="112" cy="287" rx="115" ry="28" fill="#021a16" opacity=".7"/>
-              <path d="M58 153Q110 128 170 158L191 304H36Z" fill="#0e9189"/>
-              <circle cx="113" cy="106" r="52" fill="#d2a075"/>
-              <path d="M72 82Q111 47 157 75Q146 58 127 54Q95 48 72 82Z" fill="#9a8d7f"/>
-              <rect x="78" y="98" width="70" height="14" rx="7" fill="#111"/>
-              <ellipse cx="95" cy="105" rx="20" ry="14" fill="#111"/><ellipse cx="136" cy="105" rx="20" ry="14" fill="#111"/>
-              <path d="M89 136Q113 151 137 136" fill="none" stroke="#6c3526" stroke-width="5" stroke-linecap="round"/>
-              <g transform="translate(-30 197) rotate(-5)">
-                <path d="M68 13Q145-22 184 38Q198 72 169 106Q116 143 61 103Q34 73 68 13Z" fill="#d8a248" stroke="#4b2b14" stroke-width="7"/>
-                <circle cx="116" cy="58" r="18" fill="#352012"/>
-                <rect x="177" y="51" width="155" height="14" rx="6" fill="#4b2b14"/>
-                <rect x="73" y="37" width="14" height="45" rx="2" fill="#181818"/>
-              </g>
-            </g>
-
-            <!-- Cardboard kick bass -->
-            <g transform="translate(278 650)">
-              <rect x="0" y="0" width="208" height="170" rx="8" fill="#b9874c" stroke="#785025" stroke-width="7"/>
-              <text x="104" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="28" fill="#101010">KICK BASS</text>
-              <text x="104" y="89" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="27" fill="#101010">100%</text>
-              <text x="104" y="123" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="25" fill="#101010">CARDBOARD</text>
-              <circle cx="104" cy="153" r="22" fill="#141414"/>
-            </g>
-
-            <path d="M92 827Q380 875 668 827L635 895Q380 856 125 895Z" fill="#f8edce" stroke="#7e2d21" stroke-width="6"/>
-            <text x="380" y="875" text-anchor="middle" font-family="Georgia,serif" font-weight="900" font-size="38" fill="#b82c21">ACCEPT NO IMITATIONS</text>
-          </svg>
-        </div>
+        <figure class="poster">
+          <img src="assets/full-tour-art.webp" alt="Illustrated Scrym and Deep Fry's Latin Danceable World Tour 26 poster with Scrym playing acoustic guitar, Deep Fry playing bass and the cardboard kick bass">
+        </figure>
       </div>
     </section>
 
@@ -361,11 +298,11 @@
       <div class="wrap">
         <div class="section-head">
           <div><div class="eyebrow">The power trio</div><h2>Two players. One box.</h2></div>
-          <p>No more placeholder people: the website now uses the uploaded Scrym and Deep Fry portraits, plus a proper illustrated version of the cardboard percussion department.</p>
+          <p>Scrym on acoustic guitar, Deep Fry on electro-acoustic bass and the 100% cardboard kick bass. Serious musicians. Questionable logistics.</p>
         </div>
         <div class="member-grid">
           <article class="member-card">
-            <figure class="member-image"><img src="assets/scrym-serious.svg" alt="Scrym portrait"></figure>
+            <figure class="member-image"><img src="assets/scrym.webp" alt="Scrym wearing a hat and dark glasses, playing acoustic guitar"></figure>
             <div class="member-copy">
               <p class="member-tag">01 · Scrym</p>
               <h3>Acoustic guitar</h3>
@@ -373,7 +310,7 @@
             </div>
           </article>
           <article class="member-card">
-            <figure class="member-image"><img src="assets/deep-fry-serious.svg" alt="Deep Fry portrait"></figure>
+            <figure class="member-image"><img src="assets/deep-fry.webp" alt="Deep Fry wearing dark glasses, playing electro-acoustic bass"></figure>
             <div class="member-copy">
               <p class="member-tag">02 · Deep Fry</p>
               <h3>Electro-acoustic bass</h3>

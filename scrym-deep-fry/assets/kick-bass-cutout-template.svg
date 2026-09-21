@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+  <title>Scrym &amp; Deep Fry's mini cardboard kick bass cut-out template</title>
+  <desc>A4 printable net for a small cardboard box kick bass model. Solid red lines are cut lines and dashed blue lines are fold lines.</desc>
+  <style>
+    .paper{fill:#fffdf6}.panel{fill:#d6a15c}.side{fill:#c78e4b}.tab{fill:#f3dfbd}
+    .cut{fill:none;stroke:#b62f27;stroke-width:.8;stroke-linecap:round;stroke-linejoin:round}
+    .fold{fill:none;stroke:#168e9b;stroke-width:.55;stroke-dasharray:3 2}
+    .label{font-family:Arial,Helvetica,sans-serif;fill:#111;font-weight:700}
+    .small{font-size:3.4px}.tiny{font-size:2.7px}.title{font-family:Georgia,serif;font-size:8px;font-weight:700;fill:#982b24}
+  </style>
+  <rect width="210" height="297" class="paper"/>
+  <text x="105" y="12" text-anchor="middle" class="title">SCRYM &amp; DEEP FRY'S — MINI KICK BASS</text>
+  <text x="105" y="18" text-anchor="middle" class="label small">PRINT AT 100% • GLUE TO THIN CARDBOARD • CUT SOLID RED • FOLD DASHED BLUE</text>
+  <rect x="15" y="60" width="60" height="60" class="panel"/>
+  <rect x="75" y="60" width="30" height="60" class="side"/>
+  <rect x="105" y="60" width="60" height="60" class="panel"/>
+  <rect x="165" y="60" width="30" height="60" class="side"/>
+  <path d="M195 60 L203 64 L203 116 L195 120 Z" class="tab"/>
+  <rect x="15" y="30" width="60" height="30" class="side"/>
+  <rect x="15" y="120" width="60" height="30" class="side"/>
+  <path d="M15 30 L20 23 L70 23 L75 30 Z" class="tab"/>
+  <path d="M15 30 L8 35 L8 55 L15 60 Z" class="tab"/>
+  <path d="M75 30 L82 35 L82 55 L75 60 Z" class="tab"/>
+  <path d="M15 150 L20 157 L70 157 L75 150 Z" class="tab"/>
+  <path d="M15 120 L8 125 L8 145 L15 150 Z" class="tab"/>
+  <path d="M75 120 L82 125 L82 145 L75 150 Z" class="tab"/>
+  <path d="M20 23 H70 L75 30 L82 35 V55 L75 60 H195 L203 64 V116 L195 120 H75 L82 125 V145 L75 150 L70 157 H20 L15 150 L8 145 V125 L15 120 V60 L8 55 V35 L15 30 Z" class="cut"/>
+  <path d="M15 60 H195 M15 120 H195 M75 60 V120 M105 60 V120 M165 60 V120 M195 60 V120 M15 30 H75 M15 150 H75" class="fold"/>
+  <text x="45" y="74" text-anchor="middle" class="label small">SCRYM &amp; DEEP FRY'S</text>
+  <text x="45" y="85" text-anchor="middle" class="label" font-size="7">KICK BASS</text>
+  <text x="45" y="94" text-anchor="middle" class="label" font-size="6">100%</text>
+  <text x="45" y="102" text-anchor="middle" class="label" font-size="5.6">CARDBOARD</text>
+  <circle cx="45" cy="112" r="5.2" fill="#111"/>
+  <text x="135" y="81" text-anchor="middle" class="label" font-size="5.3">LATIN DANCEABLE</text>
+  <text x="135" y="89" text-anchor="middle" class="label" font-size="5.3">WORLD TOUR 26</text>
+  <path d="M116 99 Q135 91 154 99 Q135 108 116 99Z" fill="#149b8d"/>
+  <circle cx="135" cy="98" r="6" fill="#f2b925"/>
+  <text x="135" y="114" text-anchor="middle" class="label small">ACCEPT NO IMITATIONS</text>
+  <g transform="translate(90 90) rotate(-90)"><text text-anchor="middle" class="label small">100% CARDBOARD</text></g>
+  <g transform="translate(180 90) rotate(90)"><text text-anchor="middle" class="label small">TOUR ISSUE 26</text></g>
+  <text x="45" y="48" text-anchor="middle" class="label small">TOP — THIS WAY UP</text>
+  <text x="45" y="139" text-anchor="middle" class="label small">BOTTOM</text>
+  <text x="199" y="91" text-anchor="middle" class="label tiny" transform="rotate(90 199 91)">GLUE TAB</text>
+  <rect x="15" y="174" width="180" height="48" rx="4" fill="#f7f0dd" stroke="#d4c59f" stroke-width=".5"/>
+  <text x="22" y="184" class="label" font-size="5">ASSEMBLY</text>
+  <text x="22" y="193" class="label small">1. Print this A4 page at 100% / Actual Size. Do not “fit to page”.</text>
+  <text x="22" y="200" class="label small">2. Glue the sheet to cereal-box card or similarly thin cardboard and let it dry.</text>
+  <text x="22" y="207" class="label small">3. Cut around the solid red outer line. Score and fold all dashed blue lines.</text>
+  <text x="22" y="214" class="label small">4. Glue the side tab first, then close the top and bottom using the remaining tabs.</text>
+  <line x1="22" y1="231" x2="47" y2="231" class="cut"/>
+  <text x="52" y="232.5" class="label small">CUT</text>
+  <line x1="82" y1="231" x2="107" y2="231" class="fold"/>
+  <text x="112" y="232.5" class="label small">FOLD / SCORE</text>
+  <text x="105" y="250" text-anchor="middle" class="label" font-size="5.4">THE BOX — TOUR-SCALE DESK EDITION</text>
+  <text x="105" y="258" text-anchor="middle" class="label small">Finished size: approx. 60 × 60 × 30 mm</text>
+  <text x="105" y="268" text-anchor="middle" class="label tiny">Craft note: use scissors where possible. If a craft knife is used, cut on a proper mat and keep fingers clear.</text>
+  <text x="105" y="276" text-anchor="middle" class="label tiny">Decorative model only — not intended to function as a full-size percussion instrument.</text>
+  <text x="105" y="288" text-anchor="middle" class="label small" fill="#982b24">ACCEPT NO IMITATIONS</text>
+</svg>

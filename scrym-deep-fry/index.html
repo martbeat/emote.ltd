@@ -140,6 +140,28 @@
     .merch-copy h2{font-family:Georgia,serif;font-size:clamp(2.7rem,5vw,4.5rem);line-height:.95;text-transform:uppercase;margin:.35rem 0 1rem}
     .merch-copy p{color:#d0c5a6;font-size:1.05rem}
     .stamp{display:inline-block;border:3px solid var(--red);color:var(--red);padding:8px 12px;transform:rotate(-3deg);font-weight:1000;text-transform:uppercase;letter-spacing:.09em;margin-top:10px}
+
+    .merch-real-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:20px;align-items:start}
+    .merch-shot{margin:0;background:#0d2b23;border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.22)}
+    .merch-shot img{width:100%;border-radius:16px}
+    .merch-shot figcaption{display:flex;flex-direction:column;gap:4px;padding:14px 4px 4px}
+    .merch-shot figcaption b{font-family:Georgia,serif;font-size:1.45rem;text-transform:uppercase}
+    .merch-shot figcaption span{color:#cbc2a8}
+    .merch-real-copy{margin-top:20px;padding:22px;border-radius:20px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);color:#d0c5a6}
+    .merch-real-copy strong{color:var(--cream)}
+    .crafts-section{background:linear-gradient(180deg,rgba(245,185,31,.055),rgba(255,255,255,.025))}
+    .crafts-grid{display:grid;grid-template-columns:.82fr 1.18fr;gap:28px;align-items:center}
+    .craft-preview{margin:0;background:#fffdf6;border-radius:24px;padding:14px;box-shadow:var(--shadow)}
+    .craft-preview img{width:100%;border-radius:15px}
+    .craft-copy{background:#0d2b23;border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:26px;box-shadow:0 18px 50px rgba(0,0,0,.18)}
+    .craft-copy h3{font-family:Georgia,serif;font-size:2.1rem;margin:.2rem 0 .8rem;text-transform:uppercase}
+    .craft-copy p,.craft-copy li{color:#d0c5a6}
+    .craft-copy ol{padding-left:1.3rem}
+    .craft-copy li+li{margin-top:.45rem}
+    .craft-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .craft-note{font-size:.82rem!important;color:#aaa187!important;margin-top:14px}
+    @media(max-width:900px){.merch-real-grid,.crafts-grid{grid-template-columns:1fr}}
+
     .xmas{padding-top:40px}
     .xmas-card{
       border-radius:30px;padding:42px;background:
@@ -179,6 +201,7 @@
           <li><a href="#dates">Dates</a></li>
           <li><a href="#band">The band</a></li>
           <li><a href="#merch">Merch</a></li>
+          <li><a href="#crafts">Crafts</a></li>
           <li><a href="#xmas">Xmas Special</a></li>
         </ul>
       </nav>
@@ -347,17 +370,56 @@
     </section>
 
     <section class="merch" id="merch">
-      <div class="wrap merch-grid">
-        <div class="tees" aria-label="Black tour T-shirt front and back mock-up">
-          <div class="tee front"><div class="tee-logo">Scrym &amp;<br><b>Deep Fry's</b><small>World Tour 26</small></div></div>
-          <div class="tee back"><div class="tee-logo">Scrym &amp;<br><b>Deep Fry's</b><small>Latin Danceable<br>World Tour 26<br><br>Accept no imitations</small></div></div>
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">Officially unofficial</div><h2>Tour merch</h2></div>
+          <p>We have stopped merely threatening merch and started showing it. These are the actual concepts for the Tour 26 range.</p>
         </div>
-        <div class="merch-copy">
-          <div class="eyebrow">Official-ish merchandise</div>
-          <h2>Wear the tour.</h2>
-          <p>Premium black tour shirts with a small front chest mark and a full back graphic. Designed for good cotton, proper printing and the sort of confidence normally associated with bands who actually have roadies.</p>
-          <p>First run: limited. Quality: not negotiable. Commercial viability: under review.</p>
-          <span class="stamp">Accept no imitations</span>
+
+        <div class="merch-real-grid">
+          <figure class="merch-shot">
+            <img src="assets/merch-tshirt.webp" alt="Front and back mock-up of the black Scrym and Deep Fry's Latin Danceable World Tour 26 T-shirt.">
+            <figcaption><b>The Tour Tee</b><span>Black shirt · small chest mark · full-colour back print</span></figcaption>
+          </figure>
+          <figure class="merch-shot">
+            <img src="assets/merch-collection.webp" alt="Scrym and Deep Fry's merchandise collection with T-shirt, hoodie, poster, stickers and tote bag.">
+            <figcaption><b>The wider poor-decision economy</b><span>Hoodie, poster, stickers, tote and other essentials</span></figcaption>
+          </figure>
+        </div>
+
+        <div class="merch-real-copy">
+          <strong>Quality first.</strong> The shirt remains the hero item: a good black cotton blank, a small front chest mark and the full illustrated tour design on the back. First run limited. Commercial viability under review. Accept no imitations.
+        </div>
+      </div>
+    </section>
+
+    <section class="crafts-section" id="crafts">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">The cardboard engineering department</div><h2>Build the Box</h2></div>
+          <p>A printable A4 cut-out template for your own desk-sized version of the legendary 100% cardboard kick bass. No roadie required.</p>
+        </div>
+
+        <div class="crafts-grid">
+          <figure class="craft-preview">
+            <img src="assets/kick-bass-cutout-template.svg" alt="Printable A4 cardboard cut-out template for a miniature Scrym and Deep Fry kick bass box.">
+          </figure>
+          <div class="craft-copy">
+            <div class="eyebrow">Print · stick · cut · fold</div>
+            <h3>Mini Kick Bass Kit</h3>
+            <p>Print at <strong>100% / Actual Size</strong>, stick the sheet to thin recycled cardboard, cut the solid red outline, score the dashed blue folds and glue the tabs. Finished model is about 60 × 60 × 30 mm.</p>
+            <ol>
+              <li>Print the A4 sheet at 100%. Do not use “fit to page”.</li>
+              <li>Glue it to cereal-box card or similarly thin cardboard and allow it to dry.</li>
+              <li>Cut around the solid red line, then score and fold the dashed blue lines.</li>
+              <li>Glue the long side tab first, then close the top and bottom.</li>
+            </ol>
+            <div class="craft-actions">
+              <a class="btn" href="assets/kick-bass-cutout-template.svg" target="_blank" rel="noopener">Open printable A4 template</a>
+              <a class="btn alt" href="assets/kick-bass-cutout-template.svg" download="scrym-deep-fry-kick-bass-template.svg">Download SVG</a>
+            </div>
+            <p class="craft-note">Desk-scale decorative model only. Use scissors where possible. If using a craft knife, use a proper cutting mat and keep fingers clear.</p>
+          </div>
         </div>
       </div>
     </section>

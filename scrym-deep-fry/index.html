@@ -45,10 +45,6 @@
     nav a:hover{color:var(--yellow)}
     .hero{padding:54px 0 42px;position:relative}
     .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
-
-    .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-    .brand-logo{height:48px;width:auto;max-width:190px;object-fit:contain}
-    .hero-logo{width:min(100%,560px);height:auto;margin:.15rem 0 1.2rem;filter:drop-shadow(0 14px 28px rgba(0,0,0,.25))}
     .poster img{width:100%;height:auto;border-radius:18px}
 
     .hero h1{
@@ -213,7 +209,7 @@
 <body>
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="#top" aria-label="Scrym and Deep Fry's home"><img class="brand-logo" src="assets/tour-logo.webp" alt=""></a>
+      <a class="brand" href="#top">SCRYM <span>&amp;</span> DEEP FRY'S</a>
       <nav aria-label="Tour navigation">
         <ul>
           <li><a href="#dates">Dates</a></li>
@@ -232,8 +228,7 @@
       <div class="wrap hero-grid">
         <div>
           <div class="eyebrow">Latin Danceable World Tour 26</div>
-          <h1 class="sr-only">Scrym &amp; Deep Fry's Latin Danceable World Tour 26</h1>
-          <img class="hero-logo" src="assets/tour-logo.webp" alt="Scrym &amp; Deep Fry's Latin Danceable World Tour 26 - Accept No Imitations">
+          <h1><span class="scrym">Scrym &amp;</span><span class="deep">Deep Fry's</span><span class="tour">Good music travels further</span></h1>
           <p class="lede">One standard acoustic guitar. One electro-acoustic bass. One kick bass made from 100% cardboard. A frankly ambitious itinerary.</p>
           <div class="actions">
             <a class="btn" href="#dates">See the tour dates</a>

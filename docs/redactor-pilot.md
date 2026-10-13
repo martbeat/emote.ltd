@@ -1,8 +1,19 @@
 # Redaction review pilot
 
+## Required original layout preservation
+
+Requirement confirmed 13 October 2026: the original Word layout must be preserved. Text reconstruction is therefore unacceptable for Word-source release copies. This build allows Word-source review for evaluation but blocks every prepared export from that source, even if the review declarations are complete. Pasted-text evaluation exports remain available. No layout-preserving engine has been implemented yet.
+
+Acceptance requires the same page count, page size, orientation, margins, section breaks, table geometry, numbering, headers, footers and positions of retained content as the checked original, with differences confined to approved redaction areas. Required withheld content must also be absent from text extraction, metadata, links, comments, attachments and other recoverable representations. Equal-length replacement strings alone do not satisfy page-layout preservation because glyph widths and line wrapping can change.
+
+The remaining output choice is whether the release copy may be a fixed-page PDF or must be an editable DOCX. A PDF route needs an approved Word rendering step, reviewer comparison with the original page appearance, true removal of redacted content and package sanitisation. A native DOCX route needs structural preservation plus rendering/comparison in the target Word environment. Neither route may treat black overlays over retained source text as redaction.
+
+Both draft implementations originally reconstructed text. PR 479 is the continuing review implementation; PR 478 is an alternative earlier draft, not a layout-preserving solution.
+
+
 This change replaces the previous automatic DOCX rewriting page with a human review workflow. It is an evaluation build, not an approved legal disclosure product. Use synthetic or service-authorised test data until assurance is complete. The production deployment is not changed by creating this branch or pull request.
 
-## What changed
+## Existing evaluation functionality
 
 - DOCX and pasted text are processed in browser memory. There are no document upload endpoints, AI requests, analytics, external scripts or persistent session storage in this page. Its Content Security Policy disables connections.
 - Pattern suggestions cover email addresses, UK telephone numbers, UK postcodes and National Insurance numbers. They remain pending until a reviewer decides. Names, addresses, privilege and indirect identification require human judgement.

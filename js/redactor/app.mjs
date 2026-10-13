@@ -6,14 +6,14 @@ function status(message,error=false){$('status').textContent=message;$('status')
 function revoke(){for(const url of urls)URL.revokeObjectURL(url);urls=[];prepared=null;}
 function invalidate(){revision++;revoke();for(const id of ['complete','checkedOutput','authorised'])$(id).checked=false;updateGate();}
 function review(){return {caseRef:$('caseRef').value,reviewer:$('reviewer').value,checker:$('checker').value,complete:$('complete').checked,output:$('checkedOutput').checked,authorised:$('authorised').checked};}
-function ready(){return !dirty && canRelease(state.text,state.decisions,review());}
+function ready(){return state.kind!=='DOCX' && !dirty && canRelease(state.text,state.decisions,review());}
 function updateGate(){
   const pending=state.decisions.filter(d=>d.status==='pending').length;
   const missing=state.decisions.filter(d=>d.status!=='pending'&&!d.reason.trim()).length;
   $('prepare').disabled=!ready();
   for(const id of ['downloadDocx','downloadTxt','downloadReport'])$(id).disabled=!prepared;
   $('releaseState').textContent=prepared?'Export prepared':ready()?'Ready to prepare':'Review required';
-  $('gate').textContent=dirty?'Source input changed. Load it before continuing.':!state.text?'Load a source to start the review.':pending?`${pending} pending decision${pending===1?'':'s'} must be resolved.`:missing?`${missing} decision${missing===1?' needs':'s need'} a reason.`:!ready()?'Enter the case reference and two different reviewer names, then complete all three checks.':prepared?'Checked exports prepared. Download the copy and its separate decision record.':'All review fields are complete. You can prepare the export.';
+  $('gate').textContent=state.kind==='DOCX'&&!dirty?'Word-source export is blocked: this engine reconstructs text and cannot preserve the original layout. Review decisions are for evaluation only until a layout-preserving engine is implemented.':dirty?'Source input changed. Load it before continuing.':!state.text?'Load a source to start the review.':pending?`${pending} pending decision${pending===1?'':'s'} must be resolved.`:missing?`${missing} decision${missing===1?' needs':'s need'} a reason.`:!ready()?'Enter the case reference and two different reviewer names, then complete all three checks.':prepared?'Checked exports prepared. Download the copy and its separate decision record.':'All review fields are complete. You can prepare the export.';
   for(const id of ['mark','find'])$(id).disabled=!state.text||dirty;
   $('bulk').disabled=dirty||!visible().some(d=>d.status==='pending');
 }

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' blob:; img-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>eMote • PDF redaction review</title>
+    <link rel="stylesheet" href="js/redactor/style.css" />
+    <link rel="stylesheet" href="js/redactor/pdf-style.css" />
+    <script type="module" src="js/redactor/pdf-app.mjs"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="redactor.html"
+        >eMote <span>/ PDF redaction review</span></a
+      ><span class="badge">Evaluation pilot</span>
+    </header>
+    <main>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">PRESERVE THE PAGE APPEARANCE</p>
+          <h1>Keep the review editable.<br />Make the release final.</h1>
+          <p class="intro">
+            Mark areas, check every page and generate a separate PDF with the
+            approved content removed.
+          </p>
+        </div>
+        <aside class="privacy">
+          <strong>Local processing</strong>
+          <p>
+            The PDF stays in this tab. Assets load from this site; document
+            content is not uploaded. Save your working review explicitly to
+            resume later.
+          </p>
+        </aside>
+      </div>
+      <p class="notice">
+        Evaluation only. The final PDF contains page images at 144 DPI, with
+        redacted pixels replaced before encoding. It preserves the rendered page
+        dimensions and appearance, but loses searchable text, vector graphics
+        and accessibility tags. This trade-off needs service acceptance before
+        operational use.
+      </p>
+      <p id="status" role="status" aria-live="polite">
+        Load a PDF exported from Word or an existing PDF. The original is kept
+        unchanged.
+      </p>
+      <section class="card" id="load">
+        <div class="section-heading">
+          <h2>01 <span>Load the page source</span></h2>
+          <button id="clear" class="quiet">Clear session</button>
+        </div>
+        <label for="pdfFile">PDF • up to 12 MB and 50 pages</label
+        ><input id="pdfFile" type="file" accept=".pdf,application/pdf" />
+        <p class="hint">
+          For Word: use Word’s Save As or Export to PDF first and check the PDF
+          against the Word original. Direct Word conversion is not implemented.
+          Encrypted files, attachments, scripts, layers, forms, signatures and
+          annotations with separate visible appearances are blocked. Unsupported
+          image codecs or fonts may prevent rendering.
+        </p>
+        <p id="sourceInfo" class="hint"></p>
+        <div class="actions">
+          <button id="save" disabled>Save working review</button
+          ><button id="return" disabled>Return to working review</button>
+        </div>
+        <label for="resume">Resume against the unchanged original PDF</label
+        ><input
+          id="resume"
+          type="file"
+          accept=".json,application/json"
+          disabled
+        />
+        <p class="hint">
+          Working files contain coordinates, decisions, reasons and reviewer
+          details, but no source PDF or text excerpts. They are internal
+          records, not disclosure copies. Restoring always resets the final
+          checks.
+        </p>
+      </section>
+      <section class="card" id="review">
+        <div class="section-heading">
+          <h2>02 <span>Review every page</span></h2>
+          <span id="counts" class="badge">No PDF loaded</span>
+        </div>
+        <div class="viewer-tools">
+          <button id="prev" disabled>Previous page</button
+          ><span id="pageNumber">No page</span
+          ><button id="next" disabled>Next page</button
+          ><label class="check"
+            ><input id="finalMode" type="checkbox" disabled />Show prepared
+            final PDF</label
+          >
+        </div>
+        <p class="hint">
+          In working view, drag a rectangle over text or an image. Use the
+          coordinate fields for keyboard entry. Orange areas are pending; black
+          areas are approved redactions. Review all unmarked content too. Any
+          change resets page checks and cancels the prepared final copy.
+        </p>
+        <div class="pdf-workspace">
+          <div class="page-panel">
+            <div id="pageFrame">
+              <canvas
+                id="pageCanvas"
+                aria-label="Rendered document page"
+              ></canvas
+              ><canvas
+                id="overlay"
+                aria-label="Draw a redaction rectangle"
+                tabindex="0"
+              ></canvas>
+            </div>
+            <label class="check"
+              ><input id="pageChecked" type="checkbox" disabled /><span
+                id="pageCheckLabel"
+                >I checked this whole working page against the original and all
+                proposed areas.</span
+              ></label
+            >
+            <p id="pageCheckInfo" class="hint"></p>
+          </div>
+          <aside>
+            <label for="search">Find an exact name, phrase or reference</label
+            ><input id="search" type="text" maxlength="1000" /><button
+              id="find"
+              disabled
+            >
+              Find text fragments
+            </button>
+            <p class="hint">
+              Search works on extracted text, not images or scans. Results mark
+              the entire PDF text fragment, which can contain other words.
+              Inspect and adjust each box before accepting it. It is a prompt,
+              not proof of complete redaction.
+            </p>
+            <div id="results"></div>
+            <h3>Add or adjust an area</h3>
+            <p class="hint">
+              Coordinates are points from the top-left of the displayed page.
+            </p>
+            <div class="coordinates">
+              <div>
+                <label for="x">Left</label
+                ><input id="x" type="number" min="0" step="0.1" value="0" />
+              </div>
+              <div>
+                <label for="y">Top</label
+                ><input id="y" type="number" min="0" step="0.1" value="0" />
+              </div>
+              <div>
+                <label for="w">Width</label
+                ><input id="w" type="number" min="0.1" step="0.1" value="80" />
+              </div>
+              <div>
+                <label for="h">Height</label
+                ><input id="h" type="number" min="0.1" step="0.1" value="20" />
+              </div>
+            </div>
+            <button id="add" disabled>Add pending area</button
+            ><button id="adjust" disabled>Adjust selected area</button
+            ><label for="reason">Reason for selected area</label
+            ><input id="reason" type="text" maxlength="600" />
+            <div class="actions">
+              <button id="redact" disabled>Redact</button
+              ><button id="keep" disabled>Keep</button
+              ><button id="remove" disabled>Remove area</button>
+            </div>
+            <p class="hint">
+              Keep leaves this area unchanged; other overlapping approved areas
+              may still remove pixels there. Removing an area restores its
+              source appearance. Reasons can be sensitive and belong only in
+              internal records.
+            </p>
+            <div id="areas"></div>
+          </aside>
+        </div>
+      </section>
+      <section class="card" id="release">
+        <h2>03 <span>Prepare, inspect and download</span></h2>
+        <div class="release-grid">
+          <div>
+            <label for="caseRef">Internal case reference</label
+            ><input id="caseRef" type="text" maxlength="120" /><label
+              for="reviewer"
+              >Prepared by</label
+            ><input
+              id="reviewer"
+              type="text"
+              maxlength="120"
+              autocomplete="off"
+            /><label for="checker">Independent checker</label
+            ><input
+              id="checker"
+              type="text"
+              maxlength="120"
+              autocomplete="off"
+            />
+            <p class="hint">
+              Names are self-declared. This tab does not enforce separate-user
+              approval.
+            </p>
+          </div>
+          <div class="checks">
+            <label
+              ><input id="imageAccepted" type="checkbox" />The service accepts
+              an image-only evaluation copy at 144 DPI for this case.</label
+            ><label
+              ><input id="reviewComplete" type="checkbox" />Every working page
+              has been checked, all areas decided and all reasons
+              recorded.</label
+            ><label
+              ><input id="authorised" type="checkbox" />The responsible service
+              authorised this evaluation export.</label
+            >
+          </div>
+        </div>
+        <p id="gate" class="gate">Load a PDF to begin.</p>
+        <div class="actions">
+          <button id="prepare" class="primary" disabled>
+            Prepare final PDF</button
+          ><button id="download" disabled>Download checked final PDF</button
+          ><button id="report" disabled>
+            Download internal decision record
+          </button>
+        </div>
+        <p class="hint">
+          After preparation, inspect and confirm every page of the actual final
+          PDF using “Show prepared final PDF”. Download is enabled only when all
+          final pages are confirmed. Missing or indirect sensitive information
+          still needs human identification. Returning to the working review
+          permits further changes and a fresh export. A new copy does not
+          retract one already disclosed.
+        </p>
+      </section>
+      <footer>
+        eMote PDF review · Reversible working decisions · Irreversible release
+        copy
+      </footer>
+    </main>
+  </body>
+</html>

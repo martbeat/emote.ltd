@@ -2,11 +2,11 @@
 
 ## Required original layout preservation
 
-Requirement confirmed 13 October 2026: the original Word layout must be preserved. Text reconstruction is therefore unacceptable for Word-source release copies. This build allows Word-source review for evaluation but blocks every prepared export from that source, even if the review declarations are complete. Pasted-text evaluation exports remain available. No layout-preserving engine has been implemented yet.
+Requirement confirmed 13 October 2026: the original Word layout must be preserved. Text reconstruction is therefore unacceptable for Word-source release copies. This build allows Word-source review for evaluation but blocks every prepared export from that source, even if the review declarations are complete. Pasted-text evaluation exports remain available. A separate PDF page-review route is implemented at redactor-pdf.html. It rebuilds the rendered page appearance as a fresh image-only release PDF; native DOCX exports remain blocked.
 
 Acceptance requires the same page count, page size, orientation, margins, section breaks, table geometry, numbering, headers, footers and positions of retained content as the checked original, with differences confined to approved redaction areas. Required withheld content must also be absent from text extraction, metadata, links, comments, attachments and other recoverable representations. Equal-length replacement strings alone do not satisfy page-layout preservation because glyph widths and line wrapping can change.
 
-Output decision confirmed 13 October 2026: a fixed-page PDF release copy is acceptable. The working review must stay revisable so missing redactions can be added and a new release copy produced from the unchanged original. PDF output is not implemented yet. A PDF route needs an approved Word rendering step, reviewer comparison with the original page appearance, true removal of redacted content and package sanitisation. A native DOCX route needs structural preservation plus rendering/comparison in the target Word environment. Neither route may treat black overlays over retained source text as redaction.
+Output decision confirmed 13 October 2026: a fixed-page PDF release copy is acceptable. The working review must stay revisable so missing redactions can be added and a new release copy produced from the unchanged original. The PDF route is an image-only evaluation implementation at 144 DPI, with direct Word conversion still outstanding. A PDF route needs an approved Word rendering step, reviewer comparison with the original page appearance, true removal of redacted content and package sanitisation. A native DOCX route needs structural preservation plus rendering/comparison in the target Word environment. Neither route may treat black overlays over retained source text as redaction.
 
 Both draft implementations originally reconstructed text. PR 479 is the continuing review implementation; PR 478 is an alternative earlier draft, not a layout-preserving solution.
 
@@ -51,11 +51,11 @@ npm test
 
 The test-only jsdom dependency is locked. It is never loaded by the deployed page.
 
-As of this implementation, 34 substantive checks pass (35 reported by Node including the workflow parent). They cover stored and compressed ZIPs, corrupted archives, text extraction, unsupported features, metadata exclusion, Unicode offsets, overlapping selections, human-review gates, output hashes, preview-to-Word verification, stale output invalidation, interrupted exports, automatic suggestion restoration and literal rendering of HTML-like input.
+As of this implementation, 40 substantive checks pass (41 reported by Node including the workflow parent). They cover stored and compressed ZIPs, corrupted archives, text extraction, unsupported features, metadata exclusion, Unicode offsets, overlapping selections, human-review gates, output hashes, preview-to-Word verification, stale output invalidation, interrupted exports, automatic suggestion restoration and literal rendering of HTML-like input.
 
 A generated Word file was independently opened with Python's zipfile and python-docx, then rendered with LibreOffice. Latin and Greek text, XML special characters, redaction markers and tab handling were inspected. CJK text remained present in XML and python-docx extraction but did not render in the available environment, which has no CJK font. Multilingual display must be checked on the target devices. No claim of full Microsoft Word compatibility is made from that limited check.
 
-Browser layout, keyboard/screen-reader behaviour and managed Microsoft Edge compatibility were not visually tested in this environment. jsdom workflow tests exercise DOM events and state, not a real browser layout engine. Treat the following acceptance work as outstanding.
+The saved-review and PDF page workflows were exercised in headless Chromium and desktop/mobile screenshots inspected. Full keyboard/screen-reader assessment and managed Microsoft Edge compatibility remain outstanding. jsdom workflow tests exercise DOM events and state, not a real browser layout engine. Treat the following acceptance work as outstanding.
 
 ## Service acceptance before live use
 
@@ -92,4 +92,38 @@ The ICO's guidance explains the risks from hidden document information and the n
 
 A PDF is not inherently read-only, but a correctly applied redaction must permanently remove the selected content. The internal review remains revisable. The release copy is a separate, final artefact generated only after reviewing the full document and repeating the second check. Any subsequent change to a decision cancels the prepared release and requires a newly generated copy. Changing decisions after a file has been disclosed does not retract that disclosure.
 
-Before a PDF engine can be enabled, acceptance must demonstrate: original page appearance and positions are preserved; expected redacted material is absent from every recoverable representation, including images and OCR where present; metadata and hidden content are handled; the final PDF is checked as rendered; the working review can be revised and resumed against the unchanged source; and missed or indirect identifying information is addressed by human review. Automated pattern suggestions cannot establish full redaction. The existing Word-source export block remains in force.
+Before the PDF engine can be used operationally, acceptance must demonstrate: original page appearance and positions are preserved; expected redacted material is absent from every recoverable representation, including images and OCR where present; metadata and hidden content are handled; the final PDF is checked as rendered; the working review can be revised and resumed against the unchanged source; and missed or indirect identifying information is addressed by human review. Automated pattern suggestions cannot establish full redaction. The existing Word-source export block remains in force.
+
+## PDF page review and release implementation
+
+Open `redactor-pdf.html` for the new PDF route. Word users first export a PDF in Word and compare that PDF with the original. Automatic Word conversion is not implemented. Loading a DOCX in the text route still blocks release rather than reconstructing its layout.
+
+The PDF source is rendered locally with pinned, self-hosted PDF.js 5.6.205 assets and standard fonts. PDF-Lib 1.17.1 creates the new release PDF. Original pages and objects are never copied: the renderer produces opaque page pixels, approved areas are replaced with black pixels including a one-point safety margin, those altered pixels are encoded as fresh PNGs and the new images are placed on new pages of the displayed original dimensions. Cropping and rotation are accounted for by the page viewport. The output is rasterised at 144 DPI, which preserves the rendered appearance rather than the original vector representation. It loses searchable text, selectable text, tags, links and vector scalability. It is not appropriate for every litigation or accessibility requirement, even where PDF is acceptable.
+
+The working viewer supports rectangle dragging, keyboard coordinate entry, adjusting/removing areas, reasons and keep/redact decisions. Pattern suggestions and phrase searches operate on PDF text fragments, not glyph-level selections or OCR. The proposed box covers the whole fragment, which may include other text. Inspect and adjust these suggestions to avoid unnecessary withholding. Scanned/image content needs manual areas. The trial does not guarantee complete detection, correct OCR or correct rendering of every PDF feature or font.
+
+Review requires every working page to be displayed and confirmed, every area to be resolved with a reason, two different declared reviewer names and acceptance of the image-only trade-off. The prepared output is reopened and checked for its page count/sizes, absent text layers, absent annotations/attachments and scripts. Every page of that actual final PDF must then be displayed and confirmed before downloads are enabled. These confirmations are process prompts, not authenticated identities. Any decision change cancels the prepared output and resets the checks.
+
+PDF working-review JSON files contain the original byte fingerprint, displayed page sizes, area coordinates, decisions, reasons and reviewer details, without original PDF bytes or extracted passages. Resume requires the unchanged original PDF and clears all page confirmations and declarations. Internal release records contain the exact output fingerprint and area decisions. These files are not encrypted, immutable or suitable for public disclosure. Saving the working review is explicit; unsaved changes can still be lost.
+
+The PDF pilot limits inputs to 12 MB, 50 pages, 16 million rendered pixels per page, 120 million pixels across the document, 50,000 extracted fragments, 500,000 extracted characters and 2,000 areas. Final PDFs are limited to 80 MB and saved reviews to 2 MB. Encrypted sources, attachments, scripts, optional-content layers, forms/signatures and non-link annotations are rejected. Links with separate appearance streams or visible borders are also rejected; inert borderless links are stripped while their body text remains rendered. Some complex image codecs or nonstandard font/CMap configurations may be unsupported. Those limits and rejection paths need representative-document evaluation and independent security review before operational adoption.
+
+The PDF page uses a separate CSP permitting only local worker/font/asset requests. It makes no document uploads or external service calls in the tested flow. Distribution versions, checksums and licence files are in `js/redactor/vendor`. Dependency review and updates remain a maintenance responsibility.
+
+### Reproduce the PDF checks
+
+Requires Python with reportlab, Pillow and pypdf plus Playwright and Chromium. The repository must be served at port 8767.
+
+```sh
+python tests/redactor/generate_pdf_fixtures.py /tmp/emote-pdf-qa
+python -m http.server 8767
+# In another terminal, with Playwright installed:
+node tests/redactor/pdf-browser.cjs
+python tests/redactor/verify_pdf_release.py /tmp/emote-pdf-qa
+```
+
+`PLAYWRIGHT_MODULE`, `CHROMIUM_EXECUTABLE` and `PDF_FIXTURE_ROOT` select nonstandard test installations/paths. The tests use fictional documents only. Browser tests exercise automatic fragment areas, manual image areas, final-page download gates, recovery, wrong-source rejection, malformed coordinates, blocked sources, local network requests and mobile width. A rotated/cropped fixture verifies exact retained pixel equality outside the redaction area at the test resolution.
+
+The independent Python check opens the downloaded PDF, verifies original page dimensions and source/output fingerprints, checks absent original metadata/text/annotations/attachments and inspects recoverable embedded images. It checks both fully black approved regions and the surrounding email band for leaked letter fragments. An initial descender leak was found through this check and fixed in the fragment geometry; a black rectangle alone was not treated as evidence of full removal. Generated portrait/landscape/rotated pages and desktop/mobile views were visually inspected.
+
+These checks establish behaviour on the synthetic fixtures, not completeness for all legal documents or approval for live disclosure. Next acceptance inputs are representative synthetic Word/PDF documents, service agreement on image-only outputs, supported fonts/managed browser versions and an approved Word-rendering approach if one-step import is required.

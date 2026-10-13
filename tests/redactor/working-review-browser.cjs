@@ -1,0 +1,23 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_EXECUTABLE||undefined,args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});const errors=[],requests=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));page.on('dialog',d=>d.accept());
+ await page.goto('http://127.0.0.1:8766/redactor.html');
+ assert(await page.locator('#saveReview').isDisabled());
+ await page.locator('#paste').fill('Synthetic name to redact');await page.locator('#load').click();await page.waitForFunction(()=>document.querySelector('#source').value==='Synthetic name to redact');
+ await page.locator('#term').fill('Synthetic name');await page.locator('#find').click();await page.locator('.decision').getByRole('button',{name:'Redact',exact:true}).click();await page.locator('.decision input').fill('Fictional test reason');
+ await page.locator('#caseRef').fill('TEST');await page.locator('#reviewer').fill('A');await page.locator('#checker').fill('B');for(const id of ['complete','checkedOutput','authorised'])await page.locator('#'+id).check();
+ await page.locator('#prepare').click();await page.waitForFunction(()=>!document.querySelector('#downloadDocx').disabled);
+ const downloadPromise=page.waitForEvent('download');await page.locator('#saveReview').click();const download=await downloadPromise;const plan=await fs.readFile(await download.path());
+ assert(!plan.toString().includes('Synthetic name'));assert(!plan.toString().includes('"authorised"'));
+ await page.locator('#returnReview').click();assert(await page.locator('#downloadDocx').isDisabled());assert.equal(await page.locator('#complete').isChecked(),false);
+ await page.locator('.decision').getByRole('button',{name:'Keep',exact:true}).click();assert.equal(await page.locator('#output').inputValue(),'Synthetic name to redact');
+ await page.locator('#resumeReview').setInputFiles({name:'working.json',mimeType:'application/json',buffer:plan});await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Working review restored'));
+ assert.equal(await page.locator('#output').inputValue(),'[REDACTED R0001] to redact');assert(await page.locator('#prepare').isDisabled());assert.equal(await page.locator('.decision input').inputValue(),'Fictional test reason');
+ await page.screenshot({path:'/tmp/redactor-working-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/redactor-working-mobile.png',fullPage:true});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);assert(requests.every(r=>r.startsWith('http://127.0.0.1:8766/')));
+ await browser.close();console.log('PASS: real-browser working-review save, resume, edit reset, safe file contents, matching output, responsive width and local requests only.');
+})().catch(e=>{console.error(e);process.exit(1)});

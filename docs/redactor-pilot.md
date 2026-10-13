@@ -6,7 +6,7 @@ Requirement confirmed 13 October 2026: the original Word layout must be preserve
 
 Acceptance requires the same page count, page size, orientation, margins, section breaks, table geometry, numbering, headers, footers and positions of retained content as the checked original, with differences confined to approved redaction areas. Required withheld content must also be absent from text extraction, metadata, links, comments, attachments and other recoverable representations. Equal-length replacement strings alone do not satisfy page-layout preservation because glyph widths and line wrapping can change.
 
-The remaining output choice is whether the release copy may be a fixed-page PDF or must be an editable DOCX. A PDF route needs an approved Word rendering step, reviewer comparison with the original page appearance, true removal of redacted content and package sanitisation. A native DOCX route needs structural preservation plus rendering/comparison in the target Word environment. Neither route may treat black overlays over retained source text as redaction.
+Output decision confirmed 13 October 2026: a fixed-page PDF release copy is acceptable. The working review must stay revisable so missing redactions can be added and a new release copy produced from the unchanged original. PDF output is not implemented yet. A PDF route needs an approved Word rendering step, reviewer comparison with the original page appearance, true removal of redacted content and package sanitisation. A native DOCX route needs structural preservation plus rendering/comparison in the target Word environment. Neither route may treat black overlays over retained source text as redaction.
 
 Both draft implementations originally reconstructed text. PR 479 is the continuing review implementation; PR 478 is an alternative earlier draft, not a layout-preserving solution.
 
@@ -35,7 +35,7 @@ Import blocks detected images, embedded files, charts, diagrams, active content,
 
 ZIP handling rejects unsupported compression, encryption, duplicate/traversal paths, directory inconsistencies and CRC/size mismatches. File limits are 12 MB compressed, 32 MB expanded, 1,000 ZIP entries, 350,000 characters and 5,000 decisions. These are pilot bounds, not a tested performance guarantee.
 
-The source and reviewed text remain in memory until the page is abandoned or the session is cleared. There is no resumable saved case or encrypted checkpoint. Browser crashes, refresh or closing the page can lose work. Memory clearing is not a secure-erasure guarantee. Files intentionally downloaded remain on the device.
+The source and reviewed text remain in memory until the page is abandoned or the session is cleared. Users can explicitly save an internal working-review JSON file containing source fingerprints, decisions, reasons and reviewer details, but no original source text. Resume requires the unchanged original to be loaded again and checks both its byte fingerprint and extracted-text fingerprint. Release declarations are never restored. Saved working reviews are not encrypted or tamper-proof; treat them as potentially sensitive internal files and follow retention policy. There is no automatic checkpoint. Browser crashes, refresh or closing the page can lose changes since the last explicit save. Memory clearing is not a secure-erasure guarantee. Files intentionally downloaded remain on the device.
 
 ## Run and test
 
@@ -87,3 +87,9 @@ The ICO's guidance explains the risks from hidden document information and the n
 
 - https://ico.org.uk/media2/pbwchh24/disclosing-documents-to-the-public-securely-all-1-0-0.pdf
 - https://ico.org.uk/for-organisations/foi/guide-to-managing-an-foi-request/finding-and-preparing-the-information/
+
+## PDF release and editable working review
+
+A PDF is not inherently read-only, but a correctly applied redaction must permanently remove the selected content. The internal review remains revisable. The release copy is a separate, final artefact generated only after reviewing the full document and repeating the second check. Any subsequent change to a decision cancels the prepared release and requires a newly generated copy. Changing decisions after a file has been disclosed does not retract that disclosure.
+
+Before a PDF engine can be enabled, acceptance must demonstrate: original page appearance and positions are preserved; expected redacted material is absent from every recoverable representation, including images and OCR where present; metadata and hidden content are handled; the final PDF is checked as rendered; the working review can be revised and resumed against the unchanged source; and missed or indirect identifying information is addressed by human review. Automated pattern suggestions cannot establish full redaction. The existing Word-source export block remains in force.

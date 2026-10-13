@@ -1,3 +1,4 @@
+import {saveWorkingReview,restoreWorkingReview,WORKING_REVIEW_LIMIT} from './working-review.mjs';
 import {VERSION,LIMITS,normaliseText,hash,importDocx,detect,findLiteral,overlap,applyDecisions,canRelease,buildDocx,verifyDocx} from './core.mjs';
 const $=id=>document.getElementById(id), enc=new TextEncoder();
 let state=empty(),generation=0,revision=0,page=0,nextId=1,dirty=false,prepared=null,urls=[];
@@ -11,6 +12,9 @@ function updateGate(){
   const pending=state.decisions.filter(d=>d.status==='pending').length;
   const missing=state.decisions.filter(d=>d.status!=='pending'&&!d.reason.trim()).length;
   $('prepare').disabled=!ready();
+  $('saveReview').disabled=!state.text||dirty;
+  $('resumeReview').disabled=!state.text||dirty;
+  $('returnReview').disabled=!state.text;
   for(const id of ['downloadDocx','downloadTxt','downloadReport'])$(id).disabled=!prepared;
   $('releaseState').textContent=prepared?'Export prepared':ready()?'Ready to prepare':'Review required';
   $('gate').textContent=state.kind==='DOCX'&&!dirty?'Word-source export is blocked: this engine reconstructs text and cannot preserve the original layout. Review decisions are for evaluation only until a layout-preserving engine is implemented.':dirty?'Source input changed. Load it before continuing.':!state.text?'Load a source to start the review.':pending?`${pending} pending decision${pending===1?'':'s'} must be resolved.`:missing?`${missing} decision${missing===1?' needs':'s need'} a reason.`:!ready()?'Enter the case reference and two different reviewer names, then complete all three checks.':prepared?'Checked exports prepared. Download the copy and its separate decision record.':'All review fields are complete. You can prepare the export.';
@@ -81,6 +85,34 @@ $('prev').addEventListener('click',()=>{page--;renderDecisions();updateGate();})
 $('bulk').addEventListener('click',()=>{if(dirty)return;const reason=$('bulkReason').value.trim();if(!reason)return status('Enter a reason before applying a group decision.',true);const group=visible().filter(d=>d.status==='pending');if(!group.length)return;if(!window.confirm(`Redact these ${group.length} pending items on this page with the same reason?`))return;for(const d of group){d.status='redact';d.reason=reason;}invalidate();render();status(`${group.length} decisions recorded. Review the full release text before exporting.`);});
 for(const id of ['caseRef','reviewer','checker'])$(id).addEventListener('input',invalidate);
 for(const id of ['complete','checkedOutput','authorised'])$(id).addEventListener('change',()=>{revision++;revoke();updateGate();});
+$('returnReview').addEventListener('click',()=>{invalidate();status('Working review reopened. Change decisions as needed, then repeat the checks and prepare a fresh export.');$('review').scrollIntoView?.({behavior:'smooth'});});
+$('saveReview').addEventListener('click',async()=>{
+  if(!state.text||dirty)return;
+  const token=generation,rev=revision,snapshot=structuredClone(state);
+  try{
+    const plan=await saveWorkingReview(snapshot,review());
+    if(token!==generation||rev!==revision||dirty)return;
+    const bytes=enc.encode(JSON.stringify(plan,null,2));
+    if(bytes.length>WORKING_REVIEW_LIMIT)throw new Error('This working review is too large to save. Split the source.');
+    const url=URL.createObjectURL(new Blob([bytes],{type:'application/json'}));urls.push(url);
+    const a=document.createElement('a');a.href=url;a.download='internal-working-review.json';a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);urls=urls.filter(x=>x!==url);},10000);
+    status('Working review saved. Keep it internally with the unchanged original. It contains decisions and reasons but no source text or release approval.');
+  }catch(e){status(`Could not save working review: ${e.message}`,true);}
+});
+$('resumeReview').addEventListener('change',async()=>{
+  const file=$('resumeReview').files[0];if(!file||!state.text||dirty)return;
+  invalidate();const token=generation,rev=revision,snapshot=structuredClone(state);
+  try{
+    if(file.size>WORKING_REVIEW_LIMIT)throw new Error('Working-review files must be no larger than 2 MB.');
+    const restored=await restoreWorkingReview(JSON.parse(await file.text()),snapshot);
+    if(token!==generation||rev!==revision||dirty)return;
+    state.decisions=restored.decisions;nextId=restored.nextId;page=0;
+    for(const id of ['caseRef','reviewer','checker'])$(id).value=restored[id];
+    render();status('Working review restored against the matching source. Review all decisions and repeat both reviewers’ checks before a new export.');
+  }catch(e){if(token===generation)status(`Could not restore working review: ${e.message}`,true);}
+  finally{$('resumeReview').value='';}
+});
 $('prepare').addEventListener('click',async()=>{
   if(!ready())return;
   revoke();const token=revision,sourceToken=generation;$('prepare').disabled=true;status('Building a new Word package and checking its contents…');

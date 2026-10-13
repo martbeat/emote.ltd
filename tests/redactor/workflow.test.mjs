@@ -32,6 +32,21 @@ await test('review workflow',async t=>{
   await t.test('source text is rendered as text, never HTML',async()=>{await load('<img src=x onerror=alert(1)> private@example.org');assert.equal(document.querySelectorAll('#decisions img').length,0);assert($('source').value.startsWith('<img'));});
   await t.test('removing an automatic suggestion restores it as pending',()=>{decisionButton('Remove').click();assert.equal(document.querySelectorAll('.decision').length,1);assert.match($('counts').textContent,/1 pending/);});
   await t.test('a larger manual passage replaces enclosed suggestions',()=>{$('source').setSelectionRange(0,$('source').value.length);click('mark');assert.equal(document.querySelectorAll('.decision').length,1);assert.match(document.querySelector('.decision .meta').textContent,/Selected passage/);});
+  await t.test('working review resumes decisions without restoring release approval',async()=>{
+    await load('Resume sample');input('term','Resume');click('find');decisionButton('Redact').click();
+    const field=document.querySelector('.decision input');field.value='Synthetic resume';field.dispatchEvent(new window.Event('input'));
+    await prepare();click('saveReview');await until(()=>downloads.some(d=>d.name==='internal-working-review.json'));
+    const saved=await downloads.find(d=>d.name==='internal-working-review.json').blob.text();
+    click('returnReview');assert.equal($('output').value,'[REDACTED R0001] sample');assert($('downloadDocx').disabled);assert(!$('complete').checked);
+    decisionButton('Keep').click();assert.equal($('output').value,'Resume sample');
+    const file={name:'internal-working-review.json',size:saved.length,text:async()=>saved};
+    Object.defineProperty($('resumeReview'),'files',{configurable:true,value:[file]});$('resumeReview').dispatchEvent(new window.Event('change'));
+    await until(()=>$('status').textContent.startsWith('Working review restored'));
+    assert.equal($('output').value,'[REDACTED R0001] sample');assert.equal(document.querySelector('.decision input').value,'Synthetic resume');
+    assert($('prepare').disabled);assert(!$('complete').checked);assert(!$('checkedOutput').checked);assert(!$('authorised').checked);
+    await load('A different source');$('resumeReview').dispatchEvent(new window.Event('change'));await until(()=>$('status').textContent.startsWith('Could not restore'));
+    assert.match($('status').textContent,/does not match/);assert.equal($('source').value,'A different source');assert($('downloadDocx').disabled);
+  });
   await t.test('Word-source export stays blocked even after review declarations',async()=>{
     const bytes=buildDocx('Synthetic layout requirement');
     const f={name:'layout.docx',size:bytes.length,arrayBuffer:async()=>bytes.buffer};

@@ -10,8 +10,8 @@
     />
     <title>RBC Legal redaction review | eMote</title>
     <link rel="stylesheet" href="js/redactor/style.css" />
-    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=dictionary-20261014-1" />
-    <script type="module" src="js/redactor/pdf-app.js?v=dictionary-20261014-1"></script>
+    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=balanced-report-20261014-1" />
+    <script type="module" src="js/redactor/pdf-app.js?v=balanced-report-20261014-1"></script>
   </head>
   <body>
     <header>
@@ -103,7 +103,7 @@
           <label class="check"><input id="assistDates" type="checkbox">Dates</label>
         </div>
         <div class="assist-lists"><div><label for="assistTerms">Known names, organisations or references to find</label><textarea id="assistTerms" rows="3" maxlength="20000" placeholder="One exact term per line, including short names if needed"></textarea></div><div><label for="assistExclusions">Terms to leave for manual review</label><textarea id="assistExclusions" rows="3" maxlength="20000" placeholder="One term per line, such as Reading Borough Council"></textarea></div></div>
-        <p class="hint">Exclusions suppress automatic proposals, including a proposal that shares a PDF text fragment with an excluded phrase. They do not cancel an existing decision. Balanced mode uses recognised first names, author/name fields and name-plus-job-title patterns, while filtering role or form wording. Names are inferred locally and can be missed or misidentified. Images and scanned text still need manual marking.</p>
+        <p class="hint">Exclusions suppress automatic proposals, including a proposal that shares a PDF text fragment with an excluded phrase. They do not cancel an existing decision. Balanced mode uses recognised first names, author/name fields and name-plus-job-title patterns, while filtering role, form and ordinary report wording. PDF suggestions cover whole text fragments, which can include a role beside a name; adjust the box before approving if needed. Names are inferred locally and can be missed or misidentified. Images and scanned text still need manual marking.</p>
         <div class="actions"><button id="assistScan" disabled>Run automatic suggestions</button><button id="assistNext" disabled>Review next suggestion</button></div>
         <p id="assistInfo" class="hint"></p><div id="assistGroups" class="assist-groups"></div>
         <div class="assist-batch"><div><label for="assistScope">Batch scope</label><select id="assistScope"><option value="all">Whole document</option><option value="page">Displayed page</option></select></div><div><label for="assistReason">Shared reason for the selected groups</label><input id="assistReason" maxlength="600" placeholder="Explain why these areas should be removed or kept"></div></div>

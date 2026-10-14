@@ -183,3 +183,9 @@ All 78 reported Node tests pass, including fictional unfamiliar author names wit
 The RBC route now loads a separate published-name dictionary with 113,448 given names and 156,632 surnames from SSA (1880–2025), the US Census 2020 release (published 2026) and the UK DfE Autumn 2014 top-1,000 lists. See [source attribution, input hashes, rebuild commands and limitations](redactor-name-dictionary.md). No generated spelling variants are merged. The original page and its dictionary remain untouched.
 
 Download and cache-bypassing Refresh controls expose the same self-hosted JSON. The page reports its loaded counts/date. Refreshing a loaded review requires a fresh scan and revokes prepared output. Matching folds accents and apostrophes while preserving the source text. Limits expand to 200,000 entries per list and 6 MB; all 82 reported Node tests pass. No document requests are sent to upstream publishers.
+
+### Balanced report vocabulary filter (14 October 2026)
+
+The sourced dictionary includes rare word names such as The and Action. Balanced mode now rejects function words and administrative report vocabulary within candidate names, including Action Plan and The Audit. The dictionary itself is unchanged. Added real-corpus regression checks for narrative headings and fictional distribution-list names, including author fields and unknown surnames. Explicit supplied terms remain available for names missed by automatic inference.
+
+Automatic PDF boxes still cover entire extracted text fragments, so a name and its adjacent role can share one box. The settings guidance now explains this and directs reviewers to adjust the box before approving. This change does not introduce estimated character geometry.

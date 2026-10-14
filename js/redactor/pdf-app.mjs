@@ -79,6 +79,7 @@ function releaseReady() {
   );
 }
 function update() {
+  $("demo").disabled = busy;
   const pending = marks.filter((m) => m.status === "pending").length;
   $("counts").textContent = source
     ? `${marks.length} areas · ${pending} pending`
@@ -269,8 +270,7 @@ $("clear").onclick = () => {
   reset();
   status("Session cleared. Already downloaded files remain on your device.");
 };
-$("pdfFile").onchange = async () => {
-  const file = $("pdfFile").files[0];
+async function loadFile(file) {
   if (!file) return;
   reset();
   const token = generation;
@@ -322,6 +322,23 @@ $("pdfFile").onchange = async () => {
       update();
       await showPage();
     }
+  }
+}
+$("pdfFile").onchange = () => loadFile($("pdfFile").files[0]);
+$("demo").onclick = async () => {
+  const token = generation;
+  $("demo").disabled = true;
+  status("Loading the fictional demonstration PDF…");
+  try {
+    const response = await fetch(new URL("../../assets/redaction-demo.pdf", import.meta.url));
+    if (!response.ok) throw new Error("Could not load the demonstration PDF.");
+    const bytes = await response.arrayBuffer();
+    if (token !== generation) return;
+    await loadFile(new File([bytes], "fictional-demo.pdf", {type:"application/pdf"}));
+  } catch (error) {
+    if (token === generation) status(error.message, true);
+  } finally {
+    update();
   }
 };
 $("prev").onclick = () => {

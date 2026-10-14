@@ -8,8 +8,8 @@ import {
   restorePdfReview,
   PDF_LIMITS,
   PDF_VERSION,
-} from "./pdf-engine.js";
-import { detect } from "./core.js";
+} from "./pdf-engine.js?v=assisted-1";
+import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js";
 const $ = (id) => document.getElementById(id);
 let source = null,
   marks = [],
@@ -23,6 +23,8 @@ let generation = 0,
   viewReady = false,
   busy = false,
   drag = null;
+let assistSettingsDirty = false, lexiconPromise = null;
+const groupChoices = new Map();
 const workingChecks = new Set(),
   finalChecks = new Set(),
   urls = new Set();
@@ -59,6 +61,7 @@ function ready() {
   return (
     !!source &&
     !busy &&
+    !assistSettingsDirty &&
     workingChecks.size === source.pages.length &&
     marks.every((m) => m.status !== "pending" && m.reason.trim()) &&
     f.caseRef &&
@@ -80,6 +83,7 @@ function releaseReady() {
 }
 function update() {
   $("demo").disabled = busy;
+  updateAssistant();
   const pending = marks.filter((m) => m.status === "pending").length;
   $("counts").textContent = source
     ? `${marks.length} areas · ${pending} pending`
@@ -113,7 +117,9 @@ function update() {
     ? "Load a PDF to begin."
     : busy
       ? "Preparing and verifying page images…"
-      : pending
+      : assistSettingsDirty
+      ? "Detection settings changed. Run automatic suggestions again before release."
+    : pending
         ? `Resolve ${pending} pending area decisions.`
         : marks.some((m) => !m.reason.trim())
           ? "Record a reason for every area decision."
@@ -227,7 +233,8 @@ async function showPage() {
       status(`Could not render this page: ${e.message}`, true);
   }
 }
-function reset() {
+function reset(preserveAssist = false) {
+  if (!preserveAssist) for (const id of ["assistTerms", "assistExclusions", "assistReason"]) $(id).value = "";
   generation++;
   viewToken++;
   revision++;
@@ -235,6 +242,9 @@ function reset() {
   source?.doc.destroy().catch(() => {});
   source = null;
   marks = [];
+  assistSettingsDirty = false;
+  groupChoices.clear();
+  $("assistInfo").textContent = "";
   workingChecks.clear();
   selected = null;
   pageIndex = 0;
@@ -272,7 +282,7 @@ $("clear").onclick = () => {
 };
 async function loadFile(file) {
   if (!file) return;
-  reset();
+  reset(true);
   const token = generation;
   busy = true;
   update();
@@ -286,28 +296,12 @@ async function loadFile(file) {
       return;
     }
     source = loaded;
-    for (let page = 0; page < source.pages.length; page++)
-      for (const fragment of source.pages[page].fragments) {
-        const types = detect(fragment.text).map((d) => d.type);
-        if (types.length && fragment.rect) {
-          if (marks.length >= PDF_LIMITS.marks)
-            throw new Error(
-              "Too many suggestions for one PDF. Split the source.",
-            );
-          marks.push({
-            id: `P${nextId++}`,
-            page,
-            rect: { ...fragment.rect },
-            status: "pending",
-            reason: "",
-            hint: `${[...new Set(types)].join(", ")} suggestion: ${fragment.text}`,
-          });
-        }
-      }
+    await scanAssistance(token);
+    if (token !== generation) return;
     $("sourceInfo").textContent =
       `${source.pages.length} pages · Source SHA-256 ${source.sourceHash}. Text-pattern suggestions cover whole fragments. No guarantee of complete detection.`;
     status(
-      "PDF loaded. Inspect whole-fragment suggestions, mark anything missed and check every page against the original.",
+      "First pass complete. Review the suggested groups, apply a shared reason and batch decision, then inspect every page and mark anything missed.",
     );
   } catch (e) {
     if (token === generation) {
@@ -426,6 +420,8 @@ $("adjust").onclick = () => {
       marks.map((x) => (x === m ? changed : x)),
       source.pages,
     );
+    delete changed.assistantType;
+    delete m.assistantType;
     Object.assign(m, changed);
     invalidate();
     populateAreas();
@@ -509,6 +505,93 @@ $("overlay").onpointerup = (e) => {
 $("overlay").onpointercancel = () => {
   drag = null;
   paintOverlay();
+};
+function assistOptions() {
+  return {identifiers:$("assistIdentifiers").checked, addresses:$("assistAddresses").checked,
+    names:$("assistNames").value, companies:$("assistCompanies").checked, dates:$("assistDates").checked,
+    terms:$("assistTerms").value, exclusions:$("assistExclusions").value};
+}
+async function localLexicon() {
+  if (!lexiconPromise) lexiconPromise = (async () => {
+    const response = await fetch(new URL("../../assets/name-lexicon.json", import.meta.url), {signal:AbortSignal.timeout(10000)});
+    if (!response.ok) throw new Error("Local name list unavailable.");
+    const text = await response.text();
+    if (text.length > 2e6) throw new Error("Local name list exceeds its limit.");
+    return makeLexicon(JSON.parse(text));
+  })().catch(() => {lexiconPromise=null; return null;});
+  return lexiconPromise;
+}
+async function scanAssistance(token) {
+  const options=assistOptions(), lexicon=options.names==='off'?null:await localLexicon();
+  if (token!==generation || !source) return;
+  const result=assistPdf(source.pages,options,lexicon);
+  const merged=mergeAssist(marks,result.areas,nextId);
+  validateMarks(merged.marks,source.pages);
+  marks=merged.marks; nextId=merged.nextId; selected=null;
+  assistSettingsDirty=false;
+  const unreadable=source.pages.filter(p=>!p.fragments.length).length;
+  $("assistInfo").textContent = `${result.areas.length} suggested fragment areas. Existing decisions and manual areas were preserved. ` +
+    (merged.skipped?`${merged.skipped} proposals overlap existing decisions or manual areas; those regions were left unchanged and need manual review. `:'') +
+    (result.excludedFragments?`${result.excludedFragments} matches share fragments with excluded terms and need manual review. `:'') +
+    (result.unlocatable?`${result.unlocatable} matches could not be positioned and need manual marking. `:'') +
+    (unreadable?`${unreadable} pages have no extracted text; inspect images and scans manually. `:'') +
+    (options.names!=='off'&&!lexicon?'The local name list was unavailable; only context and supplied terms were used for names. ':'') +
+    'A clean scan never proves complete redaction.';
+}
+function updateAssistant() {
+  const locked=!source||busy||$("finalMode").checked;
+  $("assistScan").disabled=locked;
+  for(const id of ['assistIdentifiers','assistAddresses','assistNames','assistCompanies','assistDates','assistTerms','assistExclusions'])$(id).disabled=busy;
+  const items=marks.filter(m=>m.status==='pending'&&m.assistantType);
+  const groups=new Map();
+  for(const m of items){if(!groups.has(m.assistantType))groups.set(m.assistantType,[]);groups.get(m.assistantType).push(m);}
+  $("assistGroups").replaceChildren();
+  for(const [type,areas] of groups){
+    if(!groupChoices.has(type))groupChoices.set(type,true);
+    const row=document.createElement('div');row.className='assist-group';
+    const label=document.createElement('label');label.className='check';
+    const input=document.createElement('input');input.type='checkbox';input.checked=groupChoices.get(type);input.disabled=locked;
+    input.onchange=()=>{groupChoices.set(type,input.checked);update();};
+    label.append(input,document.createTextNode(`${type} · ${areas.length} areas on ${new Set(areas.map(m=>m.page)).size} pages`));
+    const sample=document.createElement('p');sample.textContent=areas.slice(0,3).map(m=>m.hint||`Page ${m.page+1}`).join(' | ').slice(0,450);
+    row.append(label,sample);$("assistGroups").append(row);
+  }
+  const count=batchCandidates().length;
+  $("assistSummary").textContent=assistSettingsDirty?'Settings changed: run again':source?`${items.length} pending automatic areas`:'Ready when a PDF is loaded';
+  for(const id of ['assistRedact','assistKeep','assistNext'])$(id).disabled=locked||assistSettingsDirty||!count;
+  $("assistRedact").textContent=`Redact selected suggestions${count?` (${count})`:''}`;
+}
+function batchCandidates(){
+  return marks.filter(m=>m.status==='pending'&&m.assistantType&&groupChoices.get(m.assistantType)&&($("assistScope").value!=='page'||m.page===pageIndex));
+}
+for(const id of ['assistIdentifiers','assistAddresses','assistNames','assistCompanies','assistDates','assistTerms','assistExclusions']){
+  $(id).addEventListener(['assistTerms','assistExclusions'].includes(id)?'input':'change',()=>{
+    if(source){assistSettingsDirty=true;invalidate();}update();
+  });
+}
+$("assistScope").onchange=()=>update();
+$("assistScan").onclick=async()=>{
+  if(!source||busy||$("finalMode").checked)return;
+  const token=generation;busy=true;invalidate();update();status('Making the automatic first pass locally…');
+  try{await scanAssistance(token);if(token===generation)status('Suggestions updated. Select groups and a shared reason, then review every page.');}
+  catch(e){if(token===generation){assistSettingsDirty=true;status(e.message,true);}}
+  finally{if(token===generation){busy=false;populateAreas();paintOverlay();update();}}
+};
+for(const action of ['redact','keep'])$(action==='redact'?'assistRedact':'assistKeep').onclick=()=>{
+  if(!source||busy||assistSettingsDirty||$("finalMode").checked)return;
+  try{
+    const result=batchAssist(marks,{types:[...groupChoices].filter(([,on])=>on).map(([type])=>type),page:$("assistScope").value==='page'?pageIndex:null,reason:$("assistReason").value,action});
+    if(!result.changed)return status('Select a pending suggestion group.',true);
+    marks=result.marks;invalidate();populateAreas();paintOverlay();
+    status(`${result.changed} automatic areas set to ${action} with the shared reason. Inspect every page and adjust any unsuitable whole-fragment boxes.`);
+  }catch(e){status(e.message,true);}
+};
+$("assistNext").onclick=async()=>{
+  if(!source||busy||$("finalMode").checked)return;
+  const candidates=batchCandidates(),index=candidates.findIndex(m=>m.id===selected),m=candidates[(index+1)%candidates.length];
+  if(!m)return;
+  selected=m.id;pageIndex=m.page;setCoordinates(m.rect);$("reason").value=m.reason||$("assistReason").value;
+  await showPage();$("pageFrame").scrollIntoView({block:'center',behavior:'smooth'});
 };
 $("find").onclick = () => {
   if (!source || busy) return;
@@ -603,6 +686,9 @@ $("resume").onchange = async () => {
     const restored = restorePdfReview(JSON.parse(await file.text()), source);
     if (token !== generation || rev !== revision) return;
     marks = restored.marks;
+    assistSettingsDirty = false;
+    groupChoices.clear();
+    $("assistInfo").textContent = "Restored decisions retain their suggestion groups. Detection settings and supplied term lists are not saved; set them before rescanning.";
     nextId = Math.max(0, ...marks.map((m) => Number(m.id.slice(1)))) + 1;
     selected = null;
     for (const id of ["caseRef", "reviewer", "checker"])

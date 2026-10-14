@@ -11,7 +11,7 @@ test('RBC module graph uses server-supported .js paths, including PDF worker',as
   assert.equal(url.pathname.endsWith('.js'),true,url.pathname);
   const code=await readFile(url,'utf8');
   if(url.pathname.includes('/vendor/'))return;
-  for(const m of code.matchAll(/(?:from\s*|import\s*|new URL\(\s*)["'](\.\.?\/[^"']+\.m?js)["']/g))await visit(new URL(m[1],url));
+  for(const m of code.matchAll(/(?:from\s*|import\s*|new URL\(\s*)["'](\.\.?\/[^"']+\.m?js(?:\?[^"']*)?)["']/g))await visit(new URL(m[1],url));
  }
  for(const name of ['redactor-rbc.html','redactor-rbc-text.html']){
   const html=await readFile(new URL(name,root),'utf8');

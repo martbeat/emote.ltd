@@ -93,3 +93,10 @@ h3 {
     max-height: 350px;
   }
 }
+
+.assist-options,.assist-lists,.assist-batch {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0;}
+.assist-options select,.assist-batch select,.assist-batch input,.assist-lists textarea {width:100%;border:1px solid #b9c7be;border-radius:6px;padding:10px;font:inherit;}
+.assist-groups {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;}
+.assist-group {border:1px solid #d5ded8;padding:12px;border-radius:6px;overflow-wrap:anywhere;}
+.assist-group p {margin:6px 0 0;font-size:12px;}
+@media(max-width:650px){.assist-options,.assist-lists,.assist-batch{grid-template-columns:1fr;}}

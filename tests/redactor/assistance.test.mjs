@@ -20,7 +20,7 @@ test('options keep dates and organisations opt-in, known terms match whitespace 
  assert.equal(extras.filter(x=>x.type==='Supplied term').length,2);
 });
 test('names split over PDF fragments mark every source fragment and keep original bounds',()=>{
- const pages=[{fragments:[fragment('Alex',10),fragment('Smith',70),fragment('not sensitive',140)]}];
+ const pages=[{fragments:[{...fragment('Alex',10),rect:{x:10,y:10,width:50,height:14}},{...fragment('Smith',70),rect:{x:70,y:10,width:60,height:14}},fragment('not sensitive',140)]}];
  const r=assistPdf(pages,{...base,terms:'Alex Smith'},lex);
  assert.equal(r.areas.length,2);assert.equal(r.areas[0].rect.x,10);assert.equal(r.areas[1].rect.x,70);
 });
@@ -65,4 +65,37 @@ test('rescanning does not reintroduce a whole-fragment box over a manually adjus
 test('overlapping new fragments remain marked so both portions of a split name are covered',()=>{
  const proposals=[{page:0,rect:{x:10,y:10,width:100,height:14},assistantType:'Person name',hint:'Alex Smith'},{page:0,rect:{x:70,y:10,width:100,height:14},assistantType:'Person name',hint:'Alex Smith'}];
  assert.equal(mergeAssist([],proposals,1).marks.length,2);
+});
+
+const formLex=makeLexicon({givenNames:['amelia','aisha','sofia','patel'],surnames:['patel']});
+const formText='Record everyone’s approval of this Resource Commission (RC) form:\nProject/Programme Sponsor\nAmelia Fenwickson EXAMPLE\nAisha Patel\nClick to enter date.\nPMO & Change Delivery Management\nSofia Brackenmoor - Strategic Lead for Change Delivery (PMO & CD Team Manager)\nFOR INTERNAL PMO & CD TEAM USE\nInternal approval to allocate team member(s)';
+test('balanced finds the three names in a synthetic approval form without its headings or affiliation suffix',()=>{
+ const names=assistText(formText,{names:'balanced'},formLex).matches.filter(m=>m.type==='Person name').map(m=>formText.slice(m.start,m.end));
+ assert.deepEqual(names,['Amelia Fenwickson','Aisha Patel','Sofia Brackenmoor']);
+ const conservative=assistText(formText,{names:'conservative'},formLex).matches.filter(m=>m.type==='Person name').map(m=>formText.slice(m.start,m.end));
+ assert.deepEqual(conservative,['Aisha Patel']);
+});
+test('balanced is the default and role headings do not become name matches',()=>{
+ assert.ok(assistText('Amelia Fenwickson. Sofia Brackenmoor.',{},formLex).matches.some(m=>m.type==='Person name'));
+ const text='Name: Resource Commission. May Budget. Project Programme Sponsor. Strategic Lead. Internal Approval. Amelia Example Trust.';
+ const lex=makeLexicon({givenNames:['may','amelia'],surnames:[]});
+ assert.deepEqual(assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name'),[]);
+});
+test('balanced supports unknown names with explicit context, initials, particles and missing surnames',()=>{
+ const text='Witness: Qiana Zorwick. Sofia A. Brackenmoor. Amelia van der Fenwickson.';
+ const names=assistText(text,{names:'balanced'},formLex).matches.filter(m=>m.type==='Person name').map(m=>text.slice(m.start,m.end));
+ assert.ok(names.includes('Qiana Zorwick'));assert.ok(names.includes('Sofia A. Brackenmoor'));assert.ok(names.includes('Amelia van der Fenwickson'));
+});
+test('PDF layout prevents candidates spanning unrelated table columns or distant rows',()=>{
+ const f=(text,x,y,width)=>({text,rect:{x,y,width,height:12}});
+ const pages=[{fragments:[f('Amelia',100,10,30),f('Fenwickson',135,10,55),f('EXAMPLE',200,10,30),f('Aisha Patel',100,100,80),f('Click to enter date.',350,100,110),f('Sofia Brackenmoor - Strategic Lead for',100,200,190),f('Change Delivery (PMO & CD',100,214,190),f('Team Manager)',100,228,100),f('Resource Commission',10,300,160)]}];
+ const r=assistPdf(pages,{names:'balanced'},formLex);
+ assert.equal(r.areas.length,4);assert.deepEqual(r.areas.map(a=>a.hint),['Amelia Fenwickson','Amelia Fenwickson','Aisha Patel','Sofia Brackenmoor']);
+ const disconnected=assistPdf([{fragments:[f('Aisha',100,10,30),f('Patel',350,10,30)]}],{names:'balanced'},formLex);
+ assert.equal(disconnected.areas.length,0);
+});
+test('adjacent line-wrapped names remain detectable while separate rows are not joined',()=>{
+ const f=(text,y)=>({text,rect:{x:100,y,width:50,height:12}});
+ assert.equal(assistPdf([{fragments:[f('Amelia',10),f('Fenwickson',24)]}],{names:'balanced'},formLex).areas.length,2);
+ assert.equal(assistPdf([{fragments:[f('Amelia',10),f('Fenwickson',100)]}],{names:'balanced'},formLex).areas.length,0);
 });

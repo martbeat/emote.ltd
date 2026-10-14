@@ -9,7 +9,7 @@ import {
   PDF_LIMITS,
   PDF_VERSION,
 } from "./pdf-engine.js?v=assisted-20261014-0836";
-import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js";
+import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=balanced-20261014-1";
 const $ = (id) => document.getElementById(id);
 let source = null,
   marks = [],

@@ -10,8 +10,8 @@
     />
     <title>RBC Legal redaction review | eMote</title>
     <link rel="stylesheet" href="js/redactor/style.css" />
-    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=reasons-20261014-1" />
-    <script type="module" src="js/redactor/pdf-app.js?v=reasons-20261014-1"></script>
+    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=learning-20261014-1" />
+    <script type="module" src="js/redactor/pdf-app.js?v=learning-20261014-1"></script>
   </head>
   <body>
     <header>
@@ -86,6 +86,12 @@
       <section class="card" id="assistant">
         <div class="section-heading"><h2>02 <span>Let the assistant make the first pass</span></h2><span id="assistSummary" class="badge">Ready when a PDF is loaded</span></div>
         <p>Automatic suggestions are made when you load a PDF. Set the scope, add any known names or references, then run again. Select the groups you want and apply one reason to the batch.</p>
+        <details class="local-learning"><summary>Learn from my previous redactions on this browser</summary>
+          <label class="check"><input id="learningEnabled" type="checkbox" checked>Remember category decisions and preset reason choices</label>
+          <p id="learningStatus" role="status" class="hint"></p>
+          <p class="hint">Stores category counters and preset reason codes in this browser’s local storage. No document text, names, custom reasons, reviewer details or case references are stored. Learned reasons can fill empty fields; decisions and final checks stay yours. History is shared by people using the same browser profile. Clear session leaves this history intact.</p>
+          <div id="learningHistory"></div><button id="forgetLearning" type="button">Forget learned preferences</button>
+        </details>
         <div class="assist-options">
           <label class="check"><input id="assistIdentifiers" type="checkbox" checked>Emails, UK phones, postcodes and NI numbers</label>
           <label class="check"><input id="assistAddresses" type="checkbox" checked>Street addresses</label>

@@ -14,7 +14,7 @@ export function suggestReason(types){
  if(parts.every(x=>['Person name','Email','Telephone','Street address','UK postcode','National Insurance number'].includes(x)))return 'personal';
  return null;
 }
-export function attachReasonPresets(input){
+export function attachReasonPresets(input,{getLearned=()=>null}={}){
  const doc=input.ownerDocument,box=doc.createElement('fieldset');box.className='reason-presets';
  const legend=doc.createElement('legend');legend.textContent='Quick reason';box.append(legend);
  const radios=new Map();let currentTypes=[];
@@ -29,16 +29,18 @@ export function attachReasonPresets(input){
  }
  const label=doc.createElement('label'),auto=doc.createElement('input');auto.type='checkbox';auto.id=input.id+'AutoReason';auto.checked=true;
  label.className='auto-reason';label.append(auto,doc.createTextNode('Auto-fill a suggested reason when this field is empty'));box.append(label);
+ const history=doc.createElement('p');history.className='hint learned-reason';box.append(history);
  input.insertAdjacentElement('beforebegin',box);
  function sync(){
   const key=Object.entries(REASONS).find(([,v])=>v[1]===input.value)?.[0]||'custom';
   radios.get(key).checked=true;
  }
  function suggest(types=currentTypes){
-  currentTypes=types;const key=suggestReason(types);
+  currentTypes=types;const learned=getLearned(types),key=learned?.reasonKey||suggestReason(types);
+  history.textContent=learned?`Previous choices for these categories: ${learned.redact} redact, ${learned.keep} keep. ${learned.reasonKey?'Reason suggested from local history.':'Decide this case independently.'}`:'';
   if(auto.checked&&!input.value.trim()&&key)input.value=REASONS[key][1];
   sync();
  }
  input.addEventListener('input',sync);auto.onchange=()=>suggest();sync();
- return {sync,suggest,lock(value){for(const radio of radios.values())radio.disabled=value;auto.disabled=value;input.disabled=value;},reset(){input.value='';auto.checked=true;currentTypes=[];sync();}};
+ return {sync,suggest,lock(value){for(const radio of radios.values())radio.disabled=value;auto.disabled=value;input.disabled=value;},reset(){input.value='';auto.checked=true;currentTypes=[];history.textContent='';sync();}};
 }

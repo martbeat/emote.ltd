@@ -10,9 +10,27 @@ import {
   PDF_VERSION,
 } from "./pdf-engine.js?v=assisted-20261014-0836";
 import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=balanced-20261014-1";
-import {attachReasonPresets} from "./reason-presets.js";
+import {createLocalLearning} from "./local-learning.js";
+import {attachReasonPresets,REASONS} from "./reason-presets.js?v=learning-20261014-1";
 const $ = (id) => document.getElementById(id);
-const areaReasons=attachReasonPresets($("reason")),batchReasons=attachReasonPresets($("assistReason"));
+let browserStorage=null;try{browserStorage=window.localStorage;}catch{}
+const learning=createLocalLearning(browserStorage);
+const areaReasons=attachReasonPresets($("reason"),{getLearned:types=>learning.prediction(types)}),batchReasons=attachReasonPresets($("assistReason"),{getLearned:types=>learning.prediction(types)});
+function learnArea(m){
+ const preset=Object.entries(REASONS).find(([,value])=>value[1]===m.reason)?.[0]||null;
+ learning.observe(m.id,m.assistantType?[m.assistantType]:['Manual area'],m.status,preset);updateLearning();
+}
+function updateLearning(){
+ $("learningEnabled").checked=learning.enabled;$("learningEnabled").disabled=!learning.available;
+ const rows=learning.summary();
+ $("learningStatus").textContent=!learning.available?'Browser storage is unavailable. Learning is off.':learning.enabled?`Learning on · ${rows.length} categories remembered on this browser.`:'Learning off. Existing history is not used or updated.';
+ $("learningHistory").replaceChildren();
+ for(const row of rows){const p=document.createElement('p');const choices=['redact','keep'].flatMap(action=>Object.entries(row.reasons[action]).filter(([,count])=>count>0).map(([key,count])=>`${action}: ${REASONS[key][0]} (${count})`));p.textContent=`${row.type}: ${row.redact} redact, ${row.keep} keep${choices.length?' · '+choices.join('; '):''}`;$("learningHistory").append(p);}
+ $("forgetLearning").disabled=!rows.length;
+}
+$("learningEnabled").onchange=()=>{learning.setEnabled($("learningEnabled").checked);areaReasons.suggest();batchReasons.suggest();updateLearning();};
+$("forgetLearning").onclick=()=>{learning.forget();areaReasons.suggest();batchReasons.suggest();updateLearning();status('Local learning history cleared. Current document decisions are unchanged.');};
+updateLearning();
 let source = null,
   marks = [],
   pageIndex = 0,
@@ -240,6 +258,7 @@ async function showPage() {
 }
 function reset(preserveAssist = false) {
   if (!preserveAssist) for (const id of ["assistTerms", "assistExclusions", "assistReason"]) $(id).value = "";
+  learning.clearSession();
   areaReasons.reset();
   batchReasons.reset();
   generation++;
@@ -431,6 +450,7 @@ $("adjust").onclick = () => {
     delete changed.assistantType;
     delete m.assistantType;
     Object.assign(m, changed);
+    learnArea(m);
     invalidate();
     populateAreas();
     status("Area adjusted. It needs a fresh decision and review.");
@@ -447,6 +467,7 @@ for (const action of ["redact", "keep"])
       return status("Record a reason before deciding this area.", true);
     m.status = action;
     m.reason = reason;
+    learnArea(m);
     invalidate();
     populateAreas();
     status(`Area ${m.id} set to ${action}. Page checks and final copy reset.`);
@@ -455,12 +476,14 @@ $("reason").oninput = () => {
   const m = marks.find((m) => m.id === selected);
   if (m && !busy && !$("finalMode").checked) {
     m.reason = $("reason").value;
+    if(m.status!=="pending")learnArea(m);
     invalidate();
     populateAreas();
   }
 };
 $("remove").onclick = () => {
   if (busy || $("finalMode").checked) return;
+  const removed=marks.find(m=>m.id===selected);if(removed){learning.observe(removed.id,[],"pending",null);updateLearning();}
   marks = marks.filter((m) => m.id !== selected);
   selected = null;
   invalidate();
@@ -591,6 +614,7 @@ for(const action of ['redact','keep'])$(action==='redact'?'assistRedact':'assist
   try{
     const result=batchAssist(marks,{types:[...groupChoices].filter(([,on])=>on).map(([type])=>type),page:$("assistScope").value==='page'?pageIndex:null,reason:$("assistReason").value,action});
     if(!result.changed)return status('Select a pending suggestion group.',true);
+    for(const m of result.marks)if(m!==marks.find(old=>old.id===m.id))learnArea(m);
     marks=result.marks;invalidate();populateAreas();paintOverlay();
     status(`${result.changed} automatic areas set to ${action} with the shared reason. Inspect every page and adjust any unsuitable whole-fragment boxes.`);
   }catch(e){status(e.message,true);}
@@ -599,8 +623,9 @@ $("assistNext").onclick=async()=>{
   if(!source||busy||$("finalMode").checked)return;
   const candidates=batchCandidates(),index=candidates.findIndex(m=>m.id===selected),m=candidates[(index+1)%candidates.length];
   if(!m)return;
-  selected=m.id;pageIndex=m.page;setCoordinates(m.rect);$("reason").value=m.reason||$("assistReason").value;
+  selected=m.id;pageIndex=m.page;setCoordinates(m.rect);$("reason").value=m.reason;
   areaReasons.suggest(m.assistantType?[m.assistantType]:[]);
+  if(!$("reason").value.trim()){$("reason").value=$("assistReason").value;areaReasons.sync();}
   await showPage();$("pageFrame").scrollIntoView({block:'center',behavior:'smooth'});
 };
 $("find").onclick = () => {

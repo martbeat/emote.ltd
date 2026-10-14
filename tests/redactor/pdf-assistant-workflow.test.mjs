@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
+import * as memory from '../../js/redactor/local-learning.js';
 import * as reasons from '../../js/redactor/reason-presets.js';
 import * as assistance from '../../js/redactor/assistance.js';
 const root=new URL('../../',import.meta.url);
@@ -15,7 +16,7 @@ async function harness(){
  window.HTMLElement.prototype.scrollIntoView=()=>{};
  const pages=[{width:600,height:800,fragments:[{text:'Alex Smith',rect:{x:10,y:10,width:110,height:14}},{text:'alex@example.org',rect:{x:10,y:30,width:130,height:14}}]}, {width:600,height:800,fragments:[{text:'Maria Garcia',rect:{x:10,y:10,width:110,height:14}}]}];
  const source={pages,sourceHash:'a'.repeat(64),doc:{destroy:async()=>{}}};
- const dependencies={...engine,...assistance,...reasons,openPdf:async()=>source,renderPage:async()=>Object.assign(document.createElement('canvas'),{width:1200,height:1600}),buildRelease:async()=>({bytes:new Uint8Array([1]),sha256:'b'.repeat(64),doc:{destroy:async()=>{}}})};
+ const dependencies={...engine,...assistance,...reasons,...memory,openPdf:async()=>source,renderPage:async()=>Object.assign(document.createElement('canvas'),{width:1200,height:1600}),buildRelease:async()=>({bytes:new Uint8Array([1]),sha256:'b'.repeat(64),doc:{destroy:async()=>{}}})};
  const code=(await readFile(new URL('js/redactor/pdf-app.js',root),'utf8')).replace(/^import[\s\S]*?;\n/gm,'').replaceAll('import.meta.url',JSON.stringify('https://example.test/js/redactor/pdf-app.js'));
  const fetch=async url=>({ok:true,text:async()=>JSON.stringify({givenNames:['alex','maria'],surnames:['smith','garcia']}),arrayBuffer:async()=>new ArrayBuffer(1)});
  const app=new Function('window','document','fetch',...Object.keys(dependencies),code+';return {state:()=>({marks,prepared,workingChecks,finalChecks,assistSettingsDirty}),loadFile};')(window,document,fetch,...Object.values(dependencies));
@@ -68,4 +69,11 @@ test('reason radios fill individual and batch fields and saved custom reasons re
  h.change('reason','Case-specific review note');assert.ok(h.$('reason').ownerDocument.querySelector('input[name="reasonPreset"][value="custom"]').checked);
  assert.ok(h.app.state().marks.some(m=>m.reason==='Case-specific review note'));assert.ok(h.$('prepare').disabled);
  h.$('clear').onclick();assert.equal(h.$('reason').value,'');assert.equal(h.$('assistReason').value,'');
+});
+test('local learning uses actual decisions, survives session clearing and can be forgotten',async()=>{
+ const h=await harness();await h.$('demo').onclick();await h.$('assistNext').onclick();
+ h.$('reason').ownerDocument.querySelector('input[name="reasonPreset"][value="scope"]').click();h.$('redact').onclick();
+ const raw=h.window.localStorage.getItem(memory.LEARNING_KEY);assert.ok(raw);assert.ok(!raw.includes('Alex Smith'));assert.ok(!raw.includes('sourceHash'));
+ h.$('clear').onclick();assert.ok(h.window.localStorage.getItem(memory.LEARNING_KEY));await h.$('demo').onclick();await h.$('assistNext').onclick();assert.match(h.$('reason').value,/agreed scope/);
+ h.$('forgetLearning').onclick();assert.equal(h.window.localStorage.getItem(memory.LEARNING_KEY),null);assert.equal(h.app.state().marks.length,3);assert.match(h.$('learningStatus').textContent,/0 categories/);
 });

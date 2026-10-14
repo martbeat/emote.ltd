@@ -100,3 +100,9 @@ h3 {
 .assist-group {border:1px solid #d5ded8;padding:12px;border-radius:6px;overflow-wrap:anywhere;}
 .assist-group p {margin:6px 0 0;font-size:12px;}
 @media(max-width:650px){.assist-options,.assist-lists,.assist-batch{grid-template-columns:1fr;}}
+
+.reason-presets{border:1px solid #d5ded8;border-radius:6px;padding:10px;margin:10px 0;display:flex;flex-wrap:wrap;gap:8px 14px;}
+.reason-presets legend{font-size:12px;font-weight:700;padding:0 4px;}
+.reason-presets label{display:flex;gap:6px;align-items:flex-start;font-size:12px;cursor:pointer;}
+.reason-presets input{width:auto;flex:none;margin-top:2px;}
+.reason-presets .auto-reason{flex-basis:100%;border-top:1px solid #d5ded8;padding-top:8px;}

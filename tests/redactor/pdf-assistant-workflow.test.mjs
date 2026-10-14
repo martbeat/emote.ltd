@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
+import * as reasons from '../../js/redactor/reason-presets.js';
 import * as assistance from '../../js/redactor/assistance.js';
 const root=new URL('../../',import.meta.url);
 const engineSource=(await readFile(new URL('js/redactor/pdf-engine.js',root),'utf8')).replace(/^import[\s\S]*?;\n/gm,'').replace(/export /g,'').replaceAll('import.meta.url',JSON.stringify('https://example.test/js/redactor/pdf-engine.js')).replace('globalThis.PDFLib','PDFLib');
@@ -14,7 +15,7 @@ async function harness(){
  window.HTMLElement.prototype.scrollIntoView=()=>{};
  const pages=[{width:600,height:800,fragments:[{text:'Alex Smith',rect:{x:10,y:10,width:110,height:14}},{text:'alex@example.org',rect:{x:10,y:30,width:130,height:14}}]}, {width:600,height:800,fragments:[{text:'Maria Garcia',rect:{x:10,y:10,width:110,height:14}}]}];
  const source={pages,sourceHash:'a'.repeat(64),doc:{destroy:async()=>{}}};
- const dependencies={...engine,...assistance,openPdf:async()=>source,renderPage:async()=>Object.assign(document.createElement('canvas'),{width:1200,height:1600}),buildRelease:async()=>({bytes:new Uint8Array([1]),sha256:'b'.repeat(64),doc:{destroy:async()=>{}}})};
+ const dependencies={...engine,...assistance,...reasons,openPdf:async()=>source,renderPage:async()=>Object.assign(document.createElement('canvas'),{width:1200,height:1600}),buildRelease:async()=>({bytes:new Uint8Array([1]),sha256:'b'.repeat(64),doc:{destroy:async()=>{}}})};
  const code=(await readFile(new URL('js/redactor/pdf-app.js',root),'utf8')).replace(/^import[\s\S]*?;\n/gm,'').replaceAll('import.meta.url',JSON.stringify('https://example.test/js/redactor/pdf-app.js'));
  const fetch=async url=>({ok:true,text:async()=>JSON.stringify({givenNames:['alex','maria'],surnames:['smith','garcia']}),arrayBuffer:async()=>new ArrayBuffer(1)});
  const app=new Function('window','document','fetch',...Object.keys(dependencies),code+';return {state:()=>({marks,prepared,workingChecks,finalChecks,assistSettingsDirty}),loadFile};')(window,document,fetch,...Object.values(dependencies));
@@ -26,7 +27,7 @@ async function harness(){
 test('demonstration makes first-pass groups, explicit batch reason is required and release gates remain',async()=>{
  const h=await harness();await h.$('demo').onclick();
  assert.equal(h.app.state().marks.length,3);assert.equal(h.$('assistGroups').children.length,2);
- h.$('assistRedact').onclick();assert.ok(h.app.state().marks.every(m=>m.status==='pending'));assert.match(h.$('status').textContent,/shared reason/);
+ h.change('assistReason','');h.$('assistRedact').onclick();assert.ok(h.app.state().marks.every(m=>m.status==='pending'));assert.match(h.$('status').textContent,/shared reason/);
  h.change('assistReason','Personal information selected for removal');h.$('assistRedact').onclick();
  assert.ok(h.app.state().marks.every(m=>m.status==='redact'));assert.ok(h.$('prepare').disabled);assert.equal(h.app.state().workingChecks.size,0);
  h.change('caseRef','TEST');h.change('reviewer','Reviewer A');h.change('checker','Reviewer B');
@@ -54,4 +55,17 @@ test('saved suggestion groups resume without excerpts and malformed group metada
  assert.ok(!JSON.stringify(plan).includes('alex@example.org'));assert.ok(!JSON.stringify(plan).includes('Alex Smith'));
  const restored=engine.restorePdfReview(plan,h.source);assert.equal(restored.marks[0].assistantType,'Person name');
  plan.marks[0].assistantType='<script>';assert.throws(()=>engine.restorePdfReview(plan,h.source),/Invalid PDF area/);
+});
+
+test('reason radios fill individual and batch fields and saved custom reasons remain editable',async()=>{
+ const h=await harness();await h.$('demo').onclick();
+ assert.match(h.$('assistReason').value,/Personal information/);
+ const radio=h.$('assistReason').ownerDocument.querySelector('input[name="assistReasonPreset"][value="scope"]');
+ radio.click();assert.match(h.$('assistReason').value,/agreed scope/);
+ await h.$('assistNext').onclick();
+ h.$('reason').ownerDocument.querySelector('input[name="reasonPreset"][value="confidential"]').click();
+ h.$('redact').onclick();assert.equal(h.app.state().marks.find(m=>m.status==='redact').reason,'Confidential information withheld following review.');
+ h.change('reason','Case-specific review note');assert.ok(h.$('reason').ownerDocument.querySelector('input[name="reasonPreset"][value="custom"]').checked);
+ assert.ok(h.app.state().marks.some(m=>m.reason==='Case-specific review note'));assert.ok(h.$('prepare').disabled);
+ h.$('clear').onclick();assert.equal(h.$('reason').value,'');assert.equal(h.$('assistReason').value,'');
 });

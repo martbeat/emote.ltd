@@ -168,4 +168,4 @@ The expandable learning section displays counts and preset choices, offers an of
 
 Session-local contribution tracking prevents repeated identical clicks inflating counters and replaces a recorded contribution when its decision/reason is corrected. Removed or adjusted areas withdraw the active-session contribution. No session IDs are persisted. Reopening a document is another review session, so these counters are not counts of unique released documents.
 
-All 73 reported Node tests pass, including persistence across model reloads, preference suggestions, custom-data exclusion, corrections, opt-out, forgetting, malformed bounded counters, storage failures and actual UI learning/clearing handlers with mocked rendering. No new real-browser run was available.
+All 74 reported Node tests pass, including persistence across model reloads, preference suggestions, custom-data exclusion, corrections, opt-out, forgetting, malformed bounded counters, storage failures and actual UI learning/clearing handlers with mocked rendering. No new real-browser run was available.

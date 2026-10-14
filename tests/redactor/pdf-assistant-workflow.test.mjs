@@ -77,3 +77,9 @@ test('local learning uses actual decisions, survives session clearing and can be
  h.$('clear').onclick();assert.ok(h.window.localStorage.getItem(memory.LEARNING_KEY));await h.$('demo').onclick();await h.$('assistNext').onclick();assert.match(h.$('reason').value,/agreed scope/);
  h.$('forgetLearning').onclick();assert.equal(h.window.localStorage.getItem(memory.LEARNING_KEY),null);assert.equal(h.app.state().marks.length,3);assert.match(h.$('learningStatus').textContent,/0 categories/);
 });
+
+test('manual areas use learned manual-category reason preferences too',async()=>{
+ const h=await harness();await h.$('demo').onclick();h.$('add').onclick();
+ h.$('reason').ownerDocument.querySelector('input[name="reasonPreset"][value="scope"]').click();h.$('redact').onclick();
+ h.change('x','250');h.change('y','250');h.$('add').onclick();assert.match(h.$('reason').value,/agreed scope/);
+});

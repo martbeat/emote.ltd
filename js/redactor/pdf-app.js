@@ -174,7 +174,7 @@ function populateAreas() {
       selected = m.id;
       setCoordinates(m.rect);
       $("reason").value = m.reason;
-      areaReasons.suggest(m.assistantType?[m.assistantType]:[]);
+      areaReasons.suggest(m.assistantType?[m.assistantType]:['Manual area']);
       populateAreas();
       update();
       paintOverlay();
@@ -427,7 +427,7 @@ function addArea(rect, hint = "Manually marked area") {
     selected = item.id;
     setCoordinates(rect);
     $("reason").value = "";
-    areaReasons.sync();
+    areaReasons.suggest(['Manual area']);
     invalidate();
     populateAreas();
     status(
@@ -624,7 +624,7 @@ $("assistNext").onclick=async()=>{
   const candidates=batchCandidates(),index=candidates.findIndex(m=>m.id===selected),m=candidates[(index+1)%candidates.length];
   if(!m)return;
   selected=m.id;pageIndex=m.page;setCoordinates(m.rect);$("reason").value=m.reason;
-  areaReasons.suggest(m.assistantType?[m.assistantType]:[]);
+  areaReasons.suggest(m.assistantType?[m.assistantType]:['Manual area']);
   if(!$("reason").value.trim()){$("reason").value=$("assistReason").value;areaReasons.sync();}
   await showPage();$("pageFrame").scrollIntoView({block:'center',behavior:'smooth'});
 };

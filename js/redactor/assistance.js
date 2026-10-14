@@ -5,7 +5,7 @@ const STOP = new Set('reading borough council legal information governance custo
 const TOKEN = "[\\p{Lu}][\\p{L}'’\\-]{1,}";
 const NAME = `${TOKEN}(?:[ \\t\\n]+(?:de|del|da|van|von|al|la))?[ \\t\\n]+${TOKEN}(?:[ \\t]+${TOKEN})?`;
 // Balanced accepts plausible surnames outside the lexicon, but excludes form/role vocabulary.
-const BALANCED_STOP = new Set([...STOP,...'approval approve approvals form resource commission project programme program sponsor pmo change delivery management strategic lead manager internal use record please click enter yes no team board committee director officer senior executive chief assistant finance budget policy report summary appendix section document council trust partnership limited ltd llp plc inc corporation company organisation organization association foundation hospital school'.split(' ')]);
+const BALANCED_STOP = new Set([...STOP,...'approval approve approvals form resource commission project programme program sponsor pmo change delivery management strategic lead manager internal use record please click enter yes no team board committee director officer senior executive chief assistant finance budget policy report summary appendix section document council trust partnership limited ltd llp plc inc corporation company organisation organization association foundation hospital school auditor assurance definition recommendation recommendations opinion background objectives regulation traffic'.split(' ')]);
 const PARTICLES = new Set('de del da van von al la der den'.split(' '));
 const BALANCED_NAME = `${TOKEN}(?:[ \t\n]+(?:${TOKEN}|[\\p{Lu}]\\.?|de|del|da|van|von|al|la|der|den)){1,4}`;
 function balancedPhrase(phrase,lexicon,context=false){
@@ -22,6 +22,8 @@ function balancedPhrase(phrase,lexicon,context=false){
  if(!/^[\p{Lu}][\p{L}'’\-]+$/u.test(tokens[last][0])||/^[\p{Lu}]{2,}$/u.test(tokens[last][0]))return '';
  return phrase.slice(0,tokens[last].index+tokens[last][0].length);
 }
+const PERSONAL_FIELD = /^(?:report\s+author|author|prepared\s+by|written\s+by|reviewed\s+by|approved\s+by|report\s+owner|contact\s+officer|officer\s+name|name|claimant|defendant|witness|applicant)\s*:?$/iu;
+const ROLE_TAIL = /^[ \t]*[,–—-][ \t]*(?:(?:senior|principal|lead|assistant|chief|deputy)[ \t]+)*(?:auditor|solicitor|lawyer|manager|officer|director|consultant|engineer|analyst|accountant|executive|head\s+of)\b/iu;
 export function fragmentSeparator(previous,current){
  if(!previous)return '';
  const a=previous.rect,b=current.rect;
@@ -29,6 +31,8 @@ export function fragmentSeparator(previous,current){
  const height=Math.max(a.height,b.height),gap=b.x-(a.x+a.width);
  const sameLine=Math.abs((a.y+a.height/2)-(b.y+b.height/2))<=height*.5;
  if(sameLine&&gap>=-height*2&&gap<=height*3)return ' ';
+ // A personal-field label provides stronger evidence than ordinary neighbouring columns.
+ if(PERSONAL_FIELD.test(previous.text.trim())&&sameLine&&gap>=0&&gap<=300)return ' ';
  const nextLine=b.y>a.y&&b.y-a.y<=height*2&&Math.abs(b.x-a.x)<=height*2;
  return nextLine?'\n':'\u0000';
 }
@@ -69,12 +73,23 @@ export function assistText(text,options={},lexicon=null){
    if(o.names==='balanced'&&organisationTail.test(text.slice(start+phrase.length)))continue;
    add('Person name',start,start+phrase.length);
   }
+  // Match field labels separately so case-insensitive labels do not weaken name casing.
+  const fields=/\b(?:report[ \t]+author|author|prepared[ \t]+by|written[ \t]+by|reviewed[ \t]+by|approved[ \t]+by|report[ \t]+owner|contact[ \t]+officer|officer[ \t]+name)[ \t]*:?[ \t\n]+/giu;
+  for(const field of text.matchAll(fields)){
+   const start=field.index+field[0].length;
+   const candidate=new RegExp(`^(${namePattern})(?![\\p{L}\\p{N}])`,'u').exec(text.slice(start));
+   if(!candidate)continue;
+   const phrase=o.names==='balanced'?balancedPhrase(candidate[1],lexicon,true):candidate[1];
+   if(!phrase||phrase.split(/\s+/).some(word=>STOP.has(folded(word))))continue;
+   if(organisationTail.test(text.slice(start+phrase.length)))continue;
+   add('Person name',start,start+phrase.length);
+  }
   const names=new RegExp(`(?=(?<![\\p{L}\\p{N}])(${namePattern})(?![\\p{L}\\p{N}]))`,'gu');
   for(const m of text.matchAll(names)){
    let phrase=m[1],words=phrase.split(/\s+/).map(folded);
    if(o.names==='balanced'){
     if(found.some(x=>x.type==='Person name'&&x.start<m.index&&m.index<x.end))continue;
-    phrase=balancedPhrase(phrase,lexicon);
+    phrase=balancedPhrase(phrase,lexicon,ROLE_TAIL.test(text.slice(m.index+phrase.length)));
     if(!phrase)continue;
     const tail=text.slice(m.index+phrase.length);
     if(organisationTail.test(tail))continue;

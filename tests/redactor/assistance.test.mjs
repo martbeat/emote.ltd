@@ -99,3 +99,27 @@ test('adjacent line-wrapped names remain detectable while separate rows are not 
  assert.equal(assistPdf([{fragments:[f('Amelia',10),f('Fenwickson',24)]}],{names:'balanced'},formLex).areas.length,2);
  assert.equal(assistPdf([{fragments:[f('Amelia',10),f('Fenwickson',100)]}],{names:'balanced'},formLex).areas.length,0);
 });
+test('report-author and prepared-by fields find unfamiliar full names without dictionary entries',()=>{
+ const lex=makeLexicon({givenNames:[],surnames:[]});
+ for(const label of ['Report Author:','REPORT AUTHOR:','Author:','Prepared by:','Written by','Reviewed by:','Approved by:','Contact officer:']){
+  const text=`${label}\nQiana Zorwick, Senior Auditor`;
+  const names=assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name').map(m=>text.slice(m.start,m.end));
+  assert.deepEqual(names,['Qiana Zorwick'],label);
+ }
+});
+test('name plus job title supplies evidence but does not mark the job title as a name',()=>{
+ const lex=makeLexicon({givenNames:[],surnames:[]});
+ const text='Qiana Zorwick, Senior Auditor. Elora Fenwickson - Principal Solicitor. Resource Commission, Senior Manager.';
+ const names=assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name').map(m=>text.slice(m.start,m.end));
+ assert.deepEqual(names,['Qiana Zorwick','Elora Fenwickson']);
+});
+test('personal-field table labels bridge a wider cell gap without joining ordinary table columns',()=>{
+ const f=(text,x,width)=>({text,rect:{x,y:10,width,height:12}}),lex=makeLexicon({givenNames:[],surnames:[]});
+ const pages=[{fragments:[f('Report Author:',10,70),f('Qiana Zorwick',190,90),f(', Senior Auditor',280,100)]}];
+ const found=assistPdf(pages,{names:'balanced'},lex);assert.equal(found.areas.length,1);assert.equal(found.areas[0].hint,'Qiana Zorwick');assert.equal(found.areas[0].rect.x,190);
+ const ordinary=assistPdf([{fragments:[f('Qiana',10,40),f('Zorwick',190,90)]}],{names:'balanced'},makeLexicon({givenNames:['qiana'],surnames:[]}));assert.equal(ordinary.areas.length,0);
+});
+test('organisation and form-label values are not treated as authors solely because of the field',()=>{
+ const lex=makeLexicon({givenNames:[],surnames:[]});
+ for(const text of ['Report Author: Resource Commission','Report Author: Strategic Lead','Report Author: Qiana Zorwick Limited'])assert.equal(assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name').length,0);
+});

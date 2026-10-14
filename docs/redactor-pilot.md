@@ -2,7 +2,7 @@
 
 ## Required original layout preservation
 
-Requirement confirmed 13 October 2026: the original Word layout must be preserved. Text reconstruction is therefore unacceptable for Word-source release copies. This build allows Word-source review for evaluation but blocks every prepared export from that source, even if the review declarations are complete. Pasted-text evaluation exports remain available. A separate PDF page-review route is implemented at redactor-pdf.html. It rebuilds the rendered page appearance as a fresh image-only release PDF; native DOCX exports remain blocked.
+Requirement confirmed 13 October 2026: the original Word layout must be preserved. Text reconstruction is therefore unacceptable for Word-source release copies. This build allows Word-source review for evaluation but blocks every prepared export from that source, even if the review declarations are complete. Pasted-text evaluation exports remain available. A separate PDF page-review route is implemented at redactor-rbc.html. It rebuilds the rendered page appearance as a fresh image-only release PDF; native DOCX exports remain blocked.
 
 Acceptance requires the same page count, page size, orientation, margins, section breaks, table geometry, numbering, headers, footers and positions of retained content as the checked original, with differences confined to approved redaction areas. Required withheld content must also be absent from text extraction, metadata, links, comments, attachments and other recoverable representations. Equal-length replacement strings alone do not satisfy page-layout preservation because glyph widths and line wrapping can change.
 
@@ -39,7 +39,7 @@ The source and reviewed text remain in memory until the page is abandoned or the
 
 ## Run and test
 
-Serve the repository using an ordinary static server and open `/redactor.html` over HTTPS, or localhost for development. ES modules, Web Crypto and `DecompressionStream('deflate-raw')` are required. No production dependency installation or build step is needed. Test on the actual managed browser before any pilot.
+Serve the repository using an ordinary static server and open `/redactor-rbc-text.html` over HTTPS, or localhost for development. ES modules, Web Crypto and `DecompressionStream('deflate-raw')` are required. No production dependency installation or build step is needed. Test on the actual managed browser before any pilot.
 
 Run the automated checks with Node 24 or later:
 
@@ -96,7 +96,7 @@ Before the PDF engine can be used operationally, acceptance must demonstrate: or
 
 ## PDF page review and release implementation
 
-Open `redactor-pdf.html` for the new PDF route. Word users first export a PDF in Word and compare that PDF with the original. Automatic Word conversion is not implemented. Loading a DOCX in the text route still blocks release rather than reconstructing its layout.
+Open `redactor-rbc.html` for the new PDF route. Word users first export a PDF in Word and compare that PDF with the original. Automatic Word conversion is not implemented. Loading a DOCX in the text route still blocks release rather than reconstructing its layout.
 
 The PDF source is rendered locally with pinned, self-hosted PDF.js 5.6.205 assets and standard fonts. PDF-Lib 1.17.1 creates the new release PDF. Original pages and objects are never copied: the renderer produces opaque page pixels, approved areas are replaced with black pixels including a one-point safety margin, those altered pixels are encoded as fresh PNGs and the new images are placed on new pages of the displayed original dimensions. Cropping and rotation are accounted for by the page viewport. The output is rasterised at 144 DPI, which preserves the rendered appearance rather than the original vector representation. It loses searchable text, selectable text, tags, links and vector scalability. It is not appropriate for every litigation or accessibility requirement, even where PDF is acceptable.
 

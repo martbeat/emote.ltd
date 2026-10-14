@@ -21,7 +21,7 @@ const root = process.env.PDF_FIXTURE_ROOT || "/tmp/emote-pdf-qa";
     requests.push({ url: r.url(), method: r.method() }),
   );
   page.on("dialog", (d) => d.accept());
-  await page.goto("http://127.0.0.1:8767/redactor-pdf.html");
+  await page.goto("http://127.0.0.1:8767/redactor-rbc.html");
   await page.locator("#pdfFile").setInputFiles(path.join(root, "source.pdf"));
   await page.waitForFunction(
     () =>

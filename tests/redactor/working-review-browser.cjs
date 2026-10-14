@@ -5,7 +5,7 @@ const fs=require('node:fs/promises');
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_EXECUTABLE||undefined,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});const errors=[],requests=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));page.on('dialog',d=>d.accept());
- await page.goto('http://127.0.0.1:8766/redactor.html');
+ await page.goto('http://127.0.0.1:8766/redactor-rbc-text.html');
  assert(await page.locator('#saveReview').isDisabled());
  await page.locator('#paste').fill('Synthetic name to redact');await page.locator('#load').click();await page.waitForFunction(()=>document.querySelector('#source').value==='Synthetic name to redact');
  await page.locator('#term').fill('Synthetic name');await page.locator('#find').click();await page.locator('.decision').getByRole('button',{name:'Redact',exact:true}).click();await page.locator('.decision input').fill('Fictional test reason');

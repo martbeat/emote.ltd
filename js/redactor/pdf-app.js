@@ -8,7 +8,7 @@ import {
   restorePdfReview,
   PDF_LIMITS,
   PDF_VERSION,
-} from "./pdf-engine.js?v=assisted-1";
+} from "./pdf-engine.js?v=assisted-20261014-0836";
 import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js";
 const $ = (id) => document.getElementById(id);
 let source = null,

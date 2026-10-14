@@ -1,9 +1,9 @@
-import * as pdfjs from "./vendor/pdf.mjs";
+import * as pdfjs from "./vendor/pdf.js";
 import "./vendor/pdf-lib.js";
-import { hash } from "./core.mjs";
+import { hash } from "./core.js";
 const { PDFDocument, PDFName } = globalThis.PDFLib;
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "./vendor/pdf.worker.mjs",
+  "./vendor/pdf.worker.js",
   import.meta.url,
 ).href;
 export const PDF_VERSION = "2.1.0-pdf-pilot.1";

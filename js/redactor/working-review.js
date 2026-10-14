@@ -1,4 +1,4 @@
-import {VERSION,LIMITS,hash,validateDecisions,detect,overlap} from './core.mjs';
+import {VERSION,LIMITS,hash,validateDecisions,detect,overlap} from './core.js';
 const enc=new TextEncoder();
 export const WORKING_REVIEW_LIMIT=2*1024*1024;
 const textField=(value,max)=>{if(typeof value!=='string'||value.length>max)throw new Error('Invalid working-review field.');return value;};

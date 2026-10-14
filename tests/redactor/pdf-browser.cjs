@@ -115,7 +115,7 @@ const root = process.env.PDF_FIXTURE_ROOT || "/tmp/emote-pdf-qa";
   await page.locator("#report").click();
   await (await reportEvent).saveAs(path.join(root, "record.json"));
   const engineChecks = await page.evaluate(async () => {
-    const e = await import("/js/redactor/pdf-engine.mjs");
+    const e = await import("/js/redactor/pdf-engine.js");
     const dims = [{ width: 612, height: 792 }];
     let rejected = 0;
     for (const rect of [
@@ -196,7 +196,7 @@ const root = process.env.PDF_FIXTURE_ROOT || "/tmp/emote-pdf-qa";
     path.join(root, "rotated-cropped.pdf"),
   );
   const rotated = await page.evaluate(async (bytes) => {
-    const e = await import("/js/redactor/pdf-engine.mjs");
+    const e = await import("/js/redactor/pdf-engine.js");
     const source = await e.openPdf(new Uint8Array(bytes));
     const fragment = source.pages[0].fragments.find((f) =>
       f.text.includes("secret.person@example.org"),
@@ -261,7 +261,7 @@ const root = process.env.PDF_FIXTURE_ROOT || "/tmp/emote-pdf-qa";
   const passiveBytes = await fs.readFile(path.join(root, "passive-link.pdf"));
   assert.equal(
     await page.evaluate(async (bytes) => {
-      const e = await import("/js/redactor/pdf-engine.mjs");
+      const e = await import("/js/redactor/pdf-engine.js");
       const doc = await e.openPdf(new Uint8Array(bytes));
       const count = doc.pages.length;
       await doc.doc.destroy();

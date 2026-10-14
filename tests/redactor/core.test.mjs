@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {deflateRawSync} from 'node:zlib';
 import {JSDOM} from 'jsdom';
 import {readFile,writeFile} from 'node:fs/promises';
-import {VERSION,LIMITS,readZip,writeZip,crc32,buildDocx,importDocx,detect,findLiteral,applyDecisions,canRelease,normaliseText,hash,verifyDocx} from '../../js/redactor/core.mjs';
+import {VERSION,LIMITS,readZip,writeZip,crc32,buildDocx,importDocx,detect,findLiteral,applyDecisions,canRelease,normaliseText,hash,verifyDocx} from '../../js/redactor/core.js';
 globalThis.DOMParser=new JSDOM('').window.DOMParser;
 const enc=new TextEncoder(),dec=new TextDecoder(),W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const xml=body=>`<?xml version="1.0"?><w:document xmlns:w="${W}"><w:body>${body}</w:body></w:document>`;

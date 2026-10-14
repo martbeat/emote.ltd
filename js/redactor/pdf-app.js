@@ -8,8 +8,8 @@ import {
   restorePdfReview,
   PDF_LIMITS,
   PDF_VERSION,
-} from "./pdf-engine.mjs";
-import { detect } from "./core.mjs";
+} from "./pdf-engine.js";
+import { detect } from "./core.js";
 const $ = (id) => document.getElementById(id);
 let source = null,
   marks = [],

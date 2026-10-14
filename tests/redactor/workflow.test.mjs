@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
-import {readZip,writeZip,hash,buildDocx} from '../../js/redactor/core.mjs';
+import {readZip,writeZip,hash,buildDocx} from '../../js/redactor/core.js';
 const html=await readFile(new URL('../../redactor-rbc-text.html',import.meta.url),'utf8');
 const dom=new JSDOM(html,{url:'https://example.test/redactor-rbc-text.html'});
 globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.DOMParser=dom.window.DOMParser;
@@ -11,7 +11,7 @@ const blobs=new Map(),downloads=[];
 URL.createObjectURL=blob=>{const key=`blob:test-${blobs.size}`;blobs.set(key,blob);return key;};URL.revokeObjectURL=()=>{};
 const originalTimeout=globalThis.setTimeout;globalThis.setTimeout=(fn,ms,...args)=>{const timer=originalTimeout(fn,ms,...args);if(ms>=10000)timer.unref();return timer;};
 window.HTMLAnchorElement.prototype.click=function(){downloads.push({name:this.download,blob:blobs.get(this.href)});};
-await import('../../js/redactor/app.mjs');
+await import('../../js/redactor/app.js');
 const $=id=>document.getElementById(id), click=id=>$(id).click();
 function input(id,value){$(id).value=value;$(id).dispatchEvent(new window.Event('input'));}
 function check(id){$(id).checked=true;$(id).dispatchEvent(new window.Event('change'));}

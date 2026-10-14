@@ -1,5 +1,5 @@
-import {saveWorkingReview,restoreWorkingReview,WORKING_REVIEW_LIMIT} from './working-review.mjs';
-import {VERSION,LIMITS,normaliseText,hash,importDocx,detect,findLiteral,overlap,applyDecisions,canRelease,buildDocx,verifyDocx} from './core.mjs';
+import {saveWorkingReview,restoreWorkingReview,WORKING_REVIEW_LIMIT} from './working-review.js';
+import {VERSION,LIMITS,normaliseText,hash,importDocx,detect,findLiteral,overlap,applyDecisions,canRelease,buildDocx,verifyDocx} from './core.js';
 const $=id=>document.getElementById(id), enc=new TextEncoder();
 let state=empty(),generation=0,revision=0,page=0,nextId=1,dirty=false,prepared=null,urls=[];
 function empty(){return {text:'',sourceHash:'',kind:'',warnings:[],decisions:[],started:null};}

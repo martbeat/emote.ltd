@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {hash} from '../../js/redactor/core.mjs';
-import {saveWorkingReview,restoreWorkingReview} from '../../js/redactor/working-review.mjs';
+import {hash} from '../../js/redactor/core.js';
+import {saveWorkingReview,restoreWorkingReview} from '../../js/redactor/working-review.js';
 const enc=new TextEncoder();
 const state={text:'Alice secret@example.org',sourceHash:await hash(enc.encode('Alice secret@example.org')),kind:'Pasted text',decisions:[{id:'R0001',start:0,end:5,type:'Name',status:'redact',reason:'Synthetic test'}]};
 const review={caseRef:'TEST',reviewer:'A',checker:'B',complete:true,output:true,authorised:true};

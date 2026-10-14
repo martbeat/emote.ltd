@@ -83,3 +83,8 @@ test('manual areas use learned manual-category reason preferences too',async()=>
  h.$('reason').ownerDocument.querySelector('input[name="reasonPreset"][value="scope"]').click();h.$('redact').onclick();
  h.change('x','250');h.change('y','250');h.$('add').onclick();assert.match(h.$('reason').value,/agreed scope/);
 });
+test('dictionary refresh displays counts and requires a fresh scan while preserving decisions',async()=>{
+ const h=await harness();await h.$('demo').onclick();h.$('assistRedact').onclick();const before=h.app.state().marks;
+ await h.$('refreshDictionary').onclick();assert.match(h.$('dictionaryInfo').textContent,/Dictionary ready/);assert.ok(h.app.state().assistSettingsDirty);assert.equal(h.app.state().marks,before);assert.ok(h.$('prepare').disabled);
+ await h.$('assistScan').onclick();assert.equal(h.app.state().assistSettingsDirty,false);
+});

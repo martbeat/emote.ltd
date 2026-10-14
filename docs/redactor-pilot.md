@@ -177,3 +177,9 @@ Name fields now include Report Author, Author, Prepared/Written/Reviewed/Approve
 An explicit personal-field label can bridge a wider neighbouring table-cell gap on the same line. Ordinary columns and distant rows retain their hard boundaries. No names are added to local-storage learning or hardcoded into the dictionary for this fix. Whole-fragment boxes can still include an adjoining role, so visual review remains required.
 
 All 78 reported Node tests pass, including fictional unfamiliar author names with empty dictionaries, upper/lower-case labels, name-plus-role evidence, label/value table cells and rejected organisation values. A local check of the screenshot's transcribed author line succeeds. The source PDF was not supplied, so its actual extraction and rendered redaction bounds have not been verified. No new real-browser run was available.
+
+## Downloadable sourced dictionary, 14 October 2026
+
+The RBC route now loads a separate published-name dictionary with 113,448 given names and 156,632 surnames from SSA (1880–2025), the US Census 2020 release (published 2026) and the UK DfE Autumn 2014 top-1,000 lists. See [source attribution, input hashes, rebuild commands and limitations](redactor-name-dictionary.md). No generated spelling variants are merged. The original page and its dictionary remain untouched.
+
+Download and cache-bypassing Refresh controls expose the same self-hosted JSON. The page reports its loaded counts/date. Refreshing a loaded review requires a fresh scan and revokes prepared output. Matching folds accents and apostrophes while preserving the source text. Limits expand to 200,000 entries per list and 6 MB; all 82 reported Node tests pass. No document requests are sent to upstream publishers.

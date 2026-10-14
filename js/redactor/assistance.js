@@ -37,9 +37,9 @@ export function fragmentSeparator(previous,current){
  return nextLine?'\n':'\u0000';
 }
 const organisationTail=/^[ \t]+(?:Trust|Council|Limited|Ltd|LLP|PLC|Inc|Corporation|Company|Partnership|University|College|Foundation|Association)\b/u;
-const folded=s=>s.normalize('NFC').toLocaleLowerCase('en-GB');
+const folded=s=>s.replaceAll('’',"'").normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('en-GB');
 export function makeLexicon(json){
- if(!Array.isArray(json?.givenNames)||!Array.isArray(json?.surnames)||json.givenNames.length>100000||json.surnames.length>100000)throw new Error('Invalid local name lexicon.');
+ if(!Array.isArray(json?.givenNames)||!Array.isArray(json?.surnames)||json.givenNames.length>200000||json.surnames.length>200000)throw new Error('Invalid local name lexicon.');
  return {given:new Set(json.givenNames.filter(x=>typeof x==='string').map(folded)),surname:new Set(json.surnames.filter(x=>typeof x==='string').map(folded))};
 }
 export function parseTerms(value){

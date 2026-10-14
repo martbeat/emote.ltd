@@ -169,3 +169,11 @@ The expandable learning section displays counts and preset choices, offers an of
 Session-local contribution tracking prevents repeated identical clicks inflating counters and replaces a recorded contribution when its decision/reason is corrected. Removed or adjusted areas withdraw the active-session contribution. No session IDs are persisted. Reopening a document is another review session, so these counters are not counts of unique released documents.
 
 All 74 reported Node tests pass, including persistence across model reloads, preference suggestions, custom-data exclusion, corrections, opt-out, forgetting, malformed bounded counters, storage failures and actual UI learning/clearing handlers with mocked rendering. No new real-browser run was available.
+
+## Author fields and role evidence, 14 October 2026
+
+Name fields now include Report Author, Author, Prepared/Written/Reviewed/Approved by, Report Owner and Contact Officer. Field labels are matched case-insensitively without relaxing the casing requirements for their name values. Balanced mode can also use a trailing job title (for example Senior Auditor or Principal Solicitor) as evidence for an unfamiliar full name. Person-name filters still exclude form/role vocabulary and obvious organisation suffixes.
+
+An explicit personal-field label can bridge a wider neighbouring table-cell gap on the same line. Ordinary columns and distant rows retain their hard boundaries. No names are added to local-storage learning or hardcoded into the dictionary for this fix. Whole-fragment boxes can still include an adjoining role, so visual review remains required.
+
+All 78 reported Node tests pass, including fictional unfamiliar author names with empty dictionaries, upper/lower-case labels, name-plus-role evidence, label/value table cells and rejected organisation values. A local check of the screenshot's transcribed author line succeeds. The source PDF was not supplied, so its actual extraction and rendered redaction bounds have not been verified. No new real-browser run was available.

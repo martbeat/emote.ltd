@@ -9,7 +9,7 @@ import {
   PDF_LIMITS,
   PDF_VERSION,
 } from "./pdf-engine.js?v=assisted-20261014-0836";
-import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=author-20261014-1";
+import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=dictionary-20261014-1";
 import {createLocalLearning} from "./local-learning.js";
 import {attachReasonPresets,REASONS} from "./reason-presets.js?v=learning-20261014-1";
 const $ = (id) => document.getElementById(id);
@@ -103,6 +103,7 @@ function releaseReady() {
 }
 function update() {
   $("demo").disabled = busy;
+  $("refreshDictionary").disabled = busy;
   updateAssistant();
   const pending = marks.filter((m) => m.status === "pending").length;
   $("counts").textContent = source
@@ -542,16 +543,27 @@ function assistOptions() {
     names:$("assistNames").value, companies:$("assistCompanies").checked, dates:$("assistDates").checked,
     terms:$("assistTerms").value, exclusions:$("assistExclusions").value};
 }
-async function localLexicon() {
+async function localLexicon(refresh = false) {
   if (!lexiconPromise) lexiconPromise = (async () => {
-    const response = await fetch(new URL("../../assets/name-lexicon.json", import.meta.url), {signal:AbortSignal.timeout(10000)});
+    const url=new URL("../../assets/name-lexicon-rbc-20261014.json",import.meta.url);
+    if(refresh)url.searchParams.set("refresh",String(Date.now()));
+    const response=await fetch(url,{signal:AbortSignal.timeout(20000),cache:refresh?"no-store":"default"});
     if (!response.ok) throw new Error("Local name list unavailable.");
     const text = await response.text();
-    if (text.length > 2e6) throw new Error("Local name list exceeds its limit.");
-    return makeLexicon(JSON.parse(text));
-  })().catch(() => {lexiconPromise=null; return null;});
+    if (text.length > 6e6) throw new Error("Local name list exceeds its limit.");
+    const json=JSON.parse(text),lexicon=makeLexicon(json);
+    $("dictionaryInfo").textContent=`Dictionary ready: ${lexicon.given.size.toLocaleString()} given names and ${lexicon.surname.size.toLocaleString()} surnames · ${String(json.metadata?.updated||"date unavailable").slice(0,40)}. SSA, US Census 2020 and UK DfE aggregate lists.`;
+    return lexicon;
+  })().catch(() => {lexiconPromise=null;$("dictionaryInfo").textContent="Dictionary unavailable. Names rely on author/role context and supplied terms; use Refresh dictionary to retry."; return null;});
   return lexiconPromise;
 }
+$("refreshDictionary").onclick=async()=>{
+  if(busy)return;const token=generation;busy=true;
+  if(source){assistSettingsDirty=true;invalidate();}
+  update();$("dictionaryInfo").textContent='Refreshing the downloadable dictionary from this site…';lexiconPromise=null;
+  try{const lexicon=await localLexicon(true);if(token===generation)status(lexicon?'Dictionary refreshed. Run automatic suggestions again for a loaded PDF.':'Dictionary could not be loaded. Context-based review remains available.',!lexicon);}
+  finally{if(token===generation){busy=false;update();}}
+};
 async function scanAssistance(token) {
   const options=assistOptions(), lexicon=options.names==='off'?null:await localLexicon();
   if (token!==generation || !source) return;

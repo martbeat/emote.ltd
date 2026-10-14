@@ -10,8 +10,8 @@
     />
     <title>RBC Legal redaction review | eMote</title>
     <link rel="stylesheet" href="js/redactor/style.css" />
-    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=author-20261014-1" />
-    <script type="module" src="js/redactor/pdf-app.js?v=author-20261014-1"></script>
+    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=dictionary-20261014-1" />
+    <script type="module" src="js/redactor/pdf-app.js?v=dictionary-20261014-1"></script>
   </head>
   <body>
     <header>
@@ -92,6 +92,9 @@
           <p class="hint">Stores category counters and preset reason codes in this browser’s local storage. No document text, names, custom reasons, reviewer details or case references are stored. Learned reasons can fill empty fields; decisions and final checks stay yours. History is shared by people using the same browser profile. Clear session leaves this history intact.</p>
           <div id="learningHistory"></div><button id="forgetLearning" type="button">Forget learned preferences</button>
         </details>
+        <p id="dictionaryInfo" class="hint" role="status">Published name dictionary loads when a name scan runs. You can refresh or download it separately.</p>
+        <div class="actions"><button id="refreshDictionary" type="button">Refresh dictionary</button><a href="assets/name-lexicon-rbc-20261014.json" download="rbc-name-dictionary.json">Download name dictionary (JSON, 2.6 MB)</a></div>
+        <p class="hint">Published aggregate lists from SSA, the US Census 2020 release and UK DfE. No software-generated spelling variants. These sources are incomplete for rare names and every population; author/role context and your known terms still matter.</p>
         <div class="assist-options">
           <label class="check"><input id="assistIdentifiers" type="checkbox" checked>Emails, UK phones, postcodes and NI numbers</label>
           <label class="check"><input id="assistAddresses" type="checkbox" checked>Street addresses</label>

@@ -1,9 +1,38 @@
 import {detect} from './core.js';
 
-export const DEFAULT_ASSIST = Object.freeze({identifiers:true, addresses:true, names:'conservative', companies:false, dates:false, terms:'', exclusions:''});
+export const DEFAULT_ASSIST = Object.freeze({identifiers:true, addresses:true, names:'balanced', companies:false, dates:false, terms:'', exclusions:''});
 const STOP = new Set('reading borough council legal information governance customer relations joint team department service services university college road street avenue lane close drive court north south east west united kingdom meeting minutes personal data witness statement contact details national insurance reference number date birth'.split(' '));
 const TOKEN = "[\\p{Lu}][\\p{L}'’\\-]{1,}";
 const NAME = `${TOKEN}(?:[ \\t\\n]+(?:de|del|da|van|von|al|la))?[ \\t\\n]+${TOKEN}(?:[ \\t]+${TOKEN})?`;
+// Balanced accepts plausible surnames outside the lexicon, but excludes form/role vocabulary.
+const BALANCED_STOP = new Set([...STOP,...'approval approve approvals form resource commission project programme program sponsor pmo change delivery management strategic lead manager internal use record please click enter yes no team board committee director officer senior executive chief assistant finance budget policy report summary appendix section document council trust partnership limited ltd llp plc inc corporation company organisation organization association foundation hospital school'.split(' ')]);
+const PARTICLES = new Set('de del da van von al la der den'.split(' '));
+const BALANCED_NAME = `${TOKEN}(?:[ \t\n]+(?:${TOKEN}|[\\p{Lu}]\\.?|de|del|da|van|von|al|la|der|den)){1,4}`;
+function balancedPhrase(phrase,lexicon,context=false){
+ const tokens=[...phrase.matchAll(/\S+/gu)],words=tokens.map(x=>folded(x[0]));
+ if(tokens.length<2||(!context&&!lexicon?.given.has(words[0])))return '';
+ let last=1;
+ if(/^[\p{Lu}]\.?$/u.test(tokens[1][0]))last=2;
+ else if(PARTICLES.has(words[1])){while(PARTICLES.has(words[last]))last++;}
+ else if(words.length>2&&((lexicon?.given.has(words[1])&&!lexicon?.surname.has(words[1]))||lexicon?.surname.has(words[2])))last=2;
+ if(!tokens[last])return '';
+ const chosen=words.slice(0,last+1);
+ if(chosen.some(w=>BALANCED_STOP.has(w)))return '';
+ // Initials are allowed in the middle, not as a surname or an organisation acronym.
+ if(!/^[\p{Lu}][\p{L}'’\-]+$/u.test(tokens[last][0])||/^[\p{Lu}]{2,}$/u.test(tokens[last][0]))return '';
+ return phrase.slice(0,tokens[last].index+tokens[last][0].length);
+}
+export function fragmentSeparator(previous,current){
+ if(!previous)return '';
+ const a=previous.rect,b=current.rect;
+ if(!a||!b)return '\u0000';
+ const height=Math.max(a.height,b.height),gap=b.x-(a.x+a.width);
+ const sameLine=Math.abs((a.y+a.height/2)-(b.y+b.height/2))<=height*.5;
+ if(sameLine&&gap>=-height*2&&gap<=height*3)return ' ';
+ const nextLine=b.y>a.y&&b.y-a.y<=height*2&&Math.abs(b.x-a.x)<=height*2;
+ return nextLine?'\n':'\u0000';
+}
+const organisationTail=/^[ \t]+(?:Trust|Council|Limited|Ltd|LLP|PLC|Inc|Corporation|Company|Partnership|University|College|Foundation|Association)\b/u;
 const folded=s=>s.normalize('NFC').toLocaleLowerCase('en-GB');
 export function makeLexicon(json){
  if(!Array.isArray(json?.givenNames)||!Array.isArray(json?.surnames)||json.givenNames.length>100000||json.surnames.length>100000)throw new Error('Invalid local name lexicon.');
@@ -30,15 +59,27 @@ export function assistText(text,options={},lexicon=null){
  if(o.dates)run('Date',/\b(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/gi);
  if(o.names!=='off'){
   // Context and titles are hints, not a determination that the phrase is a person.
-  const contextual=new RegExp(`\\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Name:|Claimant:|Defendant:|Witness:|Applicant:|From:|To:|Signed:)[ \\t]+(${NAME})`,'gu');
+  const namePattern=o.names==='balanced'?BALANCED_NAME:NAME;
+  const contextual=new RegExp(`\\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Name:|Claimant:|Defendant:|Witness:|Applicant:|From:|To:|Signed:)[ \\t]+(${namePattern})`,'gu');
   for(const m of text.matchAll(contextual)){
-   const phrase=m[1],words=phrase.split(/\s+/).map(folded);
+   const phrase=o.names==='balanced'?balancedPhrase(m[1],lexicon,true):m[1],words=phrase.split(/\s+/).map(folded);
+   if(!phrase)continue;
    if(words.some(x=>STOP.has(x)))continue;
-   add('Person name',m.index+m[0].length-phrase.length,m.index+m[0].length);
+   const start=m.index+m[0].length-m[1].length;
+   if(o.names==='balanced'&&organisationTail.test(text.slice(start+phrase.length)))continue;
+   add('Person name',start,start+phrase.length);
   }
-  const names=new RegExp(`(?=(?<![\\p{L}\\p{N}])(${NAME})(?![\\p{L}\\p{N}]))`,'gu');
+  const names=new RegExp(`(?=(?<![\\p{L}\\p{N}])(${namePattern})(?![\\p{L}\\p{N}]))`,'gu');
   for(const m of text.matchAll(names)){
    let phrase=m[1],words=phrase.split(/\s+/).map(folded);
+   if(o.names==='balanced'){
+    if(found.some(x=>x.type==='Person name'&&x.start<m.index&&m.index<x.end))continue;
+    phrase=balancedPhrase(phrase,lexicon);
+    if(!phrase)continue;
+    const tail=text.slice(m.index+phrase.length);
+    if(organisationTail.test(tail))continue;
+    add('Person name',m.index,m.index+phrase.length);continue;
+   }
    if(lexicon?.given.has(words[0])&&lexicon?.surname.has(words[1])){phrase=phrase.match(/\S+\s+\S+/u)[0];words=words.slice(0,2);}
    if(words.some(x=>STOP.has(x)))continue;
    const supported=lexicon?.given.has(words[0])&&lexicon?.surname.has(words.at(-1));
@@ -56,8 +97,8 @@ export function assistText(text,options={},lexicon=null){
 export function assistPdf(pages,options={},lexicon=null){
  const areas=[],unlocatable=[],excludedFragments=[];
  for(let page=0;page<pages.length;page++){
-  let text='';const fragments=pages[page].fragments.map((f,index)=>{
-   const start=text.length;text+=f.text+'\n';return {...f,index,start,end:start+f.text.length};
+  let text='',previous=null;const fragments=pages[page].fragments.map((f,index)=>{
+   text+=fragmentSeparator(previous,f);const start=text.length;text+=f.text;previous=f;return {...f,index,start,end:start+f.text.length};
   });
   const {matches,excluded}=assistText(text,options,lexicon);
   const touched=new Map();

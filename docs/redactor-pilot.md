@@ -127,3 +127,7 @@ python tests/redactor/verify_pdf_release.py /tmp/emote-pdf-qa
 The independent Python check opens the downloaded PDF, verifies original page dimensions and source/output fingerprints, checks absent original metadata/text/annotations/attachments and inspects recoverable embedded images. It checks both fully black approved regions and the surrounding email band for leaked letter fragments. An initial descender leak was found through this check and fixed in the fragment geometry; a black rectangle alone was not treated as evidence of full removal. Generated portrait/landscape/rotated pages and desktop/mobile views were visually inspected.
 
 These checks establish behaviour on the synthetic fixtures, not completeness for all legal documents or approval for live disclosure. Next acceptance inputs are representative synthetic Word/PDF documents, service agreement on image-only outputs, supported fonts/managed browser versions and an approved Word-rendering approach if one-step import is required.
+
+## Static-server script compatibility
+
+Browser modules and the PDF worker use `.js` filenames. The live eMote server serves `.mjs` as `application/octet-stream`, which browsers reject for module scripts. Keep the JavaScript MIME type when deploying. The renamed PDF.js distribution bytes and pinned checksums are unchanged.

@@ -155,7 +155,8 @@ export function validateMarks(marks, pages) {
       !pages[m.page] ||
       !["pending", "redact", "keep"].includes(m.status) ||
       typeof m.reason !== "string" ||
-      m.reason.length > 600
+      m.reason.length > 600 ||
+      (m.assistantType !== undefined && (typeof m.assistantType !== "string" || m.assistantType.length > 160 || !/^[A-Za-z +]+$/.test(m.assistantType)))
     )
       throw new Error("Invalid PDF area decision.");
     ids.add(m.id);
@@ -313,12 +314,13 @@ export function savePdfReview(source, marks, fields) {
       reviewer: fields.reviewer,
       checker: fields.checker,
     },
-    marks: marks.map(({ id, page, rect, status, reason }) => ({
+    marks: marks.map(({ id, page, rect, status, reason, assistantType }) => ({
       id,
       page,
       rect: { ...rect },
       status,
       reason,
+      ...(assistantType ? {assistantType} : {}),
     })),
   };
 }
@@ -344,12 +346,13 @@ export function restorePdfReview(plan, source) {
   )
     throw new Error("Invalid saved review fields.");
   return {
-    marks: plan.marks.map(({ id, page, rect, status, reason }) => ({
+    marks: plan.marks.map(({ id, page, rect, status, reason, assistantType }) => ({
       id,
       page,
       rect: { ...rect },
       status,
       reason,
+      ...(assistantType ? {assistantType} : {}),
       hint: "Restored area",
     })),
     fields: plan.fields,

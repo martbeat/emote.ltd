@@ -10,8 +10,8 @@
     />
     <title>RBC Legal redaction review | eMote</title>
     <link rel="stylesheet" href="js/redactor/style.css" />
-    <link rel="stylesheet" href="js/redactor/pdf-style.css" />
-    <script type="module" src="js/redactor/pdf-app.js"></script>
+    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=assisted-1" />
+    <script type="module" src="js/redactor/pdf-app.js?v=assisted-1"></script>
   </head>
   <body>
     <header>
@@ -83,9 +83,27 @@
           checks.
         </p>
       </section>
+      <section class="card" id="assistant">
+        <div class="section-heading"><h2>02 <span>Let the assistant make the first pass</span></h2><span id="assistSummary" class="badge">Ready when a PDF is loaded</span></div>
+        <p>Automatic suggestions are made when you load a PDF. Set the scope, add any known names or references, then run again. Select the groups you want and apply one reason to the batch.</p>
+        <div class="assist-options">
+          <label class="check"><input id="assistIdentifiers" type="checkbox" checked>Emails, UK phones, postcodes and NI numbers</label>
+          <label class="check"><input id="assistAddresses" type="checkbox" checked>Street addresses</label>
+          <div><label for="assistNames">Person-name suggestions</label><select id="assistNames"><option value="conservative">Conservative: name list and context</option><option value="broad">Broad: more possible names</option><option value="off">Off</option></select></div>
+          <label class="check"><input id="assistCompanies" type="checkbox">Companies with legal suffixes</label>
+          <label class="check"><input id="assistDates" type="checkbox">Dates</label>
+        </div>
+        <div class="assist-lists"><div><label for="assistTerms">Known names, organisations or references to find</label><textarea id="assistTerms" rows="3" maxlength="20000" placeholder="One exact term per line, including short names if needed"></textarea></div><div><label for="assistExclusions">Terms to leave for manual review</label><textarea id="assistExclusions" rows="3" maxlength="20000" placeholder="One term per line, such as Reading Borough Council"></textarea></div></div>
+        <p class="hint">Exclusions suppress automatic proposals, including a proposal that shares a PDF text fragment with an excluded phrase. They do not cancel an existing decision. Names are inferred locally using the same site name list as the original redactor; they can be missed or misidentified. Images and scanned text still need manual marking.</p>
+        <div class="actions"><button id="assistScan" disabled>Run automatic suggestions</button><button id="assistNext" disabled>Review next suggestion</button></div>
+        <p id="assistInfo" class="hint"></p><div id="assistGroups" class="assist-groups"></div>
+        <div class="assist-batch"><div><label for="assistScope">Batch scope</label><select id="assistScope"><option value="all">Whole document</option><option value="page">Displayed page</option></select></div><div><label for="assistReason">Shared reason for the selected groups</label><input id="assistReason" maxlength="600" placeholder="Explain why these areas should be removed or kept"></div></div>
+        <div class="actions"><button id="assistRedact" class="primary" disabled>Redact selected suggestions</button><button id="assistKeep" disabled>Keep selected suggestions</button></div>
+        <p class="hint">Batch actions affect only pending automatic areas in the selected groups and scope. Each box covers its whole PDF text fragment, which may include other words. Inspect the blacked-out result, adjust anything unsuitable and check every page before preparing the release. These settings do not determine legal exemptions or privilege.</p>
+      </section>
       <section class="card" id="review">
         <div class="section-heading">
-          <h2>02 <span>Review every page</span></h2>
+          <h2>03 <span>Review every page</span></h2>
           <span id="counts" class="badge">No PDF loaded</span>
         </div>
         <div class="viewer-tools">
@@ -182,7 +200,7 @@
         </div>
       </section>
       <section class="card" id="release">
-        <h2>03 <span>Prepare, inspect and download</span></h2>
+        <h2>04 <span>Prepare, inspect and download</span></h2>
         <div class="release-grid">
           <div>
             <label for="caseRef">Internal case reference</label

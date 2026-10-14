@@ -10,7 +10,9 @@ import {
   PDF_VERSION,
 } from "./pdf-engine.js?v=assisted-20261014-0836";
 import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=balanced-20261014-1";
+import {attachReasonPresets} from "./reason-presets.js";
 const $ = (id) => document.getElementById(id);
+const areaReasons=attachReasonPresets($("reason")),batchReasons=attachReasonPresets($("assistReason"));
 let source = null,
   marks = [],
   pageIndex = 0,
@@ -96,6 +98,8 @@ function update() {
   for (const id of ["save", "resume", "return", "find", "add"])
     $(id).disabled = !source || busy;
   const item = marks.find((m) => m.id === selected);
+  areaReasons.lock(!item||busy||$("finalMode").checked);
+  batchReasons.lock(!source||busy||$("finalMode").checked);
   for (const id of ["redact", "keep", "remove", "adjust"])
     $(id).disabled = !item || busy || $("finalMode").checked;
   $("prepare").disabled = !ready();
@@ -152,6 +156,7 @@ function populateAreas() {
       selected = m.id;
       setCoordinates(m.rect);
       $("reason").value = m.reason;
+      areaReasons.suggest(m.assistantType?[m.assistantType]:[]);
       populateAreas();
       update();
       paintOverlay();
@@ -235,6 +240,8 @@ async function showPage() {
 }
 function reset(preserveAssist = false) {
   if (!preserveAssist) for (const id of ["assistTerms", "assistExclusions", "assistReason"]) $(id).value = "";
+  areaReasons.reset();
+  batchReasons.reset();
   generation++;
   viewToken++;
   revision++;
@@ -401,6 +408,7 @@ function addArea(rect, hint = "Manually marked area") {
     selected = item.id;
     setCoordinates(rect);
     $("reason").value = "";
+    areaReasons.sync();
     invalidate();
     populateAreas();
     status(
@@ -529,6 +537,7 @@ async function scanAssistance(token) {
   validateMarks(merged.marks,source.pages);
   marks=merged.marks; nextId=merged.nextId; selected=null;
   assistSettingsDirty=false;
+  batchReasons.suggest(marks.filter(m=>m.status==='pending'&&m.assistantType).map(m=>m.assistantType));
   const unreadable=source.pages.filter(p=>!p.fragments.length).length;
   $("assistInfo").textContent = `${result.areas.length} suggested fragment areas. Existing decisions and manual areas were preserved. ` +
     (merged.skipped?`${merged.skipped} proposals overlap existing decisions or manual areas; those regions were left unchanged and need manual review. `:'') +
@@ -591,6 +600,7 @@ $("assistNext").onclick=async()=>{
   const candidates=batchCandidates(),index=candidates.findIndex(m=>m.id===selected),m=candidates[(index+1)%candidates.length];
   if(!m)return;
   selected=m.id;pageIndex=m.page;setCoordinates(m.rect);$("reason").value=m.reason||$("assistReason").value;
+  areaReasons.suggest(m.assistantType?[m.assistantType]:[]);
   await showPage();$("pageFrame").scrollIntoView({block:'center',behavior:'smooth'});
 };
 $("find").onclick = () => {

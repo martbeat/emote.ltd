@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {hash} from '../../js/redactor/core.mjs';
+import {saveWorkingReview,restoreWorkingReview} from '../../js/redactor/working-review.mjs';
+const enc=new TextEncoder();
+const state={text:'Alice secret@example.org',sourceHash:await hash(enc.encode('Alice secret@example.org')),kind:'Pasted text',decisions:[{id:'R0001',start:0,end:5,type:'Name',status:'redact',reason:'Synthetic test'}]};
+const review={caseRef:'TEST',reviewer:'A',checker:'B',complete:true,output:true,authorised:true};
+test('working review excludes source excerpts and approval declarations',async()=>{const plan=await saveWorkingReview(state,review);assert(!JSON.stringify(plan).includes('Alice'));assert(!JSON.stringify(plan).includes('secret@example.org'));assert.equal(plan.complete,undefined);assert.equal(plan.authorised,undefined);const restored=await restoreWorkingReview(plan,state);assert.equal(restored.decisions[0].status,'redact');assert.equal(restored.decisions[1].status,'pending');assert.equal(restored.caseRef,'TEST');});
+test('changed source bytes, extraction or source type reject resume',async()=>{const plan=await saveWorkingReview(state,review);await assert.rejects(()=>restoreWorkingReview(plan,{...state,sourceHash:'wrong'}),/does not match/);await assert.rejects(()=>restoreWorkingReview(plan,{...state,text:'Other secret@example.org'}),/does not match/);await assert.rejects(()=>restoreWorkingReview(plan,{...state,kind:'DOCX'}),/does not match/);});
+test('saved overlapping ranges and duplicate IDs are rejected',async()=>{const plan=await saveWorkingReview(state,review);plan.decisions.push({...plan.decisions[0]});await assert.rejects(()=>restoreWorkingReview(plan,state),/duplicate/);plan.decisions[1].id='R0002';await assert.rejects(()=>restoreWorkingReview(plan,state),/Overlapping/);});
+test('saved script-like reasons remain plain data and oversized fields fail',async()=>{const plan=await saveWorkingReview(state,review);plan.decisions[0].reason='<script>alert(1)</script>';assert.equal((await restoreWorkingReview(plan,state)).decisions[0].reason,plan.decisions[0].reason);plan.decisions[0].reason='x'.repeat(601);await assert.rejects(()=>restoreWorkingReview(plan,state),/Invalid/);});

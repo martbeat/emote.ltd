@@ -8,6 +8,10 @@ const NAME = `${TOKEN}(?:[ \\t\\n]+(?:de|del|da|van|von|al|la))?[ \\t\\n]+${TOKE
 const BALANCED_STOP = new Set([...STOP,...'approval approve approvals form resource commission project programme program sponsor pmo change delivery management strategic lead manager internal use record please click enter yes no team board committee director officer senior executive chief assistant finance budget policy report summary appendix section document council trust partnership limited ltd llp plc inc corporation company organisation organization association foundation hospital school auditor assurance definition recommendation recommendations opinion background objectives regulation traffic'.split(' ')]);
 const PARTICLES = new Set('de del da van von al la der den'.split(' '));
 const BALANCED_NAME = `${TOKEN}(?:[ \t\n]+(?:${TOKEN}|[\\p{Lu}]\\.?|de|del|da|van|von|al|la|der|den)){1,4}`;
+// Large aggregate name lists contain rare word names. Membership alone must not
+// turn sentence openings, report headings or project labels into people.
+const REPORT_WORDS = new Set('action plan audit digitisation digitization oversight monitoring performance assessment review findings finding outcome outcomes objective control controls process processes procedure procedures framework implementation improvement improvements progress update updates status full public sector annual quarterly financial operational corporate business transformation scrutiny recommendation risk risks'.split(' '));
+const FUNCTION_WORDS = new Set('the a an and or but of for to from with without by in on at as is are was were be been being this that these those it its their our your we they he she all any each every both such also'.split(' '));
 function balancedPhrase(phrase,lexicon,context=false){
  const tokens=[...phrase.matchAll(/\S+/gu)],words=tokens.map(x=>folded(x[0]));
  if(tokens.length<2||(!context&&!lexicon?.given.has(words[0])))return '';
@@ -17,7 +21,7 @@ function balancedPhrase(phrase,lexicon,context=false){
  else if(words.length>2&&((lexicon?.given.has(words[1])&&!lexicon?.surname.has(words[1]))||lexicon?.surname.has(words[2])))last=2;
  if(!tokens[last])return '';
  const chosen=words.slice(0,last+1);
- if(chosen.some(w=>BALANCED_STOP.has(w)))return '';
+ if(chosen.some(w=>BALANCED_STOP.has(w)||FUNCTION_WORDS.has(w)||REPORT_WORDS.has(w)))return '';
  // Initials are allowed in the middle, not as a surname or an organisation acronym.
  if(!/^[\p{Lu}][\p{L}'’\-]+$/u.test(tokens[last][0])||/^[\p{Lu}]{2,}$/u.test(tokens[last][0]))return '';
  return phrase.slice(0,tokens[last].index+tokens[last][0].length);

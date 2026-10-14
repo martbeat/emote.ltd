@@ -23,3 +23,21 @@ test('larger sourced dictionary keeps approval and audit headings out of Balance
  const text='Resource Commission. Report Author. Senior Auditor. Strategic Lead. Change Delivery. Team Manager. Assurance Definition. Traffic Regulation Orders. Personal Information. Public Sector.';
  assert.deepEqual(assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name'),[]);
 });
+
+test('Balanced rejects report narrative despite word names in the sourced dictionary',()=>{
+ const phrases=[
+  'Action Plan presented and updated to the Audit and Governance Committee by the',
+  'The Audit and Governance (A & G) Committee were appointed to have oversight',
+  'Action Plan (table) approved at full Council in October 2024 and in Action Plan',
+  'with the key risk areas included in the monitoring of the Action Plan described above.',
+  'the reports to both A & G Committee and the TMSC. The Digitisation Project is',
+  'Annual Review. Financial Performance. Risk Assessment. Business Transformation.'
+ ];
+ for(const text of phrases)assert.deepEqual(assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name'),[],text);
+});
+test('Balanced still finds fictional distribution-list names and author fields',()=>{
+ for(const text of ['Alex Smith, Assistant Director for Environmental Services','Amelia Fenwickson, Change Delivery Consultant, PMO','Report Author: Qiana Zorwick','May Brown','Will Smith','Rose Jones']){
+  const names=assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name');
+  assert.equal(names.length,1,text);assert.equal(text.slice(names[0].start,names[0].end),text.replace(/^Report Author: /,'').split(',')[0]);
+ }
+});

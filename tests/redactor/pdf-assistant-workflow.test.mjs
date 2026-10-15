@@ -92,18 +92,29 @@ test('dictionary refresh displays counts and requires a fresh scan while preserv
 test('textless PDFs show a persistent alert through rescans and allow manual marking',async()=>{
  const h=await harness();h.source.pages.forEach(p=>p.fragments=[]);
  await h.$('demo').onclick();
- assert.equal(h.app.state().marks.length,0);assert.equal(h.$('textWarning').hidden,false);
+ assert.match(h.$('status').textContent,/could not check every page/);
+ assert.equal(h.app.state().marks.length,2);assert.equal(h.$('textWarning').hidden,false);
+ assert.ok(h.app.state().marks.every(m=>m.assistantType==='Image page'&&m.status==='pending'));
+ assert.ok(h.$('textWarning').closest('.viewer-tools'));
+ assert.match(h.$('textWarning').textContent,/viewing page 1/);
+ await h.$('next').onclick();assert.match(h.$('textWarning').textContent,/viewing page 2/);
+ await h.$('assistNext').onclick();h.change('reason','Visible image reviewed');h.$('keep').onclick();
+ const retained=h.app.state().marks.find(m=>m.status==='keep');
+ await h.$('assistScan').onclick();assert.ok(h.app.state().marks.includes(retained));
+ assert.equal(h.app.state().marks.length,2);
  assert.match(h.$('textWarning').textContent,/Automatic detection unavailable: none of the 2/);
  assert.match(h.$('textWarning').textContent,/Names, emails/);assert.match(h.$('textWarning').textContent,/no OCR/);
- assert.match(h.$('status').textContent,/could not check every page/);
- assert.equal(h.$('add').disabled,false);h.$('add').onclick();assert.equal(h.app.state().marks.length,1);
+ const plan=engine.savePdfReview(h.source,h.app.state().marks,{caseRef:'IMAGE',reviewer:'A',checker:'B'});
+ assert.ok(engine.restorePdfReview(plan,h.source).marks.every(m=>m.assistantType==='Image page'));
+ assert.equal(h.$('add').disabled,false);h.$('add').onclick();assert.equal(h.app.state().marks.length,3);
  await h.$('assistScan').onclick();assert.equal(h.$('textWarning').hidden,false);
  h.$('clear').onclick();assert.equal(h.$('textWarning').hidden,true);assert.equal(h.$('textWarning').textContent,'');
 });
 test('mixed PDFs warn only about textless pages and loading a readable file clears the alert',async()=>{
  const h=await harness(),original=h.source.pages[1].fragments;h.source.pages[1].fragments=[];
  await h.$('demo').onclick();assert.match(h.$('textWarning').textContent,/unavailable on pages 2:/);
- assert.equal(h.app.state().marks.length,2);
+ assert.equal(h.app.state().marks.length,3);
+ await h.$('next').onclick();assert.match(h.$('textWarning').textContent,/viewing page 2/);
  h.source.pages[1].fragments=original;await h.$('demo').onclick();
  assert.equal(h.$('textWarning').hidden,true);assert.equal(h.$('textWarning').textContent,'');
 });

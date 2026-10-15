@@ -193,3 +193,7 @@ Automatic PDF boxes still cover entire extracted text fragments, so a name and i
 ### PDFs without extractable text (15 October 2026)
 
 A persistent, accessible alert above the load panel identifies pages without readable extracted text. It distinguishes entirely textless documents from mixed PDFs, explains that names and emails on those pages cannot be checked automatically and directs users to manual marking or an OCR-processed copy. It remains visible through rescans and other status changes, clears on session reset or a readable replacement and does not prevent manual marking. The initial load status no longer reports an unqualified completed first pass for these documents. OCR is not included. Text-bearing pages can still contain unrecognised image content, so every page requires visual review. Tests use synthetic textless and mixed page data, with no uploaded document content committed.
+
+### Image-page review targets (15 October 2026)
+
+The no-readable-text alert now sits inside the page navigation and describes the current page. Automatic scans create a pending Image page target covering the displayed bounds of each textless page. Reviewers can keep it, explicitly redact the whole page or adjust it to a smaller region. Nothing is redacted automatically and a reason is still required. Rescans preserve decided targets and manual areas; ordinary saved review metadata preserves the Image page category. This detects textless pages only, not every embedded image on text-bearing pages.

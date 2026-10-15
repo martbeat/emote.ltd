@@ -9,7 +9,7 @@ import {
   PDF_LIMITS,
   PDF_VERSION,
 } from "./pdf-engine.js?v=assisted-20261014-0836";
-import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=balanced-report-20261014-1";
+import {assistPdf, makeLexicon, mergeAssist, batchAssist} from "./assistance.js?v=image-target-20261015-1";
 import {createLocalLearning} from "./local-learning.js";
 import {attachReasonPresets,REASONS} from "./reason-presets.js?v=learning-20261014-1";
 const $ = (id) => document.getElementById(id);
@@ -112,7 +112,8 @@ function updateTextWarning() {
     (pages.length === source.pages.length
       ? `Automatic detection unavailable: none of the ${pages.length} PDF pages contains readable text.`
       : `Automatic detection unavailable on pages ${pages.join(', ')}: these pages contain no readable text.`) +
-    ' Names, emails and other visible details on these pages cannot be checked automatically. Zero suggestions does not mean there is nothing to redact. This app has no OCR. Mark these pages manually or load an OCR-processed copy. Check every page before release.';
+    (pages.includes(pageIndex + 1) ? ` You are viewing page ${pageIndex + 1}, which needs image review.` : ` Page ${pageIndex + 1} has extracted text; the warning applies to the pages listed above.`) +
+    ' Names, emails and other visible details on unreadable pages cannot be checked automatically. This app has no OCR. Review each Image page target: Keep it, Redact the whole page or adjust the box to the details you want removed. You can also load an OCR-processed copy. Check every page before release.';
   if (warning.textContent !== message) warning.textContent = message;
 }
 function update() {
@@ -344,7 +345,7 @@ async function loadFile(file) {
       `${source.pages.length} pages · Source SHA-256 ${source.sourceHash}. Text-pattern suggestions cover whole fragments. No guarantee of complete detection.`;
     const unreadable = unreadablePages();
     status(unreadable.length
-      ? "Automatic detection could not check every page. Read the warning above and mark unreadable pages manually, or load an OCR-processed copy."
+      ? "Automatic detection could not check every page. Read the warning beside the page navigation and review the Image page targets, or load an OCR-processed copy."
       : "First pass complete. Review the suggested groups, apply a shared reason and batch decision, then inspect every page and mark anything missed.",
       unreadable.length > 0);
   } catch (e) {
@@ -591,7 +592,7 @@ async function scanAssistance(token) {
   assistSettingsDirty=false;
   batchReasons.suggest(marks.filter(m=>m.status==='pending'&&m.assistantType).map(m=>m.assistantType));
   const unreadable=unreadablePages().length;
-  $("assistInfo").textContent = `${result.areas.length} suggested fragment areas. Existing decisions and manual areas were preserved. ` +
+  $("assistInfo").textContent = `${result.areas.length} suggested areas. Existing decisions and manual areas were preserved. ` +
     (merged.skipped?`${merged.skipped} proposals overlap existing decisions or manual areas; those regions were left unchanged and need manual review. `:'') +
     (result.excludedFragments?`${result.excludedFragments} matches share fragments with excluded terms and need manual review. `:'') +
     (result.unlocatable?`${result.unlocatable} matches could not be positioned and need manual marking. `:'') +

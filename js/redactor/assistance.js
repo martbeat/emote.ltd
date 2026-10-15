@@ -116,6 +116,13 @@ export function assistText(text,options={},lexicon=null){
 export function assistPdf(pages,options={},lexicon=null){
  const areas=[],unlocatable=[],excludedFragments=[];
  for(let page=0;page<pages.length;page++){
+  const current=pages[page];
+  // No reliable word positions exist on textless pages. Offer the whole page
+  // for an explicit decision, without inferring what the visible image contains.
+  if(!current.fragments.some(f=>typeof f.text==='string'&&f.text.trim())){
+   areas.push({page,rect:{x:0,y:0,width:current.width,height:current.height},assistantType:'Image page',hint:'No readable text. Review the whole page, keep it or adjust the target.'});
+   continue;
+  }
   let text='',previous=null;const fragments=pages[page].fragments.map((f,index)=>{
    text+=fragmentSeparator(previous,f);const start=text.length;text+=f.text;previous=f;return {...f,index,start,end:start+f.text.length};
   });

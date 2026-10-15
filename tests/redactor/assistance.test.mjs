@@ -123,3 +123,13 @@ test('organisation and form-label values are not treated as authors solely becau
  const lex=makeLexicon({givenNames:[],surnames:[]});
  for(const text of ['Report Author: Resource Commission','Report Author: Strategic Lead','Report Author: Qiana Zorwick Limited'])assert.equal(assistText(text,{names:'balanced'},lex).matches.filter(m=>m.type==='Person name').length,0);
 });
+
+test('textless pages become whole-page pending targets while readable pages keep text suggestions',()=>{
+ const pages=[{width:600,height:800,fragments:[]},{width:600,height:800,fragments:[fragment('alex@example.org')]}];
+ const result=assistPdf(pages,{names:'off'});
+ assert.equal(result.areas.length,2);assert.equal(result.areas[0].assistantType,'Image page');
+ assert.deepEqual(result.areas[0].rect,{x:0,y:0,width:600,height:800});
+ const merged=mergeAssist([],result.areas,1);assert.ok(merged.marks.every(m=>m.status==='pending'&&m.reason===''));
+ const plan=merged.marks;plan[0]={...plan[0],status:'keep',reason:'Reviewed image content'};
+ const rescanned=mergeAssist(plan,result.areas,merged.nextId);assert.equal(rescanned.marks.length,2);assert.equal(rescanned.marks[0],plan[0]);
+});

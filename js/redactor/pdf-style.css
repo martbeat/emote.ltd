@@ -117,3 +117,8 @@ h3 {
 .reason-presets label{display:flex;gap:6px;align-items:flex-start;font-size:12px;cursor:pointer;}
 .reason-presets input{width:auto;flex:none;margin-top:2px;}
 .reason-presets .auto-reason{flex-basis:100%;border-top:1px solid #d5ded8;padding-top:8px;}
+
+.viewer-tools .text-warning:not([hidden]) {
+  flex-basis: 100%;
+  margin: 0;
+}

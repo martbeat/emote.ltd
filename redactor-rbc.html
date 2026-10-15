@@ -10,8 +10,8 @@
     />
     <title>RBC Legal redaction review | eMote</title>
     <link rel="stylesheet" href="js/redactor/style.css" />
-    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=no-text-alert-20261015-1" />
-    <script type="module" src="js/redactor/pdf-app.js?v=no-text-alert-20261015-1"></script>
+    <link rel="stylesheet" href="js/redactor/pdf-style.css?v=image-target-20261015-1" />
+    <script type="module" src="js/redactor/pdf-app.js?v=image-target-20261015-1"></script>
   </head>
   <body>
     <header>
@@ -49,7 +49,6 @@
         Load a PDF exported from Word or an existing PDF. The original is kept
         unchanged.
       </p>
-      <div id="textWarning" class="text-warning" role="alert" hidden></div>
       <section class="card" id="load">
         <div class="section-heading">
           <h2>01 <span>Load the page source</span></h2>
@@ -109,7 +108,7 @@
         <p id="assistInfo" class="hint"></p><div id="assistGroups" class="assist-groups"></div>
         <div class="assist-batch"><div><label for="assistScope">Batch scope</label><select id="assistScope"><option value="all">Whole document</option><option value="page">Displayed page</option></select></div><div><label for="assistReason">Shared reason for the selected groups</label><input id="assistReason" maxlength="600" placeholder="Explain why these areas should be removed or kept"></div></div>
         <div class="actions"><button id="assistRedact" class="primary" disabled>Redact selected suggestions</button><button id="assistKeep" disabled>Keep selected suggestions</button></div>
-        <p class="hint">Batch actions affect only pending automatic areas in the selected groups and scope. Each box covers its whole PDF text fragment, which may include other words. Inspect the blacked-out result, adjust anything unsuitable and check every page before preparing the release. These settings do not determine legal exemptions or privilege.</p>
+        <p class="hint">Batch actions affect only pending automatic areas in the selected groups and scope. Text boxes cover whole PDF text fragments, which may include other words. An Image page suggestion covers the entire page: choose Keep, Redact or adjust it before release. Inspect the blacked-out result, adjust anything unsuitable and check every page before preparing the release. These settings do not determine legal exemptions or privilege.</p>
       </section>
       <section class="card" id="review">
         <div class="section-heading">
@@ -124,6 +123,7 @@
             ><input id="finalMode" type="checkbox" disabled />Show prepared
             final PDF</label
           >
+          <div id="textWarning" class="text-warning" role="alert" hidden></div>
         </div>
         <p class="hint">
           In working view, drag a rectangle over text or an image. Use the

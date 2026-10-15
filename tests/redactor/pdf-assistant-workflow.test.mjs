@@ -88,3 +88,22 @@ test('dictionary refresh displays counts and requires a fresh scan while preserv
  await h.$('refreshDictionary').onclick();assert.match(h.$('dictionaryInfo').textContent,/Dictionary ready/);assert.ok(h.app.state().assistSettingsDirty);assert.equal(h.app.state().marks,before);assert.ok(h.$('prepare').disabled);
  await h.$('assistScan').onclick();assert.equal(h.app.state().assistSettingsDirty,false);
 });
+
+test('textless PDFs show a persistent alert through rescans and allow manual marking',async()=>{
+ const h=await harness();h.source.pages.forEach(p=>p.fragments=[]);
+ await h.$('demo').onclick();
+ assert.equal(h.app.state().marks.length,0);assert.equal(h.$('textWarning').hidden,false);
+ assert.match(h.$('textWarning').textContent,/Automatic detection unavailable: none of the 2/);
+ assert.match(h.$('textWarning').textContent,/Names, emails/);assert.match(h.$('textWarning').textContent,/no OCR/);
+ assert.match(h.$('status').textContent,/could not check every page/);
+ assert.equal(h.$('add').disabled,false);h.$('add').onclick();assert.equal(h.app.state().marks.length,1);
+ await h.$('assistScan').onclick();assert.equal(h.$('textWarning').hidden,false);
+ h.$('clear').onclick();assert.equal(h.$('textWarning').hidden,true);assert.equal(h.$('textWarning').textContent,'');
+});
+test('mixed PDFs warn only about textless pages and loading a readable file clears the alert',async()=>{
+ const h=await harness(),original=h.source.pages[1].fragments;h.source.pages[1].fragments=[];
+ await h.$('demo').onclick();assert.match(h.$('textWarning').textContent,/unavailable on pages 2:/);
+ assert.equal(h.app.state().marks.length,2);
+ h.source.pages[1].fragments=original;await h.$('demo').onclick();
+ assert.equal(h.$('textWarning').hidden,true);assert.equal(h.$('textWarning').textContent,'');
+});

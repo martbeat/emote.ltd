@@ -3,6 +3,17 @@
   grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
 }
+.text-warning:not([hidden]) {
+  display: block;
+  margin: 16px 0;
+  padding: 16px;
+  border: 2px solid #a13c12;
+  border-radius: 8px;
+  background: #fff1df;
+  color: #612407;
+  font-weight: 600;
+  line-height: 1.5;
+}
 .viewer-tools {
   display: flex;
   align-items: center;

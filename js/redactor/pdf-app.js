@@ -101,7 +101,22 @@ function releaseReady() {
     finalChecks.size === source.pages.length
   );
 }
+function unreadablePages() {
+  return source ? source.pages.flatMap((p, i) =>
+    p.fragments.some(f => typeof f.text === 'string' && f.text.trim()) ? [] : [i + 1]) : [];
+}
+function updateTextWarning() {
+  const pages = unreadablePages(), warning = $("textWarning");
+  warning.hidden = pages.length === 0;
+  const message = !pages.length ? '' :
+    (pages.length === source.pages.length
+      ? `Automatic detection unavailable: none of the ${pages.length} PDF pages contains readable text.`
+      : `Automatic detection unavailable on pages ${pages.join(', ')}: these pages contain no readable text.`) +
+    ' Names, emails and other visible details on these pages cannot be checked automatically. Zero suggestions does not mean there is nothing to redact. This app has no OCR. Mark these pages manually or load an OCR-processed copy. Check every page before release.';
+  if (warning.textContent !== message) warning.textContent = message;
+}
 function update() {
+  updateTextWarning();
   $("demo").disabled = busy;
   $("refreshDictionary").disabled = busy;
   updateAssistant();
@@ -327,9 +342,11 @@ async function loadFile(file) {
     if (token !== generation) return;
     $("sourceInfo").textContent =
       `${source.pages.length} pages · Source SHA-256 ${source.sourceHash}. Text-pattern suggestions cover whole fragments. No guarantee of complete detection.`;
-    status(
-      "First pass complete. Review the suggested groups, apply a shared reason and batch decision, then inspect every page and mark anything missed.",
-    );
+    const unreadable = unreadablePages();
+    status(unreadable.length
+      ? "Automatic detection could not check every page. Read the warning above and mark unreadable pages manually, or load an OCR-processed copy."
+      : "First pass complete. Review the suggested groups, apply a shared reason and batch decision, then inspect every page and mark anything missed.",
+      unreadable.length > 0);
   } catch (e) {
     if (token === generation) {
       source?.doc.destroy().catch(() => {});
@@ -573,7 +590,7 @@ async function scanAssistance(token) {
   marks=merged.marks; nextId=merged.nextId; selected=null;
   assistSettingsDirty=false;
   batchReasons.suggest(marks.filter(m=>m.status==='pending'&&m.assistantType).map(m=>m.assistantType));
-  const unreadable=source.pages.filter(p=>!p.fragments.length).length;
+  const unreadable=unreadablePages().length;
   $("assistInfo").textContent = `${result.areas.length} suggested fragment areas. Existing decisions and manual areas were preserved. ` +
     (merged.skipped?`${merged.skipped} proposals overlap existing decisions or manual areas; those regions were left unchanged and need manual review. `:'') +
     (result.excludedFragments?`${result.excludedFragments} matches share fragments with excluded terms and need manual review. `:'') +

@@ -47,6 +47,9 @@
     .lang-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
     .language-note{width:min(var(--max),calc(100% - 34px));margin:18px auto -14px;padding:12px 18px;border:1px solid rgba(245,185,31,.35);border-radius:12px;background:rgba(245,185,31,.10);color:var(--cream);font-size:.88rem}
     .language-note strong{color:var(--yellow)}
+    .language-note.mxxx-note{border-color:rgba(239,61,47,.6);background:rgba(239,61,47,.13)}
+    .language-note.mxxx-note strong{color:#ff8f79}
+    @media(max-width:1150px){.nav-inner{flex-wrap:wrap;padding:8px 0}.nav-tools{margin-left:auto}}
     nav ul{display:flex;list-style:none;gap:22px;padding:0;margin:0}
     nav a{text-decoration:none;font-size:.9rem;font-weight:800;color:#f8edce}
     nav a:hover{color:var(--yellow)}
@@ -232,6 +235,7 @@
           <button class="lang-btn" type="button" data-lang="en" aria-pressed="true">EN</button>
           <button class="lang-btn" type="button" data-lang="es" aria-pressed="false">ES</button>
           <button class="lang-btn" type="button" data-lang="es-MX" aria-pressed="false" lang="es-MX" aria-label="Español mexicano callejero" title="Español mexicano · versión picante">MX</button>
+          <button class="lang-btn" type="button" data-lang="es-MX-x-mxxx" aria-pressed="false" lang="es-MX" aria-label="Español mexicano muy grosero; sólo adultos" title="Español mexicano · MXXX · groserías fuertes">MXXX</button>
           <button class="lang-btn" type="button" data-lang="nhe" aria-pressed="false" lang="nhe" aria-label="Náhuatl de la Huasteca, borrador" title="Náhuatl de la Huasteca · borrador">NÁH</button>
         </div>
       </div>
@@ -241,6 +245,9 @@
   <main id="top">
     <aside class="language-note" id="nahuatlReview" lang="es" hidden>
       <strong>Náhuatl de la Huasteca (borrador).</strong> Es una primera adaptación: algunos títulos están en náhuatl, pero los textos más complejos siguen en español hasta que una persona hablante revise la traducción.
+    </aside>
+    <aside class="language-note mxxx-note" id="mxxxReview" lang="es-MX" hidden>
+      <strong>Modo MXXX: groserías fuertes.</strong> Aquí sí se nos fue la lengua. Si vienes con tu abuelita, mejor cambia a MX o ES.
     </aside>
     <section class="hero">
       <div class="wrap hero-grid">
@@ -609,6 +616,64 @@
         very_soon:"¡Ya merito!", days_to_go:n=>"Faltan "+n+" días, banda"
       };
 
+
+      // MXXX is an opt-in, profanity-heavy comic register of Mexican Spanish.
+      // It inherits factual information and safety instructions from es-MX.
+      i18n['es-MX-x-mxxx'] = {
+        ...i18n['es-MX'],
+        title:"Scrym & Deep Fry's | La pinche gira más cabrona del 26",
+        description:"Dos cabrones con guitarra y bajo. Una jodida caja de cartón haciendo de bombo. La gira latina más pinche ambiciosa del 26. Modo MXXX: lenguaje fuerte.",
+        nav_dates:"Pinches tocadas", nav_band:"Los cabrones", nav_merch:"Chingaderas", nav_shop:"Compra esta madre",
+        nav_crafts:"Arma el cartón", nav_xmas:"Desmadre navideño",
+        hero_eyebrow:"La pinche gira mundial latina pa' bailar 26",
+        hero_slogan:"¡No mames, qué chingón suena!",
+        hero_lede:"Una guitarra acústica, un bajo electroacústico y una pinche caja de cartón a patadas. Así nos vamos de gira por medio planeta. ¿Qué chingados podría salir mal?",
+        hero_dates:"A ver las pinches fechas", hero_shop:"Cómprate una chingadera",
+        hero_micro:"No aceptamos imitaciones ni mamadas. Las fechas dependen de la realidad, del mapa y de que los vecinos no nos manden a la chingada.",
+        ticker_xmas:"Earley · Último pinche desmadre",
+        dates_eyebrow:"13 paradas. Una puta caja. Cero vergüenza.",
+        dates_title:"Las pinches tocadas",
+        dates_intro:"Empezamos cerquita de casa, donde todavía nos aguantan. Luego armamos un itinerario que parece inventado por un cabrón con tres chelas encima.",
+        next_stop:"Próximo desmadre",
+        filter_all:"Todo el desmadre", filter_label:"Filtra las pinches tocadas",
+        date_caversham_note:"Reino Unido · Calentando el pinche cartón",
+        date_reading_note:"Reino Unido · Aquí nos aguanta la banda",
+        place_earley_xmas:"Earley · Último pinche desmadre",
+        date_earley_note:"Reino Unido · Sobrevivimos a esta madre, ¡a huevo!",
+        band_eyebrow:"Dos cabrones y un cartón",
+        band_title:"Dos músicos. Una caja. ¡No mames!",
+        band_intro:"Scrym le da a la guitarra, Deep Fry sacude el bajo y la caja de cartón recibe patadas como si nos debiera dinero. La música va en serio; la logística, de la chingada.",
+        scrym_copy:"Sombrero, barba y lentes oscuros. Lleva los acordes y el ritmo mientras finge que alguien planeó este pinche circo. Spoiler: ni madres.",
+        deep_copy:"Mete bajos de poca madre, negocia con las frecuencias graves y hace hojas de cálculo más cabronas que nuestros contratos inexistentes. La neta, alguien tiene que ordenar el desmadre.",
+        box_tag:"03 · La pinche caja",
+        box_title:"Kick Bass · 100% cartón, 200% huevos",
+        box_copy:"No pide camerino, pasaporte ni patrocinio. Le damos patadas toda la gira y es la única integrante que jamás dice «ya estuvo, cabrones».",
+        merch_eyebrow:"Chingaderas oficiales, por increíble que parezca",
+        merch_title:"La pinche merch",
+        merch_intro:"¡Se armó el desmadre! Ya hay playeras, tazas y más chingaderas de la Gira 26. Cáele a la tienda oficial de Scrym & Deep Fry's si quieres presumir esta locura.",
+        merch_tee_title:"La playera más cabrona de la gira",
+        merch_tee_copy:"Playera negra · logo discreto adelante · estampado de poca madre atrás",
+        merch_more_title:"Más mamadas para el clóset",
+        merch_more_copy:"Sudadera, póster, calcomanías, bolsa de tela y otras chingaderitas",
+        quality_first:"¡Calidad, cabrones!",
+        merch_quality_copy:"La playera es la mera chingona, pero ya tenemos tazas y otras cosas que ni pinche falta te hacían. Piratería, a la chingada.",
+        shop_visit:"Cáele a la pinche tienda",
+        crafts_eyebrow:"Departamento de ingeniería de cartón, cabrones",
+        crafts_title:"Arma tu propio pinche bombo",
+        crafts_intro:"Plantilla A4 para armar una mini versión del legendario bombo 100% cartón. Va sobre tu escritorio para que presumas tu ingeniería de a peso. Sin roadie ni mamadas.",
+        crafts_kit:"Kit de la pinche caja mini",
+        crafts_open:"Abre la plantilla, carnal", crafts_download:"Baja el pinche SVG",
+        // Precise assembly steps and blade safety notes deliberately remain neutral.
+        xmas_eyebrow:"La última pinche tocada · Earley",
+        xmas_title:"El desmadre navideño definitivo",
+        xmas_copy:"Después de Madrid, Ciudad de México, Bogotá y Buenos Aires, la gira más absurda del 26 acaba en el mismísimo Earley. Vestirte como reno es opcional. Patear el bombo de cartón es obligatorio, carajo.",
+        back_top:"Vuelve arriba, cabrón",
+        footer_tagline:"Gira 26 · Dos cabrones, una caja y pura pinche música.",
+        footer_project:"Un proyecto absurdamente serio montado por",
+        very_soon:"¡Ya casi, no chingues!",
+        days_to_go:n=>"Faltan "+n+" pinches días"
+      };
+
       const langButtons=[...document.querySelectorAll('.lang-btn')];
       const dates=[...document.querySelectorAll('.date')];
       const chips=[...document.querySelectorAll('.chip')];
@@ -649,6 +714,7 @@
           btn.setAttribute('aria-pressed',active?'true':'false');
         });
         document.getElementById('nahuatlReview').hidden=lang!=='nhe';
+         document.getElementById('mxxxReview').hidden=lang!=='es-MX-x-mxxx';
          if(remember) localStorage.setItem('scrym-deep-fry-lang',lang);
         updateNextStop();
       }

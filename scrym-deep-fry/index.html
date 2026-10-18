@@ -40,6 +40,11 @@
     .nav-inner{min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:22px}
     .brand{font-family:Georgia,serif;font-weight:900;letter-spacing:.03em;text-decoration:none;font-size:1.1rem}
     .brand span{color:var(--teal)}
+    .nav-tools{display:flex;align-items:center;gap:18px}
+    .lang-switch{display:flex;align-items:center;gap:4px;padding:3px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.04)}
+    .lang-btn{border:0;background:transparent;color:#cfc5a8;padding:6px 9px;border-radius:999px;font-weight:900;font-size:.76rem;letter-spacing:.04em;cursor:pointer}
+    .lang-btn.active{background:var(--yellow);color:#132019}
+    .lang-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
     nav ul{display:flex;list-style:none;gap:22px;padding:0;margin:0}
     nav a{text-decoration:none;font-size:.9rem;font-weight:800;color:#f8edce}
     nav a:hover{color:var(--yellow)}
@@ -198,7 +203,7 @@
       .xmas-card{grid-template-columns:1fr}.xmas .big-date{text-align:left}.section-head{display:block}.section-head p{margin-top:14px}
     }
     @media(max-width:620px){
-      nav ul{display:none}.wrap{width:min(100% - 24px,var(--max))}.hero h1{font-size:clamp(3rem,17vw,5rem)}
+      nav ul{display:none}.nav-tools{gap:8px}.lang-btn{padding:6px 8px}.wrap{width:min(100% - 24px,var(--max))}.hero h1{font-size:clamp(3rem,17vw,5rem)}
       section{padding:56px 0}.dates{gap:9px}.date{grid-template-columns:74px 1fr auto;padding:15px 14px;gap:12px}
       .date .place{font-size:.96rem}.date .d{font-size:1.05rem}.band-grid{grid-template-columns:1fr}.box-card{grid-column:auto}.member-grid{grid-template-columns:1fr}.member-card.box{grid-column:auto}
       .tees{gap:10px}.xmas-card{padding:28px 22px}.foot{display:block}.foot>*+*{margin-top:12px}
@@ -210,16 +215,22 @@
   <header class="nav">
     <div class="wrap nav-inner">
       <a class="brand" href="#top">SCRYM <span>&amp;</span> DEEP FRY'S</a>
-      <nav aria-label="Tour navigation">
-        <ul>
-          <li><a href="#dates">Dates</a></li>
-          <li><a href="#band">The band</a></li>
-          <li><a href="#merch">Merch</a></li>
-          <li><a href="https://scrymdeepfry.deco-apparel.com/shop" target="_blank" rel="noopener">Shop</a></li>
-          <li><a href="#crafts">Crafts</a></li>
-          <li><a href="#xmas">Xmas Special</a></li>
-        </ul>
-      </nav>
+      <div class="nav-tools">
+        <nav aria-label="Tour navigation" data-i18n-aria-label="nav_label">
+          <ul>
+            <li><a href="#dates" data-i18n="nav_dates">Dates</a></li>
+            <li><a href="#band" data-i18n="nav_band">The band</a></li>
+            <li><a href="#merch" data-i18n="nav_merch">Merch</a></li>
+            <li><a href="https://scrymdeepfry.deco-apparel.com/shop" target="_blank" rel="noopener" data-i18n="nav_shop">Shop</a></li>
+            <li><a href="#crafts" data-i18n="nav_crafts">Crafts</a></li>
+            <li><a href="#xmas" data-i18n="nav_xmas">Xmas Special</a></li>
+          </ul>
+        </nav>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button class="lang-btn" type="button" data-lang="en" aria-pressed="true">EN</button>
+          <button class="lang-btn" type="button" data-lang="es" aria-pressed="false">ES</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -227,26 +238,26 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <div class="eyebrow">Latin Danceable World Tour 26</div>
-          <h1><span class="scrym">Scrym &amp;</span><span class="deep">Deep Fry's</span><span class="tour">Good music travels further</span></h1>
-          <p class="lede">One standard acoustic guitar. One electro-acoustic bass. One kick bass made from 100% cardboard. A frankly ambitious itinerary.</p>
+          <div class="eyebrow" data-i18n="hero_eyebrow">Latin Danceable World Tour 26</div>
+          <h1><span class="scrym">Scrym &amp;</span><span class="deep">Deep Fry's</span><span class="tour" data-i18n="hero_slogan">Good music travels further</span></h1>
+          <p class="lede" data-i18n="hero_lede">One standard acoustic guitar. One electro-acoustic bass. One kick bass made from 100% cardboard. A frankly ambitious itinerary.</p>
           <div class="actions">
-            <a class="btn" href="#dates">See the tour dates</a>
-            <a class="btn alt" href="https://scrymdeepfry.deco-apparel.com/shop" target="_blank" rel="noopener">Shop the merch</a>
+            <a class="btn" href="#dates" data-i18n="hero_dates">See the tour dates</a>
+            <a class="btn alt" href="https://scrymdeepfry.deco-apparel.com/shop" target="_blank" rel="noopener" data-i18n="hero_shop">Shop the merch</a>
           </div>
-          <div class="microcopy">Accept no imitations. Dates remain subject to geography, reality and neighbour tolerance.</div>
+          <div class="microcopy" data-i18n="hero_micro">Accept no imitations. Dates remain subject to geography, reality and neighbour tolerance.</div>
         </div>
 
         <figure class="poster">
-          <img src="assets/full-tour-art.webp" alt="Illustrated Scrym and Deep Fry's Latin Danceable World Tour 26 poster with Scrym playing acoustic guitar, Deep Fry playing bass and the cardboard kick bass">
+          <img src="assets/full-tour-art.webp" alt="Illustrated Scrym and Deep Fry's Latin Danceable World Tour 26 poster with Scrym playing acoustic guitar, Deep Fry playing bass and the cardboard kick bass" data-i18n-alt="poster_alt">
         </figure>
       </div>
     </section>
 
     <div class="ticker" aria-hidden="true">
       <div class="ticker-track">
-        <span>Caversham</span><span>Reading</span><span>Madrid</span><span>Barcelona</span><span>Seville</span><span>Mexico City</span><span>Bogotá</span><span>Lima</span><span>Santiago</span><span>Buenos Aires</span><span>Rio de Janeiro</span><span>Montevideo</span><span>Earley Xmas Special</span>
-        <span>Caversham</span><span>Reading</span><span>Madrid</span><span>Barcelona</span><span>Seville</span><span>Mexico City</span><span>Bogotá</span><span>Lima</span><span>Santiago</span><span>Buenos Aires</span><span>Rio de Janeiro</span><span>Montevideo</span><span>Earley Xmas Special</span>
+        <span>Caversham</span><span>Reading</span><span>Madrid</span><span>Barcelona</span><span data-i18n="place_seville">Seville</span><span data-i18n="place_mexico_city">Mexico City</span><span>Bogotá</span><span>Lima</span><span>Santiago</span><span>Buenos Aires</span><span data-i18n="place_rio">Rio de Janeiro</span><span>Montevideo</span><span data-i18n="ticker_xmas">Earley Xmas Special</span>
+        <span>Caversham</span><span>Reading</span><span>Madrid</span><span>Barcelona</span><span data-i18n="place_seville">Seville</span><span data-i18n="place_mexico_city">Mexico City</span><span>Bogotá</span><span>Lima</span><span>Santiago</span><span>Buenos Aires</span><span data-i18n="place_rio">Rio de Janeiro</span><span>Montevideo</span><span data-i18n="ticker_xmas">Earley Xmas Special</span>
       </div>
     </div>
 
@@ -254,38 +265,38 @@
       <div class="wrap">
         <div class="section-head">
           <div>
-            <div class="eyebrow">13 stops. 1 cardboard box.</div>
-            <h2>Tour dates</h2>
+            <div class="eyebrow" data-i18n="dates_eyebrow">13 stops. 1 cardboard box.</div>
+            <h2 data-i18n="dates_title">Tour dates</h2>
           </div>
-          <p>The itinerary begins reassuringly close to home before becoming progressively harder to explain to the neighbours.</p>
+          <p data-i18n="dates_intro">The itinerary begins reassuringly close to home before becoming progressively harder to explain to the neighbours.</p>
         </div>
 
         <div class="next-stop" id="nextStop" hidden>
-          <div><div class="eyebrow">Next stop</div><strong id="nextPlace"></strong></div>
+          <div><div class="eyebrow" data-i18n="next_stop">Next stop</div><strong id="nextPlace"></strong></div>
           <div class="countdown" id="nextCountdown"></div>
         </div>
 
-        <div class="date-tools" aria-label="Filter tour dates">
-          <button class="chip active" data-filter="all">All dates</button>
-          <button class="chip" data-filter="uk">UK</button>
-          <button class="chip" data-filter="spain">Spain</button>
-          <button class="chip" data-filter="latin">Latin America</button>
+        <div class="date-tools" aria-label="Filter tour dates" data-i18n-aria-label="filter_label">
+          <button class="chip active" data-filter="all" data-i18n="filter_all">All dates</button>
+          <button class="chip" data-filter="uk" data-i18n="filter_uk">UK</button>
+          <button class="chip" data-filter="spain" data-i18n="filter_spain">Spain</button>
+          <button class="chip" data-filter="latin" data-i18n="filter_latin">Latin America</button>
         </div>
 
         <div class="dates" id="dateList">
-          <article class="date" data-region="uk" data-date="2026-03-07"><div class="d">07 MAR</div><div><div class="place">Caversham</div><div class="country">UK · Neighbourhood warm-up</div></div><div class="flag">🇬🇧</div></article>
-          <article class="date" data-region="uk" data-date="2026-03-21"><div class="d">21 MAR</div><div><div class="place">Reading</div><div class="country">UK · Home leg</div></div><div class="flag">🇬🇧</div></article>
-          <article class="date" data-region="spain" data-date="2026-04-18"><div class="d">18 APR</div><div><div class="place">Madrid</div><div class="country">Spain</div></div><div class="flag">🇪🇸</div></article>
-          <article class="date" data-region="spain" data-date="2026-05-16"><div class="d">16 MAY</div><div><div class="place">Barcelona</div><div class="country">Spain</div></div><div class="flag">🇪🇸</div></article>
-          <article class="date" data-region="spain" data-date="2026-06-13"><div class="d">13 JUN</div><div><div class="place">Seville</div><div class="country">Spain</div></div><div class="flag">🇪🇸</div></article>
-          <article class="date" data-region="latin" data-date="2026-07-11"><div class="d">11 JUL</div><div><div class="place">Mexico City</div><div class="country">Mexico</div></div><div class="flag">🇲🇽</div></article>
-          <article class="date" data-region="latin" data-date="2026-08-08"><div class="d">08 AUG</div><div><div class="place">Bogotá</div><div class="country">Colombia</div></div><div class="flag">🇨🇴</div></article>
-          <article class="date" data-region="latin" data-date="2026-09-05"><div class="d">05 SEP</div><div><div class="place">Lima</div><div class="country">Peru</div></div><div class="flag">🇵🇪</div></article>
-          <article class="date" data-region="latin" data-date="2026-10-03"><div class="d">03 OCT</div><div><div class="place">Santiago</div><div class="country">Chile</div></div><div class="flag">🇨🇱</div></article>
-          <article class="date" data-region="latin" data-date="2026-10-24"><div class="d">24 OCT</div><div><div class="place">Buenos Aires</div><div class="country">Argentina</div></div><div class="flag">🇦🇷</div></article>
-          <article class="date" data-region="latin" data-date="2026-11-14"><div class="d">14 NOV</div><div><div class="place">Rio de Janeiro</div><div class="country">Brazil</div></div><div class="flag">🇧🇷</div></article>
-          <article class="date" data-region="latin" data-date="2026-11-28"><div class="d">28 NOV</div><div><div class="place">Montevideo</div><div class="country">Uruguay</div></div><div class="flag">🇺🇾</div></article>
-          <article class="date special" data-region="uk" data-date="2026-12-18"><div class="d">18 DEC</div><div><div class="place">Earley · Xmas Special</div><div class="country">UK · The triumphant return to sensible travel distances</div></div><div class="flag">🎄</div></article>
+          <article class="date" data-region="uk" data-date="2026-03-07"><div class="d" data-i18n="date_07_mar">07 MAR</div><div><div class="place">Caversham</div><div class="country" data-i18n="date_caversham_note">UK · Neighbourhood warm-up</div></div><div class="flag">🇬🇧</div></article>
+          <article class="date" data-region="uk" data-date="2026-03-21"><div class="d" data-i18n="date_21_mar">21 MAR</div><div><div class="place">Reading</div><div class="country" data-i18n="date_reading_note">UK · Home leg</div></div><div class="flag">🇬🇧</div></article>
+          <article class="date" data-region="spain" data-date="2026-04-18"><div class="d" data-i18n="date_18_apr">18 APR</div><div><div class="place">Madrid</div><div class="country" data-i18n="country_spain">Spain</div></div><div class="flag">🇪🇸</div></article>
+          <article class="date" data-region="spain" data-date="2026-05-16"><div class="d" data-i18n="date_16_may">16 MAY</div><div><div class="place">Barcelona</div><div class="country">Spain</div></div><div class="flag">🇪🇸</div></article>
+          <article class="date" data-region="spain" data-date="2026-06-13"><div class="d" data-i18n="date_13_jun">13 JUN</div><div><div class="place" data-i18n="place_seville">Seville</div><div class="country">Spain</div></div><div class="flag">🇪🇸</div></article>
+          <article class="date" data-region="latin" data-date="2026-07-11"><div class="d" data-i18n="date_11_jul">11 JUL</div><div><div class="place" data-i18n="place_mexico_city">Mexico City</div><div class="country" data-i18n="country_mexico">Mexico</div></div><div class="flag">🇲🇽</div></article>
+          <article class="date" data-region="latin" data-date="2026-08-08"><div class="d" data-i18n="date_08_aug">08 AUG</div><div><div class="place">Bogotá</div><div class="country">Colombia</div></div><div class="flag">🇨🇴</div></article>
+          <article class="date" data-region="latin" data-date="2026-09-05"><div class="d" data-i18n="date_05_sep">05 SEP</div><div><div class="place">Lima</div><div class="country" data-i18n="country_peru">Peru</div></div><div class="flag">🇵🇪</div></article>
+          <article class="date" data-region="latin" data-date="2026-10-03"><div class="d" data-i18n="date_03_oct">03 OCT</div><div><div class="place">Santiago</div><div class="country">Chile</div></div><div class="flag">🇨🇱</div></article>
+          <article class="date" data-region="latin" data-date="2026-10-24"><div class="d" data-i18n="date_24_oct">24 OCT</div><div><div class="place">Buenos Aires</div><div class="country">Argentina</div></div><div class="flag">🇦🇷</div></article>
+          <article class="date" data-region="latin" data-date="2026-11-14"><div class="d" data-i18n="date_14_nov">14 NOV</div><div><div class="place" data-i18n="place_rio">Rio de Janeiro</div><div class="country" data-i18n="country_brazil">Brazil</div></div><div class="flag">🇧🇷</div></article>
+          <article class="date" data-region="latin" data-date="2026-11-28"><div class="d" data-i18n="date_28_nov">28 NOV</div><div><div class="place">Montevideo</div><div class="country">Uruguay</div></div><div class="flag">🇺🇾</div></article>
+          <article class="date special" data-region="uk" data-date="2026-12-18"><div class="d" data-i18n="date_18_dec">18 DEC</div><div><div class="place" data-i18n="place_earley_xmas">Earley · Xmas Special</div><div class="country" data-i18n="date_earley_note">UK · The triumphant return to sensible travel distances</div></div><div class="flag">🎄</div></article>
         </div>
       </div>
     </section>
@@ -293,32 +304,32 @@
     <section id="band">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="eyebrow">The power trio</div><h2>Two players. One box.</h2></div>
-          <p>Scrym on acoustic guitar, Deep Fry on electro-acoustic bass and the 100% cardboard kick bass. Serious musicians. Questionable logistics.</p>
+          <div><div class="eyebrow" data-i18n="band_eyebrow">The power trio</div><h2 data-i18n="band_title">Two players. One box.</h2></div>
+          <p data-i18n="band_intro">Scrym on acoustic guitar, Deep Fry on electro-acoustic bass and the 100% cardboard kick bass. Serious musicians. Questionable logistics.</p>
         </div>
         <div class="member-grid">
           <article class="member-card">
-            <figure class="member-image"><img src="assets/scrym.webp" alt="Scrym wearing a hat and dark glasses, playing acoustic guitar"></figure>
+            <figure class="member-image"><img src="assets/scrym.webp" alt="Scrym wearing a hat and dark glasses, playing acoustic guitar" data-i18n-alt="scrym_alt"></figure>
             <div class="member-copy">
               <p class="member-tag">01 · Scrym</p>
-              <h3>Acoustic guitar</h3>
-              <p>Hat, beard and shades on stage. Responsible for chords, rhythm and maintaining the appearance that somebody has planned this.</p>
+              <h3 data-i18n="scrym_instrument">Acoustic guitar</h3>
+              <p data-i18n="scrym_copy">Hat, beard and shades on stage. Responsible for chords, rhythm and maintaining the appearance that somebody has planned this.</p>
             </div>
           </article>
           <article class="member-card">
-            <figure class="member-image"><img src="assets/deep-fry.webp" alt="Deep Fry wearing dark glasses, playing electro-acoustic bass"></figure>
+            <figure class="member-image"><img src="assets/deep-fry.webp" alt="Deep Fry wearing dark glasses, playing electro-acoustic bass" data-i18n-alt="deep_alt"></figure>
             <div class="member-copy">
               <p class="member-tag">02 · Deep Fry</p>
-              <h3>Electro-acoustic bass</h3>
-              <p>Responsible for the low end, low-frequency diplomacy and any suspiciously detailed spreadsheets associated with the tour.</p>
+              <h3 data-i18n="deep_instrument">Electro-acoustic bass</h3>
+              <p data-i18n="deep_copy">Responsible for the low end, low-frequency diplomacy and any suspiciously detailed spreadsheets associated with the tour.</p>
             </div>
           </article>
           <article class="member-card box">
-            <figure class="member-image"><img src="assets/kick-bass-box.svg" alt="Illustration of the Kick Bass 100% Cardboard box"></figure>
+            <figure class="member-image"><img src="assets/kick-bass-box.svg" alt="Illustration of the Kick Bass 100% Cardboard box" data-i18n-alt="box_alt"></figure>
             <div class="member-copy">
-              <p class="member-tag">03 · The Box</p>
-              <h3>Kick Bass · 100% cardboard</h3>
-              <p>No rider. No passport. No endorsement deal. Still the member most likely to survive baggage handling with minimal complaint.</p>
+              <p class="member-tag" data-i18n="box_tag">03 · The Box</p>
+              <h3 data-i18n="box_title">Kick Bass · 100% cardboard</h3>
+              <p data-i18n="box_copy">No rider. No passport. No endorsement deal. Still the member most likely to survive baggage handling with minimal complaint.</p>
             </div>
           </article>
         </div>
@@ -328,23 +339,23 @@
     <section class="merch" id="merch">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="eyebrow">Officially unofficial</div><h2>Tour merch</h2></div>
-          <p>The merch is now real. T-shirts, mugs and other Tour 26 essentials are available from the official Scrym &amp; Deep Fry's shop.</p>
+          <div><div class="eyebrow" data-i18n="merch_eyebrow">Officially unofficial</div><h2 data-i18n="merch_title">Tour merch</h2></div>
+          <p data-i18n="merch_intro">The merch is now real. T-shirts, mugs and other Tour 26 essentials are available from the official Scrym &amp; Deep Fry's shop.</p>
         </div>
 
         <div class="merch-real-grid">
           <figure class="merch-shot">
             <img src="assets/merch-tshirt.webp" alt="Front and back mock-up of the black Scrym and Deep Fry's Latin Danceable World Tour 26 T-shirt.">
-            <figcaption><b>The Tour Tee</b><span>Black shirt · small chest mark · full-colour back print</span></figcaption>
+            <figcaption><b data-i18n="merch_tee_title">The Tour Tee</b><span data-i18n="merch_tee_copy">Black shirt · small chest mark · full-colour back print</span></figcaption>
           </figure>
           <figure class="merch-shot">
             <img src="assets/merch-collection.webp" alt="Scrym and Deep Fry's merchandise collection with T-shirt, hoodie, poster, stickers and tote bag.">
-            <figcaption><b>The wider poor-decision economy</b><span>Hoodie, poster, stickers, tote and other essentials</span></figcaption>
+            <figcaption><b data-i18n="merch_more_title">The wider poor-decision economy</b><span data-i18n="merch_more_copy">Hoodie, poster, stickers, tote and other essentials</span></figcaption>
           </figure>
         </div>
 
         <div class="merch-real-copy">
-          <strong>Quality first.</strong> The shirt remains the hero item, with mugs and other vital tour merchandise now joining it in the shop. Accept no imitations.<div class="actions" style="margin-top:16px"><a class="btn" href="https://scrymdeepfry.deco-apparel.com/shop" target="_blank" rel="noopener">Visit the official shop</a></div>
+          <strong data-i18n="quality_first">Quality first.</strong> <span data-i18n="merch_quality_copy">The shirt remains the hero item, with mugs and other vital tour merchandise now joining it in the shop. Accept no imitations.</span><div class="actions" style="margin-top:16px"><a class="btn" href="https://scrymdeepfry.deco-apparel.com/shop" target="_blank" rel="noopener" data-i18n="shop_visit">Visit the official shop</a></div>
         </div>
       </div>
     </section>
@@ -352,8 +363,8 @@
     <section class="crafts-section" id="crafts">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="eyebrow">The cardboard engineering department</div><h2>Build the Box</h2></div>
-          <p>A printable A4 cut-out template for your own desk-sized version of the legendary 100% cardboard kick bass. No roadie required.</p>
+          <div><div class="eyebrow" data-i18n="crafts_eyebrow">The cardboard engineering department</div><h2 data-i18n="crafts_title">Build the Box</h2></div>
+          <p data-i18n="crafts_intro">A printable A4 cut-out template for your own desk-sized version of the legendary 100% cardboard kick bass. No roadie required.</p>
         </div>
 
         <div class="crafts-grid">
@@ -361,20 +372,20 @@
             <img src="assets/kick-bass-cutout-template.svg" alt="Printable A4 cardboard cut-out template for a miniature Scrym and Deep Fry kick bass box.">
           </figure>
           <div class="craft-copy">
-            <div class="eyebrow">Print · stick · cut · fold</div>
-            <h3>Mini Kick Bass Kit</h3>
-            <p>Print at <strong>100% / Actual Size</strong>, stick the sheet to thin recycled cardboard, cut the solid red outline, score the dashed blue folds and glue the tabs. Finished model is about 60 × 60 × 30 mm.</p>
+            <div class="eyebrow" data-i18n="crafts_steps">Print · stick · cut · fold</div>
+            <h3 data-i18n="crafts_kit">Mini Kick Bass Kit</h3>
+            <p data-i18n-html="crafts_instructions">Print at <strong>100% / Actual Size</strong>, stick the sheet to thin recycled cardboard, cut the solid red outline, score the dashed blue folds and glue the tabs. Finished model is about 60 × 60 × 30 mm.</p>
             <ol>
-              <li>Print the A4 sheet at 100%. Do not use “fit to page”.</li>
-              <li>Glue it to cereal-box card or similarly thin cardboard and allow it to dry.</li>
-              <li>Cut around the solid red line, then score and fold the dashed blue lines.</li>
-              <li>Glue the long side tab first, then close the top and bottom.</li>
+              <li data-i18n="crafts_1">Print the A4 sheet at 100%. Do not use “fit to page”.</li>
+              <li data-i18n="crafts_2">Glue it to cereal-box card or similarly thin cardboard and allow it to dry.</li>
+              <li data-i18n="crafts_3">Cut around the solid red line, then score and fold the dashed blue lines.</li>
+              <li data-i18n="crafts_4">Glue the long side tab first, then close the top and bottom.</li>
             </ol>
             <div class="craft-actions">
-              <a class="btn" href="assets/kick-bass-cutout-template.svg" target="_blank" rel="noopener">Open printable A4 template</a>
-              <a class="btn alt" href="assets/kick-bass-cutout-template.svg" download="scrym-deep-fry-kick-bass-template.svg">Download SVG</a>
+              <a class="btn" href="assets/kick-bass-cutout-template.svg" target="_blank" rel="noopener" data-i18n="crafts_open">Open printable A4 template</a>
+              <a class="btn alt" href="assets/kick-bass-cutout-template.svg" download="scrym-deep-fry-kick-bass-template.svg" data-i18n="crafts_download">Download SVG</a>
             </div>
-            <p class="craft-note">Desk-scale decorative model only. Use scissors where possible. If using a craft knife, use a proper cutting mat and keep fingers clear.</p>
+            <p class="craft-note" data-i18n="crafts_note">Desk-scale decorative model only. Use scissors where possible. If using a craft knife, use a proper cutting mat and keep fingers clear.</p>
           </div>
         </div>
       </div>
@@ -384,12 +395,12 @@
       <div class="wrap">
         <div class="xmas-card">
           <div>
-            <div class="eyebrow">Final night · Earley</div>
-            <h2>The Xmas Special</h2>
-            <p>After Madrid, Mexico City, Bogotá and Buenos Aires, the 2026 tour reaches its natural climax in Earley. Seasonal knitwear optional. Cardboard percussion mandatory.</p>
-            <a class="btn" href="#top">Back to the top</a>
+            <div class="eyebrow" data-i18n="xmas_eyebrow">Final night · Earley</div>
+            <h2 data-i18n="xmas_title">The Xmas Special</h2>
+            <p data-i18n="xmas_copy">After Madrid, Mexico City, Bogotá and Buenos Aires, the 2026 tour reaches its natural climax in Earley. Seasonal knitwear optional. Cardboard percussion mandatory.</p>
+            <a class="btn" href="#top" data-i18n="back_top">Back to the top</a>
           </div>
-          <div class="big-date">18<br>DEC<small>2026 · Earley</small></div>
+          <div class="big-date">18<br><span data-i18n="dec_month">DEC</span><small>2026 · Earley</small></div>
         </div>
       </div>
     </section>
@@ -397,17 +408,148 @@
 
   <footer>
     <div class="wrap foot">
-      <div><strong>SCRYM &amp; DEEP FRY'S</strong><div class="tiny">Latin Danceable World Tour 26 · Accept no imitations.</div></div>
-      <div class="tiny">A highly serious side project hosted by <a href="/">eMote.ltd</a>.</div>
+      <div><strong>SCRYM &amp; DEEP FRY'S</strong><div class="tiny" data-i18n="footer_tagline">Latin Danceable World Tour 26 · Accept no imitations.</div></div>
+      <div class="tiny"><span data-i18n="footer_project">A highly serious side project hosted by</span> <a href="/">eMote.ltd</a>.</div>
     </div>
   </footer>
 
   <script>
     (() => {
-      const chips=[...document.querySelectorAll('.chip')], dates=[...document.querySelectorAll('.date')];
+      const i18n = {
+        en: {
+          title: "Scrym & Deep Fry's | Latin Danceable World Tour 26",
+          description: "Scrym & Deep Fry's Latin Danceable World Tour 26. Acoustic guitar, electro-acoustic bass and 100% cardboard kick bass. Accept no imitations.",
+          nav_label:"Tour navigation", nav_dates:"Dates", nav_band:"The band", nav_merch:"Merch", nav_shop:"Shop", nav_crafts:"Crafts", nav_xmas:"Xmas Special",
+          hero_eyebrow:"Latin Danceable World Tour 26", hero_slogan:"Good music travels further",
+          hero_lede:"One standard acoustic guitar. One electro-acoustic bass. One kick bass made from 100% cardboard. A frankly ambitious itinerary.",
+          hero_dates:"See the tour dates", hero_shop:"Shop the merch",
+          hero_micro:"Accept no imitations. Dates remain subject to geography, reality and neighbour tolerance.",
+          poster_alt:"Illustrated Scrym and Deep Fry's Latin Danceable World Tour 26 poster with Scrym playing acoustic guitar, Deep Fry playing bass and the cardboard kick bass",
+          place_seville:"Seville", place_mexico_city:"Mexico City", place_rio:"Rio de Janeiro", ticker_xmas:"Earley Xmas Special",
+          dates_eyebrow:"13 stops. 1 cardboard box.", dates_title:"Tour dates",
+          dates_intro:"The itinerary begins reassuringly close to home before becoming progressively harder to explain to the neighbours.",
+          next_stop:"Next stop", filter_label:"Filter tour dates", filter_all:"All dates", filter_uk:"UK", filter_spain:"Spain", filter_latin:"Latin America",
+          date_07_mar:"07 MAR", date_21_mar:"21 MAR", date_18_apr:"18 APR", date_16_may:"16 MAY", date_13_jun:"13 JUN", date_11_jul:"11 JUL", date_08_aug:"08 AUG", date_05_sep:"05 SEP", date_03_oct:"03 OCT", date_24_oct:"24 OCT", date_14_nov:"14 NOV", date_28_nov:"28 NOV", date_18_dec:"18 DEC",
+          date_caversham_note:"UK · Neighbourhood warm-up", date_reading_note:"UK · Home leg", country_spain:"Spain", country_mexico:"Mexico", country_peru:"Peru", country_brazil:"Brazil",
+          place_earley_xmas:"Earley · Xmas Special", date_earley_note:"UK · The triumphant return to sensible travel distances",
+          band_eyebrow:"The power trio", band_title:"Two players. One box.",
+          band_intro:"Scrym on acoustic guitar, Deep Fry on electro-acoustic bass and the 100% cardboard kick bass. Serious musicians. Questionable logistics.",
+          scrym_alt:"Scrym wearing a hat and dark glasses, playing acoustic guitar", scrym_instrument:"Acoustic guitar",
+          scrym_copy:"Hat, beard and shades on stage. Responsible for chords, rhythm and maintaining the appearance that somebody has planned this.",
+          deep_alt:"Deep Fry wearing dark glasses, playing electro-acoustic bass", deep_instrument:"Electro-acoustic bass",
+          deep_copy:"Responsible for the low end, low-frequency diplomacy and any suspiciously detailed spreadsheets associated with the tour.",
+          box_alt:"Illustration of the Kick Bass 100% Cardboard box", box_tag:"03 · The Box", box_title:"Kick Bass · 100% cardboard",
+          box_copy:"No rider. No passport. No endorsement deal. Still the member most likely to survive baggage handling with minimal complaint.",
+          merch_eyebrow:"Officially unofficial", merch_title:"Tour merch",
+          merch_intro:"The merch is now real. T-shirts, mugs and other Tour 26 essentials are available from the official Scrym & Deep Fry's shop.",
+          merch_tee_title:"The Tour Tee", merch_tee_copy:"Black shirt · small chest mark · full-colour back print",
+          merch_more_title:"The wider poor-decision economy", merch_more_copy:"Hoodie, poster, stickers, tote and other essentials",
+          quality_first:"Quality first.", merch_quality_copy:"The shirt remains the hero item, with mugs and other vital tour merchandise now joining it in the shop. Accept no imitations.",
+          shop_visit:"Visit the official shop",
+          crafts_eyebrow:"The cardboard engineering department", crafts_title:"Build the Box",
+          crafts_intro:"A printable A4 cut-out template for your own desk-sized version of the legendary 100% cardboard kick bass. No roadie required.",
+          crafts_steps:"Print · stick · cut · fold", crafts_kit:"Mini Kick Bass Kit",
+          crafts_instructions:'Print at <strong>100% / Actual Size</strong>, stick the sheet to thin recycled cardboard, cut the solid red outline, score the dashed blue folds and glue the tabs. Finished model is about 60 × 60 × 30 mm.',
+          crafts_1:"Print the A4 sheet at 100%. Do not use “fit to page”.", crafts_2:"Glue it to cereal-box card or similarly thin cardboard and allow it to dry.",
+          crafts_3:"Cut around the solid red line, then score and fold the dashed blue lines.", crafts_4:"Glue the long side tab first, then close the top and bottom.",
+          crafts_open:"Open printable A4 template", crafts_download:"Download SVG",
+          crafts_note:"Desk-scale decorative model only. Use scissors where possible. If using a craft knife, use a proper cutting mat and keep fingers clear.",
+          xmas_eyebrow:"Final night · Earley", xmas_title:"The Xmas Special",
+          xmas_copy:"After Madrid, Mexico City, Bogotá and Buenos Aires, the 2026 tour reaches its natural climax in Earley. Seasonal knitwear optional. Cardboard percussion mandatory.",
+          back_top:"Back to the top", dec_month:"DEC",
+          footer_tagline:"Latin Danceable World Tour 26 · Accept no imitations.", footer_project:"A highly serious side project hosted by",
+          very_soon:"Very soon", days_to_go:n=>n+" days to go"
+        },
+        es: {
+          title:"Scrym & Deep Fry's | Gira Mundial Latina Bailable 26",
+          description:"Scrym & Deep Fry's Gira Mundial Latina Bailable 26. Guitarra acústica, bajo electroacústico y bombo 100% de cartón. No aceptes imitaciones.",
+          nav_label:"Navegación de la gira", nav_dates:"Fechas", nav_band:"La banda", nav_merch:"Merch", nav_shop:"Tienda", nav_crafts:"Manualidades", nav_xmas:"Especial de Navidad",
+          hero_eyebrow:"Gira Mundial Latina Bailable 26", hero_slogan:"La buena música llega más lejos",
+          hero_lede:"Una guitarra acústica estándar. Un bajo electroacústico. Un bombo hecho 100% de cartón. Un itinerario francamente ambicioso.",
+          hero_dates:"Ver las fechas de la gira", hero_shop:"Comprar el merch",
+          hero_micro:"No aceptes imitaciones. Las fechas siguen sujetas a la geografía, la realidad y la tolerancia de los vecinos.",
+          poster_alt:"Cartel ilustrado de la Gira Mundial Latina Bailable 26 de Scrym y Deep Fry, con Scrym a la guitarra acústica, Deep Fry al bajo y el bombo de cartón",
+          place_seville:"Sevilla", place_mexico_city:"Ciudad de México", place_rio:"Río de Janeiro", ticker_xmas:"Especial de Navidad en Earley",
+          dates_eyebrow:"13 paradas. 1 caja de cartón.", dates_title:"Fechas de la gira",
+          dates_intro:"El itinerario empieza tranquilizadoramente cerca de casa antes de hacerse cada vez más difícil de explicar a los vecinos.",
+          next_stop:"Próxima parada", filter_label:"Filtrar fechas de la gira", filter_all:"Todas las fechas", filter_uk:"Reino Unido", filter_spain:"España", filter_latin:"América Latina",
+          date_07_mar:"07 MAR", date_21_mar:"21 MAR", date_18_apr:"18 ABR", date_16_may:"16 MAY", date_13_jun:"13 JUN", date_11_jul:"11 JUL", date_08_aug:"08 AGO", date_05_sep:"05 SEP", date_03_oct:"03 OCT", date_24_oct:"24 OCT", date_14_nov:"14 NOV", date_28_nov:"28 NOV", date_18_dec:"18 DIC",
+          date_caversham_note:"Reino Unido · Calentamiento de barrio", date_reading_note:"Reino Unido · Etapa en casa", country_spain:"España", country_mexico:"México", country_peru:"Perú", country_brazil:"Brasil",
+          place_earley_xmas:"Earley · Especial de Navidad", date_earley_note:"Reino Unido · El regreso triunfal a distancias de viaje sensatas",
+          band_eyebrow:"El trío de poder", band_title:"Dos músicos. Una caja.",
+          band_intro:"Scrym a la guitarra acústica, Deep Fry al bajo electroacústico y el bombo 100% de cartón. Músicos serios. Logística cuestionable.",
+          scrym_alt:"Scrym con sombrero y gafas oscuras, tocando la guitarra acústica", scrym_instrument:"Guitarra acústica",
+          scrym_copy:"Sombrero, barba y gafas oscuras en el escenario. Responsable de los acordes, el ritmo y de mantener la apariencia de que alguien ha planificado todo esto.",
+          deep_alt:"Deep Fry con gafas oscuras, tocando el bajo electroacústico", deep_instrument:"Bajo electroacústico",
+          deep_copy:"Responsable de los graves, la diplomacia de baja frecuencia y cualquier hoja de cálculo sospechosamente detallada relacionada con la gira.",
+          box_alt:"Ilustración de la caja Kick Bass 100% de cartón", box_tag:"03 · La Caja", box_title:"Kick Bass · 100% cartón",
+          box_copy:"Sin rider. Sin pasaporte. Sin contrato de patrocinio. Aun así, es el miembro con más probabilidades de sobrevivir al manejo de equipajes sin demasiadas quejas.",
+          merch_eyebrow:"Oficialmente no oficial", merch_title:"Merch de la gira",
+          merch_intro:"El merch ya es real. Camisetas, tazas y otros artículos esenciales de la Gira 26 están disponibles en la tienda oficial de Scrym & Deep Fry's.",
+          merch_tee_title:"La camiseta de la gira", merch_tee_copy:"Camiseta negra · marca pequeña en el pecho · estampado a todo color en la espalda",
+          merch_more_title:"La economía ampliada de las malas decisiones", merch_more_copy:"Sudadera, póster, pegatinas, bolsa tote y otros artículos esenciales",
+          quality_first:"La calidad, ante todo.", merch_quality_copy:"La camiseta sigue siendo la pieza estrella, acompañada ahora en la tienda por tazas y otros artículos vitales de la gira. No aceptes imitaciones.",
+          shop_visit:"Visitar la tienda oficial",
+          crafts_eyebrow:"El departamento de ingeniería de cartón", crafts_title:"Construye la caja",
+          crafts_intro:"Una plantilla A4 imprimible para recortar y construir tu propia versión de escritorio del legendario bombo 100% de cartón. No hace falta roadie.",
+          crafts_steps:"Imprime · pega · corta · dobla", crafts_kit:"Kit Mini Kick Bass",
+          crafts_instructions:'Imprime al <strong>100% / Tamaño real</strong>, pega la hoja sobre cartón reciclado fino, corta por la línea roja continua, marca los pliegues azules discontinuos y pega las pestañas. El modelo terminado mide aproximadamente 60 × 60 × 30 mm.',
+          crafts_1:"Imprime la hoja A4 al 100%. No uses “ajustar a página”.", crafts_2:"Pégala a cartón de una caja de cereales o a un cartón fino similar y deja que se seque.",
+          crafts_3:"Recorta por la línea roja continua, después marca y dobla las líneas azules discontinuas.", crafts_4:"Pega primero la pestaña lateral larga y después cierra la parte superior e inferior.",
+          crafts_open:"Abrir plantilla A4 imprimible", crafts_download:"Descargar SVG",
+          crafts_note:"Modelo decorativo a escala de escritorio. Usa tijeras siempre que sea posible. Si utilizas un cúter, usa una base de corte adecuada y mantén los dedos apartados.",
+          xmas_eyebrow:"Noche final · Earley", xmas_title:"El especial de Navidad",
+          xmas_copy:"Tras Madrid, Ciudad de México, Bogotá y Buenos Aires, la gira de 2026 alcanza su clímax natural en Earley. Ropa navideña opcional. Percusión de cartón obligatoria.",
+          back_top:"Volver arriba", dec_month:"DIC",
+          footer_tagline:"Gira Mundial Latina Bailable 26 · No aceptes imitaciones.", footer_project:"Un proyecto paralelo muy serio alojado por",
+          very_soon:"Muy pronto", days_to_go:n=>"Faltan "+n+" días"
+        }
+      };
+
+      const langButtons=[...document.querySelectorAll('.lang-btn')];
+      const dates=[...document.querySelectorAll('.date')];
+      const chips=[...document.querySelectorAll('.chip')];
+      let currentLang='en';
+
+      function applyLanguage(lang, remember=true){
+        if(!i18n[lang]) lang='en';
+        currentLang=lang;
+        document.documentElement.lang=lang;
+        document.title=i18n[lang].title;
+        const desc=document.querySelector('meta[name="description"]');
+        if(desc) desc.setAttribute('content',i18n[lang].description);
+
+        document.querySelectorAll('[data-i18n]').forEach(el=>{
+          const key=el.dataset.i18n;
+          if(typeof i18n[lang][key]==='string') el.textContent=i18n[lang][key];
+        });
+        document.querySelectorAll('[data-i18n-html]').forEach(el=>{
+          const key=el.dataset.i18nHtml;
+          if(typeof i18n[lang][key]==='string') el.innerHTML=i18n[lang][key];
+        });
+        document.querySelectorAll('[data-i18n-alt]').forEach(el=>{
+          const key=el.dataset.i18nAlt;
+          if(i18n[lang][key]) el.setAttribute('alt',i18n[lang][key]);
+        });
+        document.querySelectorAll('[data-i18n-aria-label]').forEach(el=>{
+          const key=el.dataset.i18nAriaLabel;
+          if(i18n[lang][key]) el.setAttribute('aria-label',i18n[lang][key]);
+        });
+
+        langButtons.forEach(btn=>{
+          const active=btn.dataset.lang===lang;
+          btn.classList.toggle('active',active);
+          btn.setAttribute('aria-pressed',active?'true':'false');
+        });
+        if(remember) localStorage.setItem('scrym-deep-fry-lang',lang);
+        updateNextStop();
+      }
+
       chips.forEach(chip=>chip.addEventListener('click',()=>{
-        chips.forEach(c=>c.classList.remove('active'));chip.classList.add('active');
-        const f=chip.dataset.filter;dates.forEach(d=>d.hidden=!(f==='all'||d.dataset.region===f));
+        chips.forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        const f=chip.dataset.filter;
+        dates.forEach(d=>d.hidden=!(f==='all'||d.dataset.region===f));
       }));
 
       const now=new Date();
@@ -415,14 +557,23 @@
         const day=new Date(d.dataset.date+'T23:59:59');
         if(day<now)d.classList.add('past');
       });
-      const future=dates.map(d=>({el:d,date:new Date(d.dataset.date+'T20:00:00')})).filter(x=>x.date>=now).sort((a,b)=>a.date-b.date);
-      if(future.length){
-        const n=future[0], box=document.getElementById('nextStop'), place=n.el.querySelector('.place').textContent;
-        document.getElementById('nextPlace').textContent=place;
+
+      function updateNextStop(){
+        const future=dates.map(d=>({el:d,date:new Date(d.dataset.date+'T20:00:00')}))
+          .filter(x=>x.date>=now).sort((a,b)=>a.date-b.date);
+        const box=document.getElementById('nextStop');
+        if(!future.length){ box.hidden=true; return; }
+        const n=future[0];
+        document.getElementById('nextPlace').textContent=n.el.querySelector('.place').textContent;
         const days=Math.ceil((n.date-now)/86400000);
-        document.getElementById('nextCountdown').textContent=days<=1?'Very soon':days+' days to go';
+        document.getElementById('nextCountdown').textContent=days<=1?i18n[currentLang].very_soon:i18n[currentLang].days_to_go(days);
         box.hidden=false;
       }
+
+      langButtons.forEach(btn=>btn.addEventListener('click',()=>applyLanguage(btn.dataset.lang)));
+      const saved=localStorage.getItem('scrym-deep-fry-lang');
+      const initial=saved ? saved : ((navigator.language||'').toLowerCase().startsWith('es') ? 'es' : 'en');
+      applyLanguage(initial,false);
     })();
   </script>
 </body>

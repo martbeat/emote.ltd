@@ -205,7 +205,7 @@
       .xmas-card{grid-template-columns:1fr}.xmas .big-date{text-align:left}.section-head{display:block}.section-head p{margin-top:14px}
     }
     @media(max-width:620px){
-      nav ul{display:none}.nav-tools{gap:8px}.lang-btn{padding:6px 8px}.wrap{width:min(100% - 24px,var(--max))}.hero h1{font-size:clamp(3rem,17vw,5rem)}
+      nav ul{display:none}.nav-inner{flex-wrap:wrap;padding:10px 0;gap:7px}.brand{font-size:1rem}.nav-tools{gap:8px;margin-left:auto}.lang-btn{padding:6px 8px}.wrap{width:min(100% - 24px,var(--max))}.hero h1{font-size:clamp(3rem,17vw,5rem)}
       section{padding:56px 0}.dates{gap:9px}.date{grid-template-columns:74px 1fr auto;padding:15px 14px;gap:12px}
       .date .place{font-size:.96rem}.date .d{font-size:1.05rem}.band-grid{grid-template-columns:1fr}.box-card{grid-column:auto}.member-grid{grid-template-columns:1fr}.member-card.box{grid-column:auto}
       .tees{gap:10px}.xmas-card{padding:28px 22px}.foot{display:block}.foot>*+*{margin-top:12px}
@@ -231,6 +231,7 @@
         <div class="lang-switch" role="group" aria-label="Language" data-i18n-aria-label="language_label">
           <button class="lang-btn" type="button" data-lang="en" aria-pressed="true">EN</button>
           <button class="lang-btn" type="button" data-lang="es" aria-pressed="false">ES</button>
+          <button class="lang-btn" type="button" data-lang="es-MX" aria-pressed="false" lang="es-MX" aria-label="Español mexicano callejero" title="Español mexicano · versión picante">MX</button>
           <button class="lang-btn" type="button" data-lang="nhe" aria-pressed="false" lang="nhe" aria-label="Náhuatl de la Huasteca, borrador" title="Náhuatl de la Huasteca · borrador">NÁH</button>
         </div>
       </div>
@@ -551,6 +552,63 @@
         }
       };
 
+
+      // Mexican Spanish, deliberately informal and cheeky. Original Spanish is unchanged.
+      i18n['es-MX'] = {
+        ...i18n.es,
+        title:"Scrym & Deep Fry's | Gira mundial latina pa' bailar 26",
+        description:"Scrym & Deep Fry's salen de gira con guitarra, bajo y una pinche caja de cartón que hace de bombo. Música chida, mucho cotorreo y merch oficial.",
+        nav_dates:"Tocadas", nav_band:"La banda", nav_merch:"La merch", nav_shop:"Tienda",
+        nav_crafts:"Arma la caja", nav_xmas:"Pachangón navideño",
+        hero_eyebrow:"Gira mundial latina pa' bailar 26",
+        hero_slogan:"La música chida llega más lejos",
+        hero_lede:"Una guitarra acústica de toda la vida. Un bajo electroacústico. Un bombo hecho con una pinche caja de cartón. Y una gira que ni nosotros sabemos cómo va a salir.",
+        hero_dates:"Échale ojo a las tocadas", hero_shop:"Llévate algo chido",
+        hero_micro:"No te dejes chamaquear. Las fechas dependen del mapa, de la realidad y de que los vecinos no suelten un «¡no mames!».",
+        ticker_xmas:"Earley · Pachangón navideño",
+        dates_eyebrow:"13 paradas. 1 caja de cartón. No manches.",
+        dates_title:"Las tocadas",
+        dates_intro:"Arrancamos cerquita de casa, como gente decente. Luego nos pusimos tan intensos que explicar la ruta a los vecinos ya parece puro cuento.",
+        next_stop:"Lo que sigue", filter_label:"Filtra las tocadas",
+        filter_all:"Todas, banda", filter_uk:"Reino Unido", filter_spain:"España", filter_latin:"Latinoamérica",
+        date_caversham_note:"Reino Unido · Calentando motores, banda",
+        date_reading_note:"Reino Unido · Jugamos de locales",
+        place_earley_xmas:"Earley · Pachangón navideño",
+        date_earley_note:"Reino Unido · De vuelta al barrio, ¡a huevo!",
+        band_eyebrow:"El trío más barato del planeta",
+        band_title:"Dos músicos. Una pinche caja.",
+        band_intro:"Scrym le rasca a la guitarra acústica, Deep Fry le mete al bajo electroacústico y la caja 100% cartón se avienta el bombo. Músicos serios, logística de puro desmadre.",
+        scrym_copy:"Sombrero, barba y lentes oscuros en el escenario. Se encarga de los acordes, del ritmo y de fingir que alguien sí trae un plan. No inventes.",
+        deep_copy:"Le mete sabroso a los graves, negocia con las frecuencias bajas y arma unas hojas de cálculo sospechosamente detalladas para este desmadre.",
+        box_tag:"03 · La mera caja",
+        box_title:"Kick Bass · 100% cartón, compa",
+        box_copy:"No pide camerino, ni pasaporte, ni patrocinio. Y aun así, esta condenada caja tiene más posibilidades de sobrevivir al equipaje que los otros dos.",
+        merch_eyebrow:"Oficial, pero no te emociones",
+        merch_title:"La merch bien chida",
+        merch_intro:"¡Se armó! La merch ya existe de verdad: playeras, tazas y demás cositas de la Gira 26. Cáele a la tienda oficial de Scrym & Deep Fry's.",
+        merch_tee_title:"La playera de la gira",
+        merch_tee_copy:"Playera negra · logo discreto adelante · estampado bien chingón atrás",
+        merch_more_title:"Más cosas que ni sabías que necesitabas",
+        merch_more_copy:"Sudadera, póster, calcomanías, bolsa de tela y demás antojos",
+        quality_first:"Primero lo chido.",
+        merch_quality_copy:"La playera sigue siendo la mera mera, pero ya le entraron las tazas y más chucherías. Si ves piratería, ni te arrimes.",
+        shop_visit:"Cáele a la tienda oficial",
+        crafts_eyebrow:"Ingeniería de cartón, papá",
+        crafts_title:"Arma la dichosa caja",
+        crafts_intro:"Plantilla A4 para imprimir y armar tu propio Kick Bass de cartón en versión mini, para el escritorio. Sin contratar a un roadie, faltaba más.",
+        crafts_steps:"Imprime · pega · recorta · dobla",
+        crafts_kit:"Kit del mini bombo de cartón",
+        crafts_open:"Abre la plantilla A4", crafts_download:"Baja el SVG",
+        // Keep dimensional, cutting and blade safety instructions precise.
+        xmas_eyebrow:"La última tocada · Earley",
+        xmas_title:"El pachangón navideño",
+        xmas_copy:"Después de Madrid, Ciudad de México, Bogotá y Buenos Aires, la gran gira 2026 termina, cómo no, en Earley. Suéter navideño, si se te antoja. El bombo de cartón va a huevo.",
+        back_top:"Pa'rriba otra vez",
+        footer_tagline:"La gira latina más bailadora del 26 · No compres imitaciones, carnal.",
+        footer_project:"Un proyecto de lo más serio, aunque no lo parezca, montado por",
+        very_soon:"¡Ya merito!", days_to_go:n=>"Faltan "+n+" días, banda"
+      };
+
       const langButtons=[...document.querySelectorAll('.lang-btn')];
       const dates=[...document.querySelectorAll('.date')];
       const chips=[...document.querySelectorAll('.chip')];
@@ -623,7 +681,7 @@
       langButtons.forEach(btn=>btn.addEventListener('click',()=>applyLanguage(btn.dataset.lang)));
       const saved=localStorage.getItem('scrym-deep-fry-lang');
       const browserLang=(navigator.language||'').toLowerCase();
-       const initial=saved ? saved : (browserLang.startsWith('nhe') ? 'nhe' : browserLang.startsWith('es') ? 'es' : 'en');
+       const initial=saved ? saved : (browserLang.startsWith('nhe') ? 'nhe' : browserLang.startsWith('es-mx') ? 'es-MX' : browserLang.startsWith('es') ? 'es' : 'en');
       applyLanguage(initial,false);
     })();
   </script>

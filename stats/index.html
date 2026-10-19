@@ -1,812 +1,881 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>emote analytics</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    max-width: 900px;
-    margin: 40px auto;
-    padding: 0 20px;
-    line-height: 1.5;
-    background: #fafafa;
-  }
-
-  h1 {
-    margin-bottom: 10px;
-  }
-
-  h2 {
-    margin-top: 40px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 6px;
-  }
-
-  h3 {
-    font-size: 1rem;
-    margin: 18px 0 6px;
-  }
-
-  .metric {
-    margin: 12px 0;
-  }
-
-  .label {
-    font-size: 0.9rem;
-    color: #666;
-  }
-
-  .value {
-    font-size: 1.8rem;
-    font-weight: 600;
-  }
-
-  .value-prominent {
-    font-size: 2.4rem;
-    font-weight: 700;
-    color: #111;
-  }
-
-  .label-muted {
-    color: #888;
-  }
-
-  .range {
-    color: #888;
-    font-size: 0.9rem;
-  }
-
-  .error {
-    color: #b00020;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-  }
-
-  .hint {
-    color: #666;
-    font-size: 0.9rem;
-    margin-top: 8px;
-  }
-
-  .list {
-    margin: 10px 0 0;
-    padding-left: 18px;
-  }
-
-  .list li {
-    margin: 4px 0;
-  }
-
-  .section-intro {
-    margin: 6px 0 18px;
-    color: #555;
-  }
-
-  .card {
-    background: #fff;
-    border: 1px solid #e7e7e7;
-    border-radius: 10px;
-    padding: 14px;
-  }
-
-  .story-list {
-    margin: 10px 0 0;
-    padding-left: 20px;
-  }
-
-  .story-list li {
-    margin: 8px 0;
-  }
-</style>
-</head>
-<body>
-
-<h1>emote analytics</h1>
-<p class="section-intro">A weekly story of traffic quality, content engagement, and what people actually did on the site.</p>
-
-<div id="story">
-  <h2>At a glance</h2>
-  <div class="card">
-    <ul class="story-list" id="weekly-story"></ul>
-  </div>
-</div>
-
-<div id="weekly">
-  <h2>Traffic health</h2>
-  <div class="range" id="weekly-range"></div>
-  <div class="grid">
-    <div class="metric">
-      <div class="label">Valid Requests</div>
-      <div class="value" id="weekly-requests">–</div>
-    </div>
-    <div class="metric">
-      <div class="label label-muted">Unique Visitors</div>
-      <div class="value" id="weekly-visitors">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Bandwidth (MB)</div>
-      <div class="value" id="weekly-bandwidth">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Likely Engaged Visitors</div>
-      <div class="value" id="weekly-engaged-visitors">–</div>
-      <div class="hint">Visitors with between 2 and 9 requests</div>
-    </div>
-    <div class="metric">
-      <div class="label">PDF Downloads This Week</div>
-      <div class="value" id="weekly-pdf-downloads">–</div>
-    </div>
-
-  </div>
-
-  <h3>PDF engagement</h3>
-  <div class="hint">Only successful HTTP 200 downloads are counted.</div>
-  <ul class="list" id="weekly-pdf-files"></ul>
-
-  <h3>PDF download geolocations</h3>
-  <ul class="list" id="weekly-pdf-locations"></ul>
-
-  <h3>PDF download referrer URLs</h3>
-  <ul class="list" id="weekly-pdf-referrers"></ul>
-
-  <h3>Acquisition sources</h3>
-  <ul class="list" id="weekly-referrers"></ul>
-
-  <h3>Engaged visitor locations</h3>
-  <ul class="list" id="weekly-locations"></ul>
-
-  <h3>Traffic quality signals</h3>
-  <div class="grid">
-    <div class="metric">
-      <div class="label">Direct / Unknown Referrer Share</div>
-      <div class="value" id="weekly-direct-share">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Invalid / Error Traffic Share</div>
-      <div class="value" id="weekly-invalid-share">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Requests per Visitor</div>
-      <div class="value value-prominent" id="weekly-requests-per-visitor">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Top Host Concentration</div>
-      <div class="value" id="weekly-top-host-share">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Likely Data Centre Share</div>
-      <div class="value" id="weekly-datacentre-share">–</div>
-    </div>
-  </div>
-  <div class="hint" id="weekly-rpv-note">High direct traffic, high invalid traffic, high requests-per-visitor, heavy concentration from one host, and high likely data-centre share can indicate bot activity.</div>
-</div>
-
-<div id="games">
-  <h2>Game engagement</h2>
-  <div class="range" id="games-range"></div>
-  <div class="grid">
-    <div class="metric">
-      <div class="label">Valid Requests</div>
-      <div class="value" id="games-requests">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Unique Visitors</div>
-      <div class="value" id="games-visitors">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Share of Weekly Requests</div>
-      <div class="value" id="games-share">–</div>
-    </div>
-  </div>
-  <ul class="list" id="games-top-pages"></ul>
-
-  <h3>Games being run</h3>
-  <ul class="list" id="games-top-titles"></ul>
-  <div class="hint">Tip: keep <code>games.json</code> as a rolling 7-day export so this panel is decision-useful.</div>
-
-  <h3>Game starts/completions</h3>
-  <div class="hint">From <code>games-summary.json</code> generated by game start/complete beacons.</div>
-  <ul class="list" id="games-summary"></ul>
-</div>
-
-<div id="reading">
-  <h2>Reading engagement</h2>
-  <div class="range" id="reading-range"></div>
-  <div class="grid">
-    <div class="metric">
-      <div class="label">Reading Requests</div>
-      <div class="value" id="reading-requests">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Reading Visitors</div>
-      <div class="value" id="reading-visitors">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Share of Weekly Requests</div>
-      <div class="value" id="reading-share">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Blogger Feed Pulls</div>
-      <div class="value" id="reading-blogger-pulls">–</div>
-    </div>
-  </div>
-  <div class="hint">Includes pages/feeds that look like essays/reading content. If essays live on Blogger, track click-throughs/feed pulls for meaningful signal.</div>
-  <ul class="list" id="reading-top-pages"></ul>
-
-  <h3>Blog article engagement summary</h3>
-  <div class="hint">From <code>blog-articles-summary.json</code> generated by blog engagement beacons.</div>
-  <ul class="list" id="reading-blog-articles-summary"></ul>
-</div>
-
-<div id="humans">
-  <h2>Likely human traffic</h2>
-  <div class="range" id="humans-range"></div>
-  <div class="grid">
-    <div class="metric">
-      <div class="label">Valid Requests</div>
-      <div class="value" id="humans-requests">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Unique Visitors</div>
-      <div class="value" id="humans-visitors">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Share of Weekly Requests</div>
-      <div class="value" id="humans-share">–</div>
-    </div>
-  </div>
-  <ul class="list" id="humans-top-pages"></ul>
-</div>
-
-<div id="debug">
-  <h2>Debug</h2>
-  <div class="range" id="debug-range"></div>
-  <div class="grid">
-    <div class="metric">
-      <div class="label">Total Requests</div>
-      <div class="value" id="debug-requests">–</div>
-    </div>
-    <div class="metric">
-      <div class="label">Unique Visitors</div>
-      <div class="value" id="debug-visitors">–</div>
-    </div>
-  </div>
-</div>
-
-<script>
-function formatMB(bytes) {
-  return (bytes / 1024 / 1024).toFixed(2);
-}
-
-function numberValue(input) {
-  if (typeof input === "number") return input;
-  if (typeof input === "string") return Number(input.replace(/[^\d.-]/g, "")) || 0;
-  if (input && typeof input === "object") {
-    return numberValue(input.count ?? input.value ?? 0);
-  }
-  return 0;
-}
-
-function percent(part, total) {
-  const base = numberValue(total);
-  if (!base) return "0%";
-  return ((numberValue(part) / base) * 100).toFixed(1) + "%";
-}
-
-function escapeHtml(value) {
-  return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[char]));
-}
-
-function getRows(dataset) {
-  if (!dataset) return [];
-  if (Array.isArray(dataset)) return dataset;
-  if (Array.isArray(dataset.data)) return dataset.data;
-  if (Array.isArray(dataset.rows)) return dataset.rows;
-  return [];
-}
-
-function rowLabel(row) {
-  return String(row?.data ?? row?.path ?? row?.url ?? row?._itemText ?? row?.item ?? "Unknown");
-}
-
-function getRowPath(row) {
-  return rowLabel(row).toLowerCase();
-}
-
-function normalizePath(path) {
-  return String(path || "").split(/[?#]/)[0].toLowerCase();
-}
-
-function decodeUrlPath(path) {
-  const value = String(path || "");
-  try {
-    return decodeURIComponent(value);
-  } catch (_err) {
-    return value;
-  }
-}
-
-function getVisitors(row) {
-  return numberValue(row?.visitors);
-}
-
-function getHits(row) {
-  return numberValue(row?.hits ?? row?.requests ?? row?.count);
-}
-
-function statusCodeFromRow(row) {
-  const candidates = [
-    row?.status,
-    row?.status_code,
-    row?.statusCode,
-    row?.code,
-    row?.http_status,
-    row?._status,
-    row?._statusText
-  ];
-
-  for (const candidate of candidates) {
-    const match = String(candidate ?? "").match(/\b(\d{3})\b/);
-    if (match) return Number(match[1]);
-  }
-
-  return NaN;
-}
-
-function isSuccessful200(row) {
-  return statusCodeFromRow(row) === 200;
-}
-
-function setText(id, value) {
-  const node = document.getElementById(id);
-  if (node) node.innerText = value;
-}
-
-function renderStory(listId, items) {
-  const list = document.getElementById(listId);
-  if (!list) return;
-  const rows = (items || []).filter(Boolean);
-  if (!rows.length) {
-    list.innerHTML = "<li>No summary available.</li>";
-    return;
-  }
-  list.innerHTML = rows.map((item) => `<li>${item}</li>`).join("");
-}
-
-function setRange(prefix, general) {
-  setText(prefix + "-range", `${general.start_date ?? "-"} – ${general.end_date ?? "-"}`);
-}
-
-function renderTopPages(listId, rows) {
-  const list = document.getElementById(listId);
-  if (!list) return;
-
-  if (!rows.length) {
-    list.innerHTML = "<li>No matching pages in this period.</li>";
-    return;
-  }
-
-  list.innerHTML = rows.slice(0, 3).map((row) => {
-    const label = escapeHtml(rowLabel(row));
-    return `<li><strong>${label}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`;
-  }).join("");
-}
-
-function renderSummaryList(listId, rows, emptyMessage, rowHtml, limit = 5) {
-  const list = document.getElementById(listId);
-  if (!list) return;
-  if (!rows.length) {
-    list.innerHTML = `<li>${escapeHtml(emptyMessage)}</li>`;
-    return;
-  }
-  const shownRows = Number.isFinite(limit) ? rows.slice(0, limit) : rows;
-  list.innerHTML = shownRows.map(rowHtml).join("");
-}
-
-function populateBasicStats(prefix, data) {
-  const g = data.general || {};
-  setRange(prefix, g);
-
-  if (document.getElementById(prefix + "-requests")) {
-    setText(prefix + "-requests", numberValue(g.valid_requests ?? g.total_requests).toLocaleString());
-  }
-
-  if (document.getElementById(prefix + "-visitors")) {
-    setText(prefix + "-visitors", numberValue(g.unique_visitors).toLocaleString());
-  }
-
-  if (document.getElementById(prefix + "-bandwidth")) {
-    setText(prefix + "-bandwidth", formatMB(numberValue(g.bandwidth)));
-  }
-}
-
-function isPdfPath(path) {
-  return /\.pdf(?:$|[?#])/i.test(path);
-}
-
-function isBloggerRelatedPath(path) {
-  return /(blog-feed|blogger|martymcfry)/.test(String(path || "").toLowerCase());
-}
-
-function isReadingPath(path) {
-  return /(reading|blog|essay|governance|influences|library|article|feed)/.test(path);
-}
-
-function looksLikeGamePath(path) {
-  return /\.html?(?:$|[?#])/.test(path) && !/games\.html?(?:$|[?#])/.test(path);
-}
-
-function formatGameTitleFromPath(path) {
-  const clean = String(path || "").split(/[?#]/)[0];
-  const parts = clean.split("/").filter(Boolean);
-  const file = parts.length ? parts[parts.length - 1] : clean;
-  const base = file.replace(/\.html?$/i, "");
-  if (!base) return "Unknown game";
-  return base
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (m) => m.toUpperCase());
-}
-
-function buildGamesByTitle(rows) {
-  const grouped = new Map();
-  rows.forEach((row) => {
-    const path = rowLabel(row);
-    if (!looksLikeGamePath(path)) return;
-    const title = formatGameTitleFromPath(path);
-    const current = grouped.get(title) || { title, hits: 0, visitors: 0 };
-    current.hits += getHits(row);
-    current.visitors += getVisitors(row);
-    grouped.set(title, current);
-  });
-  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
-}
-
-function formatGameKey(gameKey) {
-  return String(gameKey || "")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (m) => m.toUpperCase()) || "Unknown game";
-}
-
-function renderGamesSummary(summaryData) {
-  const list = document.getElementById("games-summary");
-  if (!list) return;
-
-  const entries = Object.entries(summaryData || {});
-  if (!entries.length) {
-    list.innerHTML = "<li>No game summary data available.</li>";
-    return;
-  }
-
-  entries.sort((a, b) => numberValue(b?.[1]?.starts) - numberValue(a?.[1]?.starts));
-
-  list.innerHTML = entries.map(([gameKey, values]) => {
-    const starts = numberValue(values?.starts);
-    const completes = numberValue(values?.completes);
-    const completionRate = starts ? `${((completes / starts) * 100).toFixed(1)}%` : "0.0%";
-    const durations = values?.durations || {};
-    const durationText = Object.keys(durations).length
-      ? Object.entries(durations)
-        .sort((a, b) => numberValue(b[1]) - numberValue(a[1]))
-        .map(([bucket, count]) => `${escapeHtml(bucket)}: ${numberValue(count).toLocaleString()}`)
-        .join(", ")
-      : "none";
-
-    return `<li><strong>${escapeHtml(formatGameKey(gameKey))}</strong> — ${starts.toLocaleString()} starts, ${completes.toLocaleString()} completes (${completionRate})<br><span class=\"label\">Durations: ${durationText}</span></li>`;
-  }).join("");
-}
-
-function formatBlogArticleTitleFromPath(path) {
-  const decodedPath = decodeUrlPath(String(path || "")).split(/[?#]/)[0];
-  const segments = decodedPath.split("/").filter(Boolean);
-  const slug = segments.length ? segments[segments.length - 1] : decodedPath;
-  const titleBase = slug
-    .replace(/\.html?$/i, "")
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!titleBase) return decodedPath || "Unknown article";
-  return titleBase.charAt(0).toUpperCase() + titleBase.slice(1);
-}
-
-function renderBlogArticlesSummary(summaryData) {
-  const list = document.getElementById("reading-blog-articles-summary");
-  if (!list) return;
-
-  const entries = Object.entries(summaryData || {});
-  if (!entries.length) {
-    list.innerHTML = "<li>No blog article summary data available.</li>";
-    return;
-  }
-
-  entries.sort((a, b) => numberValue(b?.[1]?.engaged) - numberValue(a?.[1]?.engaged));
-
-  list.innerHTML = entries.map(([articlePath, stats]) => {
-    const opens = numberValue(stats?.opens);
-    const engaged = numberValue(stats?.engaged);
-    const engagementRateValue = numberValue(stats?.engagement_rate);
-    const engagementRate = Number.isFinite(engagementRateValue) ? engagementRateValue.toFixed(2) : "0.00";
-
-    return `<li><strong>${escapeHtml(formatBlogArticleTitleFromPath(articlePath))}</strong> — opens: ${opens.toLocaleString()}, engaged: ${engaged.toLocaleString()}, engagement rate: ${engagementRate}</li>`;
-  }).join("");
-}
-
-function collectPdfRowsFromDataset(dataset) {
-  const grouped = new Map();
-
-  getRows(dataset).forEach((row) => {
-    const rawPath = rowLabel(row);
-    if (!isPdfPath(rawPath)) return;
-
-    const fileKey = normalizePath(rawPath);
-    const fileRow = grouped.get(fileKey) || {
-      label: decodeUrlPath(rawPath.split(/[?#]/)[0]),
-      hits: 0,
-      visitors: 0
-    };
-    fileRow.hits += getHits(row);
-    fileRow.visitors += getVisitors(row);
-    grouped.set(fileKey, fileRow);
-  });
-
-  return Array.from(grouped.values()).sort((a, b) => b.hits - a.hits);
-}
-
-function isDirectReferrer(text) {
-  const value = String(text || "").trim().toLowerCase();
-  return !value || /direct|unknown|none|bookmark|typed|\(-\)|^-$/.test(value);
-}
-
-function rowCountry(row) {
-  const country =
-    row?.country ||
-    row?.geoip?.country ||
-    row?.location?.country ||
-    "";
-
-  return country || "Unknown country";
-}
-
-function buildCountryRows(hostRows) {
-  const grouped = new Map();
-
-  hostRows.forEach((row) => {
-    const country = rowCountry(row);
-    const existing = grouped.get(country) || {
-      label: country,
-      hits: 0,
-      visitors: 0
-    };
-
-    existing.hits += getHits(row);
-    existing.visitors += getVisitors(row);
-
-    grouped.set(country, existing);
-  });
-
-  return Array.from(grouped.values())
-    .sort((a, b) => b.visitors - a.visitors);
-}
-
-function rowAsnText(row) {
-  return String(row?.asn || row?.geoip?.asn || "");
-}
-
-function isExcludedAsn(row) {
-  const asnText = rowAsnText(row).toUpperCase();
-  const excludedAsnIds = ["14618", "15169", "8075", "16509"];
-  return excludedAsnIds.some((asnId) => new RegExp(`\\bAS?${asnId}\\b`).test(asnText));
-}
-
-function isLikelyDataCentre(row) {
-  const asn = rowAsnText(row).toLowerCase();
-
-  return isExcludedAsn(row) || /amazon|aws|google|microsoft|azure|cloudflare|digitalocean|ovh|alibaba|tencent/.test(asn);
-}
-
-function sameDateRange(a, b) {
-  const aStart = a?.general?.start_date;
-  const aEnd = a?.general?.end_date;
-  const bStart = b?.general?.start_date;
-  const bEnd = b?.general?.end_date;
-  return Boolean(aStart && aEnd && bStart && bEnd && aStart === bStart && aEnd === bEnd);
-}
-
-async function loadJson(path) {
-  const response = await fetch(path);
-  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
-  return response.json();
-}
-
-async function loadJsonOptional(path, fallback = null) {
-  try {
-    return await loadJson(path);
-  } catch (err) {
-    console.warn(`Optional data file not available: ${path}`, err);
-    return fallback;
-  }
-}
-
-async function init() {
-  try {
-    const [weekly, games, debug, humans, pdf, gamesSummary, blogArticlesSummary] = await Promise.all([
-      loadJson("weekly.json"),
-      loadJson("games.json"),
-      loadJson("debug.json"),
-      loadJsonOptional("humans.json"),
-      loadJsonOptional("pdf.json"),
-      loadJsonOptional("games-summary.json", {}),
-      loadJsonOptional("blog-articles-summary.json", {})
-    ]);
-
-    populateBasicStats("weekly", weekly);
-    populateBasicStats("games", games);
-    populateBasicStats("debug", debug);
-    populateBasicStats("humans", humans || {});
-
-    const weeklyRequests = numberValue(weekly?.general?.valid_requests ?? weekly?.general?.total_requests);
-    const weeklyVisitors = numberValue(weekly?.general?.unique_visitors);
-    const gamesRequests = numberValue(games?.general?.valid_requests ?? games?.general?.total_requests);
-
-    const weeklyRequestRows = getRows(weekly.requests);
-    const hostRows = getRows(weekly.hosts);
-    const nonExcludedHostRows = hostRows.filter((row) => !isExcludedAsn(row));
-    const humanHostRows = getRows(humans?.hosts);
-    const engagedVisitors = nonExcludedHostRows.reduce((sum, row) => sum + (getHits(row) > 1 && getHits(row) < 10 ? getVisitors(row) : 0), 0);
-
-    const pdfRows = collectPdfRowsFromDataset(pdf?.requests);
-    const pdfDownloadsFromRows = pdfRows.reduce((sum, row) => sum + row.hits, 0);
-    const pdfDownloads = pdfDownloadsFromRows || numberValue(pdf?.general?.valid_requests ?? pdf?.general?.total_requests);
-    const bloggerPulls = weeklyRequestRows.reduce((sum, row) => sum + (isBloggerRelatedPath(getRowPath(row)) ? getHits(row) : 0), 0);
-
-    const gameRequestRows = getRows(games.requests).sort((a, b) => getHits(b) - getHits(a));
-    const gamesByTitle = buildGamesByTitle(gameRequestRows);
-
-    setText("games-share", percent(gamesRequests, weeklyRequests));
-    renderTopPages("games-top-pages", gameRequestRows);
-    renderSummaryList(
-      "games-top-titles",
-      gamesByTitle,
-      "No game page data available.",
-      (row) => `<li><strong>${escapeHtml(row.title)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`
-    );
-    renderGamesSummary(gamesSummary);
-
-    const humansRequests = numberValue(humans?.general?.valid_requests ?? humans?.general?.total_requests);
-    const humansRequestRows = getRows(humans?.requests).sort((a, b) => getHits(b) - getHits(a));
-    const humansRangeMatchesWeekly = sameDateRange(humans, weekly);
-    setText("humans-share", humansRangeMatchesWeekly ? percent(humansRequests, weeklyRequests) : "Range mismatch");
-    renderTopPages("humans-top-pages", humansRequestRows);
-
-    const readingRows = weeklyRequestRows.filter((row) => isReadingPath(getRowPath(row)));
-    const readingRequests = readingRows.reduce((sum, row) => sum + getHits(row), 0);
-    const readingVisitors = readingRows.reduce((sum, row) => sum + getVisitors(row), 0);
-
-    setRange("reading", weekly.general || {});
-    setText("reading-requests", readingRequests.toLocaleString());
-    setText("reading-visitors", readingVisitors.toLocaleString());
-    setText("reading-share", percent(readingRequests, weeklyRequests));
-    renderTopPages("reading-top-pages", readingRows.sort((a, b) => getHits(b) - getHits(a)));
-    renderBlogArticlesSummary(blogArticlesSummary);
-
-    const referrerRows = getRows(weekly.referring_sites).sort((a, b) => getHits(b) - getHits(a));
-    renderSummaryList(
-      "weekly-referrers",
-      referrerRows,
-      "No referrer data available.",
-      (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`
-    );
-
-    const humanLocationRows = buildCountryRows(humanHostRows);
-    renderSummaryList(
-      "weekly-locations",
-      humanLocationRows,
-      "No human geography data available.",
-      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, numberValue(humans?.general?.unique_visitors) || weeklyVisitors)})</li>`
-    );
-
-    const directRequests = referrerRows
-      .filter((row) => isDirectReferrer(rowLabel(row)))
-      .reduce((sum, row) => sum + getHits(row), 0);
-    setText("weekly-direct-share", percent(directRequests, weeklyRequests));
-
-    const debugTotalRequests = numberValue(debug?.general?.total_requests ?? debug?.general?.valid_requests);
-    const invalidRequests = Math.max(0, debugTotalRequests - weeklyRequests);
-    setText("weekly-invalid-share", percent(invalidRequests, debugTotalRequests));
-
-    setText("weekly-engaged-visitors", engagedVisitors.toLocaleString());
-    setText("weekly-pdf-downloads", pdfDownloads.toLocaleString());
-    renderSummaryList(
-      "weekly-pdf-files",
-      pdfRows,
-      "No PDF download rows found.",
-      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.hits.toLocaleString()} requests, ${row.visitors.toLocaleString()} visitors</li>`,
-      Number.POSITIVE_INFINITY
-    );
-    const pdfHostRows = getRows(pdf?.hosts);
-    const pdfLocationRows = buildCountryRows(pdfHostRows);
-    const pdfLocationTotalVisitors = pdfLocationRows.reduce((sum, row) => sum + row.visitors, 0);
-    renderSummaryList(
-      "weekly-pdf-locations",
-      pdfLocationRows,
-      "No PDF geolocation data available.",
-      (row) => `<li><strong>${escapeHtml(row.label)}</strong> — ${row.visitors.toLocaleString()} visitors (${percent(row.visitors, pdfLocationTotalVisitors)})</li>`,
-      Number.POSITIVE_INFINITY
-    );
-
-    const pdfReferrerRows = getRows(pdf?.referring_sites).sort((a, b) => getHits(b) - getHits(a));
-    renderSummaryList(
-      "weekly-pdf-referrers",
-      pdfReferrerRows,
-      "No PDF referrer URL data available.",
-      (row) => `<li><strong>${escapeHtml(rowLabel(row))}</strong> — ${getHits(row).toLocaleString()} requests, ${getVisitors(row).toLocaleString()} visitors</li>`,
-      Number.POSITIVE_INFINITY
-    );
-
-    setText("reading-blogger-pulls", bloggerPulls.toLocaleString());
-
-    const requestsPerVisitor = weeklyVisitors ? (weeklyRequests / weeklyVisitors).toFixed(2) : "0.00";
-    setText("weekly-requests-per-visitor", requestsPerVisitor);
-    const rpvNote = document.getElementById("weekly-rpv-note");
-    if (rpvNote) {
-      if (Number(requestsPerVisitor) < 1.5) {
-        rpvNote.innerText = "Requests per Visitor is below 1.5 — this can indicate a bot-heavy week.";
-        rpvNote.style.color = "#b00020";
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Analytics | eMote</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #18352e;
+        --muted: #51665e;
+        --line: #d9e4de;
+        --accent: #176b54;
+        --bg: #f4f7f3;
       }
-    }
-
-    const topHostHits = hostRows.reduce((maxHits, row) => Math.max(maxHits, getHits(row)), 0);
-    setText("weekly-top-host-share", percent(topHostHits, weeklyRequests));
-
-    const dataCentreRequests = hostRows
-      .filter((row) => isLikelyDataCentre(row))
-      .reduce((sum, row) => sum + getHits(row), 0);
-    setText("weekly-datacentre-share", percent(dataCentreRequests, weeklyRequests));
-
-    const directShare = percent(directRequests, weeklyRequests);
-    const invalidShare = percent(invalidRequests, debugTotalRequests);
-    const dataCentreShare = percent(dataCentreRequests, weeklyRequests);
-    const engagedShare = percent(engagedVisitors, weeklyVisitors);
-    const readingShare = percent(readingRequests, weeklyRequests);
-    const gameShare = percent(gamesRequests, weeklyRequests);
-
-    renderStory("weekly-story", [
-      `<strong>Traffic volume:</strong> ${weeklyRequests.toLocaleString()} valid requests from ${weeklyVisitors.toLocaleString()} visitors (${requestsPerVisitor} requests per visitor).`,
-      `<strong>Visitor quality:</strong> ${engagedVisitors.toLocaleString()} likely engaged visitors (${engagedShare}); direct/unknown traffic is ${directShare}, invalid/error traffic is ${invalidShare}, and likely data-centre traffic is ${dataCentreShare}.`,
-      `<strong>What people engaged with:</strong> games drove ${gameShare} of weekly requests, while reading content drove ${readingShare}.`,
-      `<strong>Downloads:</strong> ${pdfDownloads.toLocaleString()} successful PDF downloads this week.`
-    ]);
-  } catch (err) {
-    console.error("Error loading analytics", err);
-    ["weekly", "games", "humans", "debug", "reading"].forEach((prefix) => {
-      const section = document.getElementById(prefix);
-      if (section) {
-        section.innerHTML += "<p class='error'>Could not load data.</p>";
+      * {
+        box-sizing: border-box;
       }
-    });
-  }
-}
-
-init();
-</script>
-
-</body>
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.55 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1120px;
+        margin: auto;
+        padding: 28px 24px 64px;
+      }
+      a {
+        color: var(--accent);
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: center;
+        margin: 24px 0;
+      }
+      h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        letter-spacing: -0.05em;
+        margin: 0;
+      }
+      h2 {
+        font-size: 1.35rem;
+        margin: 0 0 8px;
+      }
+      h3 {
+        font-size: 1rem;
+      }
+      p {
+        margin: 8px 0 16px;
+      }
+      .muted,
+      .note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-size: 0.75rem;
+        font-weight: 750;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 16px;
+        background: white;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      a:focus-visible,
+      button:focus-visible,
+      input:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid #cb8122;
+        outline-offset: 3px;
+      }
+      .period {
+        background: var(--ink);
+        color: white;
+        border-radius: 12px;
+        padding: 18px 22px;
+      }
+      .period p {
+        margin: 3px 0;
+      }
+      .period .muted {
+        color: #d3e4dc;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+      }
+      .card,
+      section {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 22px;
+      }
+      .value {
+        font-size: 2.25rem;
+        font-weight: 720;
+        letter-spacing: -0.04em;
+        line-height: 1.3;
+      }
+      .card p {
+        margin: 5px 0;
+      }
+      .card .label {
+        font-size: 0.9rem;
+        font-weight: 650;
+      }
+      .card .note {
+        font-size: 0.8rem;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      section {
+        margin-top: 20px;
+      }
+      .notice {
+        border-left: 4px solid #b67821;
+        background: #fff8e9;
+        padding: 14px 18px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+      .notice ul {
+        padding-left: 20px;
+        margin: 6px 0;
+      }
+      .notice[hidden] {
+        display: none;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px 8px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      td.num,
+      th.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .path {
+        overflow-wrap: anywhere;
+        min-width: 160px;
+      }
+      caption {
+        text-align: left;
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin: 5px 0 12px;
+      }
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin: 8px 0 12px;
+      }
+      .bar {
+        display: block;
+        height: 5px;
+        background: #dbece3;
+        margin-top: 6px;
+        min-width: 100px;
+      }
+      .bar span {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+      }
+      details {
+        margin-top: 16px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 650;
+        padding: 8px 0;
+      }
+      code {
+        font-size: 0.85em;
+      }
+      footer {
+        margin-top: 22px;
+      }
+      .empty {
+        color: var(--muted);
+        padding: 16px 0;
+      }
+      .tag {
+        font-size: 0.75rem;
+        font-weight: 650;
+        border-radius: 4px;
+        padding: 3px 6px;
+        background: #edf3ee;
+      }
+      .source-note {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      @media (max-width: 720px) {
+        main {
+          padding: 18px 16px 40px;
+        }
+        .split {
+          grid-template-columns: 1fr;
+        }
+        .card,
+        section {
+          padding: 16px;
+        }
+        header {
+          gap: 12px;
+        }
+        .grid {
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .value {
+          font-size: 1.9rem;
+        }
+      }
+      @media (max-width: 380px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Breadcrumb">
+        <a href="/">eMote</a> / <a href="/tools.html">Tools</a> / Analytics
+      </nav>
+      <header>
+        <div>
+          <div class="eyebrow">Site activity</div>
+          <h1>Analytics</h1>
+          <p class="muted">
+            What was requested, what was recorded and how much we can tell.
+          </p>
+        </div>
+        <button id="refresh" type="button">Refresh</button>
+      </header>
+      <div class="period" role="status" aria-live="polite">
+        <p id="period">Loading reports…</p>
+        <p id="updated" class="muted">Reading the server exports.</p>
+      </div>
+      <noscript
+        ><p class="notice">
+          Enable JavaScript to load the reports. You can also open
+          <a href="weekly.json">the main export</a> directly.
+        </p></noscript
+      >
+      <div id="warnings" class="notice" hidden>
+        <strong>Before interpreting these figures</strong>
+        <ul id="warning-list"></ul>
+      </div>
+      <div class="grid" aria-label="Main report totals">
+        <div class="card">
+          <p class="label">Logged requests</p>
+          <div class="value" id="requests">—</div>
+          <p class="note">
+            Parsed requests in the main export. Includes automated traffic and
+            asset requests.
+          </p>
+        </div>
+        <div class="card">
+          <p class="label">Daily visitor identities</p>
+          <div class="value" id="visitors">—</div>
+          <p class="note">
+            IP + browser + day. A returning person can count again each day.
+          </p>
+        </div>
+        <div class="card">
+          <p class="label">Listed page requests</p>
+          <div class="value" id="pages">—</div>
+          <p class="note">
+            GET requests for page-like URLs in the exported rows. Not unique
+            readers.
+          </p>
+        </div>
+        <div class="card">
+          <p class="label">Data transferred</p>
+          <div class="value" id="bandwidth">—</div>
+          <p class="note">
+            MiB served in the main export. A MiB is 1,048,576 bytes.
+          </p>
+        </div>
+      </div>
+      <section>
+        <h2>Requests over time</h2>
+        <p class="note">
+          Daily totals from the main report. The last day may be incomplete.
+          Missing dates are not filled with zeroes.
+        </p>
+        <div class="scroll" id="daily"></div>
+      </section>
+      <section>
+        <h2>Pages requested</h2>
+        <p class="note">
+          Page-like GET URLs only, excluding assets, feeds and event endpoints.
+          Requests can include bots, reloads and unsuccessful responses
+          depending on the export filters. Visitor identities are per URL and
+          must not be added together.
+        </p>
+        <label for="page-search">Find a page</label
+        ><input
+          id="page-search"
+          type="search"
+          placeholder="Search paths, for example redactor or knowledge"
+          disabled
+        />
+        <p id="page-count" class="note"></p>
+        <div class="scroll" id="page-table"></div>
+        <button id="page-all" type="button" hidden>Show all pages</button>
+      </section>
+      <div class="split">
+        <section>
+          <h2>PDF activity</h2>
+          <p class="source-note" id="pdf-period">Loading…</p>
+          <p class="note">
+            The PDF export may cover selected files only. Its generator includes
+            HTTP 200 and 304 responses. A request is not proof of a completed
+            download or a read.
+          </p>
+          <div id="pdf-table" class="scroll"></div>
+        </section>
+        <section>
+          <h2>Referring sites</h2>
+          <p class="note">
+            External referring hosts in the main export. Internal eMote
+            referrals are excluded here. Missing referrers cannot be reliably
+            calculated from this list.
+          </p>
+          <div id="referrers" class="scroll"></div>
+        </section>
+      </div>
+      <section>
+        <h2>Recorded interactions</h2>
+        <p class="note">
+          These are event counts, not unique people or verified reading time.
+          The current summary format has no reporting dates, so these events are
+          not compared with the main period.
+        </p>
+        <details open>
+          <summary>Article events</summary>
+          <p class="note">
+            “Engaged” is the tracker’s event label. The threshold is not
+            supplied in this export. The ratio is engaged events ÷ open events,
+            not a percentage of unique readers.
+          </p>
+          <div class="scroll" id="articles"></div>
+        </details>
+        <details open>
+          <summary>Game events</summary>
+          <p class="note">
+            Starts and completions are counted independently. They are not
+            matched sessions, so a completion rate cannot be established.
+          </p>
+          <div class="scroll" id="game-events"></div>
+        </details>
+      </section>
+      <details>
+        <summary>Data sources, checks and definitions</summary>
+        <section>
+          <h2>Report health</h2>
+          <p class="note">
+            Each export is checked independently. Matching date ranges alone do
+            not establish matching filters or populations. “Unavailable” means
+            the file could not be loaded or has an unsupported format.
+          </p>
+          <div class="scroll" id="sources"></div>
+          <h3>Why some old metrics have gone</h3>
+          <p class="note">
+            Request counts cannot establish engagement. Counts of visitors to
+            different pages overlap. Subtracting the debug report from the main
+            report does not measure HTTP errors. Data-centre networks and
+            missing referrers do not reliably identify bots.
+          </p>
+          <p class="note">
+            The separately filtered <code>humans.json</code> report is not
+            treated as a verified human audience. The
+            <code>games.json</code> report contains requests beyond game pages
+            and is not used as a game engagement total.
+          </p>
+          <h3>Definitions</h3>
+          <p class="note">
+            GoAccess “valid requests” means parsed log entries, not successful
+            visits. Daily visitor identities use IP address, date and user
+            agent. These can merge different people or count one person more
+            than once. See the
+            <a
+              href="https://goaccess.io/man"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GoAccess manual</a
+            >.
+          </p>
+          <p class="note">
+            PDF paths are read from both regular and static request panels.
+            Query-string variants are kept separate to avoid adding visitor
+            identities across overlapping rows. No visitor totals are built by
+            adding page rows.
+          </p>
+        </section>
+      </details>
+      <footer class="muted">
+        Server-log and event summaries. No new visitor tracking is added by this
+        dashboard.
+      </footer>
+    </main>
+    <script>
+      "use strict";
+      const files = [
+        "weekly",
+        "pdf",
+        "games-summary",
+        "blog-articles-summary",
+        "games",
+        "humans",
+        "debug",
+      ];
+      const labels = {
+        weekly: "Main traffic",
+        pdf: "PDF requests",
+        "games-summary": "Game events",
+        "blog-articles-summary": "Article events",
+        games: "Game log export",
+        humans: "Filtered “human” export",
+        debug: "Debug export",
+      };
+      let pageRows = [];
+      let showAllPages = false;
+      const $ = (id) => document.getElementById(id);
+      const esc = (value) =>
+        String(value ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      function num(v) {
+        if (v && typeof v === "object") return num(v.count ?? v.value);
+        if (typeof v === "string" && v.trim()) v = Number(v.replace(/,/g, ""));
+        return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+      }
+      const fmt = (v) =>
+        num(v) === null ? "Unavailable" : num(v).toLocaleString("en-GB");
+      function rows(panel) {
+        return Array.isArray(panel)
+          ? panel
+          : Array.isArray(panel?.data)
+            ? panel.data
+            : [];
+      }
+      const label = (r) => String(r?.data ?? r?.path ?? r?.url ?? "Unknown");
+      const hits = (r) => num(r?.hits ?? r?.requests ?? r?.count);
+      function decoded(s) {
+        try {
+          return decodeURIComponent(s);
+        } catch {
+          return s;
+        }
+      }
+      function pathOf(r) {
+        return decoded(label(r)).split(/[?#]/)[0];
+      }
+      function isPage(r) {
+        const p = pathOf(r);
+        return (
+          (!r.method || r.method === "GET") &&
+          p.startsWith("/") &&
+          !/^\/(?:gping|bping|stats)(?:\/|$)/i.test(p) &&
+          (p.endsWith("/") || /\.html?$/i.test(p))
+        );
+      }
+      function dateValue(s) {
+        if (typeof s !== "string") return NaN;
+        const m = s.match(/^(\d{2})\/([A-Za-z]{3})\/(\d{4})$/);
+        if (m) {
+          const month = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ].indexOf(m[2]);
+          return month < 0 ? NaN : Date.UTC(+m[3], month, +m[1]);
+        }
+        return /^\d{4}-\d{2}-\d{2}$/.test(s)
+          ? Date.parse(s + "T00:00:00Z")
+          : NaN;
+      }
+      function reportPeriod(d) {
+        const g = d?.general;
+        if (!g) return "Period not supplied";
+        return `${g.start_date ?? "Unknown"} to ${g.end_date ?? "Unknown"}`;
+      }
+      function samePeriod(a, b) {
+        const ag = a?.general,
+          bg = b?.general;
+        if (!ag || !bg) return false;
+        return (
+          Number.isFinite(dateValue(ag.start_date)) &&
+          Number.isFinite(dateValue(ag.end_date)) &&
+          dateValue(ag.start_date) === dateValue(bg.start_date) &&
+          dateValue(ag.end_date) === dateValue(bg.end_date)
+        );
+      }
+      function table(
+        id,
+        headers,
+        data,
+        empty = "No rows recorded in this export.",
+      ) {
+        const node = $(id);
+        if (!data.length) {
+          node.innerHTML = `<p class="empty">${esc(empty)}</p>`;
+          return;
+        }
+        node.innerHTML = `<table><thead><tr>${headers.map((h, i) => `<th scope="col" class="${i ? "num" : ""}">${esc(h)}</th>`).join("")}</tr></thead><tbody>${data.map((row) => `<tr>${row.map((c, i) => `<td class="${i ? "num" : "path"}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      }
+      function requestTable(id, data, empty) {
+        table(
+          id,
+          ["Path", "Requests", "Daily identities"],
+          data.map((r) => [
+            esc(decoded(label(r))),
+            fmt(hits(r)),
+            fmt(r.visitors),
+          ]),
+          empty,
+        );
+      }
+      function renderPages() {
+        const query = $("page-search").value.toLowerCase();
+        const filtered = pageRows.filter((r) =>
+          decoded(label(r)).toLowerCase().includes(query),
+        );
+        const shown = showAllPages ? filtered : filtered.slice(0, 15);
+        $("page-count").textContent =
+          `Showing ${shown.length} of ${filtered.length} matching URL rows, ordered by requests.`;
+        $("page-all").hidden = filtered.length <= 15;
+        $("page-all").textContent = showAllPages
+          ? "Show top 15"
+          : "Show all pages";
+        requestTable("page-table", shown, "No matching page rows.");
+      }
+      function pdfRows(d) {
+        const seen = new Set();
+        return [...rows(d?.requests), ...rows(d?.static_requests)]
+          .filter((r) => {
+            const key = [label(r), r.method ?? "GET", r.protocol ?? ""].join(
+              "|",
+            );
+            if (!/\.pdf$/i.test(pathOf(r)) || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => (hits(b) ?? 0) - (hits(a) ?? 0));
+      }
+      function eventEntries(d, kind) {
+        if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+        const entries = Object.entries(d);
+        const fields =
+          kind === "article" ? ["opens", "engaged"] : ["starts", "completes"];
+        return entries.every(
+          ([, v]) =>
+            v &&
+            typeof v === "object" &&
+            fields.every((k) => num(v[k]) !== null),
+        )
+          ? entries
+          : null;
+      }
+      function ratio(part, total) {
+        return total > 0
+          ? `${((part / total) * 100).toFixed(1)}%`
+          : "Not available";
+      }
+      function renderEvents(d, kind) {
+        const entries = eventEntries(d, kind),
+          id = kind === "article" ? "articles" : "game-events";
+        if (entries === null) {
+          $(id).innerHTML =
+            '<p class="empty">Event data unavailable or unsupported.</p>';
+          return;
+        }
+        const field = kind === "article" ? "opens" : "starts";
+        entries.sort((a, b) => num(b[1][field]) - num(a[1][field]));
+        if (kind === "article") {
+          table(
+            id,
+            ["Article path", "Open events", "Engaged events", "Event ratio"],
+            entries.map(([key, v]) => [
+              esc(decoded(key)),
+              fmt(v.opens),
+              fmt(v.engaged),
+              num(v.engaged) > num(v.opens)
+                ? "Check counts"
+                : ratio(num(v.engaged), num(v.opens)),
+            ]),
+          );
+        } else {
+          table(
+            id,
+            ["Game", "Start events", "Completion events"],
+            entries.map(([key, v]) => [
+              esc(key),
+              fmt(v.starts),
+              fmt(v.completes),
+            ]),
+          );
+        }
+      }
+      async function load(name) {
+        try {
+          const response = await fetch(name + ".json", { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (!data || typeof data !== "object" || Array.isArray(data))
+            throw new Error("Unsupported JSON");
+          if (
+            !name.endsWith("-summary") &&
+            (!data.general ||
+              typeof data.general !== "object" ||
+              num(data.general.valid_requests) === null)
+          )
+            throw new Error("Missing report totals");
+          return { data, error: null };
+        } catch (e) {
+          return { data: null, error: e.message };
+        }
+      }
+      function reportChecks(reports) {
+        const notes = [];
+        const main = reports.weekly.data,
+          g = main?.general;
+        if (!main) {
+          notes.push(
+            "Main traffic report unavailable. Other sources are shown independently.",
+          );
+        } else {
+          const start = dateValue(g.start_date),
+            end = dateValue(g.end_date);
+          if (Number.isFinite(start) && Number.isFinite(end)) {
+            const days = Math.round((end - start) / 86400000) + 1;
+            if (days !== 7)
+              notes.push(
+                `The main export covers ${days} calendar days, not a seven-day week.`,
+              );
+            if (Date.now() - end > 2 * 86400000)
+              notes.push(
+                "The main report ends more than two days ago. Check the export schedule.",
+              );
+          } else notes.push("The main report has no usable reporting dates.");
+        }
+        for (const name of ["pdf", "games", "humans", "debug"]) {
+          const d = reports[name].data;
+          if (d && main && !samePeriod(main, d))
+            notes.push(
+              `${labels[name]} covers ${reportPeriod(d)}. It is not compared with the main period.`,
+            );
+        }
+        const human = reports.humans.data;
+        if (
+          main &&
+          human &&
+          samePeriod(main, human) &&
+          num(human.general.valid_requests) > num(g.valid_requests)
+        )
+          notes.push(
+            "The filtered “human” export has more requests than the main export for the same dates. Filters or inputs differ; no human-traffic percentage is shown.",
+          );
+        const unavailable = files.filter((n) => reports[n].error);
+        if (unavailable.length)
+          notes.push(
+            `Unavailable sources: ${unavailable.map((n) => labels[n]).join(", ")}. Missing data is not counted as zero.`,
+          );
+        for (const name of ["games-summary", "blog-articles-summary"])
+          if (
+            reports[name].data &&
+            eventEntries(
+              reports[name].data,
+              name === "games-summary" ? "game" : "article",
+            ) === null
+          )
+            notes.push(
+              `${labels[name]} has an unsupported structure. Its figures are not displayed.`,
+            );
+        return notes;
+      }
+      async function init() {
+        const button = $("refresh");
+        button.disabled = true;
+        button.textContent = "Refreshing…";
+        $("updated").textContent = "Reading the server exports…";
+        try {
+          const results = await Promise.all(files.map(load));
+          const reports = Object.fromEntries(
+            files.map((name, i) => [name, results[i]]),
+          );
+          const main = reports.weekly.data,
+            g = main?.general;
+          pageRows = rows(main?.requests)
+            .filter(isPage)
+            .sort((a, b) => (hits(b) ?? 0) - (hits(a) ?? 0));
+          $("page-search").disabled = !main;
+          $("period").textContent = main
+            ? `Main reporting period: ${reportPeriod(main)}`
+            : "Main traffic report unavailable";
+          $("updated").textContent = main
+            ? `Export generated: ${g.date_time ?? "time not supplied"}. Refresh reloads the saved exports; it does not regenerate them.`
+            : "Other reports may still be available below. Refresh to retry.";
+          $("requests").textContent = fmt(g?.valid_requests);
+          $("visitors").textContent = fmt(g?.unique_visitors);
+          $("pages").textContent =
+            main && pageRows.every((r) => hits(r) !== null)
+              ? fmt(pageRows.reduce((sum, r) => sum + hits(r), 0))
+              : "Unavailable";
+          $("bandwidth").textContent =
+            num(g?.bandwidth) === null
+              ? "Unavailable"
+              : (num(g.bandwidth) / 1048576).toLocaleString("en-GB", {
+                  maximumFractionDigits: 1,
+                });
+          renderPages();
+          const daily = rows(main?.visitors)
+            .filter((r) => /^\d{8}$/.test(label(r)))
+            .sort((a, b) => label(a).localeCompare(label(b)));
+          const max = Math.max(1, ...daily.map((r) => hits(r) ?? 0));
+          table(
+            "daily",
+            ["Date", "Requests", "Daily identities"],
+            daily.map((r) => {
+              const s = label(r);
+              return [
+                esc(`${s.slice(6, 8)}/${s.slice(4, 6)}/${s.slice(0, 4)}`) +
+                  `<span class="bar" aria-hidden="true"><span style="width:${((hits(r) ?? 0) / max) * 100}%"></span></span>`,
+                fmt(hits(r)),
+                fmt(r.visitors),
+              ];
+            }),
+            main ? "Daily rows not supplied." : "Main report unavailable.",
+          );
+          const pdf = reports.pdf.data;
+          $("pdf-period").textContent = pdf
+            ? `PDF report: ${reportPeriod(pdf)}`
+            : "PDF report unavailable";
+          requestTable(
+            "pdf-table",
+            pdfRows(pdf),
+            pdf
+              ? "No per-file PDF rows supplied. A download total cannot be verified."
+              : "PDF data unavailable.",
+          );
+          const ref = rows(main?.referring_sites)
+            .filter((r) => {
+              const host = label(r)
+                .trim()
+                .toLowerCase()
+                .replace(/^https?:\/\//, "")
+                .split("/")[0]
+                .replace(/:\d+$/, "");
+              return ![
+                "emote.ltd",
+                "www.emote.ltd",
+                "-",
+                "unknown",
+                "direct",
+                "",
+              ].includes(host);
+            })
+            .sort((a, b) => (hits(b) ?? 0) - (hits(a) ?? 0));
+          table(
+            "referrers",
+            ["Referring host", "Requests"],
+            ref.slice(0, 12).map((r) => [esc(label(r)), fmt(hits(r))]),
+            main
+              ? "No external referring sites listed."
+              : "Main report unavailable.",
+          );
+          renderEvents(reports["blog-articles-summary"].data, "article");
+          renderEvents(reports["games-summary"].data, "game");
+          const notes = reportChecks(reports);
+          $("warnings").hidden = !notes.length;
+          $("warning-list").innerHTML = notes
+            .map((n) => `<li>${esc(n)}</li>`)
+            .join("");
+          table(
+            "sources",
+            ["Source", "Period / state", "Generated"],
+            files.map((n) => {
+              const r = reports[n],
+                d = r.data;
+              const state = r.error
+                ? `Unavailable: ${r.error}`
+                : n.endsWith("-summary")
+                  ? eventEntries(
+                      d,
+                      n === "games-summary" ? "game" : "article",
+                    ) === null
+                    ? "Unsupported format"
+                    : "Period not supplied"
+                  : reportPeriod(d);
+              return [
+                `<a href="${n}.json">${esc(labels[n])}</a>`,
+                esc(state),
+                esc(d?.general?.date_time ?? "Not supplied"),
+              ];
+            }),
+          );
+        } catch (e) {
+          $("period").textContent = "Dashboard could not be rendered";
+          $("updated").textContent = "Refresh to retry.";
+          console.error(e);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Refresh";
+        }
+      }
+      $("page-all").addEventListener("click", () => {
+        showAllPages = !showAllPages;
+        renderPages();
+      });
+      $("refresh").addEventListener("click", init);
+      $("page-search").addEventListener("input", renderPages);
+      init();
+    </script>
+  </body>
 </html>

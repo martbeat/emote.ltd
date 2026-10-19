@@ -59,3 +59,24 @@ and accent preservation, literal HTML handling, category filters, empty input,
 copy feedback and exact clipboard API payload, manual copy fallback and visible
 keyboard focus. Headless Chrome does not expose a usable system clipboard in this
 environment; pasting into an external application remains a manual check.
+
+## Analytics dashboard
+
+`stats/index.html` reads the existing server exports without changing collection.
+It shows each source's actual dates, distinguishes requests from daily visitor
+identities and keeps undated event summaries separate from dated log reports.
+PDF rows are read from both request panels. Missing sources stay unavailable and
+do not prevent other reports from rendering. Deploy the updated HTML through the
+existing server workflow; no new dependencies or server configuration are needed.
+
+Run regression checks from the repository root:
+
+```bash
+node --test tests/analytics/dashboard.test.cjs
+```
+
+The dashboard flags incompatible reporting ranges and a filtered human report
+larger than the main report. These require investigation of the server export
+jobs; frontend changes do not repair log filtering. Article and game summaries
+currently lack reporting dates, so the dashboard does not attribute them to the
+main reporting period or infer unique readers or matched game sessions.

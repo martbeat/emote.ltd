@@ -44,3 +44,18 @@ Fallback (if ownership cannot be changed):
 ```bash
 rsync -avz --inplace stats/analytics.html martin@raspberrypi:/var/www/emote.ltd/html/stats/analytics.html
 ```
+
+## eMote Text
+
+`text.html`, linked from the Tools Hub, is a compact Unicode text styling utility.
+Its 13 styles are generated locally; input is neither stored nor sent to a server.
+The tool includes category filters, copy feedback, a manual copy fallback and an
+accessibility note. Deploy `text.html`, `assets/css/text.css`, `js/text.js`,
+`js/text-styles.js` and the updated `tools.html` together. No backend or build step
+is required.
+
+Verified in headless Chrome at desktop and mobile widths: live conversion, emoji
+and accent preservation, literal HTML handling, category filters, empty input,
+copy feedback and exact clipboard API payload, manual copy fallback and visible
+keyboard focus. Headless Chrome does not expose a usable system clipboard in this
+environment; pasting into an external application remains a manual check.

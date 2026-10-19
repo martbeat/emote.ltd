@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>eMote Text · Copy a little character</title>
+  <meta name="description" content="A compact eMote tool for styling and copying Unicode text. Works entirely in your browser.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="assets/css/text.css">
+  <script type="module" src="js/text.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to text tool</a>
+  <header class="header"><a class="wordmark" href="index.html">eMote<span>Text</span></a><a class="studio-link" href="tools.html">All tools <span aria-hidden="true">↗</span></a></header>
+  <main id="main">
+    <div class="intro"><p class="eyebrow">A little more character</p><h1>Your words. A different style.</h1><p>Type once. Find your style. Copy it anywhere.</p></div>
+    <section class="editor" aria-labelledby="input-label">
+      <div class="editor-heading"><label id="input-label" for="source">Your text</label><button id="clear" type="button" class="quiet">Clear</button></div>
+      <textarea id="source" rows="3" maxlength="2000" placeholder="Write something worth sharing…" aria-describedby="privacy">Good things start with people.</textarea>
+      <div class="editor-footer"><span id="privacy">Private by design. Your text stays in this tab.</span><span id="count">29 characters</span></div>
+    </section>
+    <section class="styles" aria-labelledby="styles-heading">
+      <div class="styles-heading"><h2 id="styles-heading">Choose a style</h2><span id="style-count"></span></div>
+      <div class="filters" role="group" aria-label="Filter text styles"><button type="button" data-filter="all" aria-pressed="true">All styles</button><button type="button" data-filter="essentials" aria-pressed="false">Essentials</button><button type="button" data-filter="expressive" aria-pressed="false">Expressive</button><button type="button" data-filter="decorative" aria-pressed="false">Decorative</button></div>
+      <div id="results" class="results"></div>
+    </section>
+    <aside class="note"><strong>A note on styled text</strong><p>These are Unicode characters, not fonts. Appearance varies by app and device, and screen readers may read them differently. Keep essential information in plain text.</p></aside>
+    <footer><span>eMote · Thoughtfully useful.</span><span>No sign-up. No text storage.</span></footer>
+    <p id="status" role="status" class="sr-only"></p>
+  </main>
+  <dialog id="copy-dialog" aria-labelledby="copy-title"><h2 id="copy-title">Copy your text</h2><p>Automatic copying is unavailable. Select the text below and use your device’s Copy command.</p><textarea id="manual-copy" rows="4" readonly aria-label="Styled text to copy"></textarea><button id="close-dialog" type="button">Done</button></dialog>
+  <noscript>Enable JavaScript to preview and copy text styles. All conversion happens in your browser.</noscript>
+</body>
+</html>

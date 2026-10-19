@@ -188,3 +188,48 @@ test("no fabricated rates, overlapping PDF rows or unsupported events", async ()
   const malformed = await run({ "games-summary": { general: {} } });
   assert.match(malformed.nodes.get("game-events").innerHTML, /unsupported/);
 });
+
+test("locations aggregate requests by country using each report's own dates", async () => {
+  const main = {
+    ...base,
+    hosts: {
+      data: [
+        { country: "GB United Kingdom", hits: { count: 12 }, visitors: 5 },
+        { country: "GB United Kingdom", hits: 8, visitors: 5 },
+        { country: "N/A", hits: 3 },
+        { country: "<Country>", hits: 1 },
+      ],
+    },
+  };
+  const pdf = {
+    ...base,
+    general: { ...base.general, start_date: "18/Oct/2026" },
+    hosts: { data: [{ country: "MX Mexico", hits: 7 }] },
+  };
+  const { nodes } = await run({ weekly: main, pdf });
+  const overall = nodes.get("traffic-locations").innerHTML;
+  assert.match(overall, /GB United Kingdom/);
+  assert.match(overall, />20</);
+  assert.match(overall, /Unknown country/);
+  assert.match(overall, /&lt;Country&gt;/);
+  assert.doesNotMatch(overall, /Daily identities|%|MX Mexico/);
+  assert.match(nodes.get("pdf-locations").innerHTML, /MX Mexico/);
+  assert.match(
+    nodes.get("traffic-location-period").textContent,
+    /05\/Oct\/2026/,
+  );
+  assert.match(nodes.get("pdf-location-period").textContent, /18\/Oct\/2026/);
+});
+
+test("locations distinguish missing reports, absent host rows and missing counts", async () => {
+  const { nodes } = await run({ pdf: null });
+  assert.match(nodes.get("traffic-locations").innerHTML, /not supplied/);
+  assert.match(nodes.get("pdf-locations").innerHTML, /unavailable/);
+  const partial = await run({
+    weekly: {
+      ...base,
+      hosts: { data: [{ country: "GB", hits: 2 }, { country: "GB" }] },
+    },
+  });
+  assert.match(partial.nodes.get("traffic-locations").innerHTML, /Unavailable/);
+});

@@ -374,6 +374,28 @@
         </section>
       </div>
       <section>
+        <h2>Locations</h2>
+        <p class="note">
+          Requests grouped by country from each report’s host rows. Location
+          reflects the requesting network, not necessarily the person. VPNs,
+          proxies and automated traffic can affect the result. Exported host
+          rows may be incomplete, so these counts are not presented as audience
+          shares.
+        </p>
+        <div class="split">
+          <div>
+            <h3>Overall traffic</h3>
+            <p class="source-note" id="traffic-location-period">Loading…</p>
+            <div class="scroll" id="traffic-locations"></div>
+          </div>
+          <div>
+            <h3>PDF requests</h3>
+            <p class="source-note" id="pdf-location-period">Loading…</p>
+            <div class="scroll" id="pdf-locations"></div>
+          </div>
+        </div>
+      </section>
+      <section>
         <h2>Recorded interactions</h2>
         <p class="note">
           These are event counts, not unique people or verified reading time.
@@ -580,6 +602,43 @@
             fmt(r.visitors),
           ]),
           empty,
+        );
+      }
+      function renderLocations(id, periodId, data) {
+        $(periodId).textContent = data
+          ? `Reporting period: ${reportPeriod(data)}`
+          : "Report unavailable";
+        const countries = new Map();
+        for (const row of rows(data?.hosts)) {
+          const raw =
+            row.country ?? row.geoip?.country ?? row.location?.country;
+          const country =
+            typeof raw === "string" &&
+            raw.trim() &&
+            !/^(?:n\/a(?: country)?|unknown(?: country)?|-)$/i.test(raw.trim())
+              ? raw.trim()
+              : "Unknown country";
+          const count = hits(row);
+          const previous = countries.get(country);
+          countries.set(
+            country,
+            previous === undefined
+              ? count
+              : previous === null || count === null
+                ? null
+                : previous + count,
+          );
+        }
+        const sorted = [...countries].sort(
+          (a, b) => (b[1] ?? -1) - (a[1] ?? -1) || a[0].localeCompare(b[0]),
+        );
+        table(
+          id,
+          ["Country", "Requests"],
+          sorted.map(([country, count]) => [esc(country), fmt(count)]),
+          data
+            ? "Country-level host rows not supplied in this export."
+            : "Location data unavailable.",
         );
       }
       function renderPages() {
@@ -804,6 +863,8 @@
               ? "No per-file PDF rows supplied. A download total cannot be verified."
               : "PDF data unavailable.",
           );
+          renderLocations("traffic-locations", "traffic-location-period", main);
+          renderLocations("pdf-locations", "pdf-location-period", pdf);
           const ref = rows(main?.referring_sites)
             .filter((r) => {
               const host = label(r)

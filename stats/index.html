@@ -325,6 +325,84 @@
           </p>
         </div>
       </div>
+      <section aria-labelledby="debug-title">
+        <div class="eyebrow">Recent server activity</div>
+        <h2 id="debug-title">Debug report</h2>
+        <p id="debug-period" class="source-note">Loading…</p>
+        <p class="note">
+          This export follows the current log file. A single date means activity
+          on that date, not a guaranteed rolling 24-hour window. Counts here are
+          independent of the main report.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <p class="label">Analysed requests</p>
+            <div class="value" id="debug-analysed">—</div>
+            <p class="note">Parsed log entries, including error responses.</p>
+          </div>
+          <div class="card">
+            <p class="label">Daily visitor identities</p>
+            <div class="value" id="debug-identities">—</div>
+            <p class="note">
+              As counted by this export’s settings, which may exclude error-only
+              visitors.
+            </p>
+          </div>
+          <div class="card">
+            <p class="label">HTTP error responses</p>
+            <div class="value" id="debug-errors">—</div>
+            <p class="note">4xx and 5xx responses from the status panel.</p>
+          </div>
+          <div class="card">
+            <p class="label">Error share</p>
+            <div class="value" id="debug-error-share">—</div>
+            <p class="note">
+              Shown only when status totals match analysed requests.
+            </p>
+          </div>
+        </div>
+        <p id="debug-insight" class="notice" role="status"></p>
+        <div class="split">
+          <div>
+            <h3>Response status</h3>
+            <div id="debug-status" class="scroll"></div>
+          </div>
+          <div>
+            <h3>Most requested missing paths</h3>
+            <p class="note">
+              404 requests can indicate broken links, old URLs or automated
+              probes. These are requested paths, not links to follow.
+            </p>
+            <div id="debug-missing" class="scroll"></div>
+          </div>
+        </div>
+        <details>
+          <summary>Hourly activity</summary>
+          <p class="note">
+            Hours use the export’s log-time settings. For a multi-day export,
+            the same hour is combined across dates. Missing hours are not filled
+            with zeroes.
+          </p>
+          <div id="debug-hours" class="scroll"></div>
+        </details>
+        <details>
+          <summary>Page requests in this debug period</summary>
+          <p class="note">
+            Top 15 page-like GET paths from this export. This is request
+            activity, not verified human readership.
+          </p>
+          <div id="debug-pages" class="scroll"></div>
+        </details>
+        <details>
+          <summary>Locations in this debug period</summary>
+          <p class="note">
+            Requesting networks grouped by country. VPNs, proxies and automation
+            affect location.
+          </p>
+          <p id="debug-location-period" class="source-note"></p>
+          <div id="debug-locations" class="scroll"></div>
+        </details>
+      </section>
       <section>
         <h2>Requests over time</h2>
         <p class="note">
@@ -741,6 +819,118 @@
           return { data: null, error: e.message };
         }
       }
+      function statusGroups(data) {
+        const groups = new Map();
+        function add(row) {
+          const match = label(row).match(/^([1-5])(?:xx|\d{2})\b/i);
+          if (!match) {
+            for (const child of rows(row.items)) add(child);
+            return;
+          }
+          const key = Number(match[1]);
+          const count = hits(row),
+            previous = groups.get(key);
+          groups.set(
+            key,
+            previous === undefined
+              ? count
+              : previous === null || count === null
+                ? null
+                : previous + count,
+          );
+        }
+        for (const row of rows(data?.status_codes)) add(row);
+        return groups;
+      }
+      function renderDebug(data) {
+        const g = data?.general;
+        $("debug-period").textContent = data
+          ? `${reportPeriod(data)} · Generated: ${g.date_time ?? "time not supplied"}`
+          : "Debug report unavailable";
+        $("debug-analysed").textContent = fmt(g?.valid_requests);
+        $("debug-identities").textContent = fmt(g?.unique_visitors);
+        const groups = statusGroups(data);
+        const complete =
+          groups.size > 0 && [...groups.values()].every((v) => v !== null);
+        const statusTotal = complete
+          ? [...groups.values()].reduce((a, b) => a + b, 0)
+          : null;
+        const errors = complete
+          ? (groups.get(4) ?? 0) + (groups.get(5) ?? 0)
+          : null;
+        $("debug-errors").textContent = fmt(errors);
+        $("debug-error-share").textContent =
+          errors !== null &&
+          statusTotal > 0 &&
+          statusTotal === num(g?.valid_requests)
+            ? ratio(errors, statusTotal)
+            : "Unavailable";
+        const names = {
+          1: "1xx Informational",
+          2: "2xx Success",
+          3: "3xx Redirect / cache",
+          4: "4xx Client errors",
+          5: "5xx Server errors",
+        };
+        table(
+          "debug-status",
+          ["Response class", "Requests"],
+          [...groups]
+            .sort((a, b) => a[0] - b[0])
+            .map(([key, count]) => [names[key], fmt(count)]),
+          data ? "Status rows not supplied." : "Debug data unavailable.",
+        );
+        const missing = rows(data?.not_found)
+          .slice()
+          .sort((a, b) => (hits(b) ?? 0) - (hits(a) ?? 0));
+        table(
+          "debug-missing",
+          ["Requested path", "404 requests"],
+          missing
+            .slice(0, 8)
+            .map((r) => [esc(decoded(label(r))), fmt(hits(r))]),
+          data ? "No missing-path rows listed." : "Debug data unavailable.",
+        );
+        const hours = rows(data?.visit_time)
+          .filter((r) => /^(?:[01]\d|2[0-3])$/.test(label(r)))
+          .slice()
+          .sort((a, b) => label(a).localeCompare(label(b)));
+        const max = Math.max(1, ...hours.map((r) => hits(r) ?? 0));
+        table(
+          "debug-hours",
+          ["Hour (log time)", "Requests"],
+          hours.map((r) => [
+            `${esc(label(r))}:00<span class="bar" aria-hidden="true"><span style="width:${((hits(r) ?? 0) / max) * 100}%"></span></span>`,
+            fmt(hits(r)),
+          ]),
+          data ? "Hourly rows not supplied." : "Debug data unavailable.",
+        );
+        const busiest = hours
+          .filter((r) => hits(r) !== null)
+          .slice()
+          .sort((a, b) => hits(b) - hits(a))[0];
+        const note = !data
+          ? "The debug export could not be loaded. Other dashboard reports remain available."
+          : errors === null
+            ? "Response status coverage is unavailable. No error total or percentage is inferred."
+            : `${fmt(errors)} client/server error responses appear in the supplied status rows.` +
+              (statusTotal !== num(g?.valid_requests)
+                ? " Status totals do not match analysed requests, so no error percentage is shown."
+                : "") +
+              (busiest
+                ? ` Busiest listed hour: ${label(busiest)}:00, with ${fmt(hits(busiest))} requests.`
+                : "");
+        $("debug-insight").textContent = note;
+        requestTable(
+          "debug-pages",
+          rows(data?.requests)
+            .filter(isPage)
+            .sort((a, b) => (hits(b) ?? 0) - (hits(a) ?? 0))
+            .slice(0, 15),
+          data ? "No page rows listed." : "Debug data unavailable.",
+        );
+        renderLocations("debug-locations", "debug-location-period", data);
+      }
       function reportChecks(reports) {
         const notes = [];
         const main = reports.weekly.data,
@@ -863,6 +1053,7 @@
               ? "No per-file PDF rows supplied. A download total cannot be verified."
               : "PDF data unavailable.",
           );
+          renderDebug(reports.debug.data);
           renderLocations("traffic-locations", "traffic-location-period", main);
           renderLocations("pdf-locations", "pdf-location-period", pdf);
           const ref = rows(main?.referring_sites)

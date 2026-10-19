@@ -233,3 +233,68 @@ test("locations distinguish missing reports, absent host rows and missing counts
   });
   assert.match(partial.nodes.get("traffic-locations").innerHTML, /Unavailable/);
 });
+
+test("debug totals and error share come from the same report without double-counting status children", async () => {
+  const debug = {
+    ...base,
+    general: { ...base.general, valid_requests: 100 },
+    status_codes: {
+      data: [
+        {
+          data: "4xx Client Errors",
+          hits: 80,
+          items: [{ data: "404 - Not Found", hits: 80 }],
+        },
+        {
+          data: "2xx Success",
+          hits: 20,
+          items: [{ data: "200 - OK", hits: 20 }],
+        },
+      ],
+    },
+    visit_time: {
+      data: [
+        { data: "01", hits: 70 },
+        { data: "02", hits: 30 },
+      ],
+    },
+    not_found: {
+      data: [
+        { data: "/.env", hits: 20 },
+        { data: "/<unsafe>", hits: 10 },
+      ],
+    },
+  };
+  const { nodes } = await run({ debug });
+  assert.equal(nodes.get("debug-analysed").textContent, "100");
+  assert.equal(nodes.get("debug-errors").textContent, "80");
+  assert.equal(nodes.get("debug-error-share").textContent, "80.0%");
+  assert.match(
+    nodes.get("debug-insight").textContent,
+    /01:00, with 70 requests/,
+  );
+  assert.match(nodes.get("debug-missing").innerHTML, /&lt;unsafe&gt;/);
+  assert.doesNotMatch(nodes.get("debug-missing").innerHTML, /<a /);
+  assert.match(nodes.get("debug-hours").innerHTML, /01:00/);
+});
+
+test("debug handles incomplete, absent and flat status rows without false percentages", async () => {
+  const mismatch = await run({
+    debug: {
+      ...base,
+      status_codes: { data: [{ data: "404 - Not Found", hits: 40 }] },
+    },
+  });
+  assert.equal(mismatch.nodes.get("debug-errors").textContent, "40");
+  assert.equal(
+    mismatch.nodes.get("debug-error-share").textContent,
+    "Unavailable",
+  );
+  assert.match(mismatch.nodes.get("debug-insight").textContent, /do not match/);
+  const missing = await run({ debug: null });
+  assert.equal(missing.nodes.get("debug-errors").textContent, "Unavailable");
+  assert.equal(missing.nodes.get("requests").textContent, "100");
+  assert.match(missing.nodes.get("debug-period").textContent, /unavailable/);
+  const empty = await run();
+  assert.equal(empty.nodes.get("debug-error-share").textContent, "Unavailable");
+});

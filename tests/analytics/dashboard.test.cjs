@@ -298,3 +298,76 @@ test("debug handles incomplete, absent and flat status rows without false percen
   const empty = await run();
   assert.equal(empty.nodes.get("debug-error-share").textContent, "Unavailable");
 });
+
+test("country totals expand into city and region request counts without exposing hosts", async () => {
+  const hosts = {
+    data: [
+      {
+        country: "GB United Kingdom",
+        city: "Reading, England",
+        hits: 4,
+        data: "192.0.2.1",
+      },
+      {
+        country: "GB United Kingdom",
+        city: "Reading, England",
+        hits: 6,
+        data: "192.0.2.2",
+      },
+      {
+        country: "GB United Kingdom",
+        city: "London",
+        region: "England",
+        hits: 3,
+      },
+      { country: "US United States", city: "Reading, Pennsylvania", hits: 2 },
+      { country: "GB United Kingdom", city: "N/A City, N/A Region", hits: 1 },
+    ],
+  };
+  const { nodes } = await run({
+    weekly: { ...base, hosts },
+    pdf: { ...base, hosts },
+    debug: { ...base, hosts },
+  });
+  for (const id of ["traffic-locations", "pdf-locations", "debug-locations"]) {
+    const markup = nodes.get(id).innerHTML;
+    assert.match(markup, /<summary>GB United Kingdom<\/summary>/);
+    assert.match(markup, /Reading, England<\/td><td class="num">10</);
+    assert.match(markup, /London, England/);
+    assert.match(markup, /Reading, Pennsylvania/);
+    assert.match(markup, /City \/ region unknown/);
+    assert.match(markup, />14</);
+    assert.doesNotMatch(markup, /192\.0\.2|Daily identities/);
+  }
+});
+
+test("location detail handles partial and structured fields, escaping and missing counts", async () => {
+  const { context, nodes } = await run({
+    weekly: {
+      ...base,
+      hosts: {
+        data: [
+          { country: "GB", city: "<City>", region: "<Region>", hits: 2 },
+          { country: "GB", city: "<City>", region: "<Region>" },
+          { geoip: { country: "US", city: "N/A City, California" }, hits: 3 },
+        ],
+      },
+    },
+  });
+  const markup = nodes.get("traffic-locations").innerHTML;
+  assert.match(markup, /&lt;City&gt;, &lt;Region&gt;/);
+  assert.match(markup, /Unavailable/);
+  assert.match(markup, /City unknown, California/);
+  assert.doesNotMatch(markup, /<City>/);
+  assert.equal(
+    vm.runInContext(
+      'locationName({location:{city:"Turin",region:"Piedmont"}})',
+      context,
+    ),
+    "Turin, Piedmont",
+  );
+  assert.equal(
+    vm.runInContext('locationName({city:"N/A City, N/A Region"})', context),
+    "City / region unknown",
+  );
+});

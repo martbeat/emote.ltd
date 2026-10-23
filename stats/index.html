@@ -396,8 +396,8 @@
         <details>
           <summary>Locations in this debug period</summary>
           <p class="note">
-            Requesting networks grouped by country. VPNs, proxies and automation
-            affect location.
+            Open a country for city and region detail. VPNs, proxies and
+            automation affect location.
           </p>
           <p id="debug-location-period" class="source-note"></p>
           <div id="debug-locations" class="scroll"></div>
@@ -454,11 +454,11 @@
       <section>
         <h2>Locations</h2>
         <p class="note">
-          Requests grouped by country from each report’s host rows. Location
-          reflects the requesting network, not necessarily the person. VPNs,
-          proxies and automated traffic can affect the result. Exported host
-          rows may be incomplete, so these counts are not presented as audience
-          shares.
+          Open a country to see its cities and regions, grouped from each
+          report’s host rows. Location reflects the requesting network, not
+          necessarily the person. VPNs, proxies and automated traffic can affect
+          the result. Exported host rows may be incomplete, so these counts are
+          not presented as audience shares.
         </p>
         <div class="split">
           <div>
@@ -682,11 +682,47 @@
           empty,
         );
       }
+      function locationName(row) {
+        const city = row.city ?? row.geoip?.city ?? row.location?.city;
+        const region = row.region ?? row.geoip?.region ?? row.location?.region;
+        const clean = (value) =>
+          typeof value === "string" ? value.trim() : "";
+        const unknown = (value) =>
+          !value ||
+          /^(?:n\/a(?: city| region)?|unknown(?: city| region)?|-)$/i.test(
+            value,
+          );
+        const cityText = clean(city),
+          regionText = clean(region);
+        if (cityText.includes(",")) {
+          const parts = cityText.split(",").map((part) => part.trim());
+          if (parts.every(unknown)) return "City / region unknown";
+          return parts
+            .map((part, i) =>
+              unknown(part)
+                ? i === 0
+                  ? "City unknown"
+                  : "Region unknown"
+                : part,
+            )
+            .join(", ");
+        }
+        if (unknown(cityText) && unknown(regionText))
+          return "City / region unknown";
+        const parts = [unknown(cityText) ? "City unknown" : cityText];
+        if (!unknown(regionText) && regionText !== cityText)
+          parts.push(regionText);
+        return parts.join(", ");
+      }
       function renderLocations(id, periodId, data) {
         $(periodId).textContent = data
           ? `Reporting period: ${reportPeriod(data)}`
           : "Report unavailable";
         const countries = new Map();
+        const addCounts = (a, b) =>
+          a === undefined ? b : a === null || b === null ? null : a + b;
+        const rank = (a, b) =>
+          (b[1] ?? -1) - (a[1] ?? -1) || a[0].localeCompare(b[0]);
         for (const row of rows(data?.hosts)) {
           const raw =
             row.country ?? row.geoip?.country ?? row.location?.country;
@@ -696,26 +732,32 @@
             !/^(?:n\/a(?: country)?|unknown(?: country)?|-)$/i.test(raw.trim())
               ? raw.trim()
               : "Unknown country";
-          const count = hits(row);
-          const previous = countries.get(country);
-          countries.set(
-            country,
-            previous === undefined
-              ? count
-              : previous === null || count === null
-                ? null
-                : previous + count,
-          );
+          const entry = countries.get(country) ?? {
+            count: undefined,
+            places: new Map(),
+          };
+          const count = hits(row),
+            place = locationName(row);
+          entry.count = addCounts(entry.count, count);
+          entry.places.set(place, addCounts(entry.places.get(place), count));
+          countries.set(country, entry);
         }
-        const sorted = [...countries].sort(
-          (a, b) => (b[1] ?? -1) - (a[1] ?? -1) || a[0].localeCompare(b[0]),
+        const sorted = [...countries].sort((a, b) =>
+          rank([a[0], a[1].count], [b[0], b[1].count]),
         );
         table(
           id,
-          ["Country", "Requests"],
-          sorted.map(([country, count]) => [esc(country), fmt(count)]),
+          ["Country · expand for city / region", "Requests"],
+          sorted.map(([country, entry]) => {
+            const places = [...entry.places].sort(rank);
+            const breakdown = `<table><thead><tr><th scope="col">City / region</th><th scope="col" class="num">Requests</th></tr></thead><tbody>${places.map(([place, count]) => `<tr><td class="path">${esc(place)}</td><td class="num">${fmt(count)}</td></tr>`).join("")}</tbody></table>`;
+            return [
+              `<details><summary>${esc(country)}</summary>${breakdown}</details>`,
+              fmt(entry.count),
+            ];
+          }),
           data
-            ? "Country-level host rows not supplied in this export."
+            ? "Location host rows not supplied in this export."
             : "Location data unavailable.",
         );
       }

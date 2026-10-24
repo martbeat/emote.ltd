@@ -101,7 +101,9 @@
       transition:.2s ease
     }
     .date:hover{transform:translateY(-2px);border-color:rgba(245,185,31,.5)}
-    .date.past{opacity:.46}
+    .date.past{background:rgba(255,255,255,.018);border-color:rgba(255,255,255,.06)}
+    .date.past .d,.date.past .place,.date.past .country,.date.past .flag,.date.past .venue{opacity:.43}
+    .date.past:hover,.date.cancelled:hover{transform:none}
     .date .d{font-family:Georgia,serif;font-size:1.3rem;font-weight:950;color:var(--yellow);line-height:1}
     .date .place{font-weight:1000;font-size:1.1rem;text-transform:uppercase}
     .date .country{font-size:.84rem;color:#bcb292}
@@ -113,10 +115,9 @@
     .date .venue a{color:var(--teal);text-underline-offset:3px}
     .date .venue a:hover{color:var(--yellow)}
     .date.cancelled{border-color:rgba(239,61,47,.45)}
-    .date.cancelled.past{opacity:.9}
+    .date.cancelled.past{background:rgba(255,255,255,.018);border-color:rgba(239,61,47,.2)}
     .date.cancelled .d{color:#ffb19c}
     .cancel-status{font-size:.8rem;margin-top:9px;line-height:1.45;color:#ffe1d7;border-left:3px solid var(--red);padding-left:10px}
-    .tour-disclaimer{font-size:.88rem;color:#d8ceb0;border-left:3px solid var(--teal);padding:9px 0 9px 14px;margin:0 0 22px;max-width:900px}
     .next-stop{
       padding:24px;border:1px solid rgba(20,191,194,.35);background:rgba(20,191,194,.08);border-radius:20px;margin-bottom:20px;
       display:flex;align-items:center;justify-content:space-between;gap:20px
@@ -304,8 +305,6 @@
           <button class="chip" data-filter="spain" data-i18n="filter_spain">Spain</button>
           <button class="chip" data-filter="latin" data-i18n="filter_latin">Latin America</button>
         </div>
-
-        <p class="tour-disclaimer" data-i18n="tour_disclaimer">Fictional tour with real venues shown as references only. No Scrym & Deep Fry booking, show or cancellation at these venues is claimed; the mishaps and apologies are part of the joke.</p>
         <div class="dates" id="dateList">
           <article class="date" data-region="uk" data-date="2026-03-07"><div class="d" data-i18n="date_07_mar">07 MAR</div><div><div class="place">Caversham</div><div class="country" data-i18n="date_caversham_note">UK · Neighbourhood warm-up</div></div><div class="flag">🇬🇧</div></article>
           <article class="date" data-region="uk" data-date="2026-03-21"><div class="d" data-i18n="date_21_mar">21 MAR</div><div><div class="place">Reading</div><div class="country" data-i18n="date_reading_note">UK · Home leg</div></div><div class="flag">🇬🇧</div></article>
@@ -685,14 +684,14 @@
       };
 
 
-      // Venue, Bolivia and fictional-tour labels for every language.
-      Object.assign(i18n.en, {"venue_label":"Venue","status_cancelled":"CANCELLED AT THE LAST MINUTE","tour_disclaimer":"Fictional tour with real venues shown as references only. No Scrym & Deep Fry booking, show or cancellation at these venues is claimed; the mishaps and apologies are part of the joke.","dates_eyebrow":"14 stops. 1 cardboard box.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
-      Object.assign(i18n.es, {"venue_label":"Sala","status_cancelled":"CANCELADO A ÚLTIMA HORA","tour_disclaimer":"Gira ficticia con salas reales solo como referencias. No afirmamos haber reservado, actuado ni cancelado en estos recintos; las desventuras y disculpas son una broma.","dates_eyebrow":"14 paradas. 1 caja de cartón.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
-      Object.assign(i18n.nhe, {"venue_label":"Lugar","status_cancelled":"CANCELADO A ÚLTIMA HORA","tour_disclaimer":"Gira ficticia. Los locales son reales, pero no afirmamos haber reservado ni cancelado conciertos allí. Las disculpas son parte de la broma.","dates_eyebrow":"14 paradas · Se kaxa tlen cartón","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
-      Object.assign(i18n['es-MX'], {"venue_label":"Lugar","status_cancelled":"CANCELADO A LA MERA HORA","tour_disclaimer":"Puro cotorreo: los lugares sí existen, pero no afirmamos que nos contrataran ni cancelaran nada. Las broncas y disculpas son parte del chiste, banda.","dates_eyebrow":"14 paradas. 1 caja de cartón. No manches.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
-      Object.assign(i18n['es-MX-x-mxxx'], {"venue_label":"Pinche recinto","status_cancelled":"CANCELADO A LA PINCHE HORA","tour_disclaimer":"La gira es ficción, cabrones. Los recintos sí existen, pero no estamos diciendo que nos hayan contratado ni cancelado una chingada. Las excusas son parte del desmadre.","dates_eyebrow":"14 paradas. Una puta caja. Cero vergüenza.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
+      // Venue and Bolivia labels for every language.
+      Object.assign(i18n.en, {"venue_label":"Venue","status_cancelled":"CANCELLED AT THE LAST MINUTE","dates_eyebrow":"14 stops. 1 cardboard box.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
+      Object.assign(i18n.es, {"venue_label":"Sala","status_cancelled":"CANCELADO A ÚLTIMA HORA","dates_eyebrow":"14 paradas. 1 caja de cartón.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
+      Object.assign(i18n.nhe, {"venue_label":"Lugar","status_cancelled":"CANCELADO A ÚLTIMA HORA","dates_eyebrow":"14 paradas · Se kaxa tlen cartón","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
+      Object.assign(i18n['es-MX'], {"venue_label":"Lugar","status_cancelled":"CANCELADO A LA MERA HORA","dates_eyebrow":"14 paradas. 1 caja de cartón. No manches.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
+      Object.assign(i18n['es-MX-x-mxxx'], {"venue_label":"Pinche recinto","status_cancelled":"CANCELADO A LA PINCHE HORA","dates_eyebrow":"14 paradas. Una puta caja. Cero vergüenza.","date_19_sep":"19 SEP","country_bolivia":"Bolivia"});
 
-      // Cancellation apologies are fictional and do not attribute fault to any venue.
+      // Cancellation apologies refer only to the band's travel mishaps, not to venue operations.
       const tourNotices = {"en":{"2026-04-18":"Tax paperwork for the guitar was submitted with a tapas receipt. We sincerely apologise.","2026-05-16":"The cardboard drum was declared as commercial packaging at customs. Our apologies to everyone waiting.","2026-06-13":"The spare bass strings arrived in Seville, Ohio, instead of Sevilla, Spain. We are terribly sorry.","2026-07-11":"The airline lost the cardboard box: our entire percussion section. We sincerely apologise.","2026-08-08":"Our paperwork listed the cardboard box as lead performer and the musicians as excess baggage. We apologise.","2026-09-05":"We mistakenly declared the bass as 40 kilos of ornamental furniture. We are very sorry.","2026-09-19":"At La Paz altitude, both the bass player and the amplifier asked for oxygen. We apologise.","2026-10-03":"The suitcase containing our cables was sent to Singapore. We apologise for the last-minute change.","2026-10-24":"A fictitious 'tango tax' appeared on our own spreadsheet and consumed the travel budget. Our mistake. Sorry."},"es":{"2026-04-18":"Entregamos el papeleo fiscal de la guitarra con un recibo de tapas. Pedimos disculpas.","2026-05-16":"Declaramos el bombo de cartón como embalaje comercial en aduana. Nuestras disculpas.","2026-06-13":"Las cuerdas llegaron a Seville, Ohio, en vez de Sevilla, España. Lo sentimos mucho.","2026-07-11":"La aerolínea perdió la caja de cartón: toda nuestra percusión. Pedimos disculpas.","2026-08-08":"Los papeles ponían a la caja como artista principal y a nosotros como exceso de equipaje. Lo sentimos.","2026-09-05":"Por error declaramos el bajo como 40 kilos de mobiliario ornamental. Mil disculpas.","2026-09-19":"En La Paz, tanto el bajista como el amplificador pidieron oxígeno por la altura. Perdón.","2026-10-03":"La maleta con los cables acabó en Singapur. Sentimos mucho la cancelación de última hora.","2026-10-24":"Un 'impuesto al tango' inventado apareció en nuestra hoja de cálculo y se comió el presupuesto. Culpa nuestra. Disculpas."},"es-MX":{"2026-04-18":"Entregamos los papeles de impuestos con una cuenta de tacos. Qué oso, banda. Una disculpota.","2026-05-16":"Declaramos la pinche caja como embalaje comercial. La regamos feo en aduana. Perdón.","2026-06-13":"Las cuerdas se fueron a Seville, Ohio, y no a Sevilla. No manches. Perdón por el plantón.","2026-07-11":"La aerolínea perdió la caja, o sea, toda la batería. Perdón, banda; qué desmadre.","2026-08-08":"Los papeles pusieron a la caja como artista principal y a nosotros como maletas. Qué vergüenza. Perdón.","2026-09-05":"Declaramos el bajo como un mueble decorativo de 40 kilos. Ni cómo defendernos. Una disculpa.","2026-09-19":"En La Paz nos faltó aire y el ampli también quería oxígeno. Perdón por cancelar a la mera hora.","2026-10-03":"Los cables acabaron en Singapur. De verdad, qué oso. Una disculpa por dejarlos esperando.","2026-10-24":"Una celda inventó un 'impuesto al tango' y se comió la lana del viaje. Toda nuestra culpa. Perdón."},"es-MX-x-mxxx":{"2026-04-18":"Mandamos los pinches impuestos con una cuenta de tacos. ¡No mames! La cagamos. Perdón.","2026-05-16":"En aduana declaramos el bombo como caja de embalaje. Pinche genialidad nuestra. Una disculpa.","2026-06-13":"Las cuerdas llegaron a Seville, Ohio. Nosotros íbamos a Sevilla. ¡Me lleva la chingada! Perdón.","2026-07-11":"La aerolínea perdió la jodida caja, que era toda nuestra percusión. La cagamos. Perdón.","2026-08-08":"El papeleo nombró a la pinche caja artista principal y a nosotros equipaje sobrante. Qué mamada. Perdón.","2026-09-05":"Declaramos el bajo como mueble ornamental de 40 kilos. Nos pasamos de pendejos. Disculpas.","2026-09-19":"A la altura de La Paz el bajista y el amplificador pedían oxígeno. Pinche desastre. Perdón.","2026-10-03":"Los putos cables acabaron en Singapur. ¡Qué chingados! Una disculpa, no fue culpa del local.","2026-10-24":"Nuestra hoja de cálculo inventó un pinche 'impuesto al tango' y se chingó el presupuesto. Culpa nuestra. Perdón."}};
 
       const langButtons=[...document.querySelectorAll('.lang-btn')];
@@ -751,15 +750,21 @@
         dates.forEach(d=>d.hidden=!(f==='all'||d.dataset.region===f));
       }));
 
-      const now=new Date();
-      dates.forEach(d=>{
-        const day=new Date(d.dataset.date+'T23:59:59');
-        if(day<now)d.classList.add('past');
-      });
+      // Keep missed dates visually inactive, including after a page has been left open overnight.
+      function refreshTourState(){
+        const now=new Date();
+        dates.forEach(d=>{
+          const dayEnd=new Date(d.dataset.date+'T23:59:59');
+          d.classList.toggle('past',dayEnd<now);
+        });
+        updateNextStop();
+      }
 
       function updateNextStop(){
+        const now=new Date();
         const future=dates.map(d=>({el:d,date:new Date(d.dataset.date+'T20:00:00')}))
-          .filter(x=>x.date>=now && !x.el.classList.contains('cancelled')).sort((a,b)=>a.date-b.date);
+          .filter(x=>x.date>=now && !x.el.classList.contains('cancelled') && !x.el.classList.contains('past'))
+          .sort((a,b)=>a.date-b.date);
         const box=document.getElementById('nextStop');
         if(!future.length){ box.hidden=true; return; }
         const n=future[0];
@@ -774,6 +779,11 @@
       const browserLang=(navigator.language||'').toLowerCase();
        const initial=saved ? saved : (browserLang.startsWith('nhe') ? 'nhe' : browserLang.startsWith('es-mx') ? 'es-MX' : browserLang.startsWith('es') ? 'es' : 'en');
       applyLanguage(initial,false);
+      refreshTourState();
+      document.addEventListener('visibilitychange',()=>{
+        if(!document.hidden) refreshTourState();
+      });
+      setInterval(refreshTourState,60000);
     })();
   </script>
 </body>

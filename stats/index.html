@@ -498,6 +498,38 @@
           <div class="scroll" id="game-events"></div>
         </details>
       </section>
+      <section aria-labelledby="journeys-title">
+        <h2 id="journeys-title">Visitor journeys</h2>
+        <p class="note">
+          Inferred visits from successful page and PDF requests. A visit ends
+          after 30 minutes without another recorded page or PDF request. Shared
+          networks, browser changes and undetected bots can affect grouping.
+          Request gaps show the interval between requests, not active reading
+          time.
+        </p>
+        <button type="button" id="journeys-load">
+          Load private server report
+        </button>
+        <label for="journeys-file"
+          >Or open a private report from your computer</label
+        >
+        <input id="journeys-file" type="file" accept=".json,application/json" />
+        <p id="journeys-state" class="note" role="status" aria-live="polite">
+          Journey reporting needs the private server export. You can also open
+          its JSON file here; it is read in your browser and is not uploaded.
+        </p>
+        <p class="note">
+          <a
+            href="private/journeys.json"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Sign in to the protected report</a
+          >
+          if required, then load it here.
+        </p>
+        <div id="journeys-summary" class="note"></div>
+        <div id="journeys-list"></div>
+      </section>
       <details>
         <summary>Data sources, checks and definitions</summary>
         <section>
@@ -842,6 +874,92 @@
           );
         }
       }
+      function journeyTime(value) {
+        return new Date(value).toLocaleString("en-GB", {
+          timeZone: "Europe/London",
+        });
+      }
+      function renderJourneys(data) {
+        const validTime = (value) =>
+          typeof value === "string" && Number.isFinite(Date.parse(value));
+        if (
+          data?.schema_version !== 1 ||
+          !Array.isArray(data.visits) ||
+          data.visits.length > 50 ||
+          !validTime(data.window_start) ||
+          !validTime(data.window_end) ||
+          !validTime(data.generated_at) ||
+          num(data.inferred_visits) === null ||
+          num(data.included_requests) === null ||
+          data.visits.some(
+            (visit) =>
+              !validTime(visit.start) ||
+              !validTime(visit.end) ||
+              num(visit.request_count) === null ||
+              !Array.isArray(visit.steps) ||
+              visit.steps.length > 100 ||
+              visit.steps.some(
+                (step) =>
+                  !validTime(step.at) ||
+                  typeof step.path !== "string" ||
+                  !step.path.startsWith("/") ||
+                  step.path.startsWith("//") ||
+                  /[?#]/.test(step.path) ||
+                  !["Page", "PDF"].includes(step.kind) ||
+                  (step.gap_seconds !== null && num(step.gap_seconds) === null),
+              ),
+          )
+        ) {
+          throw new Error("Unsupported journey report format");
+        }
+        $("journeys-summary").textContent =
+          `${fmt(data.inferred_visits)} inferred visits from ${fmt(data.included_requests)} page/PDF requests. Showing ${data.visits.length} most recent visits. Requested window: ${journeyTime(data.window_start)} to ${journeyTime(data.window_end)}. Generated: ${journeyTime(data.generated_at)}. Times shown in London time. ` +
+          (validTime(data.observed_start) && validTime(data.observed_end)
+            ? `Supplied logs contain activity from ${journeyTime(data.observed_start)} to ${journeyTime(data.observed_end)} within that window; coverage may be incomplete.`
+            : "No log coverage times supplied.");
+        $("journeys-list").innerHTML = data.visits.length
+          ? data.visits
+              .map(
+                (visit, index) =>
+                  `<details><summary>Visit ${index + 1} · ${esc(journeyTime(visit.start))} · ${fmt(visit.request_count)} requests</summary>` +
+                  (visit.steps_truncated
+                    ? `<p class="note">First ${visit.steps.length} requests shown; this visit contains more steps.</p>`
+                    : "") +
+                  `<div class="scroll"><table><thead><tr><th scope="col">Time</th><th scope="col">Page / PDF</th><th scope="col">Gap to next request</th></tr></thead><tbody>` +
+                  visit.steps
+                    .map(
+                      (step) =>
+                        `<tr><td>${esc(journeyTime(step.at))}</td><td class="path">${esc(step.path)} (${esc(step.kind)})</td><td>${step.gap_seconds === null ? "Not known" : fmt(step.gap_seconds) + " seconds"}</td></tr>`,
+                    )
+                    .join("") +
+                  `</tbody></table></div></details>`,
+              )
+              .join("")
+          : '<p class="empty">No matching visits in the supplied logs for this window.</p>';
+        $("journeys-state").textContent =
+          "Private report loaded. Visit numbers are labels within this report, not persistent person identities.";
+      }
+      async function loadJourneys() {
+        $("journeys-load").disabled = true;
+        $("journeys-state").textContent = "Loading private report…";
+        try {
+          const response = await fetch("private/journeys.json", {
+            cache: "no-store",
+            credentials: "same-origin",
+          });
+          if (!response.ok)
+            throw new Error(
+              response.status === 401
+                ? "Sign in using the protected-report link, then try again."
+                : `Private report unavailable (HTTP ${response.status}). Set up the server export or open a local report.`,
+            );
+          renderJourneys(await response.json());
+        } catch (error) {
+          $("journeys-state").textContent = error.message;
+        } finally {
+          $("journeys-load").disabled = false;
+        }
+      }
       async function load(name) {
         try {
           const response = await fetch(name + ".json", { cache: "no-store" });
@@ -1166,6 +1284,20 @@
       $("page-all").addEventListener("click", () => {
         showAllPages = !showAllPages;
         renderPages();
+      });
+      $("journeys-load").addEventListener("click", loadJourneys);
+      $("journeys-file").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          if (file.size > 5 * 1024 * 1024)
+            throw new Error("Journey report is too large (maximum 5 MiB).");
+          renderJourneys(JSON.parse(await file.text()));
+        } catch (error) {
+          $("journeys-state").textContent = error.message;
+        } finally {
+          event.target.value = "";
+        }
       });
       $("refresh").addEventListener("click", init);
       $("page-search").addEventListener("input", renderPages);

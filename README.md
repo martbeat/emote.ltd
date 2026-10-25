@@ -80,3 +80,11 @@ larger than the main report. These require investigation of the server export
 jobs; frontend changes do not repair log filtering. Article and game summaries
 currently lack reporting dates, so the dashboard does not attribute them to the
 main reporting period or infer unique readers or matched game sessions.
+
+## Private visitor journeys
+
+The analytics dashboard includes an inferred-visit viewer. It reads a protected
+server export or a local JSON report and adds no browser tracking. See
+[visitor-journeys.md](docs/visitor-journeys.md) for the export generator, protected
+nginx endpoint, scheduling and coverage limits. Server setup is required before
+live journeys are available.

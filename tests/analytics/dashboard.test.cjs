@@ -371,3 +371,46 @@ test("location detail handles partial and structured fields, escaping and missin
     "City / region unknown",
   );
 });
+
+test("journey display shows ordered private paths and honest gaps, escaping input", async () => {
+  const { context, nodes } = await run();
+  context.report = {
+    schema_version: 1,
+    window_start: "2026-10-25T00:00:00Z",
+    window_end: "2026-10-25T13:00:00Z",
+    generated_at: "2026-10-25T13:00:00Z",
+    inferred_visits: 1,
+    included_requests: 2,
+    visits: [
+      {
+        start: "2026-10-25T12:00:00Z",
+        end: "2026-10-25T12:01:00Z",
+        request_count: 2,
+        steps: [
+          {
+            at: "2026-10-25T12:00:00Z",
+            path: "/",
+            kind: "Page",
+            gap_seconds: 60,
+          },
+          {
+            at: "2026-10-25T12:01:00Z",
+            path: "/<script>.pdf",
+            kind: "PDF",
+            gap_seconds: null,
+          },
+        ],
+      },
+    ],
+  };
+  vm.runInContext("renderJourneys(report)", context);
+  assert.match(nodes.get("journeys-list").innerHTML, /60 seconds/);
+  assert.match(nodes.get("journeys-list").innerHTML, /Not known/);
+  assert.match(nodes.get("journeys-list").innerHTML, /&lt;script&gt;/);
+  assert.doesNotMatch(nodes.get("journeys-list").innerHTML, /<script>/);
+  context.report.visits[0].steps[0].path = "/secret?name=Martin";
+  assert.throws(
+    () => vm.runInContext("renderJourneys(report)", context),
+    /Unsupported/,
+  );
+});

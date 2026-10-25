@@ -543,6 +543,18 @@
           6 within 10 seconds. Other journeys are unclassified, not confirmed
           human. Broad bursts can also reflect testing or merged visitors.
         </p>
+        <label for="journeys-client-search">Compare network or browser</label>
+        <input
+          id="journeys-client-search"
+          type="search"
+          placeholder="Network/client code, IP address or browser"
+        />
+        <p class="note">
+          Comparison codes match within this report and rotate when it
+          regenerates. A client code matches the logged IP and browser string,
+          not a person. IP/browser details, when enabled, belong in this
+          protected report.
+        </p>
         <div id="journeys-summary" class="note"></div>
         <div id="journeys-list"></div>
       </section>
@@ -918,6 +930,53 @@
           };
         });
       }
+      function journeyClientEvidence(visit) {
+        if (!visit.network_key)
+          return '<p class="note">Client evidence not included. Regenerate with the updated exporter.</p>';
+        const summary = visit.browser_summary ?? {},
+          details = visit.client_details;
+        let output = `<details><summary>Browser and connection evidence</summary><p class="note">Network code: ${esc(visit.network_key)}<br>Client code: ${esc(visit.client_key)}<br>Browser-string code: ${esc(visit.browser_key)}<br>Browser string claims: ${esc(summary.browser)} / ${esc(summary.os)}</p>`;
+        if (details && typeof details === "object") {
+          output += `<p class="note">Logged IP: ${esc(details.logged_ip)} (${esc(details.address_scope)})<br>User-Agent: ${esc(details.user_agent)}</p>`;
+          if (
+            Array.isArray(details.unverified_forwarded_ips) &&
+            details.unverified_forwarded_ips.length
+          )
+            output += `<p class="note">Forwarded client-IP header values (unverified, not used for grouping): ${details.unverified_forwarded_ips.map(esc).join(", ")}</p>`;
+        } else
+          output +=
+            '<p class="note">Raw IP and full User-Agent omitted. Enable --include-client-details for private diagnostics.</p>';
+        if (num(visit.forwarded_ip_count) > 1)
+          output +=
+            '<p class="notice">Multiple forwarded client IPs appear in this visit. Proxy-based grouping may have merged visitors; verify the trusted-proxy configuration.</p>';
+        return output + "</details>";
+      }
+      function requestEvidence(step) {
+        if (
+          !Array.isArray(step.request_contexts) ||
+          !step.request_contexts.length
+        )
+          return "Not recorded";
+        return step.request_contexts
+          .filter((context) => context && typeof context === "object")
+          .slice(0, 8)
+          .map((context) => {
+            const parts = [
+              context.log_format === "json"
+                ? `Purpose: ${context.sec_purpose || context.purpose || "not supplied"}`
+                : "Purpose headers not recorded",
+            ];
+            if (context.fetch_dest)
+              parts.push(`Destination: ${context.fetch_dest}`);
+            if (context.fetch_mode) parts.push(`Mode: ${context.fetch_mode}`);
+            if (context.fetch_user)
+              parts.push(`User activation header: ${context.fetch_user}`);
+            if (context.referrer_path)
+              parts.push(`Referrer: ${context.referrer_path}`);
+            return parts.map(esc).join("; ");
+          })
+          .join("<br>");
+      }
       function journeyTime(value) {
         return new Date(value).toLocaleString("en-GB", {
           timeZone: "Europe/London",
@@ -958,6 +1017,23 @@
         }
         loadedJourneyReport = data;
         const mode = $("journeys-quality").value || "review";
+        const clientQuery = $("journeys-client-search")
+          .value.trim()
+          .toLowerCase();
+        const matchesClient = (visit) =>
+          [
+            visit.network_key,
+            visit.client_key,
+            visit.browser_key,
+            visit.browser_summary?.browser,
+            visit.browser_summary?.os,
+            visit.client_details?.logged_ip,
+            visit.client_details?.user_agent,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(clientQuery);
         const candidates = data.visits
           .map((visit) => ({
             ...visit,
@@ -968,6 +1044,7 @@
           (visit) => visit.automation_class === "likely_automated",
         ).length;
         const visits = candidates
+          .filter(matchesClient)
           .filter(
             (visit) =>
               mode === "all" ||
@@ -981,6 +1058,10 @@
           (validTime(data.observed_start) && validTime(data.observed_end)
             ? `Supplied logs contain activity from ${journeyTime(data.observed_start)} to ${journeyTime(data.observed_end)} within that window; coverage may be incomplete.`
             : "No log coverage times supplied.");
+        $("journeys-summary").textContent +=
+          num(data.purpose_metadata_requests) > 0
+            ? ` Enhanced request metadata: ${fmt(data.purpose_metadata_requests)} matching requests; ${fmt(data.prefetch_requests_excluded)} declared prefetch requests and ${fmt(data.embedded_page_requests_excluded)} embedded page requests excluded. Older log entries remain unverified.`
+            : " Purpose/destination headers were not recorded in these logs, so prefetching cannot be established from timing alone.";
         $("journeys-list").innerHTML = visits.length
           ? visits
               .map(
@@ -989,14 +1070,15 @@
                   (Array.isArray(visit.automation_reasons)
                     ? `<p class="note">${visit.automation_reasons.map(esc).join(". ")}</p>`
                     : "") +
+                  journeyClientEvidence(visit) +
                   (visit.steps_truncated
                     ? `<p class="note">First ${visit.steps.length} navigation steps shown; this visit contains more navigation steps.</p>`
                     : "") +
-                  `<div class="scroll"><table><thead><tr><th scope="col">Time</th><th scope="col">Page / PDF</th><th scope="col">Requests</th><th scope="col">Gap after last grouped request</th></tr></thead><tbody>` +
+                  `<div class="scroll"><table><thead><tr><th scope="col">Time</th><th scope="col">Page / PDF</th><th scope="col">Requests</th><th scope="col">Gap after last grouped request</th><th scope="col">Request evidence</th></tr></thead><tbody>` +
                   visit.steps
                     .map(
                       (step) =>
-                        `<tr><td>${esc(journeyTime(step.at))}</td><td class="path">${esc(step.path)} (${esc(step.kind)})</td><td>${fmt(step.requests ?? 1)}</td><td>${step.gap_seconds === null ? "Not known" : fmt(step.gap_seconds) + " seconds"}</td></tr>`,
+                        `<tr><td>${esc(journeyTime(step.at))}</td><td class="path">${esc(step.path)} (${esc(step.kind)})</td><td>${fmt(step.requests ?? 1)}</td><td>${step.gap_seconds === null ? "Not known" : fmt(step.gap_seconds) + " seconds"}</td><td class="path">${requestEvidence(step)}</td></tr>`,
                     )
                     .join("") +
                   `</tbody></table></div></details>`,
@@ -1355,6 +1437,9 @@
         renderPages();
       });
       $("journeys-quality").addEventListener("change", () => {
+        if (loadedJourneyReport) renderJourneys(loadedJourneyReport);
+      });
+      $("journeys-client-search").addEventListener("input", () => {
         if (loadedJourneyReport) renderJourneys(loadedJourneyReport);
       });
       $("journeys-load").addEventListener("click", loadJourneys);

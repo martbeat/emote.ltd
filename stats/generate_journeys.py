@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Build a private, identifier-free visit report from nginx COMBINED logs."""
+"""Build private inferred visits from nginx COMBINED or diagnostic JSON logs."""
 import argparse
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 import glob
 import gzip
+import hashlib
+import hmac
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -47,6 +50,23 @@ def route_for(target, routes):
 
 
 def parse_line(line):
+    if line.lstrip().startswith('{'):
+        try:
+            row = json.loads(line)
+            when = datetime.fromisoformat(row['time'].replace('Z', '+00:00'))
+            required = ['remote_addr', 'user_agent', 'method', 'uri']
+            if when.tzinfo is None or any(not isinstance(row.get(key), str) for key in required):
+                return None
+            status = int(row['status'])
+            if not 100 <= status <= 599:
+                return None
+            hints = {'log_format': 'json'}
+            for key in ['sec_purpose', 'purpose', 'fetch_dest', 'fetch_mode', 'fetch_user', 'cf_connecting_ip']:
+                value = row.get(key, '')
+                hints[key] = value[:256] if isinstance(value, str) else ''
+            return row['remote_addr'], row['user_agent'], when, row['method'], row['uri'], status, row.get('referrer', ''), hints
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return None
     match = LOG.match(line)
     if not match:
         return None
@@ -56,19 +76,73 @@ def parse_line(line):
         method, target, _protocol = request.split(' ', 2)
     except ValueError:
         return None
-    return address, agent, when, method, target, int(status), referrer
+    return address, agent, when, method, target, int(status), referrer, {'log_format': 'combined'}
+
+
+def browser_summary(agent):
+    browser = 'Unrecognised browser string'
+    for name, pattern in [('Edge', r'Edg(?:A|iOS)?/([\d.]+)'), ('Samsung Internet', r'SamsungBrowser/([\d.]+)'),
+                          ('Opera', r'OPR/([\d.]+)'), ('Firefox', r'(?:Firefox|FxiOS)/([\d.]+)'),
+                          ('Chrome', r'(?:Chrome|CriOS)/([\d.]+)'), ('Safari', r'Version/([\d.]+).*Safari/')]:
+        match = re.search(pattern, agent)
+        if match:
+            browser = name + ' ' + match[1][:40]
+            break
+    if 'Android' in agent:
+        match = re.search(r'Android[ /]([\d.]+)', agent)
+        system = 'Android' + (' ' + match[1] if match else '')
+    elif 'iPhone' in agent or 'iPad' in agent:
+        system = 'iOS / iPadOS'
+    elif 'Windows' in agent:
+        system = 'Windows'
+    elif 'Macintosh' in agent:
+        system = 'macOS'
+    elif 'Linux' in agent:
+        system = 'Linux'
+    else:
+        system = 'Unrecognised operating-system string'
+    return {'browser': browser, 'os': system}
+
+
+def valid_ip(value):
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return None
+
+
+def report_client(record, key, include_details):
+    address, agent = record['address'], record['agent']
+    def token(prefix, value):
+        return prefix + hmac.new(key, value.encode('utf-8'), hashlib.sha256).hexdigest()[:12]
+    forwarded = sorted({valid_ip(event[3].get('cf_connecting_ip', '')) for event in record['events']
+                        if valid_ip(event[3].get('cf_connecting_ip', ''))})
+    result = {'network_key': token('net-', address), 'client_key': token('client-', address + '\0' + agent),
+              'browser_key': token('ua-', agent), 'browser_summary': browser_summary(agent),
+              'forwarded_ip_count': len(forwarded)}
+    if include_details:
+        parsed_ip = valid_ip(address)
+        result['client_details'] = {'logged_ip': parsed_ip or 'Not a valid IP address',
+                                   'address_scope': 'public' if parsed_ip and ipaddress.ip_address(parsed_ip).is_global else 'non-public or invalid: check proxy configuration',
+                                   'user_agent': agent[:2048], 'unverified_forwarded_ips': forwarded}
+    return result
 
 
 def navigation_steps(events):
     """Collapse consecutive requests to one location; keep request evidence."""
     steps = []
-    for when, path, kind in events:
+    for event in events:
+        when, path, kind = event[:3]
+        hints = event[3] if len(event) > 3 else {}
         if steps and steps[-1]['path'] == path:
             steps[-1]['last_at'] = when.isoformat()
             steps[-1]['requests'] += 1
         else:
             steps.append({'at': when.isoformat(), 'last_at': when.isoformat(),
-                          'path': path, 'kind': kind, 'requests': 1})
+                          'path': path, 'kind': kind, 'requests': 1, 'request_contexts': []})
+        context = {k: hints[k] for k in ['log_format', 'sec_purpose', 'purpose', 'fetch_dest', 'fetch_mode', 'fetch_user', 'referrer_path'] if hints.get(k) and hints[k] != '-'}
+        if context and context not in steps[-1]['request_contexts'] and len(steps[-1]['request_contexts']) < 8:
+            steps[-1]['request_contexts'].append(context)
     for index, step in enumerate(steps):
         step['gap_seconds'] = int((datetime.fromisoformat(steps[index + 1]['at']) -
                                    datetime.fromisoformat(step['last_at'])).total_seconds()) if index + 1 < len(steps) else None
@@ -103,12 +177,13 @@ def automation_assessment(events):
     return 'unclassified', reasons
 
 
-def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_steps=100, min_steps=2):
+def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_steps=100, min_steps=2, include_client_details=False):
     now = now or datetime.now(timezone.utc)
     start = now - timedelta(hours=hours)
     groups = defaultdict(list)
     observed = []
-    rejected = automated = 0
+    rejected = automated = prefetched = embedded = purpose_metadata = 0
+    token_key = secrets.token_bytes(32)
     # Avoid scanning the same physical file twice when glob patterns overlap.
     seen_files = set()
     for path in paths:
@@ -123,7 +198,7 @@ def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_s
                 if not parsed:
                     rejected += 1
                     continue
-                address, agent, when, method, target, status, _referrer = parsed
+                address, agent, when, method, target, status, referrer, hints = parsed
                 if not start <= when <= now:
                     continue
                 observed.append(when)
@@ -132,30 +207,46 @@ def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_s
                 route = route_for(target, routes)
                 if route is None:
                     continue
+                if hints.get('log_format') == 'json':
+                    purpose_metadata += 1
+                if re.search(r'\b(?:prefetch|prerender)\b', hints.get('sec_purpose', '') + ' ' + hints.get('purpose', ''), re.I):
+                    prefetched += 1
+                    continue
+                if route[1] == 'Page' and hints.get('fetch_dest') in {'iframe', 'frame', 'embed', 'object'}:
+                    embedded += 1
+                    continue
+                try:
+                    ref = urlsplit(referrer) if isinstance(referrer, str) else None
+                    if ref and ref.hostname in {'emote.ltd', 'www.emote.ltd'}:
+                        known_ref = routes.get(unquote(ref.path))
+                        if known_ref:
+                            hints['referrer_path'] = known_ref[0]
+                except ValueError:
+                    pass
                 if AUTOMATION.search(agent) or agent in {'', '-'}:
                     automated += 1
                     continue
-                # These raw values remain in memory and are never exported.
-                groups[(address, agent)].append((when, route[0], route[1]))
+                # Raw values are only exported with the explicit private diagnostics flag.
+                groups[(address, agent)].append((when, route[0], route[1], hints))
     visits = []
-    for events in groups.values():
+    for (address, agent), events in groups.items():
         events.sort(key=lambda event: event[0])
         current = []
         for event in events:
             if current and event[0] - current[-1][0] >= timedelta(minutes=timeout):
-                visits.append(current)
+                visits.append((address, agent, current))
                 current = []
             current.append(event)
         if current:
-            visits.append(current)
+            visits.append((address, agent, current))
     all_visit_count = len(visits)
     records = []
-    for events in visits:
+    for address, agent, events in visits:
         steps = navigation_steps(events)
         if len(steps) < min_steps:
             continue
         assessment, reasons = automation_assessment(events)
-        records.append({'events': events, 'steps': steps, 'assessment': assessment, 'reasons': reasons})
+        records.append({'address': address, 'agent': agent, 'events': events, 'steps': steps, 'assessment': assessment, 'reasons': reasons})
     records.sort(key=lambda record: record['events'][-1][0], reverse=True)
     included = sum(len(record['events']) for record in records)
     review = [record for record in records if record['assessment'] != 'likely_automated']
@@ -165,7 +256,7 @@ def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_s
     exported = []
     for record in selected:
         events, steps = record['events'], record['steps']
-        exported.append({'id': secrets.token_hex(6), 'start': events[0][0].isoformat(),
+        exported.append({**report_client(record, token_key, include_client_details), 'id': secrets.token_hex(6), 'start': events[0][0].isoformat(),
                          'end': events[-1][0].isoformat(), 'request_count': len(events),
                          'navigation_step_count': len(steps),
                          'automation_class': record['assessment'], 'automation_reasons': record['reasons'],
@@ -179,6 +270,9 @@ def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_s
             'navigation_step_semantics': 'consecutive_locations',
             'likely_automated_visits': len(likely), 'unclassified_visits': len(review),
             'included_requests': included, 'displayed_visits': len(exported),
+            'client_details_included': include_client_details,
+            'purpose_metadata_requests': purpose_metadata, 'prefetch_requests_excluded': prefetched,
+            'embedded_page_requests_excluded': embedded,
             'recognised_automation_requests_excluded': automated,
             'unparseable_lines': rejected, 'visits': exported}
 
@@ -190,6 +284,7 @@ def main():
     parser.add_argument('--output', required=True, help='PRIVATE output path, outside the public web root')
     parser.add_argument('--hours', type=int, default=168, help='Rolling lookback in hours (default: 168 / seven days)')
     parser.add_argument('--min-steps', type=int, default=2, help='Minimum navigation steps per visit, grouping consecutive reloads (default: 2)')
+    parser.add_argument('--include-client-details', action='store_true', help='Include logged IP and full user-agent in the PRIVATE report')
     args = parser.parse_args()
     root, output = Path(args.site_root).resolve(), Path(args.output).resolve()
     if not root.is_dir():
@@ -206,7 +301,7 @@ def main():
     routes = public_routes(root)
     if not routes:
         parser.error('No public HTML/PDF files found; existing output was left unchanged')
-    report = build_report(paths, routes, hours=args.hours, min_steps=args.min_steps)
+    report = build_report(paths, routes, hours=args.hours, min_steps=args.min_steps, include_client_details=args.include_client_details)
     if report['observed_start'] is None:
         parser.error('No parseable entries in this window; existing output was left unchanged')
     output.parent.mkdir(parents=True, exist_ok=True)

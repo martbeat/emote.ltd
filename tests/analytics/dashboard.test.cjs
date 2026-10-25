@@ -505,3 +505,66 @@ test("journey quality filter retains automation for inspection and groups duplic
   vm.runInContext("renderJourneys(report)", context);
   assert.match(nodes.get("journeys-summary").textContent, /Showing 2 journeys/);
 });
+
+test("private connection evidence and comparison filter are escaped and preserve grouping limits", async () => {
+  const { context, nodes } = await run();
+  const at = "2026-10-25T12:00:00Z",
+    later = "2026-10-25T12:01:00Z";
+  const steps = [
+    {
+      at,
+      path: "/",
+      kind: "Page",
+      gap_seconds: 60,
+      request_contexts: [
+        { log_format: "json", fetch_dest: "<document>", fetch_user: "?1" },
+      ],
+    },
+    { at: later, path: "/tools.html", kind: "Page", gap_seconds: null },
+  ];
+  const visit = {
+    start: at,
+    end: later,
+    request_count: 2,
+    steps,
+    network_key: "net-test",
+    client_key: "client-test",
+    browser_key: "ua-test",
+    browser_summary: { browser: "Chrome 141", os: "Windows" },
+    forwarded_ip_count: 2,
+    client_details: {
+      logged_ip: "127.0.0.1",
+      address_scope: "non-public",
+      user_agent: "<agent>",
+      unverified_forwarded_ips: ["192.0.2.1", "192.0.2.2"],
+    },
+  };
+  context.report = {
+    schema_version: 1,
+    generated_at: later,
+    window_start: at,
+    window_end: later,
+    inferred_visits: 1,
+    included_requests: 2,
+    purpose_metadata_requests: 2,
+    prefetch_requests_excluded: 1,
+    embedded_page_requests_excluded: 0,
+    visits: [visit],
+  };
+  vm.runInContext("renderJourneys(report)", context);
+  const markup = nodes.get("journeys-list").innerHTML;
+  assert.match(markup, /127.0.0.1/);
+  assert.match(markup, /&lt;agent&gt;/);
+  assert.match(markup, /&lt;document&gt;/);
+  assert.match(markup, /may have merged visitors/);
+  assert.match(
+    nodes.get("journeys-summary").textContent,
+    /1 declared prefetch/,
+  );
+  nodes.get("journeys-client-search").value = "Chrome";
+  vm.runInContext("renderJourneys(report)", context);
+  assert.match(nodes.get("journeys-list").innerHTML, /tools.html/);
+  nodes.get("journeys-client-search").value = "net-other";
+  vm.runInContext("renderJourneys(report)", context);
+  assert.match(nodes.get("journeys-list").innerHTML, /No journeys match/);
+});

@@ -123,6 +123,54 @@ class JourneyTests(unittest.TestCase):
         self.assertEqual(report['unclassified_visits'],1)
         self.assertEqual(report['visits'][0]['automation_class'],'unclassified')
 
+    def test_private_client_details_and_report_local_comparison_keys(self):
+        log=self.root/'access.log'
+        chrome='Mozilla/5.0 (Windows NT 10.0) Chrome/141.0.0.0 Safari/537.36'
+        firefox='Mozilla/5.0 Firefox/143.0'
+        events=[line('12:00:00','/',agent=chrome),line('12:01:00','/tools.html',agent=chrome),
+            line('12:40:00','/',agent=chrome),line('12:41:00','/tools.html',agent=chrome),
+            line('12:45:00','/',agent=firefox),line('12:46:00','/tools.html',agent=firefox)]
+        log.write_text(''.join(events))
+        now=datetime(2026,10,25,13,tzinfo=timezone.utc)
+        report=journeys.build_report([log],self.routes,now=now)
+        self.assertNotIn('192.0.2.1',json.dumps(report))
+        self.assertNotIn('Mozilla/5.0',json.dumps(report))
+        self.assertTrue(all('client_details' not in visit for visit in report['visits']))
+        self.assertEqual(len({visit['network_key'] for visit in report['visits']}),1)
+        self.assertEqual(len({visit['client_key'] for visit in report['visits']}),2)
+        self.assertEqual(len({visit['browser_key'] for visit in report['visits']}),2)
+        other=journeys.build_report([log],self.routes,now=now,include_client_details=True)
+        self.assertTrue(other['client_details_included'])
+        self.assertEqual(other['visits'][0]['client_details']['logged_ip'],'192.0.2.1')
+        self.assertIn('Mozilla/5.0',other['visits'][0]['client_details']['user_agent'])
+        self.assertNotEqual(report['visits'][0]['network_key'],other['visits'][0]['network_key'])
+
+    def test_json_headers_exclude_declared_prefetch_and_embeds_and_expose_proxy_ambiguity(self):
+        log=self.root/'diagnostic.log'
+        def record(path,when,**extra):
+            return json.dumps({'time':when,'remote_addr':'127.0.0.1','user_agent':'Mozilla Chrome/141.0',
+                'method':'GET','uri':path,'status':200,'referrer':'https://emote.ltd/?secret=hidden',
+                'fetch_dest':'document','fetch_mode':'navigate','fetch_user':'?1',**extra})+'\n'
+        log.write_text(''.join([record('/','2026-10-25T12:00:00Z',cf_connecting_ip='192.0.2.10'),
+            record('/tools.html','2026-10-25T12:01:00Z',cf_connecting_ip='192.0.2.11'),
+            record('/downloads/paper.pdf','2026-10-25T12:02:00Z',sec_purpose='prefetch;prerender'),
+            record('/tools.html','2026-10-25T12:03:00Z',fetch_dest='iframe')]))
+        report=journeys.build_report([log],self.routes,now=datetime(2026,10,25,13,tzinfo=timezone.utc),include_client_details=True)
+        self.assertEqual(report['prefetch_requests_excluded'],1)
+        self.assertEqual(report['embedded_page_requests_excluded'],1)
+        self.assertEqual(report['purpose_metadata_requests'],4)
+        visit=report['visits'][0]
+        self.assertEqual(visit['forwarded_ip_count'],2)
+        self.assertEqual(visit['client_details']['logged_ip'],'127.0.0.1')
+        self.assertIn('non-public',visit['client_details']['address_scope'])
+        self.assertEqual(visit['steps'][0]['request_contexts'][0]['referrer_path'],'/')
+        self.assertNotIn('secret',json.dumps(report))
+        self.assertEqual(report['included_requests'],2)
+        redacted=journeys.build_report([log],self.routes,now=datetime(2026,10,25,13,tzinfo=timezone.utc))
+        self.assertNotIn('192.0.2.10',json.dumps(redacted))
+        self.assertNotIn('127.0.0.1',json.dumps(redacted))
+        self.assertIsNone(journeys.parse_line('{"time":"bad"}'))
+
 class CommandTests(unittest.TestCase):
     def test_public_output_and_missing_logs_are_rejected(self):
         import subprocess

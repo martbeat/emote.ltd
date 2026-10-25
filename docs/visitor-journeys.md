@@ -85,7 +85,8 @@ at the source checkout if it differs from the files actually served.
 ## What a visit means
 
 - Requests are grouped using the source IP and user-agent already in the log,
-  kept only in the script's memory. Those values are not in the report. Confirm
+  kept in the script's memory. Raw IPs and full browser strings are omitted unless
+  `--include-client-details` is explicitly enabled for the protected report. Confirm
   nginx is logging the actual client address if a reverse proxy is involved;
   grouping a shared proxy address can merge unrelated visits.
 - Thirty minutes without a matching page/PDF request starts another inferred
@@ -118,9 +119,11 @@ at the source checkout if it differs from the files actually served.
   Browser-cached navigation, hash navigation, embedded HTML and requests to other
   sites can make a journey incomplete or differ from the navigation a person saw.
   Equal-second requests can be ambiguous. Log rotation gaps also affect coverage.
-- The script excludes raw IPs, user agents, referrers, form contents, query strings
-  and URL fragments from the export. The detailed sequences remain private behind
-  the configured login. No detailed report is committed to the repository.
+- By default, raw IPs and full user agents are omitted. The private diagnostics
+  flag includes them deliberately. Referrer query strings, form contents, URL
+  query strings and fragments are never exported. Only known internal referrer
+  paths are retained. Detailed reports remain behind the configured login and
+  are never committed to the repository.
 
 ## Checks
 
@@ -136,3 +139,87 @@ Server verification: unauthenticated access to the protected JSON should return
 Confirm nginx can read the report, check its generation time and compare a known
 short test visit against the raw log. Browser-level authentication and live log
 permissions require verification on the actual server.
+
+
+## Browser, network and prefetch diagnostics
+
+Each visit already groups one exact logged IP and user-agent string. New reports
+include report-local network, client (IP + user-agent) and browser-string codes,
+plus a parsed browser/OS summary. Codes rotate on every export; they are useful
+for comparison inside one report and do not establish that requests came from
+the same person or device. The browser string is a claim that bots can imitate.
+
+To include the actual logged IP and full browser string, append
+`--include-client-details` when generating the private report, and append it to
+the scheduled command if those details should persist across refreshes. The
+output must still be outside the web root and protected by the existing login.
+The dashboard can filter by codes, IP or browser name.
+
+If the logged IP is loopback/private, check the proxy configuration before using
+it to infer visits. Forwarded client-IP headers are shown as **unverified** and
+are not used to regroup visitors. Where a diagnostic log supplies several distinct
+forwarded client-IP values for one grouped visit, the dashboard warns that the
+proxy address may have merged visitors. Configure real-IP replacement only after
+identifying the trusted proxy path; do not trust arbitrary client headers.
+
+### Evidence from the live landing page
+
+On 25 October 2026 the live landing response included:
+
+```http
+Speculation-Rules: "/cdn-cgi/speculation"
+```
+
+The source landing page itself did not include document prefetch/prerender rules
+or page iframes. It fetched a blog-feed JSON response and displayed images/links.
+The response header matches [Cloudflare Speed Brain](https://developers.cloudflare.com/speed/optimization/content/speed-brain/).
+Cloudflare documents that its prefetches are served from edge cache and never
+forwarded to the origin, so that feature alone does not explain rapid requests
+in the Raspberry Pi's origin logs. Cached normal navigation can also be missing
+from an origin-only journey. Request timing alone cannot settle the cause.
+
+### Optional enhanced origin log (new requests only)
+
+The old COMBINED logs have no request-purpose or fetch-destination headers. They
+cannot establish whether a historical request was a prefetch. The exporter now
+also accepts the JSON format defined in
+`deploy/nginx/journeys-log-format.conf`. It records browser-supplied purpose,
+fetch destination/mode/user-activation headers and the forwarded client-IP header.
+These are evidence, not proof of a human click.
+
+1. Copy the format definition to nginx's `http` context, normally through
+   `/etc/nginx/conf.d/emote-journeys-log.conf` on this server. This defines the
+   format only; it does not change existing logging.
+2. In the emote.ltd server block, add this alongside the existing main log:
+
+   ```nginx
+   access_log /var/log/nginx/emote.journeys.log emote_journey_json;
+   ```
+
+   Create the new log if absent, without truncating an existing log, and restrict
+   its permissions to the nginx logging user/group. Verify it is covered by the
+   server's existing nginx log rotation rules, which commonly match `*.log`.
+3. Test `sudo nginx -t` before reloading. Existing GoAccess exports should keep
+   using the original `main` log.
+4. To inspect enhanced metadata, use **only** the new log as this export's input:
+
+   ```sh
+   sudo python3 /home/martin/Sites/emote.ltd/stats/generate_journeys.py \
+     --log '/var/log/nginx/emote.journeys.log*' \
+     --site-root /var/www/emote.ltd/html \
+     --hours 168 --min-steps 2 --include-client-details \
+     --output /var/lib/emote-analytics/journeys.json
+   ```
+
+   Do not combine the main and diagnostic logs for overlapping periods: they
+   record the same requests and would double-count them. The enhanced log only
+   covers requests since activation. Keep the old seven-day report separately
+   in the private directory if needed for comparison. Change the cron input only
+   once the new log is working; its coverage grows over the following seven days.
+
+Declared `prefetch`/`prerender` requests are excluded from inferred navigation.
+HTML requests with `iframe`, `frame`, `embed` or `object` destinations are excluded
+from page journeys. PDF requests remain eligible unless explicitly speculative.
+Metadata coverage and exclusion counts appear in the dashboard. Missing headers
+in an old log mean unknown, not evidence that no prefetching occurred. No browser
+tracking script or cookie is added by these changes.

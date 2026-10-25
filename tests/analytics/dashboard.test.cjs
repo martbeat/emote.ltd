@@ -443,11 +443,65 @@ test("journey viewer hides single-step visits even in an older report", async ()
   vm.runInContext("renderJourneys(report)", context);
   assert.match(
     nodes.get("journeys-summary").textContent,
-    /Showing 1 most recent journeys with 2\+ steps/,
+    /Showing 1 journeys with 2\+ navigation steps/,
   );
   assert.doesNotMatch(
     nodes.get("journeys-list").innerHTML,
     /Visit 2|1 requests/,
   );
   assert.match(nodes.get("journeys-list").innerHTML, /tools.html/);
+});
+
+test("journey quality filter retains automation for inspection and groups duplicate PDFs", async () => {
+  const { context, nodes } = await run();
+  const at = "2026-10-25T12:00:00Z",
+    later = "2026-10-25T12:01:00Z";
+  const steps = [
+    { at, path: "/", kind: "Page", gap_seconds: 60 },
+    { at: later, path: "/paper.pdf", kind: "PDF", gap_seconds: 0 },
+    { at: later, path: "/paper.pdf", kind: "PDF", gap_seconds: null },
+  ];
+  context.report = {
+    schema_version: 1,
+    window_start: at,
+    window_end: later,
+    generated_at: later,
+    inferred_visits: 2,
+    included_requests: 6,
+    minimum_steps: 2,
+    visits: [
+      {
+        start: at,
+        end: later,
+        request_count: 3,
+        steps,
+        automation_class: "unclassified",
+      },
+      {
+        start: at,
+        end: later,
+        request_count: 3,
+        steps,
+        automation_class: "likely_automated",
+        automation_reasons: ["<burst>"],
+      },
+    ],
+  };
+  vm.runInContext("renderJourneys(report)", context);
+  assert.doesNotMatch(
+    nodes.get("journeys-list").innerHTML,
+    /Likely automated|&lt;burst&gt;/,
+  );
+  assert.match(
+    nodes.get("journeys-summary").textContent,
+    /1 exported visits flagged/,
+  );
+  assert.match(nodes.get("journeys-list").innerHTML, /2 steps \/ 3 requests/);
+  nodes.get("journeys-quality").value = "automated";
+  vm.runInContext("renderJourneys(report)", context);
+  assert.match(nodes.get("journeys-list").innerHTML, /Likely automated/);
+  assert.match(nodes.get("journeys-list").innerHTML, /&lt;burst&gt;/);
+  nodes.get("journeys-quality").value = "all";
+  vm.runInContext("renderJourneys(report)", context);
+  assert.match(nodes.get("journeys-summary").textContent, /Showing 2 journeys/);
 });

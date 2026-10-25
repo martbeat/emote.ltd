@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a private, identifier-free visit report from nginx COMBINED logs."""
 import argparse
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 import glob
 import gzip
@@ -59,6 +59,50 @@ def parse_line(line):
     return address, agent, when, method, target, int(status), referrer
 
 
+def navigation_steps(events):
+    """Collapse consecutive requests to one location; keep request evidence."""
+    steps = []
+    for when, path, kind in events:
+        if steps and steps[-1]['path'] == path:
+            steps[-1]['last_at'] = when.isoformat()
+            steps[-1]['requests'] += 1
+        else:
+            steps.append({'at': when.isoformat(), 'last_at': when.isoformat(),
+                          'path': path, 'kind': kind, 'requests': 1})
+    for index, step in enumerate(steps):
+        step['gap_seconds'] = int((datetime.fromisoformat(steps[index + 1]['at']) -
+                                   datetime.fromisoformat(step['last_at'])).total_seconds()) if index + 1 < len(steps) else None
+    return steps
+
+
+def automation_assessment(events):
+    """Transparent heuristics, not a determination that a visitor is a bot."""
+    def burst(seconds, locations):
+        counts = Counter()
+        left = 0
+        for right, event in enumerate(events):
+            counts[event[1]] += 1
+            while event[0] - events[left][0] > timedelta(seconds=seconds):
+                path = events[left][1]
+                counts[path] -= 1
+                if counts[path] == 0:
+                    del counts[path]
+                left += 1
+            if len(counts) >= locations:
+                return True
+        return False
+    reasons = []
+    if burst(3, 4):
+        reasons.append('At least 4 distinct locations requested within 3 seconds')
+    if burst(10, 6):
+        reasons.append('At least 6 distinct locations requested within 10 seconds')
+    if reasons:
+        return 'likely_automated', reasons
+    if burst(1, 3):
+        reasons.append('Rapid burst: at least 3 distinct locations within 1 second; uncertain')
+    return 'unclassified', reasons
+
+
 def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_steps=100, min_steps=2):
     now = now or datetime.now(timezone.utc)
     start = now - timedelta(hours=hours)
@@ -105,25 +149,35 @@ def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_s
         if current:
             visits.append(current)
     all_visit_count = len(visits)
-    visits = [events for events in visits if len(events) >= min_steps]
-    included = sum(len(events) for events in visits)
-    visits.sort(key=lambda events: events[-1][0], reverse=True)
+    records = []
+    for events in visits:
+        steps = navigation_steps(events)
+        if len(steps) < min_steps:
+            continue
+        assessment, reasons = automation_assessment(events)
+        records.append({'events': events, 'steps': steps, 'assessment': assessment, 'reasons': reasons})
+    records.sort(key=lambda record: record['events'][-1][0], reverse=True)
+    included = sum(len(record['events']) for record in records)
+    review = [record for record in records if record['assessment'] != 'likely_automated']
+    likely = [record for record in records if record['assessment'] == 'likely_automated']
+    # Separate quotas prevent crawler bursts from crowding out reviewable visits.
+    selected = review[:limit] + likely[:limit]
     exported = []
-    for events in visits[:limit]:
-        steps = []
-        for index, (when, path, kind) in enumerate(events[:max_steps]):
-            next_time = events[index + 1][0] if index + 1 < len(events) else None
-            steps.append({'at': when.isoformat(), 'path': path, 'kind': kind,
-                          'gap_seconds': int((next_time - when).total_seconds()) if next_time else None})
+    for record in selected:
+        events, steps = record['events'], record['steps']
         exported.append({'id': secrets.token_hex(6), 'start': events[0][0].isoformat(),
                          'end': events[-1][0].isoformat(), 'request_count': len(events),
-                         'steps_truncated': len(events) > max_steps, 'steps': steps})
+                         'navigation_step_count': len(steps),
+                         'automation_class': record['assessment'], 'automation_reasons': record['reasons'],
+                         'steps_truncated': len(steps) > max_steps, 'steps': steps[:max_steps]})
     return {'schema_version': 1, 'generated_at': now.isoformat(),
             'window_start': start.isoformat(), 'window_end': now.isoformat(),
             'observed_start': min(observed).isoformat() if observed else None,
             'observed_end': max(observed).isoformat() if observed else None,
             'inactivity_minutes': timeout, 'minimum_steps': min_steps,
-            'all_inferred_visits': all_visit_count, 'inferred_visits': len(visits),
+            'all_inferred_visits': all_visit_count, 'inferred_visits': len(records),
+            'navigation_step_semantics': 'consecutive_locations',
+            'likely_automated_visits': len(likely), 'unclassified_visits': len(review),
             'included_requests': included, 'displayed_visits': len(exported),
             'recognised_automation_requests_excluded': automated,
             'unparseable_lines': rejected, 'visits': exported}
@@ -135,7 +189,7 @@ def main():
     parser.add_argument('--site-root', required=True, help='Deployed public HTML root, used to allow-list paths')
     parser.add_argument('--output', required=True, help='PRIVATE output path, outside the public web root')
     parser.add_argument('--hours', type=int, default=168, help='Rolling lookback in hours (default: 168 / seven days)')
-    parser.add_argument('--min-steps', type=int, default=2, help='Minimum page/PDF requests per visit (default: 2)')
+    parser.add_argument('--min-steps', type=int, default=2, help='Minimum navigation steps per visit, grouping consecutive reloads (default: 2)')
     args = parser.parse_args()
     root, output = Path(args.site_root).resolve(), Path(args.output).resolve()
     if not root.is_dir():

@@ -39,7 +39,7 @@ at the source checkout if it differs from the files actually served.
 
    The glob includes rotated and gzip-compressed logs. It must contain nginx
    COMBINED logs for this site. No raw logs are changed. Only the last seven days (168 hours) are
-   used by default, and only visits with at least two page/PDF requests qualify. The report includes observed log-activity bounds so partial coverage
+   used by default, and only visits with at least two navigation steps qualify. The report includes observed log-activity bounds so partial coverage
    remains visible. `--hours` supports 1–168 hours. If no files, no public routes or
    no parseable entries match, generation fails without replacing the old report.
 
@@ -97,11 +97,24 @@ at the source checkout if it differs from the files actually served.
   dotfiles, assets, unknown paths, unsuccessful requests and recognised automated
   user agents are excluded. Other bots may remain. Root `index.html` and `/`
   are normalised to the same path.
-- The two-step filter is applied before selecting the latest 50 qualifying inferred visits, with up to 100 requests per
-  visit. Steps count requests, so a reload can be a step. `--min-steps` defaults
-  to 2; `--min-steps 1` restores single-step visits. It reports total counts and flags truncated steps. Random report-local
-  IDs rotate on each generation and are not persistent person identifiers.
-- Gaps between requests are **not** active reading time. The final gap is unknown.
+- Consecutive requests for the same canonical path form one navigation step.
+  Repeated homepage loads or two requests for the same PDF do not alone qualify
+  as a journey. Request counts and first/last request times remain in each group.
+  Returning to a page after visiting another page is a new navigation step.
+  `--min-steps` defaults to 2; `--min-steps 1` includes single-location visits.
+- Pattern checks flag **likely automation** when at least 4 distinct locations are
+  requested within 3 seconds or at least 6 within 10 seconds. Three locations in
+  one second get an uncertain rapid-burst note. Same-page reloads alone do not
+  trigger these breadth checks. Flags are heuristics: testing, preloading and
+  merged visitors can also produce bursts. An unclassified visit is not verified
+  human activity. Existing user-agent exclusions still apply before these checks.
+- The export keeps up to 50 latest unclassified visits and 50 latest flagged
+  visits, with up to 100 grouped navigation steps each. Separate quotas prevent
+  crawler bursts from displacing the other journeys. Report totals cover all
+  qualifying visits before these display limits. The dashboard hides flagged
+  visits by default; its view selector also offers all or flagged-only views.
+  Random report-local IDs rotate on each generation and do not identify people.
+- Gaps between requests are **not** active reading time. The gap follows the last request in a grouped step. The final gap is unknown.
   Browser-cached navigation, hash navigation, embedded HTML and requests to other
   sites can make a journey incomplete or differ from the navigation a person saw.
   Equal-second requests can be ambiguous. Log rotation gaps also affect coverage.

@@ -67,7 +67,8 @@
         font-weight: 750;
       }
       button,
-      input {
+      input,
+      select {
         font: inherit;
       }
       button {
@@ -84,6 +85,7 @@
       }
       a:focus-visible,
       button:focus-visible,
+      select:focus-visible,
       input:focus-visible,
       summary:focus-visible {
         outline: 3px solid #cb8122;
@@ -501,11 +503,12 @@
       <section aria-labelledby="journeys-title">
         <h2 id="journeys-title">Visitor journeys</h2>
         <p class="note">
-          Journeys with two or more successful page/PDF requests. The exporter
-          defaults to the previous seven days. A visit ends after 30 minutes
-          without another recorded page or PDF request. Shared networks, browser
-          changes and undetected bots can affect grouping. Request gaps show the
-          interval between requests, not active reading time.
+          Journeys with two or more navigation steps. Consecutive requests for
+          the same location are grouped, with request counts retained. The
+          exporter defaults to the previous seven days. A visit ends after 30
+          minutes without another recorded page or PDF request. Shared networks,
+          browser changes and undetected bots can affect grouping. Request gaps
+          show the interval between requests, not active reading time.
         </p>
         <button type="button" id="journeys-load">
           Load private server report
@@ -526,6 +529,19 @@
             >Sign in to the protected report</a
           >
           if required, then load it here.
+        </p>
+        <label for="journeys-quality">Journey view</label>
+        <select id="journeys-quality">
+          <option value="review">
+            Review journeys: hide likely automation
+          </option>
+          <option value="all">All exported journeys</option>
+          <option value="automated">Likely automated only</option>
+        </select>
+        <p class="note">
+          Flags use request patterns: 4 distinct locations within 3 seconds, or
+          6 within 10 seconds. Other journeys are unclassified, not confirmed
+          human. Broad bursts can also reflect testing or merged visitors.
         </p>
         <div id="journeys-summary" class="note"></div>
         <div id="journeys-list"></div>
@@ -874,6 +890,34 @@
           );
         }
       }
+      let loadedJourneyReport = null;
+      function collapseJourneySteps(steps) {
+        const result = [];
+        for (const step of steps) {
+          const count = num(step.requests) ?? 1;
+          const lastAt =
+            typeof step.last_at === "string" &&
+            Number.isFinite(Date.parse(step.last_at))
+              ? step.last_at
+              : step.at;
+          const previous = result[result.length - 1];
+          if (previous?.path === step.path) {
+            previous.last_at = lastAt;
+            previous.requests += count;
+          } else result.push({ ...step, last_at: lastAt, requests: count });
+        }
+        return result.map((step, index) => {
+          const gap =
+            index + 1 < result.length
+              ? (Date.parse(result[index + 1].at) - Date.parse(step.last_at)) /
+                1000
+              : null;
+          return {
+            ...step,
+            gap_seconds: gap !== null && gap >= 0 ? gap : null,
+          };
+        });
+      }
       function journeyTime(value) {
         return new Date(value).toLocaleString("en-GB", {
           timeZone: "Europe/London",
@@ -885,7 +929,7 @@
         if (
           data?.schema_version !== 1 ||
           !Array.isArray(data.visits) ||
-          data.visits.length > 50 ||
+          data.visits.length > 100 ||
           !validTime(data.window_start) ||
           !validTime(data.window_end) ||
           !validTime(data.generated_at) ||
@@ -912,11 +956,28 @@
         ) {
           throw new Error("Unsupported journey report format");
         }
-        const visits = data.visits.filter(
-          (visit) => visit.request_count >= 2 && visit.steps.length >= 2,
-        );
+        loadedJourneyReport = data;
+        const mode = $("journeys-quality").value || "review";
+        const candidates = data.visits
+          .map((visit) => ({
+            ...visit,
+            steps: collapseJourneySteps(visit.steps),
+          }))
+          .filter((visit) => visit.steps.length >= 2);
+        const hidden = candidates.filter(
+          (visit) => visit.automation_class === "likely_automated",
+        ).length;
+        const visits = candidates
+          .filter(
+            (visit) =>
+              mode === "all" ||
+              (mode === "automated"
+                ? visit.automation_class === "likely_automated"
+                : visit.automation_class !== "likely_automated"),
+          )
+          .sort((a, b) => Date.parse(b.end) - Date.parse(a.end));
         $("journeys-summary").textContent =
-          `${fmt(data.inferred_visits)} ${num(data.minimum_steps) >= 2 ? "qualifying " : ""}inferred visits from ${fmt(data.included_requests)} page/PDF requests. Showing ${visits.length} most recent journeys with 2+ steps. Requested window: ${journeyTime(data.window_start)} to ${journeyTime(data.window_end)}. Generated: ${journeyTime(data.generated_at)}. Times shown in London time. ` +
+          `${fmt(data.inferred_visits)} ${num(data.minimum_steps) >= 2 ? "qualifying " : ""}inferred visits from ${fmt(data.included_requests)} page/PDF requests. Showing ${visits.length} journeys with 2+ navigation steps${mode === "review" ? `; ${hidden} exported visits flagged as likely automated are hidden` : ""}. Requested window: ${journeyTime(data.window_start)} to ${journeyTime(data.window_end)}. Generated: ${journeyTime(data.generated_at)}. Times shown in London time. ` +
           (validTime(data.observed_start) && validTime(data.observed_end)
             ? `Supplied logs contain activity from ${journeyTime(data.observed_start)} to ${journeyTime(data.observed_end)} within that window; coverage may be incomplete.`
             : "No log coverage times supplied.");
@@ -924,23 +985,28 @@
           ? visits
               .map(
                 (visit, index) =>
-                  `<details><summary>Visit ${index + 1} · ${esc(journeyTime(visit.start))} · ${fmt(visit.request_count)} requests</summary>` +
-                  (visit.steps_truncated
-                    ? `<p class="note">First ${visit.steps.length} requests shown; this visit contains more steps.</p>`
+                  `<details><summary>Visit ${index + 1} · ${esc(journeyTime(visit.start))} · ${fmt(visit.navigation_step_count ?? visit.steps.length)} steps / ${fmt(visit.request_count)} requests · ${visit.automation_class === "likely_automated" ? "Likely automated" : "Unclassified"}</summary>` +
+                  (Array.isArray(visit.automation_reasons)
+                    ? `<p class="note">${visit.automation_reasons.map(esc).join(". ")}</p>`
                     : "") +
-                  `<div class="scroll"><table><thead><tr><th scope="col">Time</th><th scope="col">Page / PDF</th><th scope="col">Gap to next request</th></tr></thead><tbody>` +
+                  (visit.steps_truncated
+                    ? `<p class="note">First ${visit.steps.length} navigation steps shown; this visit contains more navigation steps.</p>`
+                    : "") +
+                  `<div class="scroll"><table><thead><tr><th scope="col">Time</th><th scope="col">Page / PDF</th><th scope="col">Requests</th><th scope="col">Gap after last grouped request</th></tr></thead><tbody>` +
                   visit.steps
                     .map(
                       (step) =>
-                        `<tr><td>${esc(journeyTime(step.at))}</td><td class="path">${esc(step.path)} (${esc(step.kind)})</td><td>${step.gap_seconds === null ? "Not known" : fmt(step.gap_seconds) + " seconds"}</td></tr>`,
+                        `<tr><td>${esc(journeyTime(step.at))}</td><td class="path">${esc(step.path)} (${esc(step.kind)})</td><td>${fmt(step.requests ?? 1)}</td><td>${step.gap_seconds === null ? "Not known" : fmt(step.gap_seconds) + " seconds"}</td></tr>`,
                     )
                     .join("") +
                   `</tbody></table></div></details>`,
               )
               .join("")
-          : '<p class="empty">No journeys with two or more steps in the supplied report for this window.</p>';
+          : '<p class="empty">No journeys match this view. Select all exported journeys to inspect likely automation.</p>';
         $("journeys-state").textContent =
-          "Private report loaded. Visit numbers are labels within this report, not persistent person identities.";
+          data.navigation_step_semantics === "consecutive_locations"
+            ? "Private report loaded. Visit numbers are report-local labels; traffic flags are estimates."
+            : "Older report loaded: reloads are grouped for display, but regenerate it to add automation flags and refresh qualifying totals.";
       }
       async function loadJourneys() {
         $("journeys-load").disabled = true;
@@ -1287,6 +1353,9 @@
       $("page-all").addEventListener("click", () => {
         showAllPages = !showAllPages;
         renderPages();
+      });
+      $("journeys-quality").addEventListener("change", () => {
+        if (loadedJourneyReport) renderJourneys(loadedJourneyReport);
       });
       $("journeys-load").addEventListener("click", loadJourneys);
       $("journeys-file").addEventListener("change", async (event) => {

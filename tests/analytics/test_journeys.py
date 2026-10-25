@@ -84,12 +84,52 @@ class JourneyTests(unittest.TestCase):
         short = journeys.build_report([log],self.routes,now=now,hours=24)
         self.assertEqual(short['visits'],[])
 
+    def test_consecutive_reloads_are_one_step_and_pdf_duplicates_preserve_counts(self):
+        log = self.root / 'access.log'
+        log.write_text(''.join([line('12:00:00','/'),line('12:00:00','/index.html'),
+            line('12:01:00','/downloads/paper.pdf'),line('12:01:00','/downloads/paper.pdf')]))
+        report = journeys.build_report([log],self.routes,now=datetime(2026,10,25,13,tzinfo=timezone.utc))
+        visit = report['visits'][0]
+        self.assertEqual(visit['navigation_step_count'],2)
+        self.assertEqual(visit['request_count'],4)
+        self.assertEqual([step['requests'] for step in visit['steps']],[2,2])
+        self.assertEqual(visit['automation_class'],'unclassified')
+        log.write_text(line('12:00:00','/')+line('12:01:00','/'))
+        self.assertEqual(journeys.build_report([log],self.routes,now=datetime(2026,10,25,13,tzinfo=timezone.utc))['visits'],[])
+
+    def test_broad_bursts_flagged_but_reload_testing_and_small_fast_pairs_are_not(self):
+        now = datetime(2026,10,25,12,tzinfo=timezone.utc)
+        burst = [(now,f'/page{i}.html','Page') for i in range(8)]
+        self.assertEqual(journeys.automation_assessment(burst)[0],'likely_automated')
+        slow = [(now + journeys.timedelta(seconds=i*20),f'/page{i}.html','Page') for i in range(8)]
+        self.assertEqual(journeys.automation_assessment(slow)[0],'unclassified')
+        repeated = [(now,'/scrym-deep-fry/','Page') for _ in range(40)]
+        self.assertEqual(journeys.automation_assessment(repeated)[0],'unclassified')
+        pair = [(now,'/','Page'),(now + journeys.timedelta(seconds=2),'/about.html','Page')]
+        self.assertEqual(journeys.automation_assessment(pair)[0],'unclassified')
+        small = [(now,f'/article{i}.html','Page') for i in range(3)]
+        kind,reasons = journeys.automation_assessment(small)
+        self.assertEqual(kind,'unclassified')
+        self.assertIn('uncertain',reasons[0])
+
+    def test_separate_quotas_keep_bursts_from_displacing_reviewable_visits(self):
+        log=self.root/'access.log'
+        log.write_text(''.join([line('12:00:00','/',address='192.0.2.1'),line('12:01:00','/tools.html',address='192.0.2.1')]+
+            [line('12:30:00',f'/p{i}.html',address='192.0.2.2') for i in range(8)]))
+        routes={**self.routes,**{f'/p{i}.html':(f'/p{i}.html','Page') for i in range(8)}}
+        report=journeys.build_report([log],routes,now=datetime(2026,10,25,13,tzinfo=timezone.utc),limit=1)
+        self.assertEqual(report['displayed_visits'],2)
+        self.assertEqual(report['likely_automated_visits'],1)
+        self.assertEqual(report['unclassified_visits'],1)
+        self.assertEqual(report['visits'][0]['automation_class'],'unclassified')
+
 class CommandTests(unittest.TestCase):
     def test_public_output_and_missing_logs_are_rejected(self):
         import subprocess
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             (root/'index.html').write_text('public')
+            (root/'tools.html').write_text('public')
             command = ['python3',str(Path(journeys.__file__)),'--site-root',str(root),
                        '--log',str(root/'missing.log'),'--output',str(root/'journeys.json')]
             result = subprocess.run(command,capture_output=True,text=True)
@@ -110,11 +150,12 @@ class CommandTests(unittest.TestCase):
             root = base / 'public'
             root.mkdir()
             (root/'index.html').write_text('public')
+            (root/'tools.html').write_text('public')
             log = base/'access.log.gz'
             stamp = datetime.now(timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
             with gzip.open(log,'wt') as stream:
                 stream.write(f'192.0.2.10 - - [{stamp}] "GET /?secret=hidden HTTP/1.1" 200 10 "-" "Mozilla Test"\n')
-                stream.write(f'192.0.2.10 - - [{stamp}] "GET /index.html HTTP/1.1" 200 10 "-" "Mozilla Test"\n')
+                stream.write(f'192.0.2.10 - - [{stamp}] "GET /tools.html HTTP/1.1" 200 10 "-" "Mozilla Test"\n')
             output = base/'private'/'journeys.json'
             result = subprocess.run(['python3',str(Path(journeys.__file__)),'--site-root',str(root),
                 '--log',str(log),'--output',str(output)],capture_output=True,text=True)

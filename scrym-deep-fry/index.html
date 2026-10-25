@@ -197,10 +197,37 @@
 
     .xmas{padding-top:40px}
     .xmas-card{
+      position:relative;isolation:isolate;overflow:hidden;
       border-radius:30px;padding:42px;background:
         radial-gradient(circle at 85% 12%,rgba(245,185,31,.23),transparent 16rem),
         linear-gradient(135deg,#7d1f1b,#4b1714);
       border:1px solid #bf5549;display:grid;grid-template-columns:1fr auto;gap:30px;align-items:center;box-shadow:var(--shadow)
+    }
+    /* Bold, diagonal sold-out stamp across the Christmas feature card. */
+    .sold-out-stamp{
+      position:absolute;z-index:3;pointer-events:none;top:24px;right:15px;
+      transform:rotate(-18deg);transform-origin:center center;
+      display:inline-block;padding:14px 25px;
+      border:7px double #ff4a3d;border-radius:4px;
+      background:rgba(69,7,5,.88);color:#ff5549;
+      box-shadow:0 0 0 3px rgba(255,74,61,.16),0 12px 20px rgba(0,0,0,.25);
+      text-transform:uppercase;letter-spacing:.075em;white-space:nowrap;
+      font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;
+      font-weight:1000;font-size:clamp(2.25rem,5vw,4.7rem);line-height:1;
+      text-shadow:1px 1px rgba(0,0,0,.5)
+    }
+    .sold-out-inline{
+      display:inline-block;margin-top:7px;padding:3px 10px;
+      border:2px solid #ff9280;color:#fff0e6;background:#8f1c16;
+      transform:rotate(-5deg);font-size:.85rem;line-height:1.25;
+      font-weight:1000;letter-spacing:.075em;text-transform:uppercase
+    }
+    @media(max-width:900px){
+      .sold-out-stamp{top:15px;right:12px;font-size:clamp(1.6rem,5vw,2.8rem);border-width:5px;padding:10px 16px}
+    }
+    @media(max-width:620px){
+      .xmas-card{padding-top:100px}
+      .sold-out-stamp{top:18px;right:14px;transform:rotate(-12deg);font-size:clamp(1.6rem,7vw,2.5rem);padding:8px 14px}
     }
     .xmas h2{font-family:Georgia,serif;text-transform:uppercase;font-size:clamp(2.5rem,5vw,4.7rem);line-height:.9;margin:8px 0 14px}
     .xmas p{max-width:720px;color:#f5d8c3}
@@ -320,7 +347,7 @@
           <article class="date" data-region="latin" data-date="2026-11-14"><div class="d" data-i18n="date_14_nov">14 NOV</div><div><div class="place" data-i18n="place_rio">Rio de Janeiro</div><div class="country" data-i18n="country_brazil">Brazil</div><div class="venue"><span data-i18n="venue_label">Venue</span>: <a href="https://www.circovoador.com.br/" target="_blank" rel="noopener noreferrer">Circo Voador</a></div></div><div class="flag">🇧🇷</div></article>
           <article class="date" data-region="latin" data-date="2026-11-21"><div class="d" data-i18n="date_21_nov">21 NOV</div><div><div class="place">Porto Alegre</div><div class="country" data-i18n="country_brazil">Brazil</div><div class="venue"><span data-i18n="venue_label">Venue</span>: <a href="https://www.radioagulha.com.br/about" target="_blank" rel="noopener noreferrer">Rádio Agulha</a></div></div><div class="flag">🇧🇷</div></article>
           <article class="date" data-region="latin" data-date="2026-11-28"><div class="d" data-i18n="date_28_nov">28 NOV</div><div><div class="place">Montevideo</div><div class="country">Uruguay</div><div class="venue"><span data-i18n="venue_label">Venue</span>: <a href="https://salazitarrosa.montevideo.gub.uy/" target="_blank" rel="noopener noreferrer">Sala Zitarrosa</a></div></div><div class="flag">🇺🇾</div></article>
-          <article class="date special" data-region="uk" data-date="2026-12-18"><div class="d" data-i18n="date_18_dec">18 DEC</div><div><div class="place" data-i18n="place_earley_xmas">Earley · Xmas Special</div><div class="country" data-i18n="date_earley_note">UK · The triumphant return to sensible travel distances</div></div><div class="flag">🎄</div></article>
+          <article class="date special" data-region="uk" data-date="2026-12-18"><div class="d" data-i18n="date_18_dec">18 DEC</div><div><div class="place" data-i18n="place_earley_xmas">Earley · Xmas Special</div><div class="country" data-i18n="date_earley_note">UK · The triumphant return to sensible travel distances</div><div class="sold-out-inline" data-i18n="sold_out">SOLD OUT</div></div><div class="flag">🎄</div></article>
         </div>
       </div>
     </section>
@@ -418,6 +445,7 @@
     <section class="xmas" id="xmas">
       <div class="wrap">
         <div class="xmas-card">
+          <span class="sold-out-stamp" data-i18n="sold_out">SOLD OUT</span>
           <div>
             <div class="eyebrow" data-i18n="xmas_eyebrow">Final night · Earley</div>
             <h2 data-i18n="xmas_title">The Xmas Special</h2>
@@ -686,11 +714,11 @@
 
 
       // Venue and Bolivia labels for every language.
-      Object.assign(i18n.en, {"venue_label":"Venue","status_cancelled":"CANCELLED AT THE LAST MINUTE","dates_eyebrow":"15 stops. 1 cardboard box.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV"});
-      Object.assign(i18n.es, {"venue_label":"Sala","status_cancelled":"CANCELADO A ÚLTIMA HORA","dates_eyebrow":"15 paradas. 1 caja de cartón.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV"});
-      Object.assign(i18n.nhe, {"venue_label":"Lugar","status_cancelled":"CANCELADO A ÚLTIMA HORA","dates_eyebrow":"15 paradas · Se kaxa tlen cartón","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV"});
-      Object.assign(i18n['es-MX'], {"venue_label":"Lugar","status_cancelled":"CANCELADO A LA MERA HORA","dates_eyebrow":"15 paradas. 1 caja de cartón. No manches.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV"});
-      Object.assign(i18n['es-MX-x-mxxx'], {"venue_label":"Pinche recinto","status_cancelled":"CANCELADO A LA PINCHE HORA","dates_eyebrow":"15 paradas. Una puta caja. Cero vergüenza.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV"});
+      Object.assign(i18n.en, {"venue_label":"Venue","status_cancelled":"CANCELLED AT THE LAST MINUTE","dates_eyebrow":"15 stops. 1 cardboard box.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV","sold_out":"SOLD OUT"});
+      Object.assign(i18n.es, {"venue_label":"Sala","status_cancelled":"CANCELADO A ÚLTIMA HORA","dates_eyebrow":"15 paradas. 1 caja de cartón.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV","sold_out":"AGOTADO"});
+      Object.assign(i18n.nhe, {"venue_label":"Lugar","status_cancelled":"CANCELADO A ÚLTIMA HORA","dates_eyebrow":"15 paradas · Se kaxa tlen cartón","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV","sold_out":"AGOTADO"});
+      Object.assign(i18n['es-MX'], {"venue_label":"Lugar","status_cancelled":"CANCELADO A LA MERA HORA","dates_eyebrow":"15 paradas. 1 caja de cartón. No manches.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV","sold_out":"¡AGOTADO!"});
+      Object.assign(i18n['es-MX-x-mxxx'], {"venue_label":"Pinche recinto","status_cancelled":"CANCELADO A LA PINCHE HORA","dates_eyebrow":"15 paradas. Una puta caja. Cero vergüenza.","date_19_sep":"19 SEP","country_bolivia":"Bolivia","date_21_nov":"21 NOV","sold_out":"¡AGOTADO, CABRONES!"});
 
       // Cancellation apologies refer only to the band's travel mishaps, not to venue operations.
       const tourNotices = {"en":{"2026-04-18":"Tax paperwork for the guitar was submitted with a tapas receipt. We sincerely apologise.","2026-05-16":"The cardboard drum was declared as commercial packaging at customs. Our apologies to everyone waiting.","2026-06-13":"The spare bass strings arrived in Seville, Ohio, instead of Sevilla, Spain. We are terribly sorry.","2026-07-11":"The airline lost the cardboard box: our entire percussion section. We sincerely apologise.","2026-08-08":"Our paperwork listed the cardboard box as lead performer and the musicians as excess baggage. We apologise.","2026-09-05":"We mistakenly declared the bass as 40 kilos of ornamental furniture. We are very sorry.","2026-09-19":"At La Paz altitude, both the bass player and the amplifier asked for oxygen. We apologise.","2026-10-03":"The suitcase containing our cables was sent to Singapore. We apologise for the last-minute change.","2026-10-24":"A fictitious 'tango tax' appeared on our own spreadsheet and consumed the travel budget. Our mistake. Sorry."},"es":{"2026-04-18":"Entregamos el papeleo fiscal de la guitarra con un recibo de tapas. Pedimos disculpas.","2026-05-16":"Declaramos el bombo de cartón como embalaje comercial en aduana. Nuestras disculpas.","2026-06-13":"Las cuerdas llegaron a Seville, Ohio, en vez de Sevilla, España. Lo sentimos mucho.","2026-07-11":"La aerolínea perdió la caja de cartón: toda nuestra percusión. Pedimos disculpas.","2026-08-08":"Los papeles ponían a la caja como artista principal y a nosotros como exceso de equipaje. Lo sentimos.","2026-09-05":"Por error declaramos el bajo como 40 kilos de mobiliario ornamental. Mil disculpas.","2026-09-19":"En La Paz, tanto el bajista como el amplificador pidieron oxígeno por la altura. Perdón.","2026-10-03":"La maleta con los cables acabó en Singapur. Sentimos mucho la cancelación de última hora.","2026-10-24":"Un 'impuesto al tango' inventado apareció en nuestra hoja de cálculo y se comió el presupuesto. Culpa nuestra. Disculpas."},"es-MX":{"2026-04-18":"Entregamos los papeles de impuestos con una cuenta de tacos. Qué oso, banda. Una disculpota.","2026-05-16":"Declaramos la pinche caja como embalaje comercial. La regamos feo en aduana. Perdón.","2026-06-13":"Las cuerdas se fueron a Seville, Ohio, y no a Sevilla. No manches. Perdón por el plantón.","2026-07-11":"La aerolínea perdió la caja, o sea, toda la batería. Perdón, banda; qué desmadre.","2026-08-08":"Los papeles pusieron a la caja como artista principal y a nosotros como maletas. Qué vergüenza. Perdón.","2026-09-05":"Declaramos el bajo como un mueble decorativo de 40 kilos. Ni cómo defendernos. Una disculpa.","2026-09-19":"En La Paz nos faltó aire y el ampli también quería oxígeno. Perdón por cancelar a la mera hora.","2026-10-03":"Los cables acabaron en Singapur. De verdad, qué oso. Una disculpa por dejarlos esperando.","2026-10-24":"Una celda inventó un 'impuesto al tango' y se comió la lana del viaje. Toda nuestra culpa. Perdón."},"es-MX-x-mxxx":{"2026-04-18":"Mandamos los pinches impuestos con una cuenta de tacos. ¡No mames! La cagamos. Perdón.","2026-05-16":"En aduana declaramos el bombo como caja de embalaje. Pinche genialidad nuestra. Una disculpa.","2026-06-13":"Las cuerdas llegaron a Seville, Ohio. Nosotros íbamos a Sevilla. ¡Me lleva la chingada! Perdón.","2026-07-11":"La aerolínea perdió la jodida caja, que era toda nuestra percusión. La cagamos. Perdón.","2026-08-08":"El papeleo nombró a la pinche caja artista principal y a nosotros equipaje sobrante. Qué mamada. Perdón.","2026-09-05":"Declaramos el bajo como mueble ornamental de 40 kilos. Nos pasamos de pendejos. Disculpas.","2026-09-19":"A la altura de La Paz el bajista y el amplificador pedían oxígeno. Pinche desastre. Perdón.","2026-10-03":"Los putos cables acabaron en Singapur. ¡Qué chingados! Una disculpa, no fue culpa del local.","2026-10-24":"Nuestra hoja de cálculo inventó un pinche 'impuesto al tango' y se chingó el presupuesto. Culpa nuestra. Perdón."}};

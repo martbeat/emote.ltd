@@ -59,12 +59,12 @@ def parse_line(line):
     return address, agent, when, method, target, int(status), referrer
 
 
-def build_report(paths, routes, now=None, hours=24, timeout=30, limit=50, max_steps=100):
+def build_report(paths, routes, now=None, hours=168, timeout=30, limit=50, max_steps=100, min_steps=2):
     now = now or datetime.now(timezone.utc)
     start = now - timedelta(hours=hours)
     groups = defaultdict(list)
     observed = []
-    rejected = automated = included = 0
+    rejected = automated = 0
     # Avoid scanning the same physical file twice when glob patterns overlap.
     seen_files = set()
     for path in paths:
@@ -93,7 +93,6 @@ def build_report(paths, routes, now=None, hours=24, timeout=30, limit=50, max_st
                     continue
                 # These raw values remain in memory and are never exported.
                 groups[(address, agent)].append((when, route[0], route[1]))
-                included += 1
     visits = []
     for events in groups.values():
         events.sort(key=lambda event: event[0])
@@ -105,6 +104,9 @@ def build_report(paths, routes, now=None, hours=24, timeout=30, limit=50, max_st
             current.append(event)
         if current:
             visits.append(current)
+    all_visit_count = len(visits)
+    visits = [events for events in visits if len(events) >= min_steps]
+    included = sum(len(events) for events in visits)
     visits.sort(key=lambda events: events[-1][0], reverse=True)
     exported = []
     for events in visits[:limit]:
@@ -120,7 +122,8 @@ def build_report(paths, routes, now=None, hours=24, timeout=30, limit=50, max_st
             'window_start': start.isoformat(), 'window_end': now.isoformat(),
             'observed_start': min(observed).isoformat() if observed else None,
             'observed_end': max(observed).isoformat() if observed else None,
-            'inactivity_minutes': timeout, 'inferred_visits': len(visits),
+            'inactivity_minutes': timeout, 'minimum_steps': min_steps,
+            'all_inferred_visits': all_visit_count, 'inferred_visits': len(visits),
             'included_requests': included, 'displayed_visits': len(exported),
             'recognised_automation_requests_excluded': automated,
             'unparseable_lines': rejected, 'visits': exported}
@@ -131,7 +134,8 @@ def main():
     parser.add_argument('--log', action='append', required=True, help='Log file or glob; repeat for other files')
     parser.add_argument('--site-root', required=True, help='Deployed public HTML root, used to allow-list paths')
     parser.add_argument('--output', required=True, help='PRIVATE output path, outside the public web root')
-    parser.add_argument('--hours', type=int, default=24)
+    parser.add_argument('--hours', type=int, default=168, help='Rolling lookback in hours (default: 168 / seven days)')
+    parser.add_argument('--min-steps', type=int, default=2, help='Minimum page/PDF requests per visit (default: 2)')
     args = parser.parse_args()
     root, output = Path(args.site_root).resolve(), Path(args.output).resolve()
     if not root.is_dir():
@@ -140,13 +144,15 @@ def main():
         parser.error('Journey reports must be saved outside the public web root')
     if not 1 <= args.hours <= 168:
         parser.error('--hours must be between 1 and 168')
+    if not 1 <= args.min_steps <= 100:
+        parser.error('--min-steps must be between 1 and 100')
     paths = sorted({p for pattern in args.log for p in glob.glob(pattern) if Path(p).is_file()})
     if not paths:
         parser.error('No log files matched; existing output was left unchanged')
     routes = public_routes(root)
     if not routes:
         parser.error('No public HTML/PDF files found; existing output was left unchanged')
-    report = build_report(paths, routes, hours=args.hours)
+    report = build_report(paths, routes, hours=args.hours, min_steps=args.min_steps)
     if report['observed_start'] is None:
         parser.error('No parseable entries in this window; existing output was left unchanged')
     output.parent.mkdir(parents=True, exist_ok=True)

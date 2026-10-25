@@ -19,7 +19,7 @@ contains the live `index.html` and `downloads` directory. Do not point the scrip
 at the source checkout if it differs from the files actually served.
 
 1. Deploy `stats/index.html` and retain `stats/generate_journeys.py` in the source
-   checkout at `/home/martin/emote.ltd`.
+   checkout at `/home/martin/Sites/emote.ltd`.
 2. Create a private output directory. The setgid directory makes generated files
    readable by nginx's `www-data` group without publishing them in the web root:
 
@@ -31,15 +31,15 @@ at the source checkout if it differs from the files actually served.
    `/var/www/emote.ltd/html`; substitute the verified root if necessary:
 
    ```sh
-   sudo python3 /home/martin/emote.ltd/stats/generate_journeys.py \
+   sudo python3 /home/martin/Sites/emote.ltd/stats/generate_journeys.py \
      --log '/var/log/nginx/emote.access.log*' \
      --site-root /var/www/emote.ltd/html \
-     --output /var/lib/emote-analytics/journeys.json
+     --hours 168 --min-steps 2 --output /var/lib/emote-analytics/journeys.json
    ```
 
    The glob includes rotated and gzip-compressed logs. It must contain nginx
-   COMBINED logs for this site. No raw logs are changed. Only the last 24 hours are
-   used, and the report includes observed log-activity bounds so partial coverage
+   COMBINED logs for this site. No raw logs are changed. Only the last seven days (168 hours) are
+   used by default, and only visits with at least two page/PDF requests qualify. The report includes observed log-activity bounds so partial coverage
    remains visible. `--hours` supports 1–168 hours. If no files, no public routes or
    no parseable entries match, generation fails without replacing the old report.
 
@@ -69,7 +69,7 @@ at the source checkout if it differs from the files actually served.
    `/etc/cron.d/emote-journeys` file, using the verified web root and checkout path:
 
    ```cron
-   */15 * * * * root /usr/bin/python3 /home/martin/emote.ltd/stats/generate_journeys.py --log '/var/log/nginx/emote.access.log*' --site-root /var/www/emote.ltd/html --output /var/lib/emote-analytics/journeys.json
+   */15 * * * * root /usr/bin/python3 /home/martin/Sites/emote.ltd/stats/generate_journeys.py --log '/var/log/nginx/emote.access.log*' --site-root /var/www/emote.ltd/html --hours 168 --min-steps 2 --output /var/lib/emote-analytics/journeys.json
    ```
 
    The file must end with a newline and be mode 0644. Root reads the existing logs;
@@ -97,8 +97,9 @@ at the source checkout if it differs from the files actually served.
   dotfiles, assets, unknown paths, unsuccessful requests and recognised automated
   user agents are excluded. Other bots may remain. Root `index.html` and `/`
   are normalised to the same path.
-- The report includes the latest 50 inferred visits, with up to 100 requests per
-  visit. It reports total counts and flags truncated steps. Random report-local
+- The two-step filter is applied before selecting the latest 50 qualifying inferred visits, with up to 100 requests per
+  visit. Steps count requests, so a reload can be a step. `--min-steps` defaults
+  to 2; `--min-steps 1` restores single-step visits. It reports total counts and flags truncated steps. Random report-local
   IDs rotate on each generation and are not persistent person identifiers.
 - Gaps between requests are **not** active reading time. The final gap is unknown.
   Browser-cached navigation, hash navigation, embedded HTML and requests to other

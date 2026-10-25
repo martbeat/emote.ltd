@@ -30,7 +30,7 @@ class JourneyTests(unittest.TestCase):
     def report(self, lines):
         log = self.root / 'access.log'
         log.write_text(''.join(lines))
-        return journeys.build_report([log, log], self.routes, now=datetime(2026,10,25,13,tzinfo=timezone.utc))
+        return journeys.build_report([log, log], self.routes, now=datetime(2026,10,25,13,tzinfo=timezone.utc),min_steps=1)
 
     def test_chronology_privacy_and_inactivity(self):
         result = self.report([line('12:02:00','/downloads/paper.pdf?token=secret'),
@@ -65,6 +65,25 @@ class JourneyTests(unittest.TestCase):
         self.assertTrue(report['visits'][0]['steps_truncated'])
         self.assertEqual(report['visits'][0]['request_count'],2)
 
+    def test_seven_day_default_and_filter_before_limit(self):
+        log = self.root / 'access.log'
+        older = [line('12:00:00','/').replace('25/Oct','19/Oct'),
+                 line('12:01:00','/tools.html').replace('25/Oct','19/Oct')]
+        too_old = [line('12:00:00','/').replace('25/Oct','17/Oct'),
+                   line('12:01:00','/tools.html').replace('25/Oct','17/Oct')]
+        singles = [line('12:30:00','/',address=f'192.0.2.{i+2}') for i in range(60)]
+        log.write_text(''.join(older + too_old + singles))
+        now = datetime(2026,10,25,13,tzinfo=timezone.utc)
+        report = journeys.build_report([log],self.routes,now=now,limit=1)
+        self.assertEqual(report['minimum_steps'],2)
+        self.assertEqual(report['inferred_visits'],1)
+        self.assertEqual(report['all_inferred_visits'],61)
+        self.assertEqual(report['included_requests'],2)
+        self.assertEqual(report['visits'][0]['request_count'],2)
+        self.assertEqual(report['window_start'],'2026-10-18T13:00:00+00:00')
+        short = journeys.build_report([log],self.routes,now=now,hours=24)
+        self.assertEqual(short['visits'],[])
+
 class CommandTests(unittest.TestCase):
     def test_public_output_and_missing_logs_are_rejected(self):
         import subprocess
@@ -95,6 +114,7 @@ class CommandTests(unittest.TestCase):
             stamp = datetime.now(timezone.utc).strftime('%d/%b/%Y:%H:%M:%S %z')
             with gzip.open(log,'wt') as stream:
                 stream.write(f'192.0.2.10 - - [{stamp}] "GET /?secret=hidden HTTP/1.1" 200 10 "-" "Mozilla Test"\n')
+                stream.write(f'192.0.2.10 - - [{stamp}] "GET /index.html HTTP/1.1" 200 10 "-" "Mozilla Test"\n')
             output = base/'private'/'journeys.json'
             result = subprocess.run(['python3',str(Path(journeys.__file__)),'--site-root',str(root),
                 '--log',str(log),'--output',str(output)],capture_output=True,text=True)

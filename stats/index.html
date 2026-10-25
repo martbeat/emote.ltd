@@ -501,11 +501,11 @@
       <section aria-labelledby="journeys-title">
         <h2 id="journeys-title">Visitor journeys</h2>
         <p class="note">
-          Inferred visits from successful page and PDF requests. A visit ends
-          after 30 minutes without another recorded page or PDF request. Shared
-          networks, browser changes and undetected bots can affect grouping.
-          Request gaps show the interval between requests, not active reading
-          time.
+          Journeys with two or more successful page/PDF requests. The exporter
+          defaults to the previous seven days. A visit ends after 30 minutes
+          without another recorded page or PDF request. Shared networks, browser
+          changes and undetected bots can affect grouping. Request gaps show the
+          interval between requests, not active reading time.
         </p>
         <button type="button" id="journeys-load">
           Load private server report
@@ -912,13 +912,16 @@
         ) {
           throw new Error("Unsupported journey report format");
         }
+        const visits = data.visits.filter(
+          (visit) => visit.request_count >= 2 && visit.steps.length >= 2,
+        );
         $("journeys-summary").textContent =
-          `${fmt(data.inferred_visits)} inferred visits from ${fmt(data.included_requests)} page/PDF requests. Showing ${data.visits.length} most recent visits. Requested window: ${journeyTime(data.window_start)} to ${journeyTime(data.window_end)}. Generated: ${journeyTime(data.generated_at)}. Times shown in London time. ` +
+          `${fmt(data.inferred_visits)} ${num(data.minimum_steps) >= 2 ? "qualifying " : ""}inferred visits from ${fmt(data.included_requests)} page/PDF requests. Showing ${visits.length} most recent journeys with 2+ steps. Requested window: ${journeyTime(data.window_start)} to ${journeyTime(data.window_end)}. Generated: ${journeyTime(data.generated_at)}. Times shown in London time. ` +
           (validTime(data.observed_start) && validTime(data.observed_end)
             ? `Supplied logs contain activity from ${journeyTime(data.observed_start)} to ${journeyTime(data.observed_end)} within that window; coverage may be incomplete.`
             : "No log coverage times supplied.");
-        $("journeys-list").innerHTML = data.visits.length
-          ? data.visits
+        $("journeys-list").innerHTML = visits.length
+          ? visits
               .map(
                 (visit, index) =>
                   `<details><summary>Visit ${index + 1} · ${esc(journeyTime(visit.start))} · ${fmt(visit.request_count)} requests</summary>` +
@@ -935,7 +938,7 @@
                   `</tbody></table></div></details>`,
               )
               .join("")
-          : '<p class="empty">No matching visits in the supplied logs for this window.</p>';
+          : '<p class="empty">No journeys with two or more steps in the supplied report for this window.</p>';
         $("journeys-state").textContent =
           "Private report loaded. Visit numbers are labels within this report, not persistent person identities.";
       }

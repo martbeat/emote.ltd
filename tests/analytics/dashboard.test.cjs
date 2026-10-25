@@ -414,3 +414,40 @@ test("journey display shows ordered private paths and honest gaps, escaping inpu
     /Unsupported/,
   );
 });
+
+test("journey viewer hides single-step visits even in an older report", async () => {
+  const { context, nodes } = await run();
+  const step = {
+    at: "2026-10-25T12:00:00Z",
+    path: "/",
+    kind: "Page",
+    gap_seconds: null,
+  };
+  context.report = {
+    schema_version: 1,
+    window_start: "2026-10-18T13:00:00Z",
+    window_end: "2026-10-25T13:00:00Z",
+    generated_at: "2026-10-25T13:00:00Z",
+    inferred_visits: 2,
+    included_requests: 3,
+    visits: [
+      { start: step.at, end: step.at, request_count: 1, steps: [step] },
+      {
+        start: step.at,
+        end: step.at,
+        request_count: 2,
+        steps: [step, { ...step, path: "/tools.html" }],
+      },
+    ],
+  };
+  vm.runInContext("renderJourneys(report)", context);
+  assert.match(
+    nodes.get("journeys-summary").textContent,
+    /Showing 1 most recent journeys with 2\+ steps/,
+  );
+  assert.doesNotMatch(
+    nodes.get("journeys-list").innerHTML,
+    /Visit 2|1 requests/,
+  );
+  assert.match(nodes.get("journeys-list").innerHTML, /tools.html/);
+});

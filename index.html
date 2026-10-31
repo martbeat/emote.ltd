@@ -1130,11 +1130,19 @@
 
     function normaliseThumb(url, size = 900) {
       if (!url) return "";
-      let out = url;
-      out = out.replace(/=s\d+-c/i, `=s${size}-c`);
-      out = out.replace(/\/s\d+-c\//i, `/s${size}-c/`);
-      out = out.replace(/\/w\d+-h\d+[^/]*\//i, `/w${size}-h${Math.round(size * 0.56)}/`);
-      return out;
+      try {
+        const host = new URL(url).hostname;
+        if (host !== "blogger.googleusercontent.com" &&
+            !host.endsWith(".bp.blogspot.com")) return url;
+        // Replace the full Blogger sizing directive in both URL formats,
+        // including compound thumbnails such as s72-w640-h360-c.
+        return url.replace(
+          /([/=])(?:s\d+|w\d+|h\d+)(?:-[a-z0-9]+)*(?=\/|$|[?#])/gi,
+          (_, separator) => `${separator}w${size}`
+        );
+      } catch {
+        return url;
+      }
     }
 
     function formatDate(iso) {
@@ -1177,7 +1185,7 @@
           const content = entry?.content?.$t || entry?.summary?.$t || "";
           const excerpt = escapeHtml(teaser(stripHtml(content), 175));
 
-          let image = entry?.["media$thumbnail"]?.url || firstImageFromHtml(content);
+          let image = firstImageFromHtml(content) || entry?.["media$thumbnail"]?.url;
           image = normaliseThumb(image, 900);
 
           const imageHtml = image

@@ -1,0 +1,18 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const html=fs.readFileSync('Backgammon.html','utf8');
+const engine=html.split('<script>')[1].split('const $=')[0];
+const ctx=vm.createContext({});
+vm.runInContext(engine+';this.engine={initialState,home,movesForDie,apply,legalTurns,pipCount};',ctx);
+const {initialState,home,movesForDie,apply,legalTurns,pipCount}=ctx.engine;
+const empty=()=>({b:Array(24).fill(0),bar:[0,0],off:[0,0]});
+test('standard opening and equal pip counts',()=>{const s=initialState();assert.equal(pipCount(s,1),167);assert.equal(pipCount(s,-1),167);for(const p of [1,-1])assert.equal(s.b.reduce((a,v)=>a+Math.max(0,v*p),0),15);});
+test('bar priority, blocked entry and hitting',()=>{const s=empty();s.bar[0]=1;s.b[23]=-2;s.b[22]=-1;s.b[4]=1;assert.equal(movesForDie(s,1,1).length,0);const m=movesForDie(s,1,2)[0];assert.equal(m.from,-1);const n=apply(s,1,m);assert.equal(n.b[22],1);assert.equal(n.bar[1],1);assert.equal(n.bar[0],0);});
+test('use both dice even when this forces a particular first move',()=>{const s=empty();s.b[0]=1;s.b[1]=1;s.off[0]=13;const t=legalTurns(s,1,[1,2]);assert(t.every(x=>x.length===2));});
+test('higher die mandatory when only one can be played',()=>{const s=empty();s.b[0]=1;s.off[0]=14;const t=legalTurns(s,1,[1,6]);assert(t.every(x=>x.length===1&&x[0].die===6));});
+test('bearing off overshoot only from highest occupied point, exact roll still valid',()=>{const s=empty();s.b[0]=1;s.b[4]=1;assert(!movesForDie(s,1,6).some(m=>m.from===0));assert(movesForDie(s,1,6).some(m=>m.from===4&&m.to===24));assert(movesForDie(s,1,1).some(m=>m.from===0&&m.to===24));s.bar[0]=1;assert.equal(home(s,1),false);});
+test('walnut bearing off mirrors ivory',()=>{const s=empty();s.b[23]=-1;s.b[19]=-1;assert(!movesForDie(s,-1,6).some(m=>m.from===23));assert(movesForDie(s,-1,6).some(m=>m.from===19&&m.to===24));});
+test('doubles offer four moves',()=>{assert(legalTurns(initialState(),1,[2,2,2,2]).every(t=>t.length===4));});
+test('complete simulated games preserve 15 checkers per side and terminate',()=>{for(let game=0;game<8;game++){let s=initialState(),p=1,seed=game+7;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed;};let turn=0;for(;turn<3000;turn++){const a=rand()%6+1,b=rand()%6+1;const turns=legalTurns(s,p,a===b?[a,a,a,a]:[a,b]);const t=turns[rand()%turns.length];for(const m of t)s=apply(s,p,m);for(const side of [1,-1]){const k=side===1?0:1;assert.equal(s.b.reduce((n,v)=>n+Math.max(0,v*side),0)+s.bar[k]+s.off[k],15);}if(s.off.some(n=>n===15))break;p=-p;}assert(turn<3000);}});

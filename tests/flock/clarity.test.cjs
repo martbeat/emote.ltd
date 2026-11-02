@@ -95,3 +95,59 @@ fresh();{const p=state.players[0];p.birds[1]=[{id:21,nests:1,eggs:0,flock:0,used
 console.log('30 species, balanced habitats, saved-game migration and all 12 new abilities verified.');
 }`,sandbox);
 const audioContext={};vm.createContext(audioContext);vm.runInContext(fs.readFileSync(path.join(project,'assets/audio/flock-calls.js'),'utf8'),audioContext);assert.equal(vm.runInContext('BIRD_CALLS.length',audioContext),30);
+
+// Every mix of people/computers must finish with 24 actions per seat.
+vm.runInContext(`
+showTurnEffects=false;
+for(let count=2;count<=4;count++)for(let mask=0;mask<2**(count-1);mask++){
+ document.getElementById('mode').value='expansion';
+ const roles=['human',...Array.from({length:count-1},(_,i)=>mask&(1<<i)?'human':'computer')];
+ fresh({count,roles});
+ if(state.players.length!==count||isComputer(0))throw Error('Expansion setup');
+ const counts=Array(count).fill(0),bonuses=Array(count).fill(0);let previousSeason=0;
+ while(!state.done){
+  const before=clone(state),p=state.players[state.current],choices=options(p),a=choices[Math.floor(Math.random()*choices.length)];
+  const actor=state.current;
+  const expected=clone(state);
+  const delta=previewAction(p,a);if(!delta)throw Error('No expansion preview');
+  clarityAct(a);
+  const reports=state.lastTurns;
+  if(reports[0].actor!==actor||isComputer(actor))throw Error('Human report');
+  if(reports.slice(1).some(r=>!isComputer(r.actor)))throw Error('Computer chain included a human');
+  if(!state.done&&isComputer(state.current))throw Error('Stopped on computer');
+  if(JSON.stringify(history)!==JSON.stringify(before))throw Error('Undo boundary');
+  for(const r of reports)counts[r.actor]++;
+  if(state.season!==previousSeason||state.done){
+   if(counts.some(n=>n!==(previousSeason+1)*6))throw Error('Unequal season turns');
+   for(let i=0;i<count;i++){
+    const earned=state.seasonResult.bonuses[i];bonuses[i]+=earned;
+    if(state.players[i].bonus!==bonuses[i])throw Error('Season goal missing');
+    if(earned!==goal(state.players[i],previousSeason))throw Error('Wrong seasonal award');
+   }
+   previousSeason=state.season;
+  }
+  for(const q of state.players)for(const b of birds(q))if(b.eggs>capacity(b))throw Error('Expansion capacity');
+  if(counts.reduce((a,b)=>a+b,0)>count*24)throw Error('Expansion did not end');
+ }
+ if(counts.some(n=>n!==24))throw Error('Wrong action count');
+ showEnd();
+ const best=Math.max(...state.players.map(score));
+ for(const p of state.players.filter(p=>score(p)===best))if(!document.getElementById('dialog-body').innerHTML.includes(p.name))throw Error('Winner omitted');
+}
+document.getElementById('mode').value='expansion';fresh({count:4,roles:['human','computer','computer','human']});
+const partyBefore=JSON.stringify(state);clarityAct({type:'forage'});
+if(state.current!==3||state.lastTurns.length!==3||state.lastTurns.map(r=>r.actor).join(',')!=='0,1,2')throw Error('Mixed handover');
+if(!document.getElementById('dialog-body').innerHTML.includes('Pass to Player 4'))throw Error('Missing pass screen');
+if(!document.getElementById('turn-feedback').innerHTML.includes('Computer turn · Computer 2'))throw Error('Computer identity unclear');
+document.getElementById('undo').onclick();if(JSON.stringify(state)!==partyBefore)throw Error('Party undo failed');
+showTurnEffects=true;clarityAct({type:'forage'});
+if(replayController.frames.some(f=>f.report.actor!==0)||!replayController.hasComputer)throw Error('Party replay mixed actors');
+finishReplay();if(view!==3)throw Error('Next human sanctuary not shown');
+const savedParty=clone(state);state=JSON.parse(JSON.stringify(savedParty));resetSelection();render();
+if(state.players.length!==4||!isComputer(1)||isComputer(3))throw Error('Seat types lost on save');
+state.players.forEach(p=>{p.bonus=0;p.birds=[[],[],[]]});state.players[3].bonus=100;showEnd();
+if(!document.getElementById('dialog-body').innerHTML.includes('Player 4 wins'))throw Error('Fourth seat cannot win');
+state.players[2].bonus=100;showEnd();if(!document.getElementById('dialog-body').innerHTML.includes('Shared victory: Computer 3 & Player 4'))throw Error('Multi-seat tie');
+document.getElementById('mode').value='ai';fresh();
+console.log('All 14 expansion seat combinations finished with 24 actions per seat; computer chains, handovers, undo, replay, saves, scoring and ties passed.');
+`,sandbox);

@@ -73,17 +73,17 @@ cancelReplay();console.log('Computer summary and two-person play verified.');
 
 // Catalogue growth keeps IDs stable and extends legacy decks exactly once.
 vm.runInContext(`{
-if(SPECIES.length!==30||BIRD_ILLUSTRATIONS.length!==30)throw Error('Catalogue/artwork alignment');
-if(SPECIES.filter(c=>c.hab===0).length!==10||SPECIES.filter(c=>c.hab===1).length!==10||SPECIES.filter(c=>c.hab===2).length!==10)throw Error('Habitat distribution');
+if(SPECIES.length!==31||BIRD_ILLUSTRATIONS.length!==31)throw Error('Catalogue/artwork alignment');
+if(SPECIES.filter(c=>c.hab===0).length!==11||SPECIES.filter(c=>c.hab===1).length!==10||SPECIES.filter(c=>c.hab===2).length!==10)throw Error('Habitat distribution');
 for(const name of ['Long-tailed tit','Chaffinch','Goldcrest','Red kite','Buzzard'])if(!SPECIES.some(c=>c.name===name))throw Error('Requested bird missing');
 for(const c of SPECIES)if(!POWER[c.power]||!BIRD_ILLUSTRATIONS[c.id])throw Error('Missing ability/artwork');
-fresh();if(state.speciesCount!==30||state.deck.length!==111)throw Error('Expanded deck');
+fresh();if(state.speciesCount!==31||state.deck.length!==115)throw Error('Expanded deck');
 const legacy=clone(state);delete legacy.speciesCount;legacy.deck=[0,2,17,5];const sanctuary=JSON.stringify(legacy.players),market=JSON.stringify(legacy.market);
-upgradeBirdDeck(legacy);if(legacy.deck.length!==52||legacy.speciesCount!==30||JSON.stringify(legacy.players)!==sanctuary||JSON.stringify(legacy.market)!==market)throw Error('Legacy migration changed progress');
-for(let id=18;id<30;id++)if(legacy.deck.filter(c=>c===id).length!==4)throw Error('Missing new cards');
+upgradeBirdDeck(legacy);if(legacy.deck.length!==56||legacy.speciesCount!==31||JSON.stringify(legacy.players)!==sanctuary||JSON.stringify(legacy.market)!==market)throw Error('Legacy migration changed progress');
+for(let id=18;id<31;id++)if(legacy.deck.filter(c=>c===id).length!==4)throw Error('Missing new cards');
 const migrated=JSON.stringify(legacy);upgradeBirdDeck(legacy);if(JSON.stringify(legacy)!==migrated)throw Error('Migration duplicated cards');
-const empty={deck:[]};upgradeBirdDeck(empty);if(empty.deck.length!==120)throw Error('Empty legacy deck');
-for(let id=18;id<30;id++){
+const empty={deck:[]};upgradeBirdDeck(empty);if(empty.deck.length!==124)throw Error('Empty legacy deck');
+for(let id=18;id<31;id++){
  fresh();showTurnEffects=false;const c=SPECIES[id],p=state.players[0],b={id,nests:2,eggs:0,flock:0,used:false};p.birds[c.hab]=[b];
  const a={type:['forage','eggs','scout'][c.hab],market:0};const predicted=previewAction(p,a),actual=apply(p,a);
  if(JSON.stringify(predicted.delta)!==JSON.stringify(actual.delta)||!actual.steps.some(s=>s.kind==='ability'&&s.text.startsWith(c.name)))throw Error('New bird ability: '+c.name);
@@ -92,9 +92,9 @@ for(let id=18;id<30;id++){
 fresh();{const p=state.players[0];p.birds[0]=[{id:23,nests:1,eggs:2,flock:0,used:false}];const r=apply(p,{type:'forage'});if(r.delta.eggs!==1||p.birds[0][0].eggs!==3||!r.steps.some(s=>s.text.includes('only one space free')))throw Error('Two-egg ability capacity');}
 fresh();{const p=state.players[0];p.birds[0]=[{id:18,nests:1,eggs:0,flock:0,used:false}];if(apply(p,{type:'forage'}).delta.flock!==2)throw Error('Long-tailed tit flock');}
 fresh();{const p=state.players[0];p.birds[1]=[{id:21,nests:1,eggs:0,flock:0,used:false}];if(apply(p,{type:'eggs'}).delta.food!==2)throw Error('Red kite food');}
-console.log('30 species, balanced habitats, saved-game migration and all 12 new abilities verified.');
+console.log('31 species, saved-game migration and all 13 new abilities verified.');
 }`,sandbox);
-const audioContext={};vm.createContext(audioContext);vm.runInContext(fs.readFileSync(path.join(project,'assets/audio/flock-calls.js'),'utf8'),audioContext);assert.equal(vm.runInContext('BIRD_CALLS.length',audioContext),30);
+const audioContext={};vm.createContext(audioContext);vm.runInContext(fs.readFileSync(path.join(project,'assets/audio/flock-calls.js'),'utf8'),audioContext);assert.equal(vm.runInContext('BIRD_CALLS.length',audioContext),31);
 
 // Every mix of people/computers must finish with 24 actions per seat.
 vm.runInContext(`
@@ -162,4 +162,26 @@ document.getElementById('mode').value='expansion';fresh({count:4,roles:['human',
 fresh({count:4,roles:['human','human','computer','human']});state.players[3].bonus=100;if(gameOutcome().heading!=='Player 4 wins!')throw Error('Multiplayer winner');
 state.players[0].bonus=100;if(!gameOutcome().heading.startsWith('Shared victory: Player 1 & Player 4'))throw Error('Multiplayer tie');
 console.log('End-game win, loss, tie, multiplayer labels, celebration and persistent result passed.');
+`,sandbox);
+
+vm.runInContext(`
+document.getElementById('mode').value='ai';fresh();showTurnEffects=false;
+const owner=state.players[0],intruder={id:30,nests:1,eggs:0,flock:0,used:false};owner.birds[0]=[intruder];
+if(capacity(intruder)!==0||legal(owner,{type:'nest',target:[0,0]})||!unavailable(owner,{type:'nest',target:[0,0]}).includes('other birds'))throw Error('Cuckoo built its own nest');
+const isolated=apply(owner,{type:'forage'});if(isolated.delta.eggs!==0||!isolated.steps.some(s=>s.text.includes('no other nest space'))||!intruder.used)throw Error('No host explanation');
+intruder.used=false;owner.birds[0].push({id:2,nests:1,eggs:2,flock:0,used:true});owner.birds[1]=[{id:19,nests:1,eggs:1,flock:0,used:true}];
+const otherBefore=JSON.stringify(state.players[1]);const beforeHost=JSON.stringify(owner),preview=previewAction(owner,{type:'forage'});
+if(JSON.stringify(owner)!==beforeHost||preview.delta.eggs!==1)throw Error('Cuckoo preview mutated host');
+const laid=apply(owner,{type:'forage'}),step=laid.steps.find(s=>s.text.startsWith('Cuckoo ability'));
+if(laid.delta.eggs!==1||owner.birds[1][0].eggs!==2||intruder.eggs!==0||step.hab!==1||step.index!==0||!step.text.includes('Chaffinch'))throw Error('Host placement or highlight');
+if(JSON.stringify(state.players[1])!==otherBefore)throw Error('Cuckoo changed an opponent');
+if(apply(owner,{type:'forage'}).delta.eggs!==0)throw Error('Cuckoo triggered twice');
+intruder.used=false;const full=apply(owner,{type:'forage'});if(full.delta.eggs!==0||!full.steps.some(s=>s.text.includes('no other nest space')))throw Error('Overfilled host');
+owner.birds[0][1].eggs=0;owner.birds[1][0].eggs=0;intruder.used=false;apply(owner,{type:'forage'});if(owner.birds[0][1].eggs!==1||owner.birds[1][0].eggs!==0)throw Error('Host order');
+const previous={deck:[0,8],speciesCount:30};upgradeBirdDeck(previous);if(previous.deck.length!==6||previous.deck.filter(id=>id===30).length!==4)throw Error('Existing 30-bird game lost cuckoo');
+const again=JSON.stringify(previous);upgradeBirdDeck(previous);if(JSON.stringify(previous)!==again)throw Error('Cuckoo migration duplicated cards');
+showTurnEffects=true;intruder.used=false;state.current=0;view=0;const cuckooUndo=JSON.stringify(state);act({type:'forage'});
+if(!replayController.frames.some(f=>f.step.text.startsWith('Cuckoo ability')&&f.step.hab===0&&f.step.index===1))throw Error('Host replay missing');
+finishReplay();document.getElementById('undo').onclick();if(JSON.stringify(state)!==cuckooUndo)throw Error('Cuckoo undo lost host egg');
+console.log('Cuckoo host choice, preview, full nests, once-per-season use, no own nest, replay, undo and old-game upgrade passed.');
 `,sandbox);

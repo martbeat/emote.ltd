@@ -11,7 +11,7 @@ function unavailable(p,a){
  case'eggs':return !birds(p).length?'Attract a bird to give your eggs a home.':room(p)===0?'All nests are full. Select a sanctuary bird and build a nest.':'';
  case'scout':return p.hand.length>=8?'Your hand is full (8 cards). Attract a bird or discard one into a flock.':'';
  case'attract':{const c=SPECIES[p.hand[a.hand]];if(!c)return 'Select a bird card in your hand.';if(a.hab!==c.hab)return `${c.name} belongs in the ${HAB[c.hab].toLowerCase()}.`;if(p.birds[a.hab].length>=3)return `Your ${HAB[a.hab].toLowerCase()} already has 3 birds.`;return p.food<c.cost?`Needs ${c.cost-p.food} more food. Forage first.`:''}
- case'nest':return !b?'Select a bird already in your sanctuary.':b.nests>=3?'This bird already has its maximum of 3 nests.':p.food<1?'Needs 1 food. Forage first.':'';
+ case'nest':return !b?'Select a bird already in your sanctuary.':SPECIES[b.id].power==='cuckoo'?'Cuckoos use other birds’ nests. Build a nest on another bird.':b.nests>=3?'This bird already has its maximum of 3 nests.':p.food<1?'Needs 1 food. Forage first.':'';
  case'flock':return !b?'Select a bird already in your sanctuary.':!Number.isInteger(a.hand)||p.hand[a.hand]===undefined?'Select a card in your hand to discard.':'';
  default:return 'Choose an action.';
  }
@@ -28,13 +28,14 @@ function resolveAction(p,a,preview=false){
  case'forage':{const n=2+p.birds[0].length;p.food+=n;headline=`gained ${n} food`;add(`Forage: +${n} food (2 base + ${p.birds[0].length} woodland bird${p.birds[0].length===1?'':'s'}).`,0);break}
  case'eggs':{let remaining=2+p.birds[1].length,placed=0;const offered=remaining;for(let h=0;h<3;h++)for(let i=0;i<p.birds[h].length;i++){const b=p.birds[h][i],n=Math.min(remaining,capacity(b)-b.eggs);if(n){b.eggs+=n;remaining-=n;placed+=n;add(`${SPECIES[b.id].name}: placed ${n} egg${n===1?'':'s'} in its nests.`,h,i,'eggs')}}limited=offered-placed;headline=`laid ${placed} eggs`;if(limited)add(`${limited} of the ${offered} offered eggs could not fit. Build nests for more room.`,1,null,'limit');break}
  case'scout':{const id=state.market[a.market];p.hand.push(id);if(!preview)state.market[a.market]=draw();headline=`took ${SPECIES[id].name}`;add(`Scout: took ${SPECIES[id].name} from the clearing.`,2);const offered=Math.min(2,p.birds[2].length);let n=0;for(let i=0;i<offered;i++)if(giveCard())n++;if(n)add(`Wetland birds: drew ${n} extra card${n===1?'':'s'}.`,2);if(n<offered)add(`Hand limit: ${offered-n} extra card${offered-n===1?'':'s'} could not fit.`,2,null,'limit');break}
- case'attract':{const id=p.hand.splice(a.hand,1)[0],c=SPECIES[id];p.food-=c.cost;p.birds[a.hab].push({id,nests:1,eggs:0,flock:0,used:false});title=`Attract ${c.name}`;headline=`attracted ${c.name}`;add(`${c.name} arrived in the ${HAB[a.hab].toLowerCase()}: −${c.cost} food, +${c.points} bird points, space for ${c.cap} eggs.`,a.hab,p.birds[a.hab].length-1,'arrival');break}
+ case'attract':{const id=p.hand.splice(a.hand,1)[0],c=SPECIES[id];p.food-=c.cost;p.birds[a.hab].push({id,nests:1,eggs:0,flock:0,used:false});title=`Attract ${c.name}`;headline=`attracted ${c.name}`;add(`${c.name} arrived in the ${HAB[a.hab].toLowerCase()}: −${c.cost} food, +${c.points} bird points, ${c.power==='cuckoo'?'no nest of its own; Forage to lay in another bird’s nest':'space for '+c.cap+' eggs'}.`,a.hab,p.birds[a.hab].length-1,'arrival');break}
  case'nest':{const b=p.birds[a.target[0]][a.target[1]];p.food--;b.nests++;headline=`built a nest for ${SPECIES[b.id].name}`;add(`${SPECIES[b.id].name}: −1 food, +1 nest, +2 egg spaces.`,...a.target,'nest');break}
  case'flock':{const b=p.birds[a.target[0]][a.target[1]],id=p.hand.splice(a.hand,1)[0];b.flock+=2;headline=`gathered a flock at ${SPECIES[b.id].name}`;add(`Discarded ${SPECIES[id].name}: ${SPECIES[b.id].name} gained 2 flock points.`,...a.target,'flock');break}
  }
  if(habitat!==undefined)for(let i=0;i<p.birds[habitat].length;i++){
-  const b=p.birds[habitat][i],c=SPECIES[b.id];if(b.used)continue;b.used=true;let text='';
+  const b=p.birds[habitat][i],c=SPECIES[b.id];if(b.used)continue;b.used=true;let text='',effectHab=habitat,effectIndex=i;
   switch(c.power){
+  case'cuckoo':{const host=cuckooHost(p);if(host){host.b.eggs++;text='+1 egg in '+SPECIES[host.b.id].name+'’s nest (first available host in your sanctuary)';effectHab=host.hab;effectIndex=host.index}else text='no other nest space; ability used. Attract another bird or build a nest on a host';break;}
   case'food':p.food++;text='+1 food';break;
   case'food2':p.food+=2;text='+2 food';break;
   case'egg':if(b.eggs<capacity(b)){b.eggs++;text='+1 egg in its nest'}else text='no egg space; ability used';break;
@@ -43,7 +44,7 @@ function resolveAction(p,a,preview=false){
   case'flock2':b.flock+=2;text='+2 flock points';break;
   case'card':text=giveCard()?'+1 card':'hand full; ability used';break;
   }
-  add(`${c.name} ability: ${text}.`,habitat,i,'ability');
+  add(`${c.name} ability: ${text}.`,effectHab,effectIndex,'ability');
  }
  const final=totals(p),delta={food:p.food-food,cards:p.hand.length-cards,eggs:final.eggs-initial.eggs,flock:final.flock-initial.flock,nests:final.nests-initial.nests,points:score(p)-points};
  return {actor,title,headline,steps,frames,delta,goalDelta:goal(p)-potential,season:state.season,limited};
@@ -56,7 +57,7 @@ function exactPreview(p,a){
  const base=r.steps.filter(x=>x.kind!=='ability').map(x=>x.text.replace(' arrived in the ',' → ').replace('placed ','add ').replace('Scout: took ','Scout: take ').replace('Wetland birds: drew ','Wetland birds: draw ').replace('Discarded ','Discard ').replace(' gained ',' gains ')).join(' ');
  return `${base}${ability?' Then '+ability:''}${r.goalDelta?` ${SEASONS[state.season]} bonus potential ${r.goalDelta>0?'+':''}${r.goalDelta} points.`:''}`;
 }
-function nestDisplay(b){let left=b.eggs;const bowls=Array.from({length:b.nests},(_,i)=>{const size=i===0?SPECIES[b.id].cap:2,n=Math.min(size,left);left-=n;return `<span class="nest-bowl" aria-hidden="true">${Array.from({length:size},(_,j)=>`<i class="nest-egg ${j<n?'filled':''}"></i>`).join('')}</span>`}).join('');return `<span class="bird-nests" role="img" aria-label="${b.nests} nests, ${b.eggs} eggs out of ${capacity(b)} spaces">${bowls}</span><span class="tokens">${b.nests} nest${b.nests===1?'':'s'} · ${b.eggs}/${capacity(b)} eggs</span>`}
+function nestDisplay(b){if(SPECIES[b.id].power==='cuckoo')return '<span class="tokens">Uses other birds’ nests</span>';let left=b.eggs;const bowls=Array.from({length:b.nests},(_,i)=>{const size=i===0?SPECIES[b.id].cap:2,n=Math.min(size,left);left-=n;return `<span class="nest-bowl" aria-hidden="true">${Array.from({length:size},(_,j)=>`<i class="nest-egg ${j<n?'filled':''}"></i>`).join('')}</span>`}).join('');return `<span class="bird-nests" role="img" aria-label="${b.nests} nests, ${b.eggs} eggs out of ${capacity(b)} spaces">${bowls}</span><span class="tokens">${b.nests} nest${b.nests===1?'':'s'} · ${b.eggs}/${capacity(b)} eggs</span>`}
 function flockDisplay(b){if(!b.flock)return '<span class="tokens">Flock: 0</span>';return `<span class="bird-flock" role="img" aria-label="${b.flock} flock points">${Array.from({length:Math.min(6,b.flock)},()=>'<svg viewBox="0 0 18 12" aria-hidden="true"><path d="M1 8q4-9 8-1 4-8 8 1" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>').join('')}<b>${b.flock}</b><span class="small">flock points</span></span>`}
 function currentAction(type){return {type,market:marketIndex,hand:selected,hab:selected===null?0:SPECIES[state.players[view].hand[selected]]?.hab,target}}
 function actionButton(p,type,title){
@@ -89,7 +90,7 @@ function renderClarity(){
  document.getElementById('effects-toggle').textContent='Turn effects: '+(showTurnEffects?'on':'off');document.getElementById('effects-toggle').setAttribute('aria-pressed',String(showTurnEffects));
  document.getElementById('coach-toggle').textContent='Coach: '+(coachEnabled?'on':'off');document.getElementById('coach-toggle').setAttribute('aria-pressed',String(coachEnabled));
  document.getElementById('actions').innerHTML=[['forage','♣ Forage'],['eggs','Lay eggs'],['scout','Scout'],['attract',selected===null?'Attract a bird':`Attract ${SPECIES[p.hand[selected]]?.name||'a bird'}`],['nest','Build a nest'],['flock','Gather a flock']].map(([type,title])=>actionButton(p,type,title)).join('');
- document.getElementById('target').innerHTML=target&&p.birds[target[0]][target[1]]?`<p class="selection-note"><b>${SPECIES[p.birds[target[0]][target[1]].id].name}</b> is your selected sanctuary bird. Build a nest here, or select a hand card and gather a flock.</p>`:'';
+ document.getElementById('target').innerHTML=target&&p.birds[target[0]][target[1]]?`<p class="selection-note"><b>${SPECIES[p.birds[target[0]][target[1]].id].name}</b> is your selected sanctuary bird. ${SPECIES[p.birds[target[0]][target[1]].id].power==='cuckoo'?'It uses another bird’s nest when you Forage. You can also select a hand card and gather a flock.':'Build a nest here, or select a hand card and gather a flock.'}</p>`:'';
  document.querySelectorAll('[data-attract]').forEach(el=>{const a={type:'attract',hand:selected,hab:+el.dataset.attract};el.disabled=isResolving||view!==state.current||!legal(p,a);el.title=unavailable(p,a)||exactPreview(p,a)});
  renderFeedback();
  const box=document.getElementById('coach');coachChoice=coachEnabled&&!isResolving&&view===state.current&&!state.done?coachSuggestion(p):null;
@@ -107,7 +108,7 @@ function stepGain(previous,current,step){
  const changes=[['nests',b.nests-a.nests],['eggs',b.eggs-a.eggs],['flock points',b.flock-a.flock],['food',current.food-previous.food],['cards',current.hand.length-previous.hand.length]];
  const positive=changes.filter(([,n])=>n>0);
  if(positive.length)return positive.map(([label,n])=>`+${n} ${n===1?({nests:'nest',eggs:'egg',cards:'card','flock points':'flock point'}[label]||label):label}`).join(' · ');
- return step.text.includes('no egg space')?'No egg space':step.text.includes('hand full')?'Hand full':step.kind==='limit'?'At capacity':'Effect applied';
+ return step.text.includes('no egg space')||step.text.includes('no other nest space')?'No egg space':step.text.includes('hand full')?'Hand full':step.kind==='limit'?'At capacity':'Effect applied';
 }
 function effectCalloutHTML(){
  const c=replayController,r=replayContext;if(!c||!r)return '';

@@ -40,11 +40,13 @@ sandbox.matchMedia=()=>({matches:false});
 sandbox.setTimeout=(fn,ms)=>{const id=++timerSequence;replayTimers.set(id,{fn,ms});return id};
 sandbox.clearTimeout=id=>replayTimers.delete(id);
 vm.runInContext(`
-fresh();showTurnEffects=true;autoReplay=false;
+document.getElementById('mode').value='ai';fresh();showTurnEffects=true;autoReplay=false;
 state.players[0].birds[0]=[{id:0,nests:1,eggs:0,flock:0,used:false}];
 const replayBefore=JSON.stringify(state);act({type:'forage'});
 const settled=JSON.stringify(state);
 if(!isResolving||replayController.cursor!==0||replayController.autoplay)throw Error('Guided replay must wait by default');
+if(!replayController.hasComputer||replayController.frames.some(f=>f.report.actor!==0||f.display.current!==0))throw Error('Computer moves must stay out of the player replay');
+if(!effectCalloutHTML().includes('Your turn'))throw Error('Player turn label');
 if(replayController.frames[0].step.gain!=='+3 food'||replayController.frames[1].step.gain!=='+1 egg')throw Error('Per-effect gains');
 advanceReplay();if(replayController.cursor!==1)throw Error('Next effect');
 showReplayStep(0);if(replayController.cursor!==0||JSON.stringify(state)!==settled)throw Error('Back changed game state');
@@ -57,4 +59,13 @@ assert.equal(replayTimers.size,0,'Pause must clear the timer');
 vm.runInContext('finishReplay();if(isResolving||replayController||JSON.stringify(state)!==settled)throw Error("Finish changed the settled game");document.getElementById("undo").onclick();if(JSON.stringify(state)!==replayBefore)throw Error("Replay undo")',sandbox);
 staleCallback();
 vm.runInContext('if(isResolving||JSON.stringify(state)!==replayBefore)throw Error("Stale replay timer")',sandbox);
-console.log('Guided Next/Back, four-second playback, pause, finish, undo and cancelled timers passed.');
+console.log('Guided controls, pause, finish, undo and cancelled timers passed; player-only replay and computer labelling verified.');
+
+
+vm.runInContext(`
+fresh();showTurnEffects=false;act({type:'forage'});
+if(state.lastTurns.length!==2||!document.getElementById('turn-feedback').innerHTML.includes('Computer turn · The ranger')||!document.getElementById('turn-feedback').innerHTML.includes('Review computer move'))throw Error('Computer summary missing');
+fresh();state.mode='local';state.current=1;view=1;showTurnEffects=true;act({type:'forage'});
+if(replayController.frames.some(f=>f.report.actor!==1)||replayController.hasComputer)throw Error('Local player replay changed');
+cancelReplay();console.log('Computer summary and two-person play verified.');
+`,sandbox);

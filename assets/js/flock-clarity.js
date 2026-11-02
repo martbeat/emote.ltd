@@ -65,7 +65,7 @@ function renderFeedback(){
  const el=document.getElementById('turn-feedback');el.classList.toggle('replaying',!!replayContext);
  if(replayContext){el.classList.remove('replaying');el.innerHTML=`<p class="small"><b>Turn explanation is beside the highlighted habitat.</b> ${replayController?.autoplay?'Playing slowly. You can pause at any time.':'Take your time, then choose Next effect.'}</p>`;return}
  const reports=state.lastTurns||[];
- el.innerHTML=reports.length?`<div class="recap-header"><b>What just happened</b><span class="small">Listening and selecting cards do not spend turns.</span></div><div class="turn-recaps">${reports.map(r=>`<article><div class="eyebrow">${state.players[r.actor].name} · ${r.title}</div><p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>See how it happened</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`).join('')}</div>`:'<p class="small">Your next action will be explained here, followed by the computer’s response.</p>';
+ el.innerHTML=reports.length?`<div class="recap-header"><b>Turn results</b><span class="small">Your sanctuary stays on screen.</span></div><div class="turn-recaps">${reports.map(r=>{const computer=state.mode==='ai'&&r.actor===1;return `<article class="${computer?'computer-recap':'player-recap'}"><div class="eyebrow">${state.mode==='ai'?(computer?'Computer turn · The ranger':'Your turn'):state.players[r.actor].name+'’s turn'}</div><p><b>${r.title}</b></p>${computer?`<p>The computer ${r.headline}.</p>`:''}<p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>${computer?'Review computer move':'See how your move worked'}</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`}).join('')}</div>`:'<p class="small">Your action will be explained beside your birds. The computer’s move will appear afterwards as a separate summary.</p>';
 }
 function coachSuggestion(p){
  const available=options(p);if(!available.length)return null;const early=state.season<2;
@@ -108,8 +108,8 @@ function stepGain(previous,current,step){
 }
 function effectCalloutHTML(){
  const c=replayController,r=replayContext;if(!c||!r)return '';
- const final=c.cursor===c.frames.length-1,player=state.players[r.report.actor].name;
- return `<section class="effect-callout ${r.report.actor===1?'ranger-effect':''}" aria-label="Current turn effect"><div class="effect-callout-top"><b>${player} · ${r.report.title}</b><span>Effect ${c.cursor+1} of ${c.frames.length}</span></div><div class="effect-gain">${r.step.gain}</div><p class="effect-explanation">${r.step.text}</p><div class="effect-controls"><button data-replay="back" ${c.cursor===0?'disabled':''}>Back</button><button data-replay="play" aria-pressed="${c.autoplay}">${c.autoplay?'Pause':'Play slowly'}</button><button data-replay="next" class="primary">${final?'Finish turn':'Next effect →'}</button><button id="skip-effects">Skip turn</button></div><p class="effect-pacing">${c.autoplay?'Moves on after 4 seconds. Pause to read or use Back to revisit.':'Waiting for you. Nothing will move on until you choose Next effect, Play slowly or Skip turn.'}</p></section>`;
+ const final=c.cursor===c.frames.length-1,player=state.players[r.report.actor].name,turnLabel=state.mode==='ai'?'Your turn':player+'’s turn';
+ return `<section class="effect-callout ${r.report.actor===1?'ranger-effect':''}" aria-label="Current turn effect"><div class="effect-callout-top"><b>${turnLabel} · ${r.report.title}</b><span>Effect ${c.cursor+1} of ${c.frames.length}</span></div><div class="effect-gain">${r.step.gain}</div><p class="effect-explanation">${r.step.text}</p><div class="effect-controls"><button data-replay="back" ${c.cursor===0?'disabled':''}>Back</button><button data-replay="play" aria-pressed="${c.autoplay}">${c.autoplay?'Pause':'Play slowly'}</button><button data-replay="next" class="primary">${final?(c.hasComputer?'See computer move':'Finish turn'):'Next effect →'}</button><button id="skip-effects">Skip turn</button></div><p class="effect-pacing">${c.autoplay?'Moves on after 4 seconds. Pause to read or use Back to revisit.':'Waiting for you. Use the green button to continue, Play slowly for automatic steps or Skip turn.'}</p></section>`;
 }
 function renderLocalEffect(){
  if(!isResolving||!replayContext||!replayController)return;
@@ -138,12 +138,13 @@ function clarityAct(a){
  state.lastTurns=reports.map(({frames,...rest})=>rest);save();
  if(!showTurnEffects){finishTurnPresentation(previousSeason);return}
  const generation=++replayGeneration,display=clone(history),frames=[];display.lastTurns=[];
- for(const report of reports)for(let i=0;i<report.frames.length;i++){
+ const explainedReports=state.mode==='ai'?reports.filter(r=>r.actor===history.current):reports;
+ for(const report of explainedReports)for(let i=0;i<report.frames.length;i++){
   const source=report.frames[i],step={...source,gain:stepGain(display.players[report.actor],source.p,source)};
   display.players[report.actor]=clone(source.p);display.current=report.actor;
   frames.push({display:clone(display),report,step,position:i+1});
  }
- isResolving=true;replayController={frames,cursor:0,generation,previousSeason,autoplay:autoReplay&&!prefersQuietMotion(),timer:null};showReplayStep(0);
+ isResolving=true;replayController={frames,cursor:0,generation,previousSeason,hasComputer:state.mode==='ai'&&reports.some(r=>r.actor===1),autoplay:autoReplay&&!prefersQuietMotion(),timer:null};showReplayStep(0);
 }
 document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||b.disabled)return;
@@ -154,4 +155,5 @@ document.addEventListener('click',e=>{
  if(b.id==='show-coach'&&coachChoice){const a=coachChoice.a;selected=a.hand??null;target=a.target??null;marketIndex=a.market??0;render();document.querySelector(`[data-do="${a.type}"]`)?.focus()}
  if(b.dataset.do&&!isResolving)act(currentAction(b.dataset.do));
 });
+
 

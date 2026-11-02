@@ -151,3 +151,15 @@ state.players[2].bonus=100;showEnd();if(!document.getElementById('dialog-body').
 document.getElementById('mode').value='ai';fresh();
 console.log('All 14 expansion seat combinations finished with 24 actions per seat; computer chains, handovers, undo, replay, saves, scoring and ties passed.');
 `,sandbox);
+
+vm.runInContext(`
+document.getElementById('mode').value='ai';fresh();state.players[0].bonus=20;state.players[1].bonus=10;state.done=true;
+showEnd();if(gameOutcome().heading!=='You win!'||!document.getElementById('dialog-body').innerHTML.includes('finale-confetti'))throw Error('Solo win celebration');
+render();if(!document.getElementById('status').textContent.startsWith('You win!'))throw Error('Result disappeared outside dialog');
+state.players[1].bonus=20;showEnd();if(gameOutcome().heading!=='You share the win!'||!gameOutcome().celebrate)throw Error('Solo tie');
+state.players[1].bonus=30;showEnd();if(gameOutcome().heading!=='The ranger wins!'||document.getElementById('dialog-body').innerHTML.includes('finale-confetti'))throw Error('Computer win mislabelled');
+document.getElementById('mode').value='expansion';fresh({count:4,roles:['human','computer','computer','computer']});state.players[0].bonus=100;if(gameOutcome().heading!=='You win!')throw Error('Solo expansion victory');
+fresh({count:4,roles:['human','human','computer','human']});state.players[3].bonus=100;if(gameOutcome().heading!=='Player 4 wins!')throw Error('Multiplayer winner');
+state.players[0].bonus=100;if(!gameOutcome().heading.startsWith('Shared victory: Player 1 & Player 4'))throw Error('Multiplayer tie');
+console.log('End-game win, loss, tie, multiplayer labels, celebration and persistent result passed.');
+`,sandbox);

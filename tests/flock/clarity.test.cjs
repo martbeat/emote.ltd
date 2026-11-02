@@ -73,17 +73,17 @@ cancelReplay();console.log('Computer summary and two-person play verified.');
 
 // Catalogue growth keeps IDs stable and extends legacy decks exactly once.
 vm.runInContext(`{
-if(SPECIES.length!==31||BIRD_ILLUSTRATIONS.length!==31)throw Error('Catalogue/artwork alignment');
-if(SPECIES.filter(c=>c.hab===0).length!==11||SPECIES.filter(c=>c.hab===1).length!==10||SPECIES.filter(c=>c.hab===2).length!==10)throw Error('Habitat distribution');
+if(SPECIES.length!==33||BIRD_ILLUSTRATIONS.length!==33)throw Error('Catalogue/artwork alignment');
+if(SPECIES.filter(c=>c.hab===0).length!==12||SPECIES.filter(c=>c.hab===1).length!==11||SPECIES.filter(c=>c.hab===2).length!==10)throw Error('Habitat distribution');
 for(const name of ['Long-tailed tit','Chaffinch','Goldcrest','Red kite','Buzzard'])if(!SPECIES.some(c=>c.name===name))throw Error('Requested bird missing');
 for(const c of SPECIES)if(!POWER[c.power]||!BIRD_ILLUSTRATIONS[c.id])throw Error('Missing ability/artwork');
-fresh();if(state.speciesCount!==31||state.deck.length!==115)throw Error('Expanded deck');
+fresh();if(state.speciesCount!==33||state.deck.length!==123)throw Error('Expanded deck');
 const legacy=clone(state);delete legacy.speciesCount;legacy.deck=[0,2,17,5];const sanctuary=JSON.stringify(legacy.players),market=JSON.stringify(legacy.market);
-upgradeBirdDeck(legacy);if(legacy.deck.length!==56||legacy.speciesCount!==31||JSON.stringify(legacy.players)!==sanctuary||JSON.stringify(legacy.market)!==market)throw Error('Legacy migration changed progress');
-for(let id=18;id<31;id++)if(legacy.deck.filter(c=>c===id).length!==4)throw Error('Missing new cards');
+upgradeBirdDeck(legacy);if(legacy.deck.length!==64||legacy.speciesCount!==33||JSON.stringify(legacy.players)!==sanctuary||JSON.stringify(legacy.market)!==market)throw Error('Legacy migration changed progress');
+for(let id=18;id<33;id++)if(legacy.deck.filter(c=>c===id).length!==4)throw Error('Missing new cards');
 const migrated=JSON.stringify(legacy);upgradeBirdDeck(legacy);if(JSON.stringify(legacy)!==migrated)throw Error('Migration duplicated cards');
-const empty={deck:[]};upgradeBirdDeck(empty);if(empty.deck.length!==124)throw Error('Empty legacy deck');
-for(let id=18;id<31;id++){
+const empty={deck:[]};upgradeBirdDeck(empty);if(empty.deck.length!==132)throw Error('Empty legacy deck');
+for(let id=18;id<33;id++){
  fresh();showTurnEffects=false;const c=SPECIES[id],p=state.players[0],b={id,nests:2,eggs:0,flock:0,used:false};p.birds[c.hab]=[b];
  const a={type:['forage','eggs','scout'][c.hab],market:0};const predicted=previewAction(p,a),actual=apply(p,a);
  if(JSON.stringify(predicted.delta)!==JSON.stringify(actual.delta)||!actual.steps.some(s=>s.kind==='ability'&&s.text.startsWith(c.name)))throw Error('New bird ability: '+c.name);
@@ -92,9 +92,9 @@ for(let id=18;id<31;id++){
 fresh();{const p=state.players[0];p.birds[0]=[{id:23,nests:1,eggs:2,flock:0,used:false}];const r=apply(p,{type:'forage'});if(r.delta.eggs!==1||p.birds[0][0].eggs!==3||!r.steps.some(s=>s.text.includes('only one space free')))throw Error('Two-egg ability capacity');}
 fresh();{const p=state.players[0];p.birds[0]=[{id:18,nests:1,eggs:0,flock:0,used:false}];if(apply(p,{type:'forage'}).delta.flock!==2)throw Error('Long-tailed tit flock');}
 fresh();{const p=state.players[0];p.birds[1]=[{id:21,nests:1,eggs:0,flock:0,used:false}];if(apply(p,{type:'eggs'}).delta.food!==2)throw Error('Red kite food');}
-console.log('31 species, saved-game migration and all 13 new abilities verified.');
+console.log('33 species, saved-game migration and all 15 new abilities verified.');
 }`,sandbox);
-const audioContext={};vm.createContext(audioContext);vm.runInContext(fs.readFileSync(path.join(project,'assets/audio/flock-calls.js'),'utf8'),audioContext);assert.equal(vm.runInContext('BIRD_CALLS.length',audioContext),31);
+const audioContext={};vm.createContext(audioContext);vm.runInContext(fs.readFileSync(path.join(project,'assets/audio/flock-calls.js'),'utf8'),audioContext);assert.equal(vm.runInContext('BIRD_CALLS.length',audioContext),33);
 
 // Every mix of people/computers must finish with 24 actions per seat.
 vm.runInContext(`
@@ -178,10 +178,24 @@ if(JSON.stringify(state.players[1])!==otherBefore)throw Error('Cuckoo changed an
 if(apply(owner,{type:'forage'}).delta.eggs!==0)throw Error('Cuckoo triggered twice');
 intruder.used=false;const full=apply(owner,{type:'forage'});if(full.delta.eggs!==0||!full.steps.some(s=>s.text.includes('no other nest space')))throw Error('Overfilled host');
 owner.birds[0][1].eggs=0;owner.birds[1][0].eggs=0;intruder.used=false;apply(owner,{type:'forage'});if(owner.birds[0][1].eggs!==1||owner.birds[1][0].eggs!==0)throw Error('Host order');
-const previous={deck:[0,8],speciesCount:30};upgradeBirdDeck(previous);if(previous.deck.length!==6||previous.deck.filter(id=>id===30).length!==4)throw Error('Existing 30-bird game lost cuckoo');
+const previous={deck:[0,8],speciesCount:30};upgradeBirdDeck(previous);if(previous.deck.length!==14||previous.deck.filter(id=>id===30).length!==4)throw Error('Existing 30-bird game lost cuckoo');
 const again=JSON.stringify(previous);upgradeBirdDeck(previous);if(JSON.stringify(previous)!==again)throw Error('Cuckoo migration duplicated cards');
 showTurnEffects=true;intruder.used=false;state.current=0;view=0;const cuckooUndo=JSON.stringify(state);act({type:'forage'});
 if(!replayController.frames.some(f=>f.step.text.startsWith('Cuckoo ability')&&f.step.hab===0&&f.step.index===1))throw Error('Host replay missing');
 finishReplay();document.getElementById('undo').onclick();if(JSON.stringify(state)!==cuckooUndo)throw Error('Cuckoo undo lost host egg');
 console.log('Cuckoo host choice, preview, full nests, once-per-season use, no own nest, replay, undo and old-game upgrade passed.');
+`,sandbox);
+
+vm.runInContext(`{
+document.getElementById('mode').value='ai';fresh();showTurnEffects=false;
+if(SPECIES[31].name!=='House martin'||SPECIES[32].name!=='Jackdaw')throw Error('New bird IDs');
+const current=clone(state);current.speciesCount=31;current.deck=[0,30];const oldPlayers=JSON.stringify(current.players);upgradeBirdDeck(current);
+if(current.deck.length!==10||current.deck.filter(id=>id===31).length!==4||current.deck.filter(id=>id===32).length!==4||JSON.stringify(current.players)!==oldPlayers)throw Error('31-bird saved game upgrade');
+const stable=JSON.stringify(current);upgradeBirdDeck(current);if(JSON.stringify(current)!==stable)throw Error('Repeated migration');
+const p=state.players[0];p.birds[1]=[{id:31,nests:1,eggs:0,flock:0,used:false}];
+const martin=apply(p,{type:'eggs'});if(martin.delta.flock!==1||martin.delta.eggs!==3)throw Error('House martin colony bonus');
+p.birds[0]=[{id:32,nests:1,eggs:0,flock:0,used:false}];const jackdaw=apply(p,{type:'forage'});if(jackdaw.delta.cards!==1||jackdaw.delta.food!==3)throw Error('Jackdaw card bonus');
+p.birds[0][0].used=false;p.hand=Array(8).fill(0);const fullHand=apply(p,{type:'forage'});if(fullHand.delta.cards!==0||!fullHand.steps.some(s=>s.text.includes('hand full')))throw Error('Jackdaw exceeded hand limit');
+console.log('House martin and Jackdaw abilities, hand limit and 31-species save upgrade passed.');
+}
 `,sandbox);

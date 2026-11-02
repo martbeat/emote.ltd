@@ -241,3 +241,44 @@ const suggestion=coachSuggestion(p);if(!suggestion.why||!suggestion.context)thro
 coachEnabled=true;renderClarity();if(document.getElementById('coach').innerHTML.includes('A suggestion based on your sanctuary'))throw Error('Boilerplate still rendered');
 console.log('Relatable coach explanations preserve unlocked birds, capacity, seasonal goals, final-turn limits and Cuckoo host requirements.');
 }`,sandbox);
+
+vm.runInContext(`{
+function fillSanctuary(p,fullEggs=true){
+ const ids=[[2,3,5],[6,8,9],[12,14,16]];
+ p.birds=ids.map(row=>row.map(id=>({id,nests:3,eggs:fullEggs?SPECIES[id].cap+4:0,flock:0,used:true})));
+ p.hand=[0,1,4,23,24,19,7];p.food=20;
+}
+document.getElementById('mode').value='ai';fresh();showTurnEffects=false;const p=state.players[0];fillSanctuary(p);
+let pick=coachSuggestion(p);
+if(pick.a.type!=='flock'||!pick.why.includes('cannot settle')||!pick.why.includes('crowded hand')||!pick.context.includes('habitats are full'))throw Error('Full sanctuary should use surplus cards for flocks');
+fillSanctuary(p,false);pick=coachSuggestion(p);if(pick.a.type!=='eggs')throw Error('Do not collect cards instead of filling available nests');
+fillSanctuary(p);if(!unavailable(p,{type:'eggs'}).includes('fully expanded')||!unavailable(p,{type:'attract'}).includes('All habitats are full'))throw Error('Full sanctuary unavailable guidance');p.hand.push(17);if(unavailable(p,{type:'scout'}).includes('Attract a bird'))throw Error('Full hand advice suggests blocked recruit');pick=coachSuggestion(p);if(pick.a.type==='scout'||pick.a.type==='attract')throw Error('Full hand or full habitat recruitment');
+fillSanctuary(p);p.food=0;pick=coachSuggestion(p);if(pick.a.type!=='flock')throw Error('Do not stockpile food with nowhere to spend it');
+fillSanctuary(p);p.birds[2]=[];state.market=[17,0,1];pick=coachSuggestion(p);
+if(pick.a.type!=='scout'||pick.a.market!==0||!pick.why.includes('do not fit the spaces left'))throw Error('Scout useful recruit when existing hand is blocked');
+fillSanctuary(p);p.birds[2]=[16,34,34].map(id=>({id,nests:3,eggs:SPECIES[id].cap+4,flock:0,used:false}));
+pick=coachSuggestion(p);if(pick.a.type!=='scout'||!pick.why.includes('ready wetland birds')||pick.r.delta.points!==5)throw Error('Full habitat can still activate useful powers');
+fillSanctuary(p);p.food=1;p.birds[0][0].nests=1;p.birds[0][0].eggs=capacity(p.birds[0][0]);pick=coachSuggestion(p);
+if(pick.a.type!=='nest')throw Error('Make room for eggs when a useful nest can be built');
+state.season=3;state.turn=5;
+for(let trial=0;trial<30;trial++){
+ fillSanctuary(p,trial%2===0);p.birds[0][0].used=trial%3!==0;
+ const before=JSON.stringify(state),suggestion=coachSuggestion(p);
+ const best=Math.max(...options(p).map(a=>{const r=previewAction(p,a);return r.delta.points+r.goalDelta}));
+ if(suggestion.r.delta.points+suggestion.r.goalDelta!==best)throw Error('Final-turn coach must prioritise final score');
+ if(JSON.stringify(state)!==before)throw Error('Coach mutated state');
+}
+for(let game=0;game<30;game++){
+ document.getElementById('mode').value='ai';fresh();let moves=0;
+ while(!state.done){
+  const currentPlayer=state.players[state.current],before=JSON.stringify(state),choice=coachSuggestion(currentPlayer);
+  if(!choice||!legal(currentPlayer,choice.a))throw Error('Illegal coaching suggestion');
+  if(JSON.stringify(state)!==before)throw Error('Coaching consumes cards or changes resources');
+  apply(currentPlayer,choice.a);next();moves++;
+  if(!state.done){ai();moves++}
+  if(moves>48)throw Error('Coached game failed to finish');
+ }
+ if(moves!==48)throw Error('Coached game length');
+}
+console.log('Coach full habitats, crowded hands, surplus food, useful exceptions, nest space, final-turn scoring and 30 complete coached games passed.');
+}`,sandbox);

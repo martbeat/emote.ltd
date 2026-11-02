@@ -8,9 +8,9 @@ function unavailable(p,a){
  const b=a.target&&p.birds[a.target[0]]?.[a.target[1]];
  switch(a.type){
  case'forage':return '';
- case'eggs':return !birds(p).length?'Attract a bird to give your eggs a home.':room(p)===0?'All nests are full. Select a sanctuary bird and build a nest.':'';
- case'scout':return p.hand.length>=8?'Your hand is full (8 cards). Attract a bird or discard one into a flock.':'';
- case'attract':{const c=SPECIES[p.hand[a.hand]];if(!c)return 'Select a bird card in your hand.';if(a.hab!==c.hab)return `${c.name} belongs in the ${HAB[c.hab].toLowerCase()}.`;if(p.birds[a.hab].length>=3)return `Your ${HAB[a.hab].toLowerCase()} already has 3 birds.`;return p.food<c.cost?`Needs ${c.cost-p.food} more food. Forage first.`:''}
+ case'eggs':return !birds(p).some(b=>SPECIES[b.id].cap>0)?'Attract a bird with its own nest to give your eggs a home.':room(p)===0?(birds(p).some(b=>SPECIES[b.id].power!=='cuckoo'&&b.nests<3)?'All nests are full. Select a sanctuary bird and build a nest.':'All nests are full and fully expanded. Flocks can keep scoring.'):'';
+ case'scout':return p.hand.length>=8?(p.birds.every(row=>row.length===3)?'Your hand is full. Put a card towards a flock before drawing more.':'Your hand is full (8 cards). Attract a bird or discard one into a flock.'):'';
+ case'attract':{const c=SPECIES[p.hand[a.hand]];if(p.birds.every(row=>row.length===3))return 'All habitats are full. Make the most of your existing birds, nests and flocks.';if(!c)return 'Select a bird card in your hand.';if(a.hab!==c.hab)return `${c.name} belongs in the ${HAB[c.hab].toLowerCase()}.`;if(p.birds[a.hab].length>=3)return `Your ${HAB[a.hab].toLowerCase()} already has 3 birds.`;return p.food<c.cost?`Needs ${c.cost-p.food} more food. Forage first.`:''}
  case'nest':return !b?'Select a bird already in your sanctuary.':SPECIES[b.id].power==='cuckoo'?'Cuckoos use other birds’ nests. Build a nest on another bird.':b.nests>=3?'This bird already has its maximum of 3 nests.':p.food<1?'Needs 1 food. Forage first.':'';
  case'flock':return !b?'Select a bird already in your sanctuary.':!Number.isInteger(a.hand)||p.hand[a.hand]===undefined?'Select a card in your hand to discard.':'';
  default:return 'Choose an action.';
@@ -78,6 +78,7 @@ function coachExplanation(p,a,r){
  case'attract':{
   const c=SPECIES[p.hand[a.hand]],h=p.birds[c.hab].length;
   if(!left){why='Welcoming '+c.name+' adds to your final score. There is no time left to use its ability, so this is about finishing well.';break}
+  if(left===1){why='Welcoming '+c.name+' banks its bird points before the year ends. There is little time left to make use of its ability.';break}
   if(c.hab===0)why=c.name+' will make food easier to gather, helping you welcome more birds and build nests later.';
   if(c.hab===1)why=c.name+' will make your meadow better at laying eggs. Keep some room in your nests so those eggs have somewhere to go.';
   if(c.hab===2)why=h<2?c.name+' will give you more choice when scouting, helping you find birds that suit your sanctuary.':'Your wetland already brings in plenty of cards. '+c.name+' earns its place through its own ability and the points it brings.';
@@ -89,14 +90,23 @@ function coachExplanation(p,a,r){
   const unlocked=p.hand.map(id=>SPECIES[id]).filter(c=>p.birds[c.hab].length<3&&c.cost>p.food&&c.cost<=afterFood).sort((a,b)=>a.cost-b.cost);
   if(!left)why=r.delta.points?'The food will not count at the end, but your woodland birds can still help your score.':'Food will not count once the year ends, so this move will not improve your final score.';
   else if(unlocked.length)why='You do not yet have enough food for '+unlocked[0].name+'. Foraging now puts that bird within reach for a later turn.';
-  else if(p.food<2)why='Food is limiting your options. Gathering some now gives you more freedom to welcome birds or build nests later.';
-  else why='This restocks your food for birds and nests you may want later.';
+  else if(left===1)why=r.delta.points?'Your ready woodland birds can still help your score while you gather food.':'This adds food, but there is little time left to use it.';
+  else if(p.food<2&&!p.birds.every(row=>row.length===3))why='Food is limiting your options. Gathering some now gives you more freedom to welcome birds or build nests later.';
+  else if(p.birds.every(row=>row.length===3)){
+   const canBuild=birds(p).some(b=>SPECIES[b.id].power!=='cuckoo'&&b.nests<3);
+   why=r.delta.points?'Your habitats are full. This move is about getting help from your ready woodland birds.':canBuild&&p.food<1?'Your habitats are full, but gathering food lets you build nests for the birds already here.':'Your habitats are full, so there is little reason to gather food for more birds.';
+  }else why='This restocks your food for birds and nests you may want later.';
   break;
  }
  case'scout':{
   const c=SPECIES[state.market[a.market]];
-  why=(p.hand.length<2?'Your hand is running thin. ':'')+'Scout brings '+c.name+' into your hand.';
-  why+=left?' That gives you a fresh choice for your sanctuary, or a card to put towards a flock.':' Cards left in your hand will not count towards the final score.';
+  const fits=p.birds[c.hab].length<3,handFits=p.hand.some(id=>p.birds[SPECIES[id].hab].length<3);
+  if(!left)why='Scout brings '+c.name+' into your hand, but there is no later turn to play it.'+(r.delta.points?' The useful part is activating your ready wetland birds.':'');
+  else if(!fits)why='There is no room for '+c.name+' in its habitat.'+(r.delta.points?' The reason to Scout here is to activate your ready wetland birds.':p.hand.length<2&&birds(p).length?' It can still give you a card to put towards a flock.':' More cards will not help you settle birds there.');
+  else if(!handFits&&p.hand.length>=2)why='The cards you have do not fit the spaces left in your sanctuary. Scout brings '+c.name+' into your hand, giving you a bird with somewhere to settle.';
+  else if(p.hand.length>=5)why='You already have plenty of cards.'+(r.delta.points?' This Scout is about getting help from your ready wetland birds.':' Another card can wait while you use the birds already in your hand.');
+  else why=(p.hand.length<2?'Your hand is running thin. ':'')+'Scout brings '+c.name+' into your hand, giving you a fresh choice for your sanctuary or a card to put towards a flock.';
+  if(!left)why+=' Cards left in your hand will not count towards the final score.';
   break;
  }
  case'eggs':
@@ -110,7 +120,8 @@ function coachExplanation(p,a,r){
  }
  case'flock':{
   const b=p.birds[a.target[0]][a.target[1]],discard=SPECIES[p.hand[a.hand]];
-  why='Turn the '+discard.name+' card in your hand into a flock around '+SPECIES[b.id].name+'. You can score straight away without needing more food or spare nest space.';
+  why=(p.birds[discard.hab].length>=3?'Your '+HAB[discard.hab].toLowerCase()+' is full, so '+discard.name+' cannot settle there. ':'')+'Put the '+discard.name+' card towards a flock around '+SPECIES[b.id].name+'. You can score straight away without needing more food or spare nest space.';
+  if(p.hand.length>=5)why+=' It also frees some room in your crowded hand.';
   break;
  }
  }
@@ -128,18 +139,54 @@ function coachExplanation(p,a,r){
  if(abilities.length)why+=' '+abilities.join(' ');
  if(r.goalDelta)why+=' '+['Extra nests also help you earn the Spring bonus.','Those eggs also help with the Summer bonus.','Filling a different habitat also helps with the Autumn bonus.','Growing your flocks also helps with the Winter bonus.'][state.season];
  const context=left===0?'This is your last move. Make it count.':left<=3?'The year is nearly over. Look for points you can secure now.':['Spring rewards extra nests, with time to build for later.','In Summer, make good use of the nest space you have built.','Autumn rewards a mix of habitats.','Winter is the time to turn what you have built into a strong finish.'][state.season];
- return {why,context};
+ const full=p.birds.every(row=>row.length===3);
+ const practicalContext=left===0?context:full?'Your habitats are full. Make the most of the birds already here.':p.hand.length===8?'Your hand is full. Welcome a bird or put a card towards a flock before scouting again.':context;
+ return {why,context:practicalContext};
 }
 function coachSuggestion(p){
- const available=options(p);if(!available.length)return null;const early=state.season<2;
+ const available=options(p);if(!available.length)return null;
+ const left=(3-state.season)*6+5-state.turn,free=room(p),eggAction=2+p.birds[1].length;
+ const open=p.birds.map(row=>3-row.length),canSettle=id=>open[SPECIES[id].hab]>0;
+ const usefulHand=p.hand.filter(canSettle),buildable=birds(p).some(b=>SPECIES[b.id].power!=='cuckoo'&&b.nests<3);
+ const cheapest=usefulHand.length?Math.min(...usefulHand.map(id=>SPECIES[id].cost)):Infinity;
  const ranked=available.map(a=>{
-  const r=previewAction(p,a);let value=r.delta.points+r.goalDelta*.8;
-  if(a.type==='attract'&&early){const c=SPECIES[p.hand[a.hand]];value+=7+(p.birds[c.hab].length===0?3:0)}
-  if(a.type==='forage'&&p.food<2&&early)value+=9;
-  if(a.type==='scout'&&p.hand.length<2&&early)value+=8;
-  if(a.type==='nest'&&room(p)<2&&state.season<3)value+=6;
-  if(a.type==='eggs'&&r.limited)value-=r.limited*.5;
-  if(a.type==='flock'&&early)value-=2;
+  const r=previewAction(p,a);
+  // Resource gains only matter if there are later moves which can use them.
+  // Exact preview totals already account for full nests and the hand limit.
+  let value=r.delta.points+r.goalDelta;
+  if(left>0)switch(a.type){
+  case'attract':{
+   const c=SPECIES[p.hand[a.hand]],row=p.birds[c.hab].length;
+   value+=Math.min(left,8)*.55;
+   if(row===0)value+=1;
+   if(free===0&&c.cap>0&&left>1)value+=1;
+   break;
+  }
+  case'forage':{
+   if(cheapest>p.food&&cheapest<=p.food+r.delta.food)value+=5;
+   else if(usefulHand.length&&p.food<cheapest&&left>1)value+=2;
+   if(p.food===0&&buildable&&free<eggAction&&left>1)value+=2.5;
+   break;
+  }
+  case'scout':{
+   const id=state.market[a.market],c=SPECIES[id],fits=canSettle(id);
+   if(fits&&usefulHand.length===0)value+=c.cost<=p.food?4: left>1?2:0;
+   else if(fits&&p.hand.length<4&&usefulHand.length<2)value+=2;
+   // On a full board, a small hand can supply later flock actions.
+   if(birds(p).length&&p.hand.length<2)value+=Math.min(left,r.delta.cards)*1.2;
+   break;
+  }
+  case'nest':
+   if(free<eggAction&&left>0)value+=Math.min(2,eggAction-free)*.8;
+   break;
+  case'flock':{
+   const c=SPECIES[p.hand[a.hand]];
+   // Keep useful recruits when there is time to play them; blocked cards
+   // can be put towards a flock without losing an available bird.
+   if(canSettle(c.id)&&left>1)value-=Math.min(2.5,c.points*.35);
+   break;
+  }
+  }
   return {a,r,value};
  }).sort((a,b)=>b.value-a.value);
  const choice=ranked[0];return {...choice,...coachExplanation(p,choice.a,choice.r)};

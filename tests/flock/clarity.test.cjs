@@ -216,3 +216,27 @@ if(apply(p,{type:'forage'}).delta.food!==5)throw Error('Tawny owl food');
 if(apply(p,{type:'scout',market:0}).delta.flock!==2)throw Error('Gull colony');
 console.log('Exact weighted deck composition, refills, visible-state preservation and owl/gull abilities passed ('+size+' cards).');
 }`,sandbox);
+
+vm.runInContext(`{
+document.getElementById('mode').value='ai';fresh();const p=state.players[0];
+p.food=1;p.hand=[3];p.birds[0]=[{id:0,nests:1,eggs:1,flock:0,used:true}];
+let a={type:'forage'},r=previewAction(p,a),before=JSON.stringify(state),reason=coachExplanation(p,a,r);
+if(!reason.why.includes('leaving 4')||!reason.why.includes('Woodpecker affordable')||!reason.context.includes('23 personal turns'))throw Error('Forage reason not grounded');
+if(JSON.stringify(state)!==before)throw Error('Explanation changed game');
+a={type:'nest',target:[0,0]};r=previewAction(p,a);reason=coachExplanation(p,a,r);
+if(!reason.why.includes('from 1 to 3 free spaces')||!reason.why.includes('from 0 to 2 points'))throw Error('Nest or season explanation');
+state.season=1;p.birds[0][0].eggs=0;a={type:'eggs'};r=previewAction(p,a);reason=coachExplanation(p,a,r);
+if(!reason.why.includes('2 eggs')||!reason.why.includes('Summer bonus potential from 0 to 1'))throw Error('Summer explanation');
+state.season=3;state.turn=5;p.birds[0][0].eggs=1;r=previewAction(p,a);reason=coachExplanation(p,a,r);
+if(reason.context!=='Your final action of the year.'||reason.why.includes('later egg action'))throw Error('Final turn promises future action');
+p.food=4;p.hand=[0];a={type:'attract',hand:0,hab:0};r=previewAction(p,a);reason=coachExplanation(p,a,r);
+if(!reason.why.includes('no later turn to use its ability')||reason.why.includes('raises future'))throw Error('Final bird rationale');
+state.season=0;state.turn=0;p.birds=[[],[],[{id:12,nests:1,eggs:0,flock:0,used:true},{id:13,nests:1,eggs:0,flock:0,used:true}]];p.hand=[14];
+a={type:'attract',hand:0,hab:2};r=previewAction(p,a);reason=coachExplanation(p,a,r);
+if(!reason.why.includes('two-card cap')||reason.why.includes('from 2 to 3'))throw Error('Wetland cap explanation');
+p.birds=[[],[],[]];p.hand=[30];a={type:'attract',hand:0,hab:0};reason=coachExplanation(p,a,previewAction(p,a));
+if(!reason.why.includes('needs another bird'))throw Error('Cuckoo host missing in coaching');
+const suggestion=coachSuggestion(p);if(!suggestion.why||!suggestion.context)throw Error('Missing reasoning');
+coachEnabled=true;renderClarity();if(document.getElementById('coach').innerHTML.includes('A suggestion based on your sanctuary'))throw Error('Boilerplate still rendered');
+console.log('Coach resource totals, unlocked birds, capacity, seasonal scoring, remaining turns, capped draws and Cuckoo host explanations passed.');
+}`,sandbox);

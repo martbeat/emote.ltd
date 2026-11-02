@@ -71,18 +71,74 @@ function renderFeedback(){
  const reports=state.lastTurns||[];
  el.innerHTML=reports.length?`<div class="recap-header"><b>Turn results</b><span class="small">${state.done?'The year is complete.':state.mode==='expansion'?'Next person: '+state.players[state.current].name:'Your sanctuary stays on screen.'}</span></div><div class="turn-recaps">${reports.map(r=>{const computer=isComputer(r.actor);return `<article class="${computer?'computer-recap':'player-recap'}"><div class="eyebrow">${computer?'Computer turn · '+state.players[r.actor].name:state.mode==='ai'?'Your turn':state.players[r.actor].name+'’s turn'}</div><p><b>${r.title}</b></p>${computer?`<p>The computer ${r.headline}.</p>`:''}<p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>${computer?'Review computer move':'See how your move worked'}</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`}).join('')}</div>`:'<p class="small">Your action will be explained beside your birds. The computer’s move will appear afterwards as a separate summary.</p>';
 }
+function coachExplanation(p,a,r){
+ const left=(3-state.season)*6+5-state.turn,free=room(p),afterFood=p.food+r.delta.food;
+ const count=(n,word)=>n+' '+word+(n===1?'':'s');
+ let why='';
+ switch(a.type){
+ case'attract':{
+  const c=SPECIES[p.hand[a.hand]],h=p.birds[c.hab].length;
+  why=c.name+' costs '+c.cost+' of your '+p.food+' food and adds '+c.points+' bird points.';
+  if(left>0){
+   if(c.hab===0)why+=' It raises future Forage actions from '+(2+h)+' to '+(3+h)+' food before abilities.';
+   if(c.hab===1)why+=' It raises future Lay eggs actions from '+(2+h)+' to '+(3+h)+' eggs, provided your nests have space.';
+   if(c.hab===2)why+=h<2?' It raises the extra cards from each Scout from '+h+' to '+(h+1)+', within the eight-card hand limit.':' Your Scout extra draws are already at their two-card cap; this bird adds its own ability instead.';
+   why+=' Its ability is “'+POWER[c.power]+'” when you next '+['Forage','Lay eggs','Scout'][c.hab]+', once per season.';
+   if(c.power==='cuckoo'&&!cuckooHost(p))why+=' It needs another bird with a free nest space before that ability can place an egg.';
+  }else why+=' This is your final action, so its printed points matter; there is no later turn to use its ability.';
+  break;
+ }
+ case'forage':{
+  why='You have '+p.food+' food. This gains '+r.delta.food+', leaving '+afterFood+'.';
+  const unlocked=p.hand.map(id=>SPECIES[id]).filter(c=>p.birds[c.hab].length<3&&c.cost>p.food&&c.cost<=afterFood).sort((a,b)=>a.cost-b.cost);
+  if(left>0&&unlocked.length)why+=' That makes '+unlocked[0].name+' affordable on a later turn (cost '+unlocked[0].cost+').';
+  else if(left>0&&p.food<2)why+=' This restores food for attracting birds or building nests on your remaining turns.';
+  else if(!left)why+=' Food left at the end is worth no points.';
+  break;
+ }
+ case'scout':{
+  const c=SPECIES[state.market[a.market]];
+  why='Your hand has '+count(p.hand.length,'card')+'. Scout takes '+c.name+' from the clearing'+(r.delta.cards>1?' and draws '+count(r.delta.cards-1,'extra card'):'')+'.';
+  why+=left>0?' This gives you '+count(p.hand.length+r.delta.cards,'card')+' to choose from for future birds or flocks.':' Undeployed cards do not score at the end of the game.';
+  break;
+ }
+ case'eggs':
+  why='Your sanctuary has '+count(free,'free egg space')+'. This move adds '+count(r.delta.eggs,'egg')+' and '+r.delta.points+' score now.';
+  if(r.limited)why+=' '+count(r.limited,'offered egg')+' cannot fit.'+(left>0?' More nest space would improve a later egg action.':'');
+  break;
+ case'nest':{
+  const b=p.birds[a.target[0]][a.target[1]],name=SPECIES[b.id].name;
+  why=name+' has '+(capacity(b)-b.eggs)+' free egg spaces. Spend 1 food to add two spaces, taking your sanctuary from '+free+' to '+(free+2)+' free spaces.';
+  if(left>0)why+=' '+(free<2?'Your current nests are nearly full, so this makes later egg actions more useful.':'The extra room can hold two more scoring eggs on later turns.');
+  else why+=' There is no later turn to fill those spaces.';
+  break;
+ }
+ case'flock':{
+  const b=p.birds[a.target[0]][a.target[1]],discard=SPECIES[p.hand[a.hand]];
+  why='Discard '+discard.name+' to give '+SPECIES[b.id].name+' two flock points, worth 2 score immediately. No food or nest space is needed.';
+  if(state.season===3)why+=' Winter also rewards each pair of flock points.';
+  break;
+ }
+ }
+ const abilities=r.steps.filter(s=>s.kind==='ability').map(s=>s.text);
+ if(abilities.length)why+=' Ready bird abilities also activate: '+abilities.join(' ');
+ if(r.goalDelta)why+=' This increases your '+SEASONS[state.season]+' bonus potential from '+goal(p)+' to '+(goal(p)+r.goalDelta)+' points, paid when the season ends.';
+ const context=left===0?'Your final action of the year.':count(left,'personal turn')+' left after this move. '+SEASONS[state.season]+' goal: '+GOALS[state.season]+'.';
+ return {why,context};
+}
 function coachSuggestion(p){
  const available=options(p);if(!available.length)return null;const early=state.season<2;
- const ranked=available.map(a=>{const r=previewAction(p,a);let value=r.delta.points+r.goalDelta*.8,why=`This gains ${r.delta.points} score now${r.goalDelta?` and increases the ${SEASONS[state.season]} bonus by ${r.goalDelta}`:''}.`;
-  if(a.type==='attract'&&early){const c=SPECIES[p.hand[a.hand]];value+=7+(p.birds[c.hab].length===0?3:0);why=`${c.name} strengthens ${['future food gathering','future egg actions','future card draws'][c.hab]}, as well as adding ${c.points} bird points.`}
-  if(a.type==='forage'&&p.food<2&&early){value+=9;why='Food will let you attract birds and build nests on later turns.'}
-  if(a.type==='scout'&&p.hand.length<2&&early){value+=8;why='A small hand limits your choices. Scout gives you more birds to attract or gather into flocks.'}
-  if(a.type==='nest'&&room(p)<2&&state.season<3){value+=6;why='Your nests are nearly full. Extra space will make future egg actions more productive.'}
+ const ranked=available.map(a=>{
+  const r=previewAction(p,a);let value=r.delta.points+r.goalDelta*.8;
+  if(a.type==='attract'&&early){const c=SPECIES[p.hand[a.hand]];value+=7+(p.birds[c.hab].length===0?3:0)}
+  if(a.type==='forage'&&p.food<2&&early)value+=9;
+  if(a.type==='scout'&&p.hand.length<2&&early)value+=8;
+  if(a.type==='nest'&&room(p)<2&&state.season<3)value+=6;
   if(a.type==='eggs'&&r.limited)value-=r.limited*.5;
   if(a.type==='flock'&&early)value-=2;
-  return {a,r,value,why};
+  return {a,r,value};
  }).sort((a,b)=>b.value-a.value);
- return ranked[0];
+ const choice=ranked[0];return {...choice,...coachExplanation(p,choice.a,choice.r)};
 }
 function renderClarity(){
  const p=state.players[view];
@@ -94,7 +150,7 @@ function renderClarity(){
  document.querySelectorAll('[data-attract]').forEach(el=>{const a={type:'attract',hand:selected,hab:+el.dataset.attract};el.disabled=isResolving||view!==state.current||!legal(p,a);el.title=unavailable(p,a)||exactPreview(p,a)});
  renderFeedback();
  const box=document.getElementById('coach');coachChoice=coachEnabled&&!isResolving&&view===state.current&&!state.done?coachSuggestion(p):null;
- box.hidden=!coachEnabled;box.innerHTML=coachChoice?`<div><b>Coach suggests: ${coachChoice.r.title}</b><p>${coachChoice.why}</p><span class="small">A suggestion based on your sanctuary and this season. You choose the move.</span></div><button id="show-coach">Show this option</button>`:state.done?'The year is complete. Try a different approach next game.':isResolving?'Watch how each action changes the sanctuary.':'View the current player’s sanctuary for a suggestion.';
+ box.hidden=!coachEnabled;box.innerHTML=coachChoice?`<div><b>Coach suggests: ${coachChoice.r.title}</b><p>${coachChoice.why}</p><span class="small">${coachChoice.context}</span></div><button id="show-coach">Show this option</button>`:state.done?'The year is complete. Try a different approach next game.':isResolving?'Watch how each action changes the sanctuary.':'View the current player’s sanctuary for a suggestion.';
  if(isResolving&&replayContext){const s=replayContext.step;if(s.hab!==null){document.querySelectorAll('.habitat')[s.hab]?.classList.add('effect-habitat');if(s.index!==null)document.querySelector(`[data-bird="${s.hab},${s.index}"]`)?.classList.add('effect-bird')}document.getElementById('status').textContent=`${state.players[replayContext.report.actor].name}: ${s.text}`}
  renderLocalEffect();
 }

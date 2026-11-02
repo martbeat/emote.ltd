@@ -36,8 +36,11 @@ function resolveAction(p,a,preview=false){
   const b=p.birds[habitat][i],c=SPECIES[b.id];if(b.used)continue;b.used=true;let text='';
   switch(c.power){
   case'food':p.food++;text='+1 food';break;
+  case'food2':p.food+=2;text='+2 food';break;
   case'egg':if(b.eggs<capacity(b)){b.eggs++;text='+1 egg in its nest'}else text='no egg space; ability used';break;
+  case'egg2':{const n=Math.min(2,capacity(b)-b.eggs);b.eggs+=n;text=n?'+'+n+' egg'+(n===1?'':'s')+' in its nest'+(n<2?' (only one space free)':''):'no egg space; ability used';break;}
   case'flock':b.flock++;text='+1 flock point';break;
+  case'flock2':b.flock+=2;text='+2 flock points';break;
   case'card':text=giveCard()?'+1 card':'hand full; ability used';break;
   }
   add(`${c.name} ability: ${text}.`,habitat,i,'ability');
@@ -155,5 +158,6 @@ document.addEventListener('click',e=>{
  if(b.id==='show-coach'&&coachChoice){const a=coachChoice.a;selected=a.hand??null;target=a.target??null;marketIndex=a.market??0;render();document.querySelector(`[data-do="${a.type}"]`)?.focus()}
  if(b.dataset.do&&!isResolving)act(currentAction(b.dataset.do));
 });
+
 
 

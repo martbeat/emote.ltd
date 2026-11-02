@@ -69,3 +69,29 @@ fresh();state.mode='local';state.current=1;view=1;showTurnEffects=true;act({type
 if(replayController.frames.some(f=>f.report.actor!==1)||replayController.hasComputer)throw Error('Local player replay changed');
 cancelReplay();console.log('Computer summary and two-person play verified.');
 `,sandbox);
+
+
+// Catalogue growth keeps IDs stable and extends legacy decks exactly once.
+vm.runInContext(`{
+if(SPECIES.length!==30||BIRD_ILLUSTRATIONS.length!==30)throw Error('Catalogue/artwork alignment');
+if(SPECIES.filter(c=>c.hab===0).length!==10||SPECIES.filter(c=>c.hab===1).length!==10||SPECIES.filter(c=>c.hab===2).length!==10)throw Error('Habitat distribution');
+for(const name of ['Long-tailed tit','Chaffinch','Goldcrest','Red kite','Buzzard'])if(!SPECIES.some(c=>c.name===name))throw Error('Requested bird missing');
+for(const c of SPECIES)if(!POWER[c.power]||!BIRD_ILLUSTRATIONS[c.id])throw Error('Missing ability/artwork');
+fresh();if(state.speciesCount!==30||state.deck.length!==111)throw Error('Expanded deck');
+const legacy=clone(state);delete legacy.speciesCount;legacy.deck=[0,2,17,5];const sanctuary=JSON.stringify(legacy.players),market=JSON.stringify(legacy.market);
+upgradeBirdDeck(legacy);if(legacy.deck.length!==52||legacy.speciesCount!==30||JSON.stringify(legacy.players)!==sanctuary||JSON.stringify(legacy.market)!==market)throw Error('Legacy migration changed progress');
+for(let id=18;id<30;id++)if(legacy.deck.filter(c=>c===id).length!==4)throw Error('Missing new cards');
+const migrated=JSON.stringify(legacy);upgradeBirdDeck(legacy);if(JSON.stringify(legacy)!==migrated)throw Error('Migration duplicated cards');
+const empty={deck:[]};upgradeBirdDeck(empty);if(empty.deck.length!==120)throw Error('Empty legacy deck');
+for(let id=18;id<30;id++){
+ fresh();showTurnEffects=false;const c=SPECIES[id],p=state.players[0],b={id,nests:2,eggs:0,flock:0,used:false};p.birds[c.hab]=[b];
+ const a={type:['forage','eggs','scout'][c.hab],market:0};const predicted=previewAction(p,a),actual=apply(p,a);
+ if(JSON.stringify(predicted.delta)!==JSON.stringify(actual.delta)||!actual.steps.some(s=>s.kind==='ability'&&s.text.startsWith(c.name)))throw Error('New bird ability: '+c.name);
+ b.eggs=0;p.hand=p.hand.slice(0,4);if(apply(p,a).steps.some(s=>s.kind==='ability'))throw Error('Ability activated twice: '+c.name);
+}
+fresh();{const p=state.players[0];p.birds[0]=[{id:23,nests:1,eggs:2,flock:0,used:false}];const r=apply(p,{type:'forage'});if(r.delta.eggs!==1||p.birds[0][0].eggs!==3||!r.steps.some(s=>s.text.includes('only one space free')))throw Error('Two-egg ability capacity');}
+fresh();{const p=state.players[0];p.birds[0]=[{id:18,nests:1,eggs:0,flock:0,used:false}];if(apply(p,{type:'forage'}).delta.flock!==2)throw Error('Long-tailed tit flock');}
+fresh();{const p=state.players[0];p.birds[1]=[{id:21,nests:1,eggs:0,flock:0,used:false}];if(apply(p,{type:'eggs'}).delta.food!==2)throw Error('Red kite food');}
+console.log('30 species, balanced habitats, saved-game migration and all 12 new abilities verified.');
+}`,sandbox);
+const audioContext={};vm.createContext(audioContext);vm.runInContext(fs.readFileSync(path.join(project,'assets/audio/flock-calls.js'),'utf8'),audioContext);assert.equal(vm.runInContext('BIRD_CALLS.length',audioContext),30);

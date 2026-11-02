@@ -73,57 +73,61 @@ function renderFeedback(){
 }
 function coachExplanation(p,a,r){
  const left=(3-state.season)*6+5-state.turn,free=room(p),afterFood=p.food+r.delta.food;
- const count=(n,word)=>n+' '+word+(n===1?'':'s');
  let why='';
  switch(a.type){
  case'attract':{
   const c=SPECIES[p.hand[a.hand]],h=p.birds[c.hab].length;
-  why=c.name+' costs '+c.cost+' of your '+p.food+' food and adds '+c.points+' bird points.';
-  if(left>0){
-   if(c.hab===0)why+=' It raises future Forage actions from '+(2+h)+' to '+(3+h)+' food before abilities.';
-   if(c.hab===1)why+=' It raises future Lay eggs actions from '+(2+h)+' to '+(3+h)+' eggs, provided your nests have space.';
-   if(c.hab===2)why+=h<2?' It raises the extra cards from each Scout from '+h+' to '+(h+1)+', within the eight-card hand limit.':' Your Scout extra draws are already at their two-card cap; this bird adds its own ability instead.';
-   why+=' Its ability is “'+POWER[c.power]+'” when you next '+['Forage','Lay eggs','Scout'][c.hab]+', once per season.';
-   if(c.power==='cuckoo'&&!cuckooHost(p))why+=' It needs another bird with a free nest space before that ability can place an egg.';
-  }else why+=' This is your final action, so its printed points matter; there is no later turn to use its ability.';
+  if(!left){why='Welcoming '+c.name+' adds to your final score. There is no time left to use its ability, so this is about finishing well.';break}
+  if(c.hab===0)why=c.name+' will make food easier to gather, helping you welcome more birds and build nests later.';
+  if(c.hab===1)why=c.name+' will make your meadow better at laying eggs. Keep some room in your nests so those eggs have somewhere to go.';
+  if(c.hab===2)why=h<2?c.name+' will give you more choice when scouting, helping you find birds that suit your sanctuary.':'Your wetland already brings in plenty of cards. '+c.name+' earns its place through its own ability and the points it brings.';
+  const gifts={food:'It can also help keep your food supply topped up.',food2:'It can also bring in a useful supply of extra food.',egg:'Its ability can help fill its own nest.',egg2:'Its ability can help fill its own nest.',card:'Its ability can bring another bird into your hand.',flock:'Its ability helps a flock grow around it.',flock2:'Its ability helps a flock grow around it.',cuckoo:cuckooHost(p)?'It can slip an egg into another bird’s nest.':'It will need another bird with room in its nest before it can lay an egg.'};
+  why+=' '+gifts[c.power];
   break;
  }
  case'forage':{
-  why='You have '+p.food+' food. This gains '+r.delta.food+', leaving '+afterFood+'.';
   const unlocked=p.hand.map(id=>SPECIES[id]).filter(c=>p.birds[c.hab].length<3&&c.cost>p.food&&c.cost<=afterFood).sort((a,b)=>a.cost-b.cost);
-  if(left>0&&unlocked.length)why+=' That makes '+unlocked[0].name+' affordable on a later turn (cost '+unlocked[0].cost+').';
-  else if(left>0&&p.food<2)why+=' This restores food for attracting birds or building nests on your remaining turns.';
-  else if(!left)why+=' Food left at the end is worth no points.';
+  if(!left)why=r.delta.points?'The food will not count at the end, but your woodland birds can still help your score.':'Food will not count once the year ends, so this move will not improve your final score.';
+  else if(unlocked.length)why='You do not yet have enough food for '+unlocked[0].name+'. Foraging now puts that bird within reach for a later turn.';
+  else if(p.food<2)why='Food is limiting your options. Gathering some now gives you more freedom to welcome birds or build nests later.';
+  else why='This restocks your food for birds and nests you may want later.';
   break;
  }
  case'scout':{
   const c=SPECIES[state.market[a.market]];
-  why='Your hand has '+count(p.hand.length,'card')+'. Scout takes '+c.name+' from the clearing'+(r.delta.cards>1?' and draws '+count(r.delta.cards-1,'extra card'):'')+'.';
-  why+=left>0?' This gives you '+count(p.hand.length+r.delta.cards,'card')+' to choose from for future birds or flocks.':' Undeployed cards do not score at the end of the game.';
+  why=(p.hand.length<2?'Your hand is running thin. ':'')+'Scout brings '+c.name+' into your hand.';
+  why+=left?' That gives you a fresh choice for your sanctuary, or a card to put towards a flock.':' Cards left in your hand will not count towards the final score.';
   break;
  }
  case'eggs':
-  why='Your sanctuary has '+count(free,'free egg space')+'. This move adds '+count(r.delta.eggs,'egg')+' and '+r.delta.points+' score now.';
-  if(r.limited)why+=' '+count(r.limited,'offered egg')+' cannot fit.'+(left>0?' More nest space would improve a later egg action.':'');
+  why='There is room in your nests, so laying eggs turns that space into points.';
+  if(r.limited)why+=' You will fill the remaining spaces, but some eggs will not fit.'+(left?' More nest space would help you make the most of a later egg action.':'');
   break;
  case'nest':{
   const b=p.birds[a.target[0]][a.target[1]],name=SPECIES[b.id].name;
-  why=name+' has '+(capacity(b)-b.eggs)+' free egg spaces. Spend 1 food to add two spaces, taking your sanctuary from '+free+' to '+(free+2)+' free spaces.';
-  if(left>0)why+=' '+(free<2?'Your current nests are nearly full, so this makes later egg actions more useful.':'The extra room can hold two more scoring eggs on later turns.');
-  else why+=' There is no later turn to fill those spaces.';
+  why=(free<2?'Your nests are nearly full. ':'')+'Give '+name+' more room'+(left?' so you can keep laying eggs later.':' in its nest, though you will not have another turn to fill it.');
   break;
  }
  case'flock':{
   const b=p.birds[a.target[0]][a.target[1]],discard=SPECIES[p.hand[a.hand]];
-  why='Discard '+discard.name+' to give '+SPECIES[b.id].name+' two flock points, worth 2 score immediately. No food or nest space is needed.';
-  if(state.season===3)why+=' Winter also rewards each pair of flock points.';
+  why='Turn the '+discard.name+' card in your hand into a flock around '+SPECIES[b.id].name+'. You can score straight away without needing more food or spare nest space.';
   break;
  }
  }
- const abilities=r.steps.filter(s=>s.kind==='ability').map(s=>s.text);
- if(abilities.length)why+=' Ready bird abilities also activate: '+abilities.join(' ');
- if(r.goalDelta)why+=' This increases your '+SEASONS[state.season]+' bonus potential from '+goal(p)+' to '+(goal(p)+r.goalDelta)+' points, paid when the season ends.';
- const context=left===0?'Your final action of the year.':count(left,'personal turn')+' left after this move. '+SEASONS[state.season]+' goal: '+GOALS[state.season]+'.';
+ const abilities=r.steps.filter(s=>s.kind==='ability').map(s=>{
+  const name=s.text.split(' ability:')[0];
+  if(s.text.includes('no other nest space'))return name+' needs another bird with room in its nest.';
+  if(s.text.includes('no egg space'))return name+' cannot add an egg because its nest is full.';
+  if(s.text.includes('hand full'))return name+' cannot bring in another card because your hand is full.';
+  if(name==='Cuckoo'){const host=s.text.match(/egg in (.+?)’s nest/);return host?'Cuckoo slips an egg into '+host[1]+'’s nest.':'Cuckoo uses another bird’s nest.'}
+  if(s.text.includes('food'))return name+' helps by bringing in more food.';
+  if(s.text.includes('flock'))return name+' helps its flock grow.';
+  if(s.text.includes('card'))return name+' brings another bird into your hand.';
+  return name+(s.text.includes('+1 egg')?' adds an egg to its nest.':' adds eggs to its nest.');
+ });
+ if(abilities.length)why+=' '+abilities.join(' ');
+ if(r.goalDelta)why+=' '+['Extra nests also help you earn the Spring bonus.','Those eggs also help with the Summer bonus.','Filling a different habitat also helps with the Autumn bonus.','Growing your flocks also helps with the Winter bonus.'][state.season];
+ const context=left===0?'This is your last move. Make it count.':left<=3?'The year is nearly over. Look for points you can secure now.':['Spring rewards extra nests, with time to build for later.','In Summer, make good use of the nest space you have built.','Autumn rewards a mix of habitats.','Winter is the time to turn what you have built into a strong finish.'][state.season];
  return {why,context};
 }
 function coachSuggestion(p){

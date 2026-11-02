@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
 const project=path.resolve(__dirname,'../..');
 const elements={},events=[];let rngCalls=0;
-const el=id=>elements[id]??={value:id==='mode'?'ai':'',innerHTML:'',textContent:'',disabled:false,hidden:false,classList:{add(){},toggle(){}},setAttribute(){},getAttribute(){return ''},addEventListener(){},showModal(){},close(){},scrollIntoView(){},focus(){}};
+const el=id=>elements[id]??={value:id==='mode'?'ai':'',innerHTML:'',textContent:'',disabled:false,hidden:false,classList:{add(){},toggle(){},remove(){}},setAttribute(){},getAttribute(){return ''},addEventListener(){},showModal(){},close(){},scrollIntoView(){},focus(){}};
 const math=Object.create(Math);math.random=()=>{rngCalls++;return Math.random()};
 const sandbox={document:{getElementById:el,querySelector:el,querySelectorAll(){return []},addEventListener(...e){events.push(e)}},localStorage:{getItem(){return null},setItem(){}},console,Math:math,matchMedia:()=>({matches:true}),setTimeout,clearTimeout};vm.createContext(sandbox);
 for(const f of ['assets/js/flock-bird-art.js','assets/js/flock-clarity.js'])vm.runInContext(fs.readFileSync(path.join(project,f),'utf8'),sandbox);
@@ -32,3 +32,29 @@ console.log(previewChecks+' exact previews matched real results across 100 full 
 `,sandbox);
 const startRng=rngCalls;vm.runInContext('fresh();',sandbox);const beforeRng=rngCalls;vm.runInContext('for(const a of options(state.players[0]))previewAction(state.players[0],a)',sandbox);assert.equal(rngCalls,beforeRng,'Previews must not consume randomness');
 console.log('Preview does not consume random draws or change the deck.');
+
+
+// Replaying explanations must never reapply an action or leave a stale timer.
+let replayTimers=new Map(),timerSequence=0;
+sandbox.matchMedia=()=>({matches:false});
+sandbox.setTimeout=(fn,ms)=>{const id=++timerSequence;replayTimers.set(id,{fn,ms});return id};
+sandbox.clearTimeout=id=>replayTimers.delete(id);
+vm.runInContext(`
+fresh();showTurnEffects=true;autoReplay=false;
+state.players[0].birds[0]=[{id:0,nests:1,eggs:0,flock:0,used:false}];
+const replayBefore=JSON.stringify(state);act({type:'forage'});
+const settled=JSON.stringify(state);
+if(!isResolving||replayController.cursor!==0||replayController.autoplay)throw Error('Guided replay must wait by default');
+if(replayController.frames[0].step.gain!=='+3 food'||replayController.frames[1].step.gain!=='+1 egg')throw Error('Per-effect gains');
+advanceReplay();if(replayController.cursor!==1)throw Error('Next effect');
+showReplayStep(0);if(replayController.cursor!==0||JSON.stringify(state)!==settled)throw Error('Back changed game state');
+replayController.autoplay=true;showReplayStep(0);
+`,sandbox);
+assert.equal(replayTimers.size,1);assert.equal([...replayTimers.values()][0].ms,4000);
+const staleCallback=[...replayTimers.values()][0].fn;
+vm.runInContext('replayController.autoplay=false;showReplayStep(replayController.cursor)',sandbox);
+assert.equal(replayTimers.size,0,'Pause must clear the timer');
+vm.runInContext('finishReplay();if(isResolving||replayController||JSON.stringify(state)!==settled)throw Error("Finish changed the settled game");document.getElementById("undo").onclick();if(JSON.stringify(state)!==replayBefore)throw Error("Replay undo")',sandbox);
+staleCallback();
+vm.runInContext('if(isResolving||JSON.stringify(state)!==replayBefore)throw Error("Stale replay timer")',sandbox);
+console.log('Guided Next/Back, four-second playback, pause, finish, undo and cancelled timers passed.');

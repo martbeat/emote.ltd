@@ -1,5 +1,6 @@
 /* Turn explanations, exact action previews and optional coaching for Flock & Field. */
-let showTurnEffects=true,coachEnabled=false,isResolving=false,replayGeneration=0,replayContext=null,coachChoice=null;
+let showTurnEffects=true,coachEnabled=false,isResolving=false,replayGeneration=0,replayContext=null,coachChoice=null,replayController=null,autoReplay=false;
+try{autoReplay=localStorage.getItem('emote-flock-pace')==='auto'}catch(e){}
 try{showTurnEffects=localStorage.getItem('emote-flock-effects')!=='off';coachEnabled=localStorage.getItem('emote-flock-coach')==='on'}catch(e){}
 const ACTION_NAMES={forage:'Forage',eggs:'Lay eggs',scout:'Scout',attract:'Attract a bird',nest:'Build a nest',flock:'Gather a flock'};
 function unavailable(p,a){
@@ -62,7 +63,7 @@ function actionButton(p,type,title){
 }
 function renderFeedback(){
  const el=document.getElementById('turn-feedback');el.classList.toggle('replaying',!!replayContext);
- if(replayContext){const {report,step,position,total}=replayContext;el.innerHTML=`<div class="effect-heading"><div><span class="eyebrow">${state.players[report.actor].name} · ${report.title}</span><h2>${step.text}</h2><span class="small">Showing effect ${position} of ${total}. Each highlighted bird explains its contribution.</span></div><button id="skip-effects">Skip effects</button></div>`;return}
+ if(replayContext){el.classList.remove('replaying');el.innerHTML=`<p class="small"><b>Turn explanation is beside the highlighted habitat.</b> ${replayController?.autoplay?'Playing slowly. You can pause at any time.':'Take your time, then choose Next effect.'}</p>`;return}
  const reports=state.lastTurns||[];
  el.innerHTML=reports.length?`<div class="recap-header"><b>What just happened</b><span class="small">Listening and selecting cards do not spend turns.</span></div><div class="turn-recaps">${reports.map(r=>`<article><div class="eyebrow">${state.players[r.actor].name} · ${r.title}</div><p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>See how it happened</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`).join('')}</div>`:'<p class="small">Your next action will be explained here, followed by the computer’s response.</p>';
 }
@@ -91,31 +92,66 @@ function renderClarity(){
  const box=document.getElementById('coach');coachChoice=coachEnabled&&!isResolving&&view===state.current&&!state.done?coachSuggestion(p):null;
  box.hidden=!coachEnabled;box.innerHTML=coachChoice?`<div><b>Coach suggests: ${coachChoice.r.title}</b><p>${coachChoice.why}</p><span class="small">A suggestion based on your sanctuary and this season. You choose the move.</span></div><button id="show-coach">Show this option</button>`:state.done?'The year is complete. Try a different approach next game.':isResolving?'Watch how each action changes the sanctuary.':'View the current player’s sanctuary for a suggestion.';
  if(isResolving&&replayContext){const s=replayContext.step;if(s.hab!==null){document.querySelectorAll('.habitat')[s.hab]?.classList.add('effect-habitat');if(s.index!==null)document.querySelector(`[data-bird="${s.hab},${s.index}"]`)?.classList.add('effect-bird')}document.getElementById('status').textContent=`${state.players[replayContext.report.actor].name}: ${s.text}`}
+ renderLocalEffect();
 }
-function revealChoices(){if(!isResolving)document.getElementById('actions').scrollIntoView({block:'nearest',behavior:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})}
-function cancelReplay(){replayGeneration++;isResolving=false;replayContext=null}
-function finishTurnPresentation(previousSeason){resetSelection();render();document.getElementById('turn-feedback').scrollIntoView({block:'nearest',behavior:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});if(state.done)showEnd();else if(state.season!==previousSeason)showSeasonChange();else if(state.mode==='local')openDialog(`<h2>Pass to ${state.players[state.current].name}</h2><p>The next sanctuary is ready. Close this when you have the screen.</p>`,'Ready to play')}
-function renderReplayFrame(display,report,step,position){
- display.players[report.actor]=clone(step.p);display.current=report.actor;replayContext={report,step,position,total:report.frames.length};view=report.actor;selected=null;target=null;
+function revealChoices(){if(!isResolving)document.getElementById('actions').scrollIntoView({block:'nearest',behavior:'instant'})}
+function cancelReplay(){replayGeneration++;if(replayController)clearTimeout(replayController.timer);replayController=null;isResolving=false;replayContext=null}
+function finishTurnPresentation(previousSeason){resetSelection();render();document.getElementById('turn-feedback').scrollIntoView({block:'nearest',behavior:'instant'});if(state.done)showEnd();else if(state.season!==previousSeason)showSeasonChange();else if(state.mode==='local')openDialog(`<h2>Pass to ${state.players[state.current].name}</h2><p>The next sanctuary is ready. Close this when you have the screen.</p>`,'Ready to play')}
+function prefersQuietMotion(){return typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches}
+function stepGain(previous,current,step){
+ const a=totals(previous),b=totals(current);
+ if(step.kind==='arrival')return `+${score(current)-score(previous)} bird points`;
+ const changes=[['nests',b.nests-a.nests],['eggs',b.eggs-a.eggs],['flock points',b.flock-a.flock],['food',current.food-previous.food],['cards',current.hand.length-previous.hand.length]];
+ const positive=changes.filter(([,n])=>n>0);
+ if(positive.length)return positive.map(([label,n])=>`+${n} ${n===1?({nests:'nest',eggs:'egg',cards:'card','flock points':'flock point'}[label]||label):label}`).join(' · ');
+ return step.text.includes('no egg space')?'No egg space':step.text.includes('hand full')?'Hand full':step.kind==='limit'?'At capacity':'Effect applied';
+}
+function effectCalloutHTML(){
+ const c=replayController,r=replayContext;if(!c||!r)return '';
+ const final=c.cursor===c.frames.length-1,player=state.players[r.report.actor].name;
+ return `<section class="effect-callout ${r.report.actor===1?'ranger-effect':''}" aria-label="Current turn effect"><div class="effect-callout-top"><b>${player} · ${r.report.title}</b><span>Effect ${c.cursor+1} of ${c.frames.length}</span></div><div class="effect-gain">${r.step.gain}</div><p class="effect-explanation">${r.step.text}</p><div class="effect-controls"><button data-replay="back" ${c.cursor===0?'disabled':''}>Back</button><button data-replay="play" aria-pressed="${c.autoplay}">${c.autoplay?'Pause':'Play slowly'}</button><button data-replay="next" class="primary">${final?'Finish turn':'Next effect →'}</button><button id="skip-effects">Skip turn</button></div><p class="effect-pacing">${c.autoplay?'Moves on after 4 seconds. Pause to read or use Back to revisit.':'Waiting for you. Nothing will move on until you choose Next effect, Play slowly or Skip turn.'}</p></section>`;
+}
+function renderLocalEffect(){
+ if(!isResolving||!replayContext||!replayController)return;
+ const h=replayContext.step.hab,host=h===null?null:document.querySelectorAll('.habitat')[h];
+ if(host){host.querySelector('.hab-head').insertAdjacentHTML('afterend',effectCalloutHTML());}
+ else document.getElementById('turn-feedback').innerHTML=effectCalloutHTML();
+}
+function renderReplayFrame(frame){
+ const {display,report,step,position}=frame;
+ replayContext={report,step,position,total:report.frames.length};view=report.actor;selected=null;target=null;
  const finalState=state;state=display;try{render()}finally{state=finalState}
- const focusTarget=step.hab!==null?(step.index!==null?document.querySelector(`[data-bird="${step.hab},${step.index}"]`):document.querySelectorAll('.habitat')[step.hab]):null;if(focusTarget)focusTarget.scrollIntoView({block:'center',behavior:'smooth'});
- document.getElementById('effect-live').textContent=`${display.players[report.actor].name}: ${step.text}`;
+ const h=step.hab,host=h===null?document.querySelector('.effect-callout'):document.querySelectorAll('.habitat')[h];
+ if(host)host.scrollIntoView({block:'center',behavior:'instant'});
+ document.getElementById('effect-live').textContent=`${display.players[report.actor].name}: ${step.gain}. ${step.text} ${replayController.autoplay?'':'Choose Next effect when ready.'}`;
 }
-async function clarityAct(a){
+function showReplayStep(index){
+ const c=replayController;if(!c||c.generation!==replayGeneration)return;
+ clearTimeout(c.timer);c.cursor=Math.max(0,Math.min(index,c.frames.length-1));renderReplayFrame(c.frames[c.cursor]);
+ if(c.autoplay){const generation=c.generation,cursor=c.cursor;c.timer=setTimeout(()=>{if(!replayController||replayGeneration!==generation||replayController.cursor!==cursor)return;advanceReplay()},4000)}
+}
+function finishReplay(){const c=replayController;if(!c)return;const season=c.previousSeason;cancelReplay();finishTurnPresentation(season)}
+function advanceReplay(){const c=replayController;if(!c)return;if(c.cursor===c.frames.length-1)finishReplay();else showReplayStep(c.cursor+1)}
+function clarityAct(a){
  if(isResolving||view!==state.current||state.done||!legal(state.players[state.current],a))return;
  history=clone(state);const previousSeason=state.season,first=apply(state.players[state.current],a);next();const reports=[first];if(state.mode==='ai'&&!state.done)reports.push(ai());
  state.lastTurns=reports.map(({frames,...rest})=>rest);save();
- const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
- if(!showTurnEffects||reduced){finishTurnPresentation(previousSeason);return}
- const generation=++replayGeneration;isResolving=true;const display=clone(history);display.lastTurns=[];
- for(const report of reports){for(let i=0;i<report.frames.length;i++){if(generation!==replayGeneration)return;renderReplayFrame(display,report,report.frames[i],i+1);await new Promise(resolve=>setTimeout(resolve,1400));}if(generation!==replayGeneration)return;await new Promise(resolve=>setTimeout(resolve,250));}
- if(generation!==replayGeneration)return;isResolving=false;replayContext=null;finishTurnPresentation(previousSeason);
+ if(!showTurnEffects){finishTurnPresentation(previousSeason);return}
+ const generation=++replayGeneration,display=clone(history),frames=[];display.lastTurns=[];
+ for(const report of reports)for(let i=0;i<report.frames.length;i++){
+  const source=report.frames[i],step={...source,gain:stepGain(display.players[report.actor],source.p,source)};
+  display.players[report.actor]=clone(source.p);display.current=report.actor;
+  frames.push({display:clone(display),report,step,position:i+1});
+ }
+ isResolving=true;replayController={frames,cursor:0,generation,previousSeason,autoplay:autoReplay&&!prefersQuietMotion(),timer:null};showReplayStep(0);
 }
 document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||b.disabled)return;
- if(b.id==='effects-toggle'){showTurnEffects=!showTurnEffects;try{localStorage.setItem('emote-flock-effects',showTurnEffects?'on':'off')}catch(e){}if(!isResolving)render()}
+ if(b.id==='effects-toggle'){showTurnEffects=!showTurnEffects;try{localStorage.setItem('emote-flock-effects',showTurnEffects?'on':'off')}catch(e){}if(isResolving&&!showTurnEffects)finishReplay();else if(!isResolving)render()}
  if(b.id==='coach-toggle'){coachEnabled=!coachEnabled;try{localStorage.setItem('emote-flock-coach',coachEnabled?'on':'off')}catch(e){}if(!isResolving)render()}
- if(b.id==='skip-effects'&&isResolving){const previousSeason=history.season;cancelReplay();finishTurnPresentation(previousSeason)}
+ if(b.id==='skip-effects'&&isResolving)finishReplay();
+ if(b.dataset.replay&&replayController){const c=replayController;if(b.dataset.replay==='next')advanceReplay();else if(b.dataset.replay==='back'){c.autoplay=false;showReplayStep(c.cursor-1)}else if(b.dataset.replay==='play'){c.autoplay=!c.autoplay;autoReplay=c.autoplay;try{localStorage.setItem('emote-flock-pace',autoReplay?'auto':'guided')}catch(e){}showReplayStep(c.cursor)}if(replayController)document.querySelector(`[data-replay="${b.dataset.replay==='back'&&replayController.cursor===0?'next':b.dataset.replay}"]`)?.focus({preventScroll:true})}
  if(b.id==='show-coach'&&coachChoice){const a=coachChoice.a;selected=a.hand??null;target=a.target??null;marketIndex=a.market??0;render();document.querySelector(`[data-do="${a.type}"]`)?.focus()}
  if(b.dataset.do&&!isResolving)act(currentAction(b.dataset.do));
 });
+

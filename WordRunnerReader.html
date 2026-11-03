@@ -107,11 +107,11 @@
   <body>
     <main class="app">
       <h1>WordRunner Reader</h1>
-      <p class="subtitle">Single-file reader. Upload TXT, PDF, DOCX, or EPUB and read word-by-word.</p>
+      <p class="subtitle">Choose a TXT, PDF, DOCX or EPUB file to read word by word. Your file is read locally in your browser and never leaves your device.</p>
 
       <section class="controls">
         <label class="file-picker">
-          <span>Select file</span>
+          <span>Choose a file on your device</span>
           <input id="fileInput" type="file" accept=".txt,.pdf,.docx,.epub,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/epub+zip" />
         </label>
 
@@ -468,7 +468,7 @@
         if (!file) return;
 
         stopPlayback();
-        statusText.textContent = `Loading ${file.name}...`;
+        statusText.textContent = `Reading ${file.name} locally in your browser...`;
         wordDisplay.textContent = 'Loading…';
         playPauseBtn.disabled = true;
         restartBtn.disabled = true;
@@ -493,7 +493,7 @@
           sectionSelect.disabled = false;
           positionRange.disabled = false;
           playPauseBtn.textContent = 'Play';
-          statusText.textContent = `${words.length} words loaded from ${file.name}. ${sections.length} jump points available.`;
+          statusText.textContent = `${words.length} words read locally from ${file.name}. ${sections.length} jump points available.`;
         } catch (error) {
           words = [];
           sections = [];

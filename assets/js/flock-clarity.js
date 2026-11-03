@@ -1,7 +1,7 @@
 /* Turn explanations, exact action previews and optional coaching for Flock & Field. */
 let showTurnEffects=true,coachEnabled=false,isResolving=false,replayGeneration=0,replayContext=null,coachChoice=null,replayController=null,autoReplay=false;
 try{autoReplay=localStorage.getItem('emote-flock-pace')==='auto'}catch(e){}
-try{showTurnEffects=localStorage.getItem('emote-flock-effects')!=='off';coachEnabled=localStorage.getItem('emote-flock-coach')==='on'}catch(e){}
+try{showTurnEffects=localStorage.getItem('emote-flock-effects')!=='off'}catch(e){}
 const ACTION_NAMES={forage:'Forage',eggs:'Lay eggs',scout:'Scout',attract:'Attract a bird',nest:'Build a nest',flock:'Gather a flock'};
 function unavailable(p,a){
  if(state.done)return 'The year is complete.';
@@ -71,6 +71,27 @@ function renderFeedback(){
  const reports=state.lastTurns||[];
  el.innerHTML=reports.length?`<div class="recap-header"><b>Turn results</b><span class="small">${state.done?'The year is complete.':state.mode==='expansion'?'Next person: '+state.players[state.current].name:'Your sanctuary stays on screen.'}</span></div><div class="turn-recaps">${reports.map(r=>{const computer=isComputer(r.actor);return `<article class="${computer?'computer-recap':'player-recap'}"><div class="eyebrow">${computer?'Computer turn · '+state.players[r.actor].name:state.mode==='ai'?'Your turn':state.players[r.actor].name+'’s turn'}</div><p><b>${r.title}</b></p>${computer?`<p>The computer ${r.headline}.</p>`:''}<p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>${computer?'Review computer move':'See how your move worked'}</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`}).join('')}</div>`:'<p class="small">Your action will be explained beside your birds. The computer’s move will appear afterwards as a separate summary.</p>';
 }
+const COACH_LIMIT=3;
+function newCoaching(season=0){return {remaining:COACH_LIMIT,recharged:Array.from({length:season+1},(_,i)=>i),tips:{}}}
+function upgradeCoaching(game){if(game?.players)for(const p of game.players)if(!p.coaching)p.coaching=newCoaching(game.season)}
+function refillCoaching(){
+ state.players.forEach((p,i)=>{if(!isComputer(i)&&!p.coaching.recharged.includes(state.season)){p.coaching.remaining=Math.min(COACH_LIMIT,p.coaching.remaining+1);p.coaching.recharged.push(state.season)}});
+}
+function coachTurnKey(){return state.season+':'+state.turn}
+function coachPosition(p){return JSON.stringify([state.season,state.turn,p.food,p.hand,p.birds,p.bonus,state.market])}
+function revealedCoach(p){const tip=p.coaching.tips[coachTurnKey()];return tip?.position===coachPosition(p)?tip.choice:null}
+function requestCoaching(){
+ if(isResolving||state.done||view!==state.current||isComputer(state.current))return false;
+ const p=state.players[state.current],account=p.coaching,key=coachTurnKey(),previous=account.tips[key];
+ if(!previous&&account.remaining===0)return false;
+ if(!revealedCoach(p)){
+  const choice=coachSuggestion(p);if(!choice)return false;
+  account.tips[key]={position:coachPosition(p),choice:{a:clone(choice.a),r:{title:choice.r.title},why:choice.why,context:choice.context}};
+  if(!previous)account.remaining--;
+ }
+ coachEnabled=true;save();render();return true;
+}
+function toggleCoaching(){const p=state.players[state.current];if(coachEnabled&&revealedCoach(p)){coachEnabled=false;render()}else requestCoaching()}
 function coachExplanation(p,a,r){
  const left=(3-state.season)*6+5-state.turn,free=room(p),afterFood=p.food+r.delta.food;
  let why='';
@@ -195,13 +216,18 @@ function renderClarity(){
  const p=state.players[view];
  document.getElementById('new').disabled=isResolving;document.getElementById('mode').disabled=isResolving;
  document.getElementById('effects-toggle').textContent='Turn effects: '+(showTurnEffects?'on':'off');document.getElementById('effects-toggle').setAttribute('aria-pressed',String(showTurnEffects));
- document.getElementById('coach-toggle').textContent='Coach: '+(coachEnabled?'on':'off');document.getElementById('coach-toggle').setAttribute('aria-pressed',String(coachEnabled));
+ const active=state.players[state.current],revealed=revealedCoach(active),paidTip=active.coaching.tips[coachTurnKey()],coachingButton=document.getElementById('coach-toggle');
+ coachingButton.textContent=(paidTip?(coachEnabled&&revealed?'Hide tip':'Review tip'):'Ask coach')+' · '+active.coaching.remaining+' left';
+ coachingButton.disabled=isResolving||state.done||view!==state.current||isComputer(state.current)||(!active.coaching.tips[coachTurnKey()]&&active.coaching.remaining===0);
+ coachingButton.setAttribute('aria-pressed',String(!!revealed&&coachEnabled));
+ coachingButton.title=paidTip?'Review this turn’s advice without spending another use.':active.coaching.remaining?'Reveal a tip for this turn. Costs one coaching use; reviewing the same turn is free.':'No coaching uses left. One returns next season, up to three.';
+ document.getElementById('coach-allowance').textContent=state.done?'Coaching complete.':'Start with 3 uses · +1 each new season · maximum 3';
  document.getElementById('actions').innerHTML=[['forage','♣ Forage'],['eggs','Lay eggs'],['scout','Scout'],['attract',selected===null?'Attract a bird':`Attract ${SPECIES[p.hand[selected]]?.name||'a bird'}`],['nest','Build a nest'],['flock','Gather a flock']].map(([type,title])=>actionButton(p,type,title)).join('');
  document.getElementById('target').innerHTML=target&&p.birds[target[0]][target[1]]?`<p class="selection-note"><b>${SPECIES[p.birds[target[0]][target[1]].id].name}</b> is your selected sanctuary bird. ${SPECIES[p.birds[target[0]][target[1]].id].power==='cuckoo'?'It uses another bird’s nest when you Forage. You can also select a hand card and gather a flock.':'Build a nest here, or select a hand card and gather a flock.'}</p>`:'';
  document.querySelectorAll('[data-attract]').forEach(el=>{const a={type:'attract',hand:selected,hab:+el.dataset.attract};el.disabled=isResolving||view!==state.current||!legal(p,a);el.title=unavailable(p,a)||exactPreview(p,a)});
  renderFeedback();
- const box=document.getElementById('coach');coachChoice=coachEnabled&&!isResolving&&view===state.current&&!state.done?coachSuggestion(p):null;
- box.hidden=!coachEnabled;box.innerHTML=coachChoice?`<div><b>Coach suggests: ${coachChoice.r.title}</b><p>${coachChoice.why}</p><span class="small">${coachChoice.context}</span></div><button id="show-coach">Show this option</button>`:state.done?'The year is complete. Try a different approach next game.':isResolving?'Watch how each action changes the sanctuary.':'View the current player’s sanctuary for a suggestion.';
+ const box=document.getElementById('coach');coachChoice=coachEnabled&&!isResolving&&view===state.current&&!state.done?revealedCoach(p):null;
+ box.hidden=!coachChoice;box.innerHTML=coachChoice?`<div><b>Coach suggests: ${coachChoice.r.title}</b><p>${coachChoice.why}</p><span class="small">${coachChoice.context}</span><p class="small">Saved for this turn · ${p.coaching.remaining} coaching use${p.coaching.remaining===1?'':'s'} left</p></div><button id="show-coach">Show this option</button>`:state.done?'The year is complete. Try a different approach next game.':isResolving?'Watch how each action changes the sanctuary.':'View the current player’s sanctuary for a suggestion.';
  if(isResolving&&replayContext){const s=replayContext.step;if(s.hab!==null){document.querySelectorAll('.habitat')[s.hab]?.classList.add('effect-habitat');if(s.index!==null)document.querySelector(`[data-bird="${s.hab},${s.index}"]`)?.classList.add('effect-bird')}document.getElementById('status').textContent=`${state.players[replayContext.report.actor].name}: ${s.text}`}
  renderLocalEffect();
 }
@@ -260,7 +286,7 @@ function clarityAct(a){
 document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b||b.disabled)return;
  if(b.id==='effects-toggle'){showTurnEffects=!showTurnEffects;try{localStorage.setItem('emote-flock-effects',showTurnEffects?'on':'off')}catch(e){}if(isResolving&&!showTurnEffects)finishReplay();else if(!isResolving)render()}
- if(b.id==='coach-toggle'){coachEnabled=!coachEnabled;try{localStorage.setItem('emote-flock-coach',coachEnabled?'on':'off')}catch(e){}if(!isResolving)render()}
+ if(b.id==='coach-toggle')toggleCoaching();
  if(b.id==='skip-effects'&&isResolving)finishReplay();
  if(b.dataset.replay&&replayController){const c=replayController;if(b.dataset.replay==='next')advanceReplay();else if(b.dataset.replay==='back'){c.autoplay=false;showReplayStep(c.cursor-1)}else if(b.dataset.replay==='play'){c.autoplay=!c.autoplay;autoReplay=c.autoplay;try{localStorage.setItem('emote-flock-pace',autoReplay?'auto':'guided')}catch(e){}showReplayStep(c.cursor)}if(replayController)document.querySelector(`[data-replay="${b.dataset.replay==='back'&&replayController.cursor===0?'next':b.dataset.replay}"]`)?.focus({preventScroll:true})}
  if(b.id==='show-coach'&&coachChoice){const a=coachChoice.a;selected=a.hand??null;target=a.target??null;marketIndex=a.market??0;render();document.querySelector(`[data-do="${a.type}"]`)?.focus()}

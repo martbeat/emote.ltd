@@ -282,3 +282,38 @@ for(let game=0;game<30;game++){
 }
 console.log('Coach full habitats, crowded hands, surplus food, useful exceptions, nest space, final-turn scoring and 30 complete coached games passed.');
 }`,sandbox);
+
+vm.runInContext(`{
+document.getElementById('mode').value='ai';fresh();showTurnEffects=false;coachEnabled=false;
+const account=state.players[0].coaching;
+if(account.remaining!==3||revealedCoach(state.players[0])||!document.getElementById('coach').hidden)throw Error('Starting coaching allowance or automatic reveal');
+const before=clone(state);if(!requestCoaching()||account.remaining!==2)throw Error('Hint did not cost one use');
+const after=clone(state);after.players[0].coaching=before.players[0].coaching;
+if(JSON.stringify(after)!==JSON.stringify(before))throw Error('Coaching used a turn or changed resources');
+const firstTip=JSON.stringify(account.tips['0:0']);
+requestCoaching();toggleCoaching();requestCoaching();
+if(account.remaining!==2||JSON.stringify(account.tips['0:0'])!==firstTip)throw Error('Review spent another use');
+act({type:'forage'});if(!document.getElementById('coach').hidden)throw Error('Next turn gives automatic coaching');
+requestCoaching();act({type:'forage'});requestCoaching();act({type:'forage'});
+if(state.players[0].coaching.remaining!==0||requestCoaching()!==false||!document.getElementById('coach-toggle').disabled)throw Error('Coaching exceeded allowance');
+document.getElementById('undo').onclick();
+if(state.players[0].coaching.remaining!==0||!requestCoaching()||state.players[0].coaching.remaining!==0)throw Error('Undo refunds hint or prevents free review');
+const persisted=JSON.stringify(state);state=JSON.parse(persisted);upgradeCoaching(state);if(state.players[0].coaching.remaining!==0||!revealedCoach(state.players[0]))throw Error('Allowance/tip lost on reload');
+document.getElementById('mode').value='ai';fresh();state.players[0].coaching.remaining=0;state.turn=5;
+act({type:'forage'});if(state.season!==1||state.players[0].coaching.remaining!==1)throw Error('Season did not replenish one use');
+requestCoaching();if(state.players[0].coaching.remaining!==0)throw Error('Replenished use not spendable');
+document.getElementById('undo').onclick();if(state.season!==0||state.players[0].coaching.remaining!==0)throw Error('Undo refunded season hint');
+act({type:'forage'});if(state.season!==1||state.players[0].coaching.remaining!==0)throw Error('Repeated season farms uses');
+refillCoaching();if(state.players[0].coaching.remaining!==0)throw Error('Repeated refill');
+fresh();state.season=1;refillCoaching();if(state.players[0].coaching.remaining!==3)throw Error('Allowance exceeds cap');
+state.players[0].coaching.remaining=1;state.season=2;refillCoaching();if(state.players[0].coaching.remaining!==2)throw Error('Unused uses did not carry over');
+document.getElementById('mode').value='expansion';fresh({count:4,roles:['human','human','computer','human']});
+requestCoaching();if(state.players[0].coaching.remaining!==2||state.players[1].coaching.remaining!==3||state.players[3].coaching.remaining!==3)throw Error('Allowances shared between people');
+act({type:'forage'});if(state.current!==1||!document.getElementById('coach').hidden)throw Error('Hint leaks to next player');
+requestCoaching();if(state.players[1].coaching.remaining!==2||state.players[0].coaching.remaining!==2)throw Error('Next person spends wrong allowance');
+view=2;state.current=2;if(requestCoaching()!==false)throw Error('Computer can spend coaching');
+const old=clone(state);old.players.forEach(p=>delete p.coaching);const oldPosition=JSON.stringify(old);upgradeCoaching(old);
+if(old.players.some(p=>p.coaching.remaining!==3))throw Error('Existing-game allowance upgrade');
+const upgraded=JSON.stringify(old);upgradeCoaching(old);if(JSON.stringify(old)!==upgraded)throw Error('Allowance reset on repeated upgrade');
+console.log('Coaching starts at three; paid reveal, free review, exhaustion, reload, one seasonal top-up, cap, independent seats and Undo protection passed.');
+}`,sandbox);

@@ -24,8 +24,8 @@ if(covered.size!==6)throw Error('Missing action coverage');
 fresh();let p=state.players[0];p.hand=[0];apply(p,{type:'attract',hand:0,hab:0});const b=p.birds[0][0];b.nests=1;b.eggs=2;b.used=false;const report=apply(p,{type:'forage'});
 if(!report.steps.some(s=>s.text.includes('no egg space'))||!b.used)throw Error('Full nest ability explanation');
 if(report.delta.eggs!==0||report.delta.food!==3)throw Error('Full nest preview');
-p.hand=Array(7).fill(0);p.birds[2]=[{id:15,nests:1,eggs:0,flock:0,used:false},{id:16,nests:1,eggs:0,flock:0,used:false}];const scout=apply(p,{type:'scout',market:0});if(p.hand.length!==8||!scout.steps.some(s=>s.text.includes('hand full')))throw Error('Hand limit explanation');
-if(!unavailable(p,{type:'scout'}).includes('hand is full'))throw Error('Unavailable reason');
+p.hand=Array(7).fill(0);p.birds[2]=[{id:15,nests:1,eggs:0,flock:0,used:false},{id:16,nests:1,eggs:0,flock:0,used:false}];const scout=apply(p,{type:'scout',market:0});if(p.hand.length!==8||!scout.steps.some(s=>s.text.includes('visitor limit')))throw Error('Hand limit explanation');
+if(!unavailable(p,{type:'scout'}).includes('visiting area is full'))throw Error('Unavailable reason');
 fresh();const exactBefore=JSON.stringify(state);act({type:'attract',hand:0,hab:0});if(state.lastTurns.length!==2||state.lastTurns[0].actor!==0||state.lastTurns[1].actor!==1)throw Error('Separate turn recaps');if(state.turn!==1)throw Error('AI response');document.getElementById('undo').onclick();if(JSON.stringify(state)!==exactBefore)throw Error('Undo');
 fresh();state.mode='local';state.current=1;state.turn=5;view=1;state.players[0].birds[0]=[{id:0,nests:2,eggs:1,flock:2,used:true}];act({type:'forage'});if(state.season!==1||state.seasonResult.bonuses[0]!==2||state.players[0].birds[0][0].used)throw Error('Season boundary');if(!document.getElementById('dialog-body').innerHTML.includes('Summer begins'))throw Error('Season announcement');
 console.log(previewChecks+' exact previews matched real results across 100 full games; all actions, capacity limits, AI recaps, undo and season transition passed.');
@@ -195,7 +195,7 @@ const stable=JSON.stringify(current);upgradeBirdDeck(current);if(JSON.stringify(
 const p=state.players[0];p.birds[1]=[{id:31,nests:1,eggs:0,flock:0,used:false}];
 const martin=apply(p,{type:'eggs'});if(martin.delta.flock!==1||martin.delta.eggs!==3)throw Error('House martin colony bonus');
 p.birds[0]=[{id:32,nests:1,eggs:0,flock:0,used:false}];const jackdaw=apply(p,{type:'forage'});if(jackdaw.delta.cards!==1||jackdaw.delta.food!==3)throw Error('Jackdaw card bonus');
-p.birds[0][0].used=false;p.hand=Array(8).fill(0);const fullHand=apply(p,{type:'forage'});if(fullHand.delta.cards!==0||!fullHand.steps.some(s=>s.text.includes('hand full')))throw Error('Jackdaw exceeded hand limit');
+p.birds[0][0].used=false;p.hand=Array(8).fill(0);const fullHand=apply(p,{type:'forage'});if(fullHand.delta.cards!==0||!fullHand.steps.some(s=>s.text.includes('visitor limit')))throw Error('Jackdaw exceeded hand limit');
 console.log('House martin and Jackdaw abilities, hand limit and 31-species save upgrade passed.');
 }
 `,sandbox);
@@ -233,7 +233,7 @@ p.food=4;p.hand=[0];a={type:'attract',hand:0,hab:0};r=previewAction(p,a);reason=
 if(!reason.why.includes('no time left to use its ability')||reason.why.includes('make food easier'))throw Error('Final bird rationale');
 state.season=0;state.turn=0;p.birds=[[],[],[{id:12,nests:1,eggs:0,flock:0,used:true},{id:13,nests:1,eggs:0,flock:0,used:true}]];p.hand=[14];
 a={type:'attract',hand:0,hab:2};r=previewAction(p,a);reason=coachExplanation(p,a,r);
-if(!reason.why.includes('already brings in plenty of cards')||reason.why.includes('give you more choice'))throw Error('Wetland cap explanation');
+if(!reason.why.includes('already attracts plenty of visitors')||reason.why.includes('give you more choice'))throw Error('Wetland cap explanation');
 p.birds=[[],[],[]];p.hand=[30];a={type:'attract',hand:0,hab:0};reason=coachExplanation(p,a,previewAction(p,a));
 if(!reason.why.includes('need another bird'))throw Error('Cuckoo host missing in coaching');
 for(const option of options(p)){const text=coachExplanation(p,option,previewAction(p,option));if(/[0-9]/.test(text.why+' '+text.context))throw Error('Numerical coach narration');}
@@ -250,12 +250,12 @@ function fillSanctuary(p,fullEggs=true){
 }
 document.getElementById('mode').value='ai';fresh();showTurnEffects=false;const p=state.players[0];fillSanctuary(p);
 let pick=coachSuggestion(p);
-if(pick.a.type!=='flock'||!pick.why.includes('cannot settle')||!pick.why.includes('crowded hand')||!pick.context.includes('habitats are full'))throw Error('Full sanctuary should use surplus cards for flocks');
+if(pick.a.type!=='flock'||!pick.why.includes('cannot settle')||!pick.why.includes('crowded visiting area')||!pick.context.includes('habitats are full'))throw Error('Full sanctuary should use surplus cards for flocks');
 fillSanctuary(p,false);pick=coachSuggestion(p);if(pick.a.type!=='eggs')throw Error('Do not collect cards instead of filling available nests');
 fillSanctuary(p);if(!unavailable(p,{type:'eggs'}).includes('fully expanded')||!unavailable(p,{type:'attract'}).includes('All habitats are full'))throw Error('Full sanctuary unavailable guidance');p.hand.push(17);if(unavailable(p,{type:'scout'}).includes('Attract a bird'))throw Error('Full hand advice suggests blocked recruit');pick=coachSuggestion(p);if(pick.a.type==='scout'||pick.a.type==='attract')throw Error('Full hand or full habitat recruitment');
 fillSanctuary(p);p.food=0;pick=coachSuggestion(p);if(pick.a.type!=='flock')throw Error('Do not stockpile food with nowhere to spend it');
 fillSanctuary(p);p.birds[2]=[];state.market=[17,0,1];pick=coachSuggestion(p);
-if(pick.a.type!=='scout'||pick.a.market!==0||!pick.why.includes('do not fit the spaces left'))throw Error('Scout useful recruit when existing hand is blocked');
+if(pick.a.type!=='scout'||pick.a.market!==0||!pick.why.includes('do not suit the spaces left'))throw Error('Scout useful recruit when existing hand is blocked');
 fillSanctuary(p);p.birds[2]=[16,34,34].map(id=>({id,nests:3,eggs:SPECIES[id].cap+4,flock:0,used:false}));
 pick=coachSuggestion(p);if(pick.a.type!=='scout'||!pick.why.includes('ready wetland birds')||pick.r.delta.points!==5)throw Error('Full habitat can still activate useful powers');
 fillSanctuary(p);p.food=1;p.birds[0][0].nests=1;p.birds[0][0].eggs=capacity(p.birds[0][0]);pick=coachSuggestion(p);
@@ -316,4 +316,22 @@ const old=clone(state);old.players.forEach(p=>delete p.coaching);const oldPositi
 if(old.players.some(p=>p.coaching.remaining!==3))throw Error('Existing-game allowance upgrade');
 const upgraded=JSON.stringify(old);upgradeCoaching(old);if(JSON.stringify(old)!==upgraded)throw Error('Allowance reset on repeated upgrade');
 console.log('Coaching starts at three; paid reveal, free review, exhaustion, reload, one seasonal top-up, cap, independent seats and Undo protection passed.');
+}`,sandbox);
+
+vm.runInContext(`{
+document.getElementById('mode').value='ai';fresh();const p=state.players[0];
+p.birds[0]=[{id:1,nests:1,eggs:0,flock:0,used:false}];
+for(const a of options(p)){
+ const report=previewAction(p,a),explanation=coachExplanation(p,a,report);
+ const visible=[gainText(report),exactPreview(p,a),explanation.why,explanation.context,...report.steps.map(s=>s.text)].join(' ');
+ if(/\\b(cards?|hand|deck|discard(?:ed)?)\\b/i.test(visible))throw Error('Mechanical bird language remains: '+visible);
+}
+if(gainText({delta:{cards:1}})!=='+1 visitor'||gainText({delta:{cards:-2}})!=='−2 visitors')throw Error('Visitor gain labels');
+const old=clone(state);old.log=['Discarded Robin: +2 flock points.'];old.lastTurns=[{title:'Scout',headline:'took a card',steps:[{text:'Hand limit: card could not fit.'}]}];
+old.players[0].coaching.remaining=2;old.players[0].coaching.tips['0:0']={position:'same',choice:{a:{type:'scout'},r:{title:'Draw 1 card'},why:'Your hand is full of cards.',context:'Keep a card for later.'}};
+const resources=JSON.stringify(old.players[0].hand);upgradeBirdLanguage(old);
+if(old.players[0].coaching.remaining!==2||old.players[0].coaching.tips['0:0'].position!=='same'||JSON.stringify(old.players[0].hand)!==resources)throw Error('Language migration changed game or coaching uses');
+const text=JSON.stringify([old.log,old.lastTurns,old.players[0].coaching.tips['0:0'].choice]);
+if(/\\b(cards?|hand|deck|discard(?:ed)?)\\b/i.test(text))throw Error('Saved tips retain card language');
+console.log('Bird-themed previews, coaching, visitor totals and saved-message migration passed.');
 }`,sandbox);

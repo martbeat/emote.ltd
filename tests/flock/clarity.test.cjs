@@ -64,7 +64,7 @@ console.log('Guided controls, pause, finish, undo and cancelled timers passed; p
 
 vm.runInContext(`
 fresh();showTurnEffects=false;act({type:'forage'});
-if(state.lastTurns.length!==2||!document.getElementById('turn-feedback').innerHTML.includes('Computer turn · The ranger')||!document.getElementById('turn-feedback').innerHTML.includes('Review computer move'))throw Error('Computer summary missing');
+if(state.lastTurns.length!==2||!document.getElementById('turn-feedback').innerHTML.includes('Ranger Rowan’s turn')||!document.getElementById('turn-feedback').innerHTML.includes('Review ranger move'))throw Error('Computer summary missing');
 fresh();state.mode='local';state.current=1;view=1;showTurnEffects=true;act({type:'forage'});
 if(replayController.frames.some(f=>f.report.actor!==1)||replayController.hasComputer)throw Error('Local player replay changed');
 cancelReplay();console.log('Computer summary and two-person play verified.');
@@ -138,7 +138,7 @@ document.getElementById('mode').value='expansion';fresh({count:4,roles:['human',
 const partyBefore=JSON.stringify(state);clarityAct({type:'forage'});
 if(state.current!==3||state.lastTurns.length!==3||state.lastTurns.map(r=>r.actor).join(',')!=='0,1,2')throw Error('Mixed handover');
 if(!document.getElementById('dialog-body').innerHTML.includes('Pass to Player 4'))throw Error('Missing pass screen');
-if(!document.getElementById('turn-feedback').innerHTML.includes('Computer turn · Computer 2'))throw Error('Computer identity unclear');
+if(!document.getElementById('turn-feedback').innerHTML.includes('Ranger Rowan’s turn'))throw Error('Computer identity unclear');
 document.getElementById('undo').onclick();if(JSON.stringify(state)!==partyBefore)throw Error('Party undo failed');
 showTurnEffects=true;clarityAct({type:'forage'});
 if(replayController.frames.some(f=>f.report.actor!==0)||!replayController.hasComputer)throw Error('Party replay mixed actors');
@@ -147,7 +147,7 @@ const savedParty=clone(state);state=JSON.parse(JSON.stringify(savedParty));reset
 if(state.players.length!==4||!isComputer(1)||isComputer(3))throw Error('Seat types lost on save');
 state.players.forEach(p=>{p.bonus=0;p.birds=[[],[],[]]});state.players[3].bonus=100;showEnd();
 if(!document.getElementById('dialog-body').innerHTML.includes('Player 4 wins'))throw Error('Fourth seat cannot win');
-state.players[2].bonus=100;showEnd();if(!document.getElementById('dialog-body').innerHTML.includes('Shared victory: Computer 3 & Player 4'))throw Error('Multi-seat tie');
+state.players[2].bonus=100;showEnd();if(!document.getElementById('dialog-body').innerHTML.includes('Shared victory: Ranger Willow & Player 4'))throw Error('Multi-seat tie');
 document.getElementById('mode').value='ai';fresh();
 console.log('All 14 expansion seat combinations finished with 24 actions per seat; computer chains, handovers, undo, replay, saves, scoring and ties passed.');
 `,sandbox);
@@ -157,7 +157,7 @@ document.getElementById('mode').value='ai';fresh();state.players[0].bonus=20;sta
 showEnd();if(gameOutcome().heading!=='You win!'||!document.getElementById('dialog-body').innerHTML.includes('finale-confetti'))throw Error('Solo win celebration');
 render();if(!document.getElementById('status').textContent.startsWith('You win!'))throw Error('Result disappeared outside dialog');
 state.players[1].bonus=20;showEnd();if(gameOutcome().heading!=='You share the win!'||!gameOutcome().celebrate)throw Error('Solo tie');
-state.players[1].bonus=30;showEnd();if(gameOutcome().heading!=='The ranger wins!'||document.getElementById('dialog-body').innerHTML.includes('finale-confetti'))throw Error('Computer win mislabelled');
+state.players[1].bonus=30;showEnd();if(gameOutcome().heading!=='Ranger Rowan wins!'||document.getElementById('dialog-body').innerHTML.includes('finale-confetti'))throw Error('Computer win mislabelled');
 document.getElementById('mode').value='expansion';fresh({count:4,roles:['human','computer','computer','computer']});state.players[0].bonus=100;if(gameOutcome().heading!=='You win!')throw Error('Solo expansion victory');
 fresh({count:4,roles:['human','human','computer','human']});state.players[3].bonus=100;if(gameOutcome().heading!=='Player 4 wins!')throw Error('Multiplayer winner');
 state.players[0].bonus=100;if(!gameOutcome().heading.startsWith('Shared victory: Player 1 & Player 4'))throw Error('Multiplayer tie');
@@ -334,4 +334,16 @@ if(old.players[0].coaching.remaining!==2||old.players[0].coaching.tips['0:0'].po
 const text=JSON.stringify([old.log,old.lastTurns,old.players[0].coaching.tips['0:0'].choice]);
 if(/\\b(cards?|hand|deck|discard(?:ed)?)\\b/i.test(text))throw Error('Saved tips retain card language');
 console.log('Bird-themed previews, coaching, visitor totals and saved-message migration passed.');
+}`,sandbox);
+
+vm.runInContext(`{
+document.getElementById('mode').value='expansion';fresh({count:4,roles:['human','computer','computer','computer']});
+if(state.players.slice(1).map(p=>p.name).join('|')!=='Ranger Rowan|Ranger Willow|Ranger Ash')throw Error('Ranger identities');
+const legacy=clone(state);legacy.players[1].name='Computer 2';legacy.players[2].name='Computer 3';legacy.players[3].name='Computer 4';
+legacy.log=['Computer 2: Forage.','Computer 3: Scout.'];legacy.players[0].coaching.remaining=1;
+const positions=JSON.stringify(legacy.players.map(p=>[p.food,p.hand,p.birds,p.bonus,p.coaching]));upgradeRangers(legacy);
+if(JSON.stringify(legacy.players.map(p=>[p.food,p.hand,p.birds,p.bonus,p.coaching]))!==positions||legacy.log.some(text=>/computer/i.test(text)))throw Error('Ranger rename changed progress or left old names');
+state=legacy;resetSelection();render();if(/computer/i.test(document.getElementById('tabs').innerHTML.replace(/<[^>]*>/g,'')))throw Error('Mechanical sanctuary label');
+const stable=JSON.stringify(legacy);upgradeRangers(legacy);if(JSON.stringify(legacy)!==stable)throw Error('Ranger migration not stable');
+console.log('Ranger identities, saved names, logs and progress preservation passed.');
 }`,sandbox);

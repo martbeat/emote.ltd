@@ -69,7 +69,7 @@ function renderFeedback(){
  const el=document.getElementById('turn-feedback');el.classList.toggle('replaying',!!replayContext);
  if(replayContext){el.classList.remove('replaying');el.innerHTML=`<p class="small"><b>Turn explanation is beside the highlighted habitat.</b> ${replayController?.autoplay?'Playing slowly. You can pause at any time.':'Take your time, then choose Next effect.'}</p>`;return}
  const reports=state.lastTurns||[];
- el.innerHTML=reports.length?`<div class="recap-header"><b>Turn results</b><span class="small">${state.done?'The year is complete.':state.mode==='expansion'?'Next person: '+state.players[state.current].name:'Your sanctuary stays on screen.'}</span></div><div class="turn-recaps">${reports.map(r=>{const computer=isComputer(r.actor);return `<article class="${computer?'computer-recap':'player-recap'}"><div class="eyebrow">${computer?'Computer turn · '+state.players[r.actor].name:state.mode==='ai'?'Your turn':state.players[r.actor].name+'’s turn'}</div><p><b>${r.title}</b></p>${computer?`<p>The computer ${r.headline}.</p>`:''}<p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>${computer?'Review computer move':'See how your move worked'}</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`}).join('')}</div>`:'<p class="small">Your action will be explained beside your birds. The computer’s move will appear afterwards as a separate summary.</p>';
+ el.innerHTML=reports.length?`<div class="recap-header"><b>Turn results</b><span class="small">${state.done?'The year is complete.':state.mode==='expansion'?'Next person: '+state.players[state.current].name:'Your sanctuary stays on screen.'}</span></div><div class="turn-recaps">${reports.map(r=>{const computer=isComputer(r.actor);return `<article class="${computer?'computer-recap':'player-recap'}"><div class="eyebrow">${computer?state.players[r.actor].name+'’s turn':state.mode==='ai'?'Your turn':state.players[r.actor].name+'’s turn'}</div><p><b>${r.title}</b></p>${computer?`<p>${state.players[r.actor].name} ${r.headline}.</p>`:''}<p><b>${gainText(r)}</b>${r.delta.points?` <span class="points-gained">+${r.delta.points} score</span>`:''}</p><details><summary>${computer?'Review ranger move':'See how your move worked'}</summary><ol>${r.steps.map(s=>`<li>${s.text}</li>`).join('')}</ol>${r.goalDelta?`<p>${SEASONS[r.season]} bonus potential: +${r.goalDelta} points, awarded at the season’s end.</p>`:''}</details></article>`}).join('')}</div>`:'<p class="small">Your action will be explained beside your birds. The ranger’s move will appear afterwards as a separate summary.</p>';
 }
 function birdLanguage(text){
  return text.replace(/bird cards/g,'visiting birds').replace(/bird card/g,'visiting bird')
@@ -86,6 +86,16 @@ function upgradeBirdLanguage(game){
  for(const p of game.players||[])for(const entry of Object.values(p.coaching?.tips||{})){
   const choice=entry.choice;choice.why=birdLanguage(choice.why);choice.context=birdLanguage(choice.context);choice.r.title=birdLanguage(choice.r.title);
  }
+}
+function rangerName(i){return ['Ranger Rowan','Ranger Rowan','Ranger Willow','Ranger Ash'][i]||'The ranger'}
+function upgradeRangers(game){
+ if(!game?.players)return;
+ const renamed=[];
+ game.players.forEach((p,i)=>{if(isComputer(i,game)&&(/^Computer \d+$/i.test(p.name)||p.name==='The ranger')){renamed.push([p.name,rangerName(i)]);p.name=rangerName(i)}});
+ const themed=text=>{for(const [old,name] of renamed)text=text.split(old).join(name);return text.replace(/\bcomputers\b/gi,'rangers').replace(/\bcomputer\b/gi,'ranger')};
+ if(game.log)game.log=game.log.map(themed);
+ for(const report of game.lastTurns||[]){for(const key of ['title','headline'])if(report[key])report[key]=themed(report[key]);for(const step of report.steps||[])step.text=themed(step.text)}
+ for(const p of game.players)for(const tip of Object.values(p.coaching?.tips||{})){tip.choice.why=themed(tip.choice.why);tip.choice.context=themed(tip.choice.context)}
 }
 const COACH_LIMIT=3;
 function newCoaching(season=0){return {remaining:COACH_LIMIT,recharged:Array.from({length:season+1},(_,i)=>i),tips:{}}}
@@ -262,7 +272,7 @@ function stepGain(previous,current,step){
 function effectCalloutHTML(){
  const c=replayController,r=replayContext;if(!c||!r)return '';
  const final=c.cursor===c.frames.length-1,player=state.players[r.report.actor].name,turnLabel=state.mode==='ai'?'Your turn':player+'’s turn';
- return `<section class="effect-callout ${r.report.actor===1?'ranger-effect':''}" aria-label="Current turn effect"><div class="effect-callout-top"><b>${turnLabel} · ${r.report.title}</b><span>Effect ${c.cursor+1} of ${c.frames.length}</span></div><div class="effect-gain">${r.step.gain}</div><p class="effect-explanation">${r.step.text}</p><div class="effect-controls"><button data-replay="back" ${c.cursor===0?'disabled':''}>Back</button><button data-replay="play" aria-pressed="${c.autoplay}">${c.autoplay?'Pause':'Play slowly'}</button><button data-replay="next" class="primary">${final?(c.hasComputer?'See computer results':'Finish turn'):'Next effect →'}</button><button id="skip-effects">Skip turn</button></div><p class="effect-pacing">${c.autoplay?'Moves on after 4 seconds. Pause to read or use Back to revisit.':'Waiting for you. Use the green button to continue, Play slowly for automatic steps or Skip turn.'}</p></section>`;
+ return `<section class="effect-callout ${r.report.actor===1?'ranger-effect':''}" aria-label="Current turn effect"><div class="effect-callout-top"><b>${turnLabel} · ${r.report.title}</b><span>Effect ${c.cursor+1} of ${c.frames.length}</span></div><div class="effect-gain">${r.step.gain}</div><p class="effect-explanation">${r.step.text}</p><div class="effect-controls"><button data-replay="back" ${c.cursor===0?'disabled':''}>Back</button><button data-replay="play" aria-pressed="${c.autoplay}">${c.autoplay?'Pause':'Play slowly'}</button><button data-replay="next" class="primary">${final?(c.hasComputer?'See ranger results':'Finish turn'):'Next effect →'}</button><button id="skip-effects">Skip turn</button></div><p class="effect-pacing">${c.autoplay?'Moves on after 4 seconds. Pause to read or use Back to revisit.':'Waiting for you. Use the green button to continue, Play slowly for automatic steps or Skip turn.'}</p></section>`;
 }
 function renderLocalEffect(){
  if(!isResolving||!replayContext||!replayController)return;

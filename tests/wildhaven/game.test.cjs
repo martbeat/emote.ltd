@@ -3,9 +3,9 @@ const html=fs.readFileSync(path.resolve(__dirname,'../../Wildhaven.html'),'utf8'
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
 function harness(storage={},hostname='preview.local'){
  const elements={},pings=[];
- const el=id=>elements[id]??={textContent:'',innerHTML:'',disabled:false,hidden:false,open:false,handlers:{},showModal(){this.open=true},close(){if(this.open){this.open=false;this.handlers.close?.()}},addEventListener(event,fn){this.handlers[event]=fn},replaceChildren(){},classList:{toggle(){}},append(){},remove(){},style:{}};
- const ctx=vm.createContext({document:{getElementById:el,querySelectorAll:()=>[],addEventListener(){},createElement:()=>el('dummy'),body:{append(){}}},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},location:{hostname},navigator:{sendBeacon:url=>pings.push(url)},URLSearchParams,crypto:{getRandomValues:require('node:crypto').webcrypto.getRandomValues.bind(require('node:crypto').webcrypto)},matchMedia:()=>({matches:true}),setTimeout(){},console});
- vm.runInContext(script,ctx);
+ const el=id=>elements[id]??={textContent:'',innerHTML:'',disabled:false,hidden:false,open:false,handlers:{},showModal(){this.open=true},close(){if(this.open){this.open=false;this.handlers.close?.()}},addEventListener(event,fn){this.handlers[event]=fn},replaceChildren(){},classList:{toggle(){}},append(){},remove(){},style:{},setAttribute(){}};
+ const ctx=vm.createContext({document:{getElementById:el,querySelectorAll:()=>[],addEventListener(){},createElement:()=>el('dummy'),body:{append(){}}},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},location:{hostname},navigator:{sendBeacon:url=>pings.push(url)},URLSearchParams,crypto:{getRandomValues:require('node:crypto').webcrypto.getRandomValues.bind(require('node:crypto').webcrypto)},matchMedia:()=>({matches:true}),setTimeout(){},clearTimeout(){},window:{addEventListener(){}},console});
+ vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../assets/js/wildhaven-nature.js'),'utf8'),ctx);vm.runInContext(script,ctx);
  return {run:s=>vm.runInContext(s,ctx),elements,storage,pings};
 }
 const h=harness(),run=h.run;
@@ -57,3 +57,30 @@ const hub=fs.readFileSync(path.resolve(__dirname,'../../games.html'),'utf8');
 const games=vm.runInNewContext(hub.match(/const GAMES = (\[[\s\S]*?\n\]);/)[1]);
 const wildhaven=games.filter(g=>g.href==='Wildhaven.html');assert.equal(wildhaven.length,1);assert.equal(wildhaven[0].title,'Wildhaven');
 console.log('Games Hub has one working relative Wildhaven entry.');
+// Field signs follow settled residents, change no scores and survive/reverse with the watch.
+run("start('balanced');state.market=['fox','otter','badger','hare'];welcome('fox');$('survey').onclick()");
+assert.equal(run("state.signs.join(',')"),'fox');const signedScore=run('state.points');assert(run("$('recentSign').innerHTML.includes('four-toed')"));
+run("$('undo').onclick()");assert.equal(run('state.signs.length'),0);assert.equal(run('state.lastSign'),null);assert.equal(run('state.points'),signedScore-3);
+run("$('survey').onclick();$('survey').onclick()");assert.equal(run('state.signs.length'),1,'Repeat watches do not duplicate signs');
+run("showWildSigns();showGuide('fox')");assert(h.elements.signsList.innerHTML.includes('Recorded in your haven'));assert(h.elements.guideList.innerHTML.includes('data-listen="fox"'));assert(h.elements.guideList.innerHTML.includes('Identification source'));
+run("state.signs=['unknown']");assert.equal(run('validState(state)'),false);
+run("start('balanced');delete state.signs;delete state.lastSign");assert(run('validState(state)'),'Older saved games remain compatible');
+assert.equal(run("(trackArt('fox').match(/data-toe/g)||[]).length"),4);assert.equal(run("(trackArt('badger').match(/data-toe/g)||[]).length"),5);assert.equal(run("(trackArt('otter').match(/data-toe/g)||[]).length"),5);
+for(const f of ['fox-barks.mp3','hedgehog-sleeping.mp3','soprano-pipistrelle-detector.mp3'])assert(fs.statSync(path.resolve(__dirname,'../../assets/audio/wildhaven',f)).size>1000);
+console.log('Field-sign discovery, undo, legacy saves, track schematics, guide controls and three bundled recordings passed.');
+
+// Audio races: one recording, stop/mute/background control, failed-play recovery.
+(async()=>{
+ const ctxEvents=[],players=[],timers=new Map();let timerId=0;
+ const controls={};const el=id=>controls[id]??={textContent:'',dataset:{},setAttribute(k,v){this[k]=v},classList:{toggle(){}},addEventListener(){}};
+ const audioContext=vm.createContext({document:{getElementById:el,querySelectorAll:()=>[],addEventListener:(name,fn)=>ctxEvents.push([name,fn]),hidden:false},window:{addEventListener:(name,fn)=>ctxEvents.push([name,fn])},localStorage:{getItem:()=>null,setItem:(k,v)=>controls.saved=v},setTimeout:fn=>{timers.set(++timerId,fn);return timerId},clearTimeout:id=>timers.delete(id),Audio:class{constructor(url){this.url=url;this.pauses=0;players.push(this)}play(){return new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject})}pause(){this.pauses++}}});
+ vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../assets/js/wildhaven-nature.js'),'utf8'),audioContext);
+ const ar=code=>vm.runInContext(code,audioContext);
+ ar("playWildSound('fox')");ar("playWildSound('bat')");assert.equal(players[0].pauses,1);players[0].resolve();await new Promise(setImmediate);assert.equal(ar('wildPlaying'),'bat','Stale play promise must not replace current recording');
+ players[1].resolve();await new Promise(setImmediate);assert.equal(timers.size,1);assert(controls.soundStatus.textContent.includes('heterodyne'));
+ ar('toggleWildSound()');assert.equal(ar('wildPlaying'),null);assert.equal(timers.size,0);assert.equal(controls.saved,'off');const before=players.length;ar("playWildSound('fox')");assert.equal(players.length,before,'Muted playback creates no player');
+ ar("toggleWildSound();playWildSound('hedgehog')");players.at(-1).reject(new Error('blocked'));await new Promise(setImmediate);await new Promise(setImmediate);assert.equal(ar('wildPlaying'),null);assert(controls.soundStatus.textContent.includes('did not start'));
+ ar("playWildSound('fox')");players.at(-1).resolve();await new Promise(setImmediate);ar("playWildSound('fox')");assert.equal(ar('wildPlaying'),null,'Clicking a playing recording stops it');assert.equal(timers.size,0);
+ ar("let state={signs:[]};initialiseWildNature();playWildSound('bat')");players.at(-1).resolve();await new Promise(setImmediate);ar('document.hidden=true');ctxEvents.find(([name])=>name==='visibilitychange')[1]();assert.equal(ar('wildPlaying'),null);assert.equal(timers.size,0);
+ console.log('Audio switching, stale promises, remembered mute, stopped timers and playback failure recovery passed.');
+})().catch(e=>{console.error(e);process.exitCode=1});

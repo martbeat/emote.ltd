@@ -13,7 +13,49 @@ function wildlifeArt(a){
  let shapes='';
  const group=(body)=>'<g>'+body+'</g>';
  // Each family has individual proportions, markings and poses.
- if(['mouse','harvest','dormouse','yellowmouse','bankvole','fieldvole','watervole','rat','shrew','watershrew'].includes(a.id)){
+ if(a.group==='reptile'){
+  shapes=e(112,133,87,10,'#d5c7a8');
+  if(a.kind==='lizard'){
+   const sand=a.id==='sandlizard';
+   shapes+=p('M102 102Q56 131 20 115Q45 144 103 121L120 105Z',fur);
+   shapes+=p('M100 95l-18-17-17 11m17-11-2-9m1 10-10-2m57 28 19 20 16-2m-16 2 4 8m-3-8 12 6',a.colour,a.colour,6);
+   shapes+=e(126,102,sand?42:36,sand?22:16,fur,dark)+p('M153 91q17-16 32-4l18 17-16 11-31-4Z',fur);
+   shapes+=p('M119 108l-18 15-21-2m21 2-5 8m5-7-15 4m63-19 13-15 20 2m-20-2 9-7m-10 7 20-2',a.colour,a.colour,5);
+   shapes+=p('M96 95Q127 78 160 94L154 104Q119 97 96 108Z',sand?'#8f784c':'#bfa06a','none');
+   shapes+=l('M102 94q26-8 52 0m-52 14q28-8 51-3','#e5d3a4',1.5);
+   for(let i=0;i<7;i++){shapes+=e(103+i*7,101,2.1,2.6,'#5b603a');if(sand)shapes+=c(103+i*7,112,2.8,'#dbdeab')+c(103+i*7,112,1.2,'#5c703e');}
+   shapes+=eye(184,96,2.7)+c(200,104,1,'#52573b')+l('M187 108l12-1','#6c6749',.8);
+  }else if(a.id==='slowworm'){
+   const body='M26 124C72 149 94 104 67 87C33 64 78 38 113 68C140 92 123 123 160 117C187 112 165 76 193 74';
+   shapes+=l(body,'#675947',13)+l(body,a.colour,10)+l('M28 122C73 144 91 105 66 85C36 64 78 42 111 70C136 93 125 120 158 114C182 109 167 77 191 72','#e3c6a0',2);
+   shapes+=e(197,73,14,7,fur,dark)+eye(203,71,1.7)+l('M200 68l5 1m-1 8 6-1','#706047',.8);
+  }else{
+   const adder=a.id==='adder',grass=a.id==='grasssnake';
+   const body=adder?'M27 127C67 145 96 113 71 94C45 74 54 49 87 52C125 53 109 108 150 111C190 112 183 70 202 66':grass?'M24 128C59 147 101 125 83 102C59 73 88 53 113 73C132 87 116 126 155 124C193 122 172 77 200 69':'M24 126C69 144 96 117 76 97C55 75 78 54 104 72C132 91 112 120 151 115C181 111 174 80 199 75';
+   shapes+=l(body,dark,adder?16:13)+l(body,a.colour,adder?13:10);
+   const plainSnake=shapes;shapes='';
+   if(adder){
+    const curves=[[[27,127],[67,145],[96,113],[71,94]],[[71,94],[45,74],[54,49],[87,52]],[[87,52],[125,53],[109,108],[150,111]],[[150,111],[190,112],[183,70],[202,66]]];
+    let zig='',step=0;
+    for(const [a,b,c,d] of curves)for(let j=0;j<=12;j++){
+     const t=j/12,u=1-t,x=u*u*u*a[0]+3*u*u*t*b[0]+3*u*t*t*c[0]+t*t*t*d[0],y=u*u*u*a[1]+3*u*u*t*b[1]+3*u*t*t*c[1]+t*t*t*d[1];
+     const dx=3*u*u*(b[0]-a[0])+6*u*t*(c[0]-b[0])+3*t*t*(d[0]-c[0]),dy=3*u*u*(b[1]-a[1])+6*u*t*(c[1]-b[1])+3*t*t*(d[1]-c[1]),length=Math.hypot(dx,dy)||1,offset=step++%2?2.5:-2.5;
+     zig+=(zig?'L':'M')+(x-dy/length*offset).toFixed(2)+' '+(y+dx/length*offset).toFixed(2)+' ';
+    }
+    shapes+=l(zig,'#4d4d40',2.4);
+   }
+   else if(grass){
+    for(const [x,y] of [[43,132],[60,129],[78,120],[82,107],[82,89],[97,74],[116,86],[126,103],[136,118],[157,123],[172,114],[178,96],[186,78]])shapes+=l('M'+x+' '+y+'l-2-6','#46513c',2.7);
+    shapes+=l('M192 72l6 10','#353f31',8)+l('M194 70l6 10','#dfd28b',5);
+   }else{
+    for(const [x,y] of [[45,130],[65,124],[78,111],[76,94],[82,77],[102,77],[116,94],[124,109],[145,115],[162,107],[175,93]])shapes+=c(x,y,2.2,'#615449');
+   }
+   shapes=plainSnake+'<defs><mask id="'+key+'-scales" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="160"><path d="'+body+'" fill="none" stroke="white" stroke-width="'+(adder?13:10)+'" stroke-linecap="round"/></mask></defs><g mask="url(#'+key+'-scales)">'+shapes+'</g>';
+   shapes+=p(adder?'M196 60q17-7 24 6l-2 9-15 2-12-8Z':grass?'M197 63q14-3 21 6l-2 8-16 3-8-8Z':'M194 69q15-3 23 4l-1 8-17 2-10-7Z',fur);
+   if(!adder&&!grass)shapes+=l('M196 74l18 4','#594c42',3)+p('M196 70l8-1 5 4-8 3Z','#655346','none');
+   shapes+=eye(210,adder?66:grass?69:74,2.1)+c(218,adder?70:grass?74:78,1,'#4b4b3c');
+  }
+ }else if(['mouse','harvest','dormouse','yellowmouse','bankvole','fieldvole','watervole','rat','shrew','watershrew'].includes(a.id)){
   if(a.id==='dormouse'){
    shapes=p('M42 130Q94 122 192 130l17 7H35Z','#8c7755','#756346')+l('M54 128l28 5m55-4 32 5','#bca77c',1.2);
    shapes=p('M141 114Q68 139 62 87Q53 45 107 47Q153 45 167 89L145 112Q113 67 86 81Q75 99 103 109Z',fur)+e(127,94,38,27,fur,dark)+e(154,98,25,22,light,dark)+c(142,78,12,fur)+c(143,78,7,'#c78f7c')+e(173,105,6,5,cream)+c(180,105,2,'#413c31')+l('M155 97q5 5 10-1',dark,1.5)+l('M161 105l17-4m-17 8 15 5','#aa9d7e',.8)+l('M108 63q15 4 25 16m-52 9q3 12 13 16','#e1b967',1);
@@ -84,6 +126,12 @@ function wildlifeArt(a){
  return '<svg class="wildlife-illustration" viewBox="0 0 240 160" role="img" aria-label="Illustration of '+a.name+'"><defs><linearGradient id="'+key+'-fur" x1="0" y1="0" x2=".35" y2="1"><stop stop-color="'+a.colour+'"/><stop offset="1" stop-color="'+a.colour+'" stop-opacity=".83"/></linearGradient><linearGradient id="'+key+'-light" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+cream+'"/><stop offset="1" stop-color="'+a.colour+'"/></linearGradient></defs><ellipse cx="123" cy="91" rx="102" ry="60" fill="'+habitat+'"/><ellipse cx="119" cy="137" rx="91" ry="6" fill="#4d53371c"/>'+plants+'<g stroke-linecap="round" stroke-linejoin="round">'+shapes+'</g></svg>';
 }
 const WILD_FIELD_NOTES={
+ commonlizard:'A small brown lizard with spots or stripes, four legs and a long tapering tail. It uses sunny patches close to cover.',
+ sandlizard:'A stockier lizard with patterned brown upperparts; shown as a male with green breeding-season flanks. It needs sandy heath or dune habitat.',
+ slowworm:'A shiny legless lizard with eyelids, not a snake. It often shelters under cover rather than basking in the open.',
+ grasssnake:'A grey-green snake with a pale yellow-and-black neck collar and dark side markings. It is strongly associated with water.',
+ adder:'A broad-bodied snake with a dark zigzag along its back. Colour varies; this illustration shows a grey-brown animal.',
+ smoothsnake:'A slender, secretive heathland snake with paired dark markings and an eye stripe. It is not the same as a young adder.',
  mouse:'Large ears, bright eyes and a long, fine tail.',
  squirrel:'Russet fur, a full bushy tail and pointed ear tufts.',
  dormouse:'Golden fur, a furry tail and a curled resting pose.',
@@ -111,4 +159,8 @@ const WILD_FIELD_NOTES={
  rat:'A pointed muzzle and a long, mostly bare tail; a familiar adaptable riverside mammal.',
  daubenton:'A pale underside and large feet, used when taking insects from the water surface.',
  commonpip:'A tiny brown bat. It looks very similar to the soprano pipistrelle; their detector calls are more useful than these stylised drawings.'
+};
+
+const WILD_REPTILE_SOURCES={
+ commonlizard:'https://www.arc-trust.org/common-lizard',sandlizard:'https://www.arc-trust.org/sand-lizard',slowworm:'https://www.arc-trust.org/slow-worm',grasssnake:'https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/animals/reptiles-and-amphibians/grass-snake/',adder:'https://www.arc-trust.org/adder',smoothsnake:'https://www.arc-trust.org/smooth-snake'
 };

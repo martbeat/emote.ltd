@@ -19,7 +19,7 @@ Original SVG diagrams are simplified teaching schematics, not tracings of source
 Factual references:
 
 - [The Wildlife Trusts: Identify tracks](https://www.wildlifetrusts.org/how-identify/identify-tracks): badger, otter, hedgehog and water vole patterns.
-- [Woodland Trust: Animal tracks](https://www.woodlandtrust.org.uk/blog/animal-tracks-snow-print-identification/): fox and bounding rabbit/hare comparisons.
+- [Woodland Trust: Animal tracks](https://www.woodlandtrust.org.uk/blog/animal-tracks-snow-print-identification/): fox, deer and bounding rabbit/hare comparisons.
 - [Bat Conservation Trust: Soprano pipistrelle](https://www.bats.org.uk/about-bats/what-are-bats/uk-bats/soprano-pipistrelle): heterodyne detector interpretation around 55 kHz.
 
 Watching settled wildlife records one new supported sign at a time. Notebook entries have no score effect and are reversed with the watch when using Undo. Existing saves can continue without a reset.

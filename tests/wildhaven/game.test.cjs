@@ -5,7 +5,7 @@ function harness(storage={},hostname='preview.local'){
  const elements={},pings=[];
  const el=id=>elements[id]??={textContent:'',innerHTML:'',disabled:false,hidden:false,open:false,handlers:{},showModal(){this.open=true},close(){if(this.open){this.open=false;this.handlers.close?.()}},addEventListener(event,fn){this.handlers[event]=fn},replaceChildren(){},classList:{toggle(){}},append(){},remove(){},style:{},setAttribute(){}};
  const ctx=vm.createContext({document:{getElementById:el,querySelectorAll:()=>[],addEventListener(){},createElement:()=>el('dummy'),body:{append(){}}},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},location:{hostname},navigator:{sendBeacon:url=>pings.push(url)},URLSearchParams,crypto:{getRandomValues:require('node:crypto').webcrypto.getRandomValues.bind(require('node:crypto').webcrypto)},matchMedia:()=>({matches:true}),setTimeout(){},clearTimeout(){},window:{addEventListener(){}},console});
- vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../assets/js/wildhaven-nature.js'),'utf8'),ctx);vm.runInContext(script,ctx);
+ vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../assets/js/wildhaven-art.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../assets/js/wildhaven-nature.js'),'utf8'),ctx);vm.runInContext(script,ctx);
  return {run:s=>vm.runInContext(s,ctx),elements,storage,pings};
 }
 const h=harness(),run=h.run;
@@ -84,3 +84,19 @@ console.log('Field-sign discovery, undo, legacy saves, track schematics, guide c
  ar("let state={signs:[]};initialiseWildNature();playWildSound('bat')");players.at(-1).resolve();await new Promise(setImmediate);ar('document.hidden=true');ctxEvents.find(([name])=>name==='visibilitychange')[1]();assert.equal(ar('wildPlaying'),null);assert.equal(timers.size,0);
  console.log('Audio switching, stale promises, remembered mute, stopped timers and playback failure recovery passed.');
 })().catch(e=>{console.error(e);process.exitCode=1});
+// Catalogue expansion preserves every existing identity and has distinct, self-contained artwork.
+run("start('balanced')");assert.equal(run('SPECIES.length'),27);assert.equal(run('SPECIES.filter(a=>a.added).length'),12);
+assert.equal(run('new Set(SPECIES.map(a=>a.id)).size'),27);assert(run('SPECIES.every(a=>WILD_FIELD_NOTES[a.id]&&a.cost>0&&a.points>0&&a.weight>0)'));
+assert.equal(run('Object.keys(WILD_SIGNS).length'),8);
+const illustrations=JSON.parse(run('JSON.stringify(SPECIES.map(a=>art(a)))'));
+assert.equal(new Set(illustrations.map(svg=>svg.replace(/wh-art-\d+/g,'id'))).size,27,'Every species needs a distinct illustration');
+const ids=illustrations.flatMap(svg=>[...svg.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));assert.equal(new Set(ids).size,ids.length,'SVG definitions must not collide');
+run("showGuide();$('guideFilter').value='new';$('guideFilter').onchange()");assert.equal((h.elements.guideList.innerHTML.match(/class="guide-entry"/g)||[]).length,12);
+for(const home of [0,1,2]){run(`$('guideFilter').value='${home}';$('guideFilter').onchange()`);assert.equal((h.elements.guideList.innerHTML.match(/class="guide-entry"/g)||[]).length,run(`SPECIES.filter(a=>a.home===${home}).length`));}
+// Old IDs, resources and scores are untouched when loading a pre-expansion save.
+run("start('balanced');state.homes[0].animals=['mouse','badger'];state.homes[1].animals=['fox'];state.market=['bat','otter','hare','shrew'];state.points=12;save()");
+const old=harness(h.storage);assert.equal(old.run('state.points'),12);assert.equal(old.run("residents().join(',')"),'mouse,badger,fox');assert.equal(old.run("state.market.join(',')"),'bat,otter,hare,shrew');
+// Artwork must not consume the deck RNG, and a fully populated haven cannot explore uselessly.
+const seed=run('state.seed');run('SPECIES.forEach(art)');assert.equal(run('state.seed'),seed);
+run('state.homes.forEach((h,i)=>{h.cap=4;h.animals=SPECIES.filter(a=>a.home===i).slice(0,4).map(a=>a.id)});state.market=[];fillMarket()');assert.equal(run('canExplore()'),false);
+console.log('27 unique illustrations, 12 additions, guide filters, stable saved identities, eight track entries and full-haven exploration guard passed.');

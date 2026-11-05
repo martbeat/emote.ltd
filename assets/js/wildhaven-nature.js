@@ -6,6 +6,8 @@ const WILD_SOUNDS={
 };
 const TRACK_SOURCES={trust:'https://www.wildlifetrusts.org/how-identify/identify-tracks',woodland:'https://www.woodlandtrust.org.uk/blog/animal-tracks-snow-print-identification/'};
 const WILD_SIGNS={
+ roedeer:{title:'Two pointed hoof impressions',clue:'A cloven hoof leaves two long, pointed marks side by side. Other deer leave similar tracks, so shape alone does not identify the species.',source:TRACK_SOURCES.woodland},
+ rabbit:{title:'Small front feet, long hind feet',clue:'Bounding trails show two long hind-foot marks and two smaller front-foot marks. Hare trails can look similar; size and spacing help.',source:TRACK_SOURCES.woodland},
  fox:{title:'A narrow four-toed print',clue:'Four toes sit above a compact pad, with the toes close together. Fox prints tend to look narrower than dog prints, but a single print can be misleading.',source:TRACK_SOURCES.woodland},
  badger:{title:'Five toes and long claws',clue:'A broad pad sits behind five toes. Long front-claw impressions are a useful clue, especially in soft mud.',source:TRACK_SOURCES.trust},
  otter:{title:'A splayed print by the water',clue:'Look for five toes and a broad pad near the bank. Webbing may show in soft mud, though sometimes only four toes leave a mark.',source:TRACK_SOURCES.trust},
@@ -39,7 +41,8 @@ function wildSoundButton(id){return WILD_SOUNDS[id]?'<button class="listen-butto
 function trackArt(id){
  if(!WILD_SIGNS[id])return '';
  let parts='';const toe=(x,y,rx=7,ry=10)=>'<ellipse data-toe="true" cx="'+x+'" cy="'+y+'" rx="'+rx+'" ry="'+ry+'"/>';
- if(id==='hare'){parts='<ellipse cx="37" cy="30" rx="9" ry="23"/><ellipse cx="73" cy="26" rx="9" ry="23"/><ellipse cx="49" cy="79" rx="6" ry="10"/><ellipse cx="65" cy="96" rx="6" ry="10"/>';}
+ if(id==='roedeer'){parts='<path d="M52 11Q20 38 29 81Q36 98 51 89L52 11ZM62 11Q93 38 84 81Q77 98 63 89L62 11Z"/>';}
+ else if(id==='hare'||id==='rabbit'){parts='<ellipse cx="37" cy="30" rx="9" ry="23"/><ellipse cx="73" cy="26" rx="9" ry="23"/><ellipse cx="49" cy="79" rx="6" ry="10"/><ellipse cx="65" cy="96" rx="6" ry="10"/>';}
  else if(id==='fox'){parts='<path d="M38 80Q26 65 39 58Q53 67 68 58Q83 65 72 80Q55 88 38 80Z"/>'+toe(34,43)+toe(48,28)+toe(66,28)+toe(80,43)+'<path d="M31 26l3-6 3 7M45 11l3-6 3 6M63 11l3-6 3 6M77 26l3-6 3 7"/>';}
  else if(id==='badger'){parts='<path d="M27 81Q17 62 34 60H80Q95 64 85 82Q57 97 27 81Z"/>'+[25,41,57,73,89].map((x,i)=>toe(x,43-Math.sin(i/4*Math.PI)*5,6,9)+'<path d="M'+(x-2)+' '+(25-Math.sin(i/4*Math.PI)*5)+'l2-15 2 15Z"/>').join('');}
  else if(id==='otter'){parts='<path d="M24 48L38 29L57 23L77 29L94 48L79 73L36 73Z" opacity=".25"/><ellipse cx="57" cy="77" rx="24" ry="18"/>'+toe(21,48)+toe(37,29)+toe(57,23)+toe(77,29)+toe(94,48);}

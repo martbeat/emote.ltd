@@ -5,6 +5,9 @@ const context={document:{getElementById:el,querySelectorAll(){return[]},addEvent
 vm.createContext(context);vm.runInContext(fs.readFileSync('Underleaf.html','utf8').match(/<script id="engine">([\s\S]*?)<\/script>/)[1],context);
 function run(s){return vm.runInContext(s,context)}
 run(`
+for(const id of ['9','10','24'])if((art(species(id)).match(/class="spider-eye"/g)||[]).length!==8)throw Error('spider eye count');
+if(spiderEyes(species('23'))!=='')throw Error('harvestman must not receive spider eyes');
+if(spiderEyes(species('10'))===spiderEyes(species('9')))throw Error('distinct jumping-spider eye arrangement');
 if(SPECIES.length!==32)throw Error('species count');
 for(const a of SPECIES)if(!art(a).includes('<svg'))throw Error('missing art');
 start('balanced');state.market=['13','2','9','25'];welcome('13');welcome('2');

@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements=new Map(),storage=new Map();
-function el(id){if(!elements.has(id))elements.set(id,{id,innerHTML:'',textContent:'',disabled:false,value:'all',dataset:{},style:{},classList:{toggle(){}},showModal(){this.open=true},close(){this.open=false},addEventListener(){},replaceChildren(){},append(){},setAttribute(){},remove(){}});return elements.get(id)}
-const context={document:{getElementById:el,querySelectorAll(){return[]},addEventListener(){},createElement(){return el(Symbol())},body:el('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},crypto:require('node:crypto').webcrypto,matchMedia:()=>({matches:true}),location:{hostname:'localhost'},navigator:{},URLSearchParams,console,Date,Math,setTimeout};
+function el(id){if(!elements.has(id))elements.set(id,{id,innerHTML:'',textContent:'',disabled:false,value:'all',dataset:{},style:{},classList:{toggle(){},add(){}},showModal(){this.open=true},close(){this.open=false},addEventListener(){},replaceChildren(){},append(){},setAttribute(){},remove(){}});return elements.get(id)}
+const context={document:{getElementById:el,querySelectorAll(){return[]},addEventListener(){},createElement(){return el(Symbol())},body:el('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},crypto:require('node:crypto').webcrypto,matchMedia:()=>({matches:true}),location:{hostname:'localhost'},navigator:{},URLSearchParams,console,Date,Math,setTimeout:()=>0,clearTimeout(){}};
 vm.createContext(context);vm.runInContext(fs.readFileSync('Underleaf.html','utf8').match(/<script id="engine">([\s\S]*?)<\/script>/)[1],context);
 function run(s){return vm.runInContext(s,context)}
 run(`

@@ -15,6 +15,15 @@ let nudges=state.nudges;coach();$('tend').onclick();$('undo').onclick();if(state
 state.homes[0]={cap:2,ids:['2','9']};state.market=['0','1','3','4'];state.care=20;let t=state.turn;welcome('0');if(state.turn!==t)throw Error('full habitat welcome');
 coach();if(state.tip.startsWith('Welcome'))throw Error('blocked coaching');
 `);
+run(`{
+start('balanced');state.market=['11','12','13','25'];welcome('11');state.care=6;welcome('12');
+for(let i=0;i<4;i++)$('tend').onclick();
+if(state.notice.music!==2||state.notice.bonus!==2||state.points!==12)throw Error('musician season bonus');
+$('undo').onclick();if(state.turn!==5||state.points!==8)throw Error('musician boundary undo');
+$('tend').onclick();if(state.points!==12)throw Error('musician boundary replay');
+if(sketchFor(species('11'))===sketchFor(species('12')))throw Error('distinct musician sounds');
+if(!art(species('12')).includes('ortho-ant')||!art(species('11')).includes('ortho-hind'))throw Error('orthopteran art');
+}`);
 let scores=[];
 for(let n=1;n<=100;n++){
 run(`start('balanced');state.seed=${n};state.market=[];fill();`);
